@@ -1,0 +1,19 @@
+{{- /* Postgres and Redis accept traffic only from benchme's own pods. */}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-datastores
+  labels:
+    {{- include "benchme.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [postgres, redis]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: benchme

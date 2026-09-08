@@ -1,0 +1,109 @@
+{{- $root := . }}
+{{- $internal := .Values.internalBaseUrl | default (printf "http://%s-gateway.%s.svc.cluster.local" .Release.Name .Release.Namespace) }}
+{{- range $app, $cfg := .Values.apps }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $root.Release.Name }}-{{ $app }}
+  labels:
+    {{- include "benchme.labels" $root | nindent 4 }}
+    app.kubernetes.io/name: {{ $app }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ $app }}
+    app.kubernetes.io/instance: {{ $root.Release.Name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $root.Release.Name }}-{{ $app }}
+  labels:
+    {{- include "benchme.labels" $root | nindent 4 }}
+    app.kubernetes.io/name: {{ $app }}
+spec:
+  replicas: {{ $cfg.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $app }}
+      app.kubernetes.io/instance: {{ $root.Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $app }}
+        app.kubernetes.io/instance: {{ $root.Release.Name }}
+        app.kubernetes.io/part-of: benchme
+      annotations:
+        # Roll the pods when the generated/explicit secrets change.
+        checksum/values: {{ toYaml $root.Values.secrets | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: {{ $app }}
+          image: {{ include "benchme.image" (dict "root" $root "app" $app) }}
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: PORT
+              value: "3000"
+            {{- include "benchme.commonEnv" $root | nindent 12 }}
+            {{- if eq $app "gateway" }}
+            - name: REDIS_URL
+              value: redis://{{ $root.Release.Name }}-redis:6379
+            - name: OPERATOR_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "benchme.secretName" $root }}
+                  key: operatorKey
+            - name: RECEIPT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "benchme.secretName" $root }}
+                  key: receiptSecret
+            - name: PUBLIC_BASE_URL
+              value: {{ $root.Values.publicBaseUrl | quote }}
+            - name: INTERNAL_BASE_URL
+              value: {{ $internal | quote }}
+            - name: APP_TARGETS
+              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\"}" $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
+            - name: SEEDED_APPS
+              value: "warehouse,mail"
+            - name: WORKSPACE_TTL_SECONDS
+              value: {{ $root.Values.workspaces.ttlSeconds | quote }}
+            - name: WORKSPACE_MAX_TTL_SECONDS
+              value: {{ $root.Values.workspaces.maxTtlSeconds | quote }}
+            - name: RATE_CREATE_PER_HOUR
+              value: {{ $root.Values.workspaces.rateCreatePerHour | quote }}
+            {{- end }}
+            {{- if eq $app "warehouse" }}
+            - name: MAIL_URL
+              value: http://{{ $root.Release.Name }}-mail
+            {{- end }}
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            {{- toYaml $cfg.resources | nindent 12 }}
+          securityContext:
+            {{- include "benchme.securityContext" $root | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

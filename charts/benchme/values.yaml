@@ -1,0 +1,77 @@
+# benchme chart values. Install into its OWN namespace:
+#   helm install benchme oci://ghcr.io/orabenchmarks/charts/benchme -n benchme --create-namespace
+image:
+  registry: ghcr.io/orabenchmarks
+  # Defaults to the chart's appVersion; set to a sha-… tag for a pre-release build.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+ingress:
+  enabled: true
+  className: traefik
+  # The ONE public host (path-routed apps underneath).
+  host: benchme.localhost
+  annotations: {}
+  tls:
+    enabled: false
+    secretName: ""
+
+# How the outside reaches the gateway (drives the URLs a workspace returns).
+publicBaseUrl: http://benchme.localhost
+# How pods inside the cluster reach it (harness pods; defaults to the gateway Service).
+internalBaseUrl: ""
+
+workspaces:
+  ttlSeconds: 86400
+  maxTtlSeconds: 604800
+  rateCreatePerHour: 10
+  reaper:
+    schedule: "*/15 * * * *"
+
+# Secrets are generated on first install and kept across upgrades (lookup),
+# or supplied explicitly here / via existingSecret.
+secrets:
+  existingSecret: ""
+  gatewaySecret: ""
+  operatorKey: ""
+  receiptSecret: ""
+  mailInternalSecret: ""
+  postgresPassword: ""
+
+postgres:
+  image: postgres:16
+  storage: 5Gi
+  storageClassName: ""
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 1Gi }
+
+redis:
+  image: redis:7-alpine
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+apps:
+  gateway:
+    replicas: 1
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { cpu: 500m, memory: 512Mi }
+  warehouse:
+    replicas: 1
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { cpu: 500m, memory: 512Mi }
+  mail:
+    replicas: 1
+    resources:
+      requests: { cpu: 25m, memory: 96Mi }
+      limits: { cpu: 300m, memory: 256Mi }
+  data:
+    replicas: 1
+    resources:
+      requests: { cpu: 25m, memory: 64Mi }
+      limits: { cpu: 300m, memory: 256Mi }
+
+logLevel: info

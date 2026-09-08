@@ -1,0 +1,76 @@
+{{- /* Migrations: every app's schema, in dependency order, before the apps roll. */}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-migrate-{{ .Release.Revision }}
+  labels:
+    {{- include "benchme.labels" . | nindent 4 }}
+    app.kubernetes.io/name: migrate
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: migrate
+        app.kubernetes.io/part-of: benchme
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+      initContainers:
+        - name: wait-for-postgres
+          image: {{ .Values.postgres.image }}
+          command: ["sh", "-c", "until pg_isready -h {{ .Release.Name }}-postgres -U benchme; do sleep 2; done"]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+      containers:
+        {{- range $i, $app := list "gateway" "warehouse" "mail" }}
+        - name: migrate-{{ $app }}
+          image: {{ include "benchme.image" (dict "root" $ "app" $app) }}
+          command: ["sh", "-c", {{ printf "sleep %d && exec node apps/%s/dist/migrate.js" (mul $i 3) $app | quote }}]
+          env:
+            {{- include "benchme.commonEnv" $ | nindent 12 }}
+          securityContext:
+            {{- include "benchme.securityContext" $ | nindent 12 }}
+        {{- end }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-reaper
+  labels:
+    {{- include "benchme.labels" . | nindent 4 }}
+    app.kubernetes.io/name: reaper
+spec:
+  schedule: {{ .Values.workspaces.reaper.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 300
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: reaper
+            app.kubernetes.io/part-of: benchme
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+          containers:
+            - name: reaper
+              image: {{ include "benchme.image" (dict "root" . "app" "gateway") }}
+              command: ["node", "apps/gateway/dist/reap.js"]
+              env:
+                {{- include "benchme.commonEnv" . | nindent 16 }}
+              securityContext:
+                {{- include "benchme.securityContext" . | nindent 16 }}
