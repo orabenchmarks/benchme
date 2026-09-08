@@ -27,7 +27,8 @@ export async function testPool(): Promise<Pool | null> {
   if (!url) return null;
   const pool = createPool(url, 4);
   const dir = await mkdtemp(join(tmpdir(), "benchme-core-"));
-  await writeFile(join(dir, "001_core.sql"), CORE_SQL);
-  await migrate(pool, "core", dir);
+  await writeFile(join(dir, "000_core_testing.sql"), CORE_SQL);
+  // Recorded under its own app name so a real app's "core" migrations still apply on a shared test DB.
+  await migrate(pool, "core-testing", dir);
   return pool;
 }
