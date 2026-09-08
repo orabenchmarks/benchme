@@ -41,6 +41,7 @@ spec:
         # Roll the pods when the generated/explicit secrets change.
         checksum/values: {{ toYaml $root.Values.secrets | sha256sum }}
     spec:
+      {{- include "benchme.pullSecrets" $root | nindent 6 }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001

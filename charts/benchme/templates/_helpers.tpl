@@ -54,3 +54,12 @@ seccompProfile:
       name: {{ include "benchme.secretName" . }}
       key: mailInternalSecret
 {{- end -}}
+
+{{- define "benchme.pullSecrets" -}}
+{{- with .Values.image.pullSecrets }}
+imagePullSecrets:
+{{- range . }}
+  - name: {{ . }}
+{{- end }}
+{{- end }}
+{{- end -}}

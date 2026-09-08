@@ -5,6 +5,9 @@ image:
   # Defaults to the chart's appVersion; set to a sha-… tag for a pre-release build.
   tag: ""
   pullPolicy: IfNotPresent
+  # Names of existing docker-registry Secrets in the release namespace. Empty
+  # when the GHCR packages are public (the intended posture).
+  pullSecrets: []
 
 ingress:
   enabled: true
