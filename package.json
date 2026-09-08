@@ -1,0 +1,22 @@
+{
+  "name": "benchme",
+  "private": true,
+  "version": "0.1.0",
+  "description": "benchme — hosted demo sites, MCP servers and a verifier for agentic benchmarks",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "typecheck": "tsc -b tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "tsx": "^4.19.0"
+  }
+}
