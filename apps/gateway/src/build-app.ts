@@ -44,6 +44,18 @@ export async function buildGateway(d: BuildDeps): Promise<{ app: FastifyInstance
     readiness: async () => (await d.pool.query("SELECT 1")).rowCount === 1,
     ...(d.logLevel ? { logLevel: d.logLevel } : {}),
   });
+  // The gateway must forward ANY body byte-for-byte (form posts, MCP JSON-RPC,
+  // uploads): parse JSON for its own API, hand everything else to reply-from
+  // as a raw buffer instead of answering 415 for content types it never reads.
+  app.removeAllContentTypeParsers();
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
+    try {
+      done(null, (body as string).length ? JSON.parse(body as string) : {});
+    } catch (err) {
+      done(err as Error);
+    }
+  });
+  app.addContentTypeParser("*", { parseAs: "buffer" }, (_req, body, done) => done(null, body));
   registerWorkspaceRoutes(app, { service, limiter: d.limiter, operatorKey: d.operatorKey });
   registerPortal(app, { apps: d.apps, scenarios: d.scenarios, service, publicBaseUrl: d.publicBaseUrl });
   await registerProxy(app, { apps: d.apps, service, gatewaySecret: d.gatewaySecret });

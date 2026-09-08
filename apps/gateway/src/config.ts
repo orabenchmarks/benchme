@@ -28,6 +28,8 @@ export const configSchema = z.object({
   }),
   /** Apps that receive a seed call on workspace creation (subset of APP_TARGETS keys). */
   SEEDED_APPS: z.string().default("warehouse,mail").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
+  /** Apps exposing an MCP server (subset of APP_TARGETS keys). */
+  MCP_APPS: z.string().default("warehouse").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
   WORKSPACE_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),
   WORKSPACE_MAX_TTL_SECONDS: z.coerce.number().int().positive().default(7 * 86_400),
   RATE_CREATE_PER_HOUR: z.coerce.number().int().positive().default(10),

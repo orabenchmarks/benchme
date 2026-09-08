@@ -24,7 +24,8 @@ async function stubApp(): Promise<{ app: FastifyInstance; url: string; seeds: st
     seeds.push(req.params.id);
     return reply.code(201).send({ ok: true });
   });
-  app.all("/*", async (req) => ({ path: req.url, workspace: req.headers[WORKSPACE_HEADER], prefix: req.headers["x-forwarded-prefix"] }));
+  app.register(import("@fastify/formbody"));
+  app.all("/*", async (req) => ({ path: req.url, workspace: req.headers[WORKSPACE_HEADER], prefix: req.headers["x-forwarded-prefix"], contentType: req.headers["content-type"] ?? null, body: req.body ?? null }));
   await app.listen({ port: 0, host: "127.0.0.1" });
   const addr = app.server.address();
   const port = typeof addr === "object" && addr ? addr.port : 0;
@@ -126,9 +127,14 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     const created = (await gateway.inject({ method: "POST", url: "/api/workspaces", headers: { "x-benchme-operator-key": "operator-key-for-tests" }, payload: { scenario: "acme-v1" } })).json();
     const res = await gateway.inject(`/w/${created.id}/warehouse/api/v1/products?limit=2`);
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ path: "/api/v1/products?limit=2", workspace: created.id, prefix: `/w/${created.id}/warehouse` });
+    expect(res.json()).toMatchObject({ path: "/api/v1/products?limit=2", workspace: created.id, prefix: `/w/${created.id}/warehouse` });
     expect((await gateway.inject(`/w/${created.id}/nosuchapp/x`)).statusCode).toBe(404);
     expect((await gateway.inject(`/w/ws_000000000000/warehouse/x`)).statusCode).toBe(404);
+    const form = await gateway.inject({ method: "POST", url: `/w/${created.id}/warehouse/signup`, headers: { "content-type": "application/x-www-form-urlencoded" }, payload: "email=a%40b.test&password=pw" });
+    expect(form.statusCode).toBe(200);
+    expect(form.json().body).toEqual({ email: "a@b.test", password: "pw" });
+    const json = await gateway.inject({ method: "POST", url: `/w/${created.id}/warehouse/mcp`, payload: { jsonrpc: "2.0", id: 1, method: "ping" } });
+    expect(json.json().body).toEqual({ jsonrpc: "2.0", id: 1, method: "ping" });
     const redirect = await gateway.inject(`/w/${created.id}/warehouse`);
     expect(redirect.statusCode).toBe(302);
     expect(redirect.headers.location).toBe(`/w/${created.id}/warehouse/`);

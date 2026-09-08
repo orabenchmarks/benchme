@@ -9,7 +9,7 @@ import { HttpWorkspaceSeeder } from "./seeder.js";
 const cfg = readConfig();
 const pool = createPool(cfg.DATABASE_URL);
 const redis = createRedis(cfg.REDIS_URL);
-const apps = new AppRegistry(cfg.APP_TARGETS, cfg.SEEDED_APPS);
+const apps = new AppRegistry(cfg.APP_TARGETS, cfg.SEEDED_APPS, cfg.MCP_APPS);
 
 const { app } = await buildGateway({
   pool,

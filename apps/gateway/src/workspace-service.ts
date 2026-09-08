@@ -54,7 +54,7 @@ export class WorkspaceService {
     const mcp: Record<string, string> = {};
     for (const app of this.d.apps.list()) {
       apps[app.name] = `${root}/w/${id}/${app.name}`;
-      if (app.seeded) mcp[app.name] = `${root}/w/${id}/${app.name}/mcp`;
+      if (app.mcp) mcp[app.name] = `${root}/w/${id}/${app.name}/mcp`;
     }
     return { portal: `${root}/w/${id}`, apps, mcp };
   }
