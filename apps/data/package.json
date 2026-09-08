@@ -1,0 +1,20 @@
+{
+  "name": "@benchme/data",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "tsc -b && node dist/build.js",
+    "dev": "tsx src/build.ts && tsx src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@benchme/core": "0.1.0",
+    "@benchme/scenarios": "0.1.0",
+    "@fastify/static": "^8.0.0",
+    "fastify": "^5.2.0",
+    "zod": "^3.24.0"
+  }
+}

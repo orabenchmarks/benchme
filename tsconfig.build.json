@@ -12,6 +12,12 @@
     },
     {
       "path": "apps/warehouse"
+    },
+    {
+      "path": "apps/mail"
+    },
+    {
+      "path": "apps/data"
     }
   ]
 }
