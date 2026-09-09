@@ -6,6 +6,10 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "version to publish (an existing vX.Y.Z tag is checked out)"
+        required: true
 permissions:
   contents: read
   id-token: write
@@ -14,25 +18,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.version && format('v{0}', github.event.inputs.version) || github.ref }}
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, registry-url: "https://registry.npmjs.org" }
       - run: npm ci
       - run: npx tsc -b tsconfig.build.json
       - name: version every package from the tag
+        # Plain package.json edits — `npm version -w` re-resolves the workspace
+        # graph and looks the OLD @benchme/* versions up in the registry (404 on
+        # a first publish), so the versions are written directly: every package
+        # gets the tag's version and every @benchme/* dependency points at it.
+        env:
+          VERSION: ${{ github.event.inputs.version }}
         run: |
           set -euo pipefail
-          V="${GITHUB_REF_NAME#v}"
-          for p in core scenarios site-kit; do
-            npm version "$V" --no-git-tag-version -w "packages/$p" >/dev/null
-          done
-          # workspace deps must point at the published version, not 0.1.0
           node -e '
-            const fs=require("fs");
-            for (const p of ["site-kit"]) {
+            const fs=require("fs"); const V=process.argv[1];
+            for (const p of ["core","scenarios","site-kit"]) {
               const f=`packages/${p}/package.json`; const j=JSON.parse(fs.readFileSync(f));
-              for (const k of Object.keys(j.dependencies||{})) if (k.startsWith("@benchme/")) j.dependencies[k]=process.argv[1];
+              j.version=V;
+              for (const k of Object.keys(j.dependencies||{})) if (k.startsWith("@benchme/")) j.dependencies[k]=V;
               fs.writeFileSync(f, JSON.stringify(j,null,2)+"\n");
-            }' "$V"
+            }' "${VERSION:-${GITHUB_REF_NAME#v}}"
+          git diff --stat -- packages/*/package.json
       - name: publish (core → scenarios → site-kit)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
