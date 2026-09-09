@@ -12,6 +12,7 @@ state.
 ```
 POST /api/workspaces        {"scenario":"acme-v1","seed":4242}   → urls for every app
 /w/<id>/warehouse/          products, stock, orders, transfers (UI · /api/v1 · /mcp)
+/w/<id>/helpdesk/           tickets, comments, SLAs (UI · /api/v1 · /mcp)
 /w/<id>/mail/               the workspace inbox (verification codes land here)
 /data/                      the company site (static, generated from the seed)
 POST /api/workspaces/<id>/finalize                               → a signed receipt
@@ -24,7 +25,9 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | `packages/core` | config, http (healthz/readyz), ids, receipts (HMAC), pg + migrations, redis, the workspace model |
 | `packages/scenarios` | seeded generators (`acme-v1`) and the derived ground truths |
 | `apps/gateway` | workspace API, signed reverse proxy, portal + MCP registry, reaper |
-| `apps/warehouse` | the first app: signup/verify/login, SSR UI, REST v1, a 14-tool MCP server |
+| `packages/site-kit` | what every site shares: the gateway-scope hook, signup/verify/login + sessions + api tokens, the MCP server plumbing, the page shell |
+| `apps/warehouse` | products, stock, orders, transfers: SSR UI, REST v1, a 14-tool MCP server |
+| `apps/helpdesk` | tickets, comments, SLAs, assignment: SSR UI, REST v1, an 11-tool MCP server (with a destructive `delete_ticket`) |
 | `apps/mail` | per-workspace inbox with an internal delivery endpoint |
 | `apps/data` | the generated company site |
 | `charts/benchme` | the Helm chart: own postgres + redis, apps, migrate job, reaper, ingress |

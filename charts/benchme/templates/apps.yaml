@@ -76,9 +76,11 @@ spec:
             - name: INTERNAL_BASE_URL
               value: {{ $internal | quote }}
             - name: APP_TARGETS
-              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\"}" $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
+              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
             - name: SEEDED_APPS
-              value: "warehouse,mail"
+              value: "warehouse,helpdesk,mail"
+            - name: MCP_APPS
+              value: "warehouse,helpdesk"
             - name: WORKSPACE_TTL_SECONDS
               value: {{ $root.Values.workspaces.ttlSeconds | quote }}
             - name: WORKSPACE_MAX_TTL_SECONDS
@@ -86,7 +88,7 @@ spec:
             - name: RATE_CREATE_PER_HOUR
               value: {{ $root.Values.workspaces.rateCreatePerHour | quote }}
             {{- end }}
-            {{- if eq $app "warehouse" }}
+            {{- if or (eq $app "warehouse") (eq $app "helpdesk") }}
             - name: MAIL_URL
               value: http://{{ $root.Release.Name }}-mail
             {{- end }}
