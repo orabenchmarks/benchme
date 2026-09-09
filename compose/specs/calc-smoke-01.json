@@ -1,0 +1,5 @@
+{
+  "id": "calc-smoke-01",
+  "blind": false,
+  "oracle": { "kind": "json", "expect": { "answer": { "value": 500500, "tolerance": 0 } } }
+}

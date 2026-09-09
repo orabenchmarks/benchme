@@ -1,0 +1,192 @@
+# benchme on one machine: `docker compose up -d` → http://localhost:8080
+#
+# Same topology as the Helm chart: one Postgres, one Redis, an ordered
+# migration chain, the gateway (the only published port), the sites, the
+# verifier and an hourly reaper. Images come from ghcr.io/orabenchmarks at
+# BENCHME_VERSION; `-f compose.yaml -f compose.build.yaml up --build` builds
+# them from this checkout instead. Every setting below has a LOCAL default —
+# copy .env.example to .env to change them (and change every secret before
+# exposing this to anyone but yourself).
+#
+# Code tasks: the verifier runs each submitted patch in a sibling container
+# through the Docker socket (RUNNER_KIND=docker) — no network, capabilities
+# dropped, memory/CPU limits, removed afterwards. Mounting the socket gives the
+# verifier container control of your Docker daemon; set RUNNER_KIND=none in
+# .env and drop the socket mount to refuse that (code tasks then FAIL with a
+# note; document, json and calc oracles keep working).
+name: benchme
+
+
+x-common-env: &common-env
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DATABASE_URL: postgres://benchme:${POSTGRES_PASSWORD:-benchme-local-postgres}@postgres:5432/benchme
+  GATEWAY_SECRET: ${GATEWAY_SECRET:-benchme-local-gateway-secret-change-me}
+  MAIL_INTERNAL_SECRET: ${MAIL_INTERNAL_SECRET:-benchme-local-mail-secret-change-me}
+
+x-app: &app
+  restart: unless-stopped
+  depends_on:
+    migrate-verify:
+      condition: service_completed_successfully
+  healthcheck:
+    test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+    interval: 10s
+    timeout: 5s
+    retries: 12
+    start_period: 20s
+
+x-migrate: &migrate
+  restart: "no"
+  environment: *common-env
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: benchme
+      POSTGRES_DB: benchme
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-benchme-local-postgres}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U benchme -d benchme"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  # The chart's migrate Job: one app after another, in this order.
+  migrate-gateway:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.4.0}
+    command: ["node", "apps/gateway/dist/migrate.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  migrate-warehouse:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.4.0}
+    command: ["node", "apps/warehouse/dist/migrate.js"]
+    depends_on:
+      migrate-gateway:
+        condition: service_completed_successfully
+  migrate-helpdesk:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.4.0}
+    command: ["node", "apps/helpdesk/dist/migrate.js"]
+    depends_on:
+      migrate-warehouse:
+        condition: service_completed_successfully
+  migrate-vaultdocs:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.4.0}
+    command: ["node", "apps/vaultdocs/dist/migrate.js"]
+    depends_on:
+      migrate-helpdesk:
+        condition: service_completed_successfully
+  migrate-mail:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.4.0}
+    command: ["node", "apps/mail/dist/migrate.js"]
+    depends_on:
+      migrate-vaultdocs:
+        condition: service_completed_successfully
+  migrate-verify:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.4.0}
+    command: ["node", "apps/verify/dist/migrate.js"]
+    depends_on:
+      migrate-mail:
+        condition: service_completed_successfully
+
+  gateway:
+    <<: *app
+    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.4.0}
+    ports:
+      - "${BENCHME_PORT:-8080}:3000"
+    depends_on:
+      migrate-verify:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    environment:
+      <<: *common-env
+      REDIS_URL: redis://redis:6379
+      OPERATOR_KEY: ${OPERATOR_KEY:-benchme-local-operator-key-change-me}
+      RECEIPT_SECRET: ${RECEIPT_SECRET:-benchme-local-receipt-secret-change-me}
+      PUBLIC_BASE_URL: ${BENCHME_PUBLIC_URL:-http://localhost:8080}
+      INTERNAL_BASE_URL: http://gateway:3000
+      APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000","verify":"http://verify:3000"}'
+      SEEDED_APPS: warehouse,helpdesk,vaultdocs,mail,verify
+      MCP_APPS: warehouse,helpdesk,vaultdocs
+      WORKSPACE_TTL_SECONDS: ${WORKSPACE_TTL_SECONDS:-86400}
+      WORKSPACE_MAX_TTL_SECONDS: ${WORKSPACE_MAX_TTL_SECONDS:-604800}
+      # Your own machine: no need to throttle yourself.
+      RATE_CREATE_PER_HOUR: ${RATE_CREATE_PER_HOUR:-1000}
+
+  warehouse:
+    <<: *app
+    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.4.0}
+    environment:
+      <<: *common-env
+      MAIL_URL: http://mail:3000
+
+  helpdesk:
+    <<: *app
+    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.4.0}
+    environment:
+      <<: *common-env
+      MAIL_URL: http://mail:3000
+
+  vaultdocs:
+    <<: *app
+    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.4.0}
+    environment: *common-env
+
+  mail:
+    <<: *app
+    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.4.0}
+    environment: *common-env
+
+  data:
+    <<: *app
+    image: ghcr.io/orabenchmarks/data:${BENCHME_VERSION:-0.4.0}
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+  verify:
+    <<: *app
+    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.4.0}
+    # The Docker socket's group so the non-root verifier may use it:
+    # Linux → `stat -c %g /var/run/docker.sock`; Docker Desktop → 0.
+    group_add:
+      - "${DOCKER_GID:-0}"
+    environment:
+      <<: *common-env
+      RECEIPT_SECRET: ${RECEIPT_SECRET:-benchme-local-receipt-secret-change-me}
+      SPECS_DIR: /specs
+      MAX_ATTEMPTS_PER_TASK: ${MAX_ATTEMPTS_PER_TASK:-20}
+      RUNNER_KIND: ${RUNNER_KIND:-docker}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      RUNNER_CPU: ${RUNNER_CPU:-2}
+      RUNNER_MEMORY: ${RUNNER_MEMORY:-2Gi}
+    volumes:
+      - ./compose/specs:/specs:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # The chart's reaper CronJob: expired workspaces are dropped every hour.
+  reaper:
+    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.4.0}
+    restart: unless-stopped
+    depends_on:
+      migrate-verify:
+        condition: service_completed_successfully
+    environment: *common-env
+    command: ["sh", "-c", "while true; do node apps/gateway/dist/reap.js; sleep ${REAP_INTERVAL_SECONDS:-3600}; done"]
+
+volumes:
+  pgdata:

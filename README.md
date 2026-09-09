@@ -46,6 +46,35 @@ DATABASE_URL=postgres://benchme:benchme@127.0.0.1:15432/benchme npm test   # rea
 npx tsc -b tsconfig.build.json
 ```
 
+## Run it on your machine
+
+Everything — Postgres, Redis, the migrations, the gateway, the sites, the
+verifier and the reaper — comes up with Docker Compose:
+
+```bash
+docker compose up -d                 # images from ghcr.io/orabenchmarks at BENCHME_VERSION
+open http://localhost:8080           # the portal; POST /api/workspaces to mint a workspace
+docker compose down -v               # stop and drop the database volume
+```
+
+- Copy `.env.example` to `.env` to change the port, the public URL or the
+  secrets (every value has a local default; change every secret before
+  exposing this beyond your machine).
+- `docker compose -f compose.yaml -f compose.build.yaml up -d --build` builds
+  the images from this checkout instead of pulling them.
+- Task specs live in `compose/specs/` (two smoke specs ship;
+  see its README to add your own).
+- **Code tasks and the Docker socket.** The verifier runs each submitted
+  patch in a sibling container: no network, capabilities dropped,
+  memory/CPU/pid limits, a hard deadline, removed afterwards — the local
+  counterpart of the Kubernetes Job runner. That needs `/var/run/docker.sock`
+  mounted into the verifier, which gives that container control of your
+  Docker daemon. On Linux set `DOCKER_GID` in `.env` to the socket's group
+  (`stat -c %g /var/run/docker.sock`); Docker Desktop works with the default.
+  To refuse the socket, set `RUNNER_KIND=none` and remove the socket volume
+  from `compose.yaml`: code tasks then fail with a note and every other oracle
+  keeps working.
+
 ## Release
 
 Tag `vX.Y.Z`: the `images` workflow pushes `ghcr.io/orabenchmarks/<app>:X.Y.Z`

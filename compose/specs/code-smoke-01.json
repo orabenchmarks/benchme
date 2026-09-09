@@ -1,0 +1,14 @@
+{
+  "id": "code-smoke-01",
+  "blind": false,
+  "oracle": {
+    "kind": "patch",
+    "runnerImage": "busybox:1.36",
+    "runnerCommand": ["sh", "-c", "test -s \"$PATCH_FILE\" && wc -l \"$PATCH_FILE\" && echo '{\"applied\":true,\"tests\":[{\"id\":\"smoke\",\"ok\":true}],\"lint\":true,\"typecheck\":true}'"],
+    "baseSha": "0000000",
+    "requiredTests": ["smoke"],
+    "lint": true,
+    "typecheck": true,
+    "timeoutSeconds": 120
+  }
+}

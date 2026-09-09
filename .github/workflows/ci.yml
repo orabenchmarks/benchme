@@ -26,3 +26,5 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # The compose stack is a supported way to run benchme: keep it parseable.
+      - run: docker compose -f compose.yaml -f compose.build.yaml config -q

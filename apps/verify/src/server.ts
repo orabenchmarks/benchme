@@ -1,7 +1,7 @@
 import { HmacReceiptSigner, createPool } from "@benchme/core";
 import { buildVerify } from "./build-app.js";
 import { readConfig } from "./config.js";
-import { K8sJobRunner } from "./oracles/k8s-job-runner.js";
+import { createRunner } from "./oracles/runner-factory.js";
 import { FsSpecRegistry } from "./specs/spec.js";
 
 const cfg = readConfig();
@@ -11,21 +11,13 @@ const { app } = await buildVerify({
   pool,
   specs,
   receipts: new HmacReceiptSigner(cfg.RECEIPT_SECRET),
-  runner: new K8sJobRunner({
-    namespace: cfg.RUNNER_NAMESPACE,
-    serviceAccount: cfg.RUNNER_SERVICE_ACCOUNT,
-    runnerLabel: cfg.RUNNER_LABEL,
-    cpu: cfg.RUNNER_CPU,
-    memory: cfg.RUNNER_MEMORY,
-    nodeSelector: JSON.parse(cfg.RUNNER_NODE_SELECTOR) as Record<string, string>,
-    tolerations: JSON.parse(cfg.RUNNER_TOLERATIONS) as never[],
-  }),
+  runner: createRunner(cfg),
   gatewaySecret: cfg.GATEWAY_SECRET,
   maxAttemptsPerTask: cfg.MAX_ATTEMPTS_PER_TASK,
   maxArtifactBytes: cfg.MAX_ARTIFACT_BYTES,
   logLevel: cfg.LOG_LEVEL,
 });
-app.log.info({ specs: await specs.count(), dir: cfg.SPECS_DIR }, "task specs loaded");
+app.log.info({ specs: await specs.count(), dir: cfg.SPECS_DIR, runner: cfg.RUNNER_KIND }, "task specs loaded");
 const shutdown = async () => {
   await app.close();
   await pool.end();
