@@ -30,6 +30,11 @@ workspaces:
   rateCreatePerHour: 10
   reaper:
     schedule: "*/15 * * * *"
+    # Every container needs requests AND limits: staging/production run a
+    # ResourceQuota, which rejects any pod without them.
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { cpu: 500m, memory: 512Mi }
 
 # Secrets are generated on first install and kept across upgrades (lookup),
 # or supplied explicitly here / via existingSecret.
@@ -107,6 +112,14 @@ verify:
   # --configmap <name>` emits it) — the chart then renders no specs ConfigMap
   # and mounts this one by name. Keys are `<taskId>.json`.
   existingSpecsConfigMap: ""
+
+# The migrate Job (post-install/upgrade hook): one container per app plus a
+# wait-for-postgres init container. Requests AND limits are required — a
+# ResourceQuota (staging/production) rejects pods without them.
+migrate:
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: "1", memory: 512Mi }
 
 logLevel: info
 

@@ -29,6 +29,8 @@ spec:
         - name: wait-for-postgres
           image: {{ .Values.postgres.image }}
           command: ["sh", "-c", "until pg_isready -h {{ .Release.Name }}-postgres -U benchme; do sleep 2; done"]
+          resources:
+            {{- toYaml .Values.migrate.resources | nindent 12 }}
           securityContext:
             runAsNonRoot: true
             runAsUser: 999
@@ -39,6 +41,8 @@ spec:
           command: ["sh", "-c", {{ printf "sleep %d && exec node apps/%s/dist/migrate.js" (mul $i 3) $app | quote }}]
           env:
             {{- include "benchme.commonEnv" $ | nindent 12 }}
+          resources:
+            {{- toYaml $.Values.migrate.resources | nindent 12 }}
           securityContext:
             {{- include "benchme.securityContext" $ | nindent 12 }}
         {{- end }}
@@ -76,5 +80,7 @@ spec:
               command: ["node", "apps/gateway/dist/reap.js"]
               env:
                 {{- include "benchme.commonEnv" . | nindent 16 }}
+              resources:
+                {{- toYaml .Values.workspaces.reaper.resources | nindent 16 }}
               securityContext:
                 {{- include "benchme.securityContext" . | nindent 16 }}
