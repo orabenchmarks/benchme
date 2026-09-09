@@ -32,7 +32,7 @@ spec:
             runAsNonRoot: true
             runAsUser: 999
       containers:
-        {{- range $i, $app := list "gateway" "warehouse" "helpdesk" "mail" "verify" }}
+        {{- range $i, $app := list "gateway" "warehouse" "helpdesk" "vaultdocs" "mail" "verify" }}
         - name: migrate-{{ $app }}
           image: {{ include "benchme.image" (dict "root" $ "app" $app) }}
           command: ["sh", "-c", {{ printf "sleep %d && exec node apps/%s/dist/migrate.js" (mul $i 3) $app | quote }}]

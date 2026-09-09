@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [gateway, warehouse, helpdesk, mail, data, verify]
+        app: [gateway, warehouse, helpdesk, vaultdocs, mail, data, verify]
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3

@@ -20,6 +20,9 @@
       "path": "apps/helpdesk"
     },
     {
+      "path": "apps/vaultdocs"
+    },
+    {
       "path": "apps/mail"
     },
     {

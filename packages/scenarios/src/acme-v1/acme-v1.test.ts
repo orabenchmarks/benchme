@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lowStock, openOrdersFor, openTicketsFor, orderTotalCents, slaBreaches, stockOf } from "../answers.js";
+import { documentsMatching, lowStock, openOrdersFor, openTicketsFor, orderTotalCents, slaBreaches, stockOf } from "../answers.js";
 import { ACME_V1_SIZES, acmeV1 } from "./index.js";
 import { scenarios } from "../index.js";
 import type { ScenarioRows } from "../scenario.js";
@@ -30,6 +30,9 @@ describe("acme-v1", () => {
       if (t.status === "resolved" || t.status === "closed") expect(t.resolvedAt).not.toBeNull();
     }
     for (const c of r.helpdesk.comments) expect(ticketNos.has(c.ticketNo)).toBe(true);
+    expect(r.vault.documents.length).toBeGreaterThanOrEqual(35);
+    expect(new Set(r.vault.documents.map((d) => d.id)).size).toBe(r.vault.documents.length);
+    expect(r.vault.documents.some((d) => d.body.includes(String(r.company.employees)))).toBe(true);
     const skus = new Set(w.products.map((p) => p.sku));
     const codes = new Set(w.locations.map((l) => l.code));
     const custs = new Set(w.customers.map((c) => c.code));
@@ -104,6 +107,12 @@ const fixture: ScenarioRows = {
     ],
     comments: [],
   },
+  vault: {
+    documents: [
+      { id: "doc-1", title: "Returns policy", kind: "policy", body: "Return within 14 days for a credit note.", tags: [], updatedAt: "2026-01-01T00:00:00Z" },
+      { id: "doc-2", title: "Ops memo", kind: "memo", body: "Credit limits are reviewed yearly.", tags: [], updatedAt: "2026-01-01T00:00:00Z" },
+    ],
+  },
 };
 
 describe("answers", () => {
@@ -127,6 +136,11 @@ describe("answers", () => {
   it("slaBreaches compares resolution time against the priority's resolve hours", () => {
     // T2: normal, 144h > 120h → breach. T3: urgent 4h ≤ 8h → ok. T4: urgent 10h > 8h → breach.
     expect(slaBreaches(fixture)).toEqual(["T2", "T4"]);
+  });
+  it("documentsMatching requires every query word, case-insensitively", () => {
+    expect(documentsMatching(fixture, "credit")).toEqual(["doc-1", "doc-2"]);
+    expect(documentsMatching(fixture, "credit NOTE")).toEqual(["doc-1"]);
+    expect(documentsMatching(fixture, "nothing")).toEqual([]);
   });
   it("lowStock compares the per-sku total against the threshold", () => {
     expect(lowStock(fixture, 13)).toEqual(["A"]);

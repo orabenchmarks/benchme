@@ -51,3 +51,15 @@ export function slaBreaches(rows: ScenarioRows): string[] {
     .map((t) => t.ticketNo)
     .sort();
 }
+
+/** Documents whose title or body contains every word of the query (case-insensitive), by id. */
+export function documentsMatching(rows: ScenarioRows, query: string): string[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  return rows.vault.documents
+    .filter((d) => {
+      const hay = `${d.title} ${d.body}`.toLowerCase();
+      return words.every((w) => hay.includes(w));
+    })
+    .map((d) => d.id)
+    .sort();
+}

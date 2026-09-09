@@ -13,6 +13,8 @@ state.
 POST /api/workspaces        {"scenario":"acme-v1","seed":4242}   → urls for every app
 /w/<id>/warehouse/          products, stock, orders, transfers (UI · /api/v1 · /mcp)
 /w/<id>/helpdesk/           tickets, comments, SLAs (UI · /api/v1 · /mcp)
+/w/<id>/vaultdocs/          the document vault (UI · /api/v1 · /mcp with resources + prompts)
+/w/<id>/verify/v1/submit/<taskId>   POST an artifact → verdict + receipt
 /w/<id>/mail/               the workspace inbox (verification codes land here)
 /data/                      the company site (static, generated from the seed)
 POST /api/workspaces/<id>/finalize                               → a signed receipt
@@ -28,6 +30,8 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | `packages/site-kit` | what every site shares: the gateway-scope hook, signup/verify/login + sessions + api tokens, the MCP server plumbing, the page shell |
 | `apps/warehouse` | products, stock, orders, transfers: SSR UI, REST v1, a 14-tool MCP server |
 | `apps/helpdesk` | tickets, comments, SLAs, assignment: SSR UI, REST v1, an 11-tool MCP server (with a destructive `delete_ticket`) |
+| `apps/vaultdocs` | ~40 seeded documents as MCP **resources** (`docs://<id>`), `search`/`get_document`/`list_documents` tools, two MCP **prompts**; full-text search UI + REST |
+| `apps/verify` | the verifier: json / xlsx / docx / patch oracles, HMAC receipts, attempt log, isolated Kubernetes Job runner |
 | `apps/mail` | per-workspace inbox with an internal delivery endpoint |
 | `apps/data` | the generated company site |
 | `charts/benchme` | the Helm chart: own postgres + redis, apps, migrate job, reaper, ingress |

@@ -1,6 +1,7 @@
 import { minstd } from "../prng.js";
 import type { Scenario, ScenarioRows } from "../scenario.js";
 import { city, companyName } from "./names.js";
+import { documents } from "./documents.js";
 import { agents, slaPolicies, tickets } from "./helpdesk.js";
 import { customers, locations, orders, products, stock, transfers } from "./warehouse.js";
 
@@ -14,7 +15,7 @@ export const ACME_V1_SIZES = { products: 120, customers: 40, orders: 300, transf
 
 export const acmeV1: Scenario = {
   key: "acme-v1",
-  description: "Industrial-supply company: 120 products across 4 depots, 40 customers, 300 orders, 60 transfers, a helpdesk with 8 agents and 150 tickets.",
+  description: "Industrial-supply company: 120 products across 4 depots, 40 customers, 300 orders, 60 transfers, a helpdesk with 8 agents and 150 tickets, a document vault of ~40 documents.",
   generate(seed: number): ScenarioRows {
     const rng = minstd(seed);
     const company = {
@@ -40,10 +41,12 @@ export const acmeV1: Scenario = {
       items.map((p) => p.sku),
       transferRows.map((t) => t.transferNo),
     );
+    const docs = documents(rng, { company, products: items, locations: sites, customers: custs, sla: slaPolicies() });
     return {
       company,
       warehouse: { products: items, locations: sites, stock: stockRows, customers: custs, orders: orderRows, orderLines: lines, transfers: transferRows },
       helpdesk: { agents: ag, tickets: hd.tickets, comments: hd.comments, slaPolicies: slaPolicies() },
+      vault: { documents: docs },
     };
   },
 };

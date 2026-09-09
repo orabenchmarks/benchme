@@ -29,6 +29,9 @@ export type Ticket = {
 export type Comment = { ticketNo: string; seq: number; author: string; body: string; internal: boolean; createdAt: string };
 export type SlaPolicy = { priority: TicketPriority; respondHours: number; resolveHours: number };
 
+export type DocumentKind = "policy" | "datasheet" | "memo" | "meeting-notes" | "faq";
+export type Document = { id: string; title: string; kind: DocumentKind; body: string; tags: string[]; updatedAt: string };
+
 export type CompanyFacts = {
   name: string;
   founded: number;
@@ -53,6 +56,9 @@ export type ScenarioRows = {
     tickets: Ticket[];
     comments: Comment[];
     slaPolicies: SlaPolicy[];
+  };
+  vault: {
+    documents: Document[];
   };
 };
 

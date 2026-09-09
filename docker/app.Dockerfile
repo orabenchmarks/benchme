@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# One Dockerfile for every app: `--build-arg APP=<gateway|warehouse|helpdesk|mail|data|verify>`.
+# One Dockerfile for every app: `--build-arg APP=<gateway|warehouse|helpdesk|vaultdocs|mail|data|verify>`.
 # deps → build (tsc, plus the data site render) → runtime (slim, non-root,
 # read-only root fs friendly: nothing writes under /app at run time).
 ARG NODE_IMAGE=node:22-bookworm-slim
@@ -12,6 +12,7 @@ COPY packages/scenarios/package.json packages/scenarios/
 COPY packages/site-kit/package.json packages/site-kit/
 COPY apps/gateway/package.json apps/gateway/
 COPY apps/helpdesk/package.json apps/helpdesk/
+COPY apps/vaultdocs/package.json apps/vaultdocs/
 COPY apps/warehouse/package.json apps/warehouse/
 COPY apps/mail/package.json apps/mail/
 COPY apps/data/package.json apps/data/
