@@ -14,7 +14,13 @@ export async function registerProxy(app: FastifyInstance, d: ProxyDeps): Promise
   await app.register(replyFrom);
 
   app.all<{ Params: { id: string; app: string; "*": string } }>("/w/:id/:app/*", async (req, reply) => {
-    const { id, app: appName } = req.params;
+    const { app: appName } = req.params;
+    let id = req.params.id;
+    if (id.startsWith("shared-")) {
+      const resolved = await d.service.resolveShared(id);
+      if (!resolved) return reply.code(404).send({ error: "NOT_FOUND", message: "no such shared workspace (shared-<scenario>-<seed>)" });
+      id = resolved;
+    }
     if (!isWorkspaceId(id)) return reply.code(404).send({ error: "NOT_FOUND", message: "no such workspace" });
     const target = d.apps.get(appName);
     if (!target) return reply.code(404).send({ error: "NOT_FOUND", message: `no such app "${appName}"` });
@@ -27,7 +33,7 @@ export async function registerProxy(app: FastifyInstance, d: ProxyDeps): Promise
         ...headers,
         [WORKSPACE_HEADER]: id,
         [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(d.gatewaySecret, id),
-        [FORWARDED_PREFIX_HEADER]: `/w/${id}/${appName}`,
+        [FORWARDED_PREFIX_HEADER]: `/w/${req.params.id}/${appName}`,
       }),
     });
   });

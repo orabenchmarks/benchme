@@ -113,6 +113,30 @@ export class WorkspaceService {
     return !!w && w.expiresAt.getTime() > this.now().getTime();
   }
 
+  /**
+   * A SHARED workspace: `shared-<scenario>-<seed>` resolves to one long-lived
+   * workspace created on first use, so a benchmark can attach an MCP server at
+   * a fixed URL without minting anything per run. Only for READ-ONLY tasks —
+   * concurrent writers would see each other. Never expires on its own.
+   */
+  async resolveShared(alias: string): Promise<string | null> {
+    const m = /^shared-([a-z0-9][a-z0-9-]*)-(\d{1,10})$/.exec(alias);
+    if (!m) return null;
+    const scenario = m[1] as string;
+    const seed = Number(m[2]);
+    if (!this.d.scenarios.has(scenario) || seed < 1 || seed > 2_147_483_646) return null;
+    const existing = await this.d.repo.getByAlias(alias);
+    if (existing && existing.expiresAt.getTime() > this.now().getTime()) return existing.id;
+    const created = await this.d.repo.create({ id: newWorkspaceId(), scenario, seed, expiresAt: new Date(this.now().getTime() + 10 * 365 * 86_400_000), alias });
+    try {
+      await this.d.seeder.seed(created);
+    } catch (err) {
+      await this.d.repo.delete(created.id);
+      throw new WorkspaceError(502, "SEED_FAILED", (err as Error).message);
+    }
+    return created.id;
+  }
+
   async reap(limit = 100): Promise<string[]> {
     const ids = await this.d.repo.listExpired(this.now(), limit);
     for (const id of ids) await this.d.repo.delete(id);

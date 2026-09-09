@@ -153,6 +153,20 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     expect(again.json().finalizedAt).toBe(fin.json().finalizedAt);
   });
 
+  it("resolves shared-<scenario>-<seed> to one lazily created workspace, reused on the next request", async () => {
+    const seed = 1000 + Math.floor(Math.random() * 1_000_000); // the alias persists in the shared test DB across runs
+    const a = await gateway.inject(`/w/shared-acme-v1-${seed}/warehouse/api/v1/products?limit=1`);
+    expect(a.statusCode).toBe(200);
+    expect(a.json().prefix).toBe(`/w/shared-acme-v1-${seed}/warehouse`);
+    const first = a.json().workspace as string;
+    expect(first).toMatch(/^ws_/);
+    const b = await gateway.inject(`/w/shared-acme-v1-${seed}/warehouse/x`);
+    expect(b.json().workspace).toBe(first);
+    expect(stub.seeds.filter((id) => id === first)).toHaveLength(1);
+    expect((await gateway.inject(`/w/shared-nope-1/warehouse/x`)).statusCode).toBe(404);
+    expect((await gateway.inject(`/w/shared-acme-v1-0/warehouse/x`)).statusCode).toBe(404);
+  });
+
   it("serves the portal, the registry and the workspace page", async () => {
     expect((await gateway.inject("/")).body).toContain("acme-v1");
     expect((await gateway.inject("/registry")).body).toContain("/warehouse/mcp");
