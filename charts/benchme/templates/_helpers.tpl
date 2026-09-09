@@ -63,3 +63,15 @@ imagePullSecrets:
 {{- end }}
 {{- end }}
 {{- end -}}
+
+{{- /* nodeSelector + tolerations for every benchme pod (indent by the caller). */ -}}
+{{- define "benchme.scheduling" -}}
+{{- with .Values.scheduling.nodeSelector }}
+nodeSelector:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .Values.scheduling.tolerations }}
+tolerations:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end -}}

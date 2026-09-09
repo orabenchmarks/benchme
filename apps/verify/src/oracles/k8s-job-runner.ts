@@ -10,6 +10,8 @@ export type K8sJobRunnerOptions = {
   runnerLabel: string;
   cpu: string;
   memory: string;
+  nodeSelector?: Record<string, string>;
+  tolerations?: k8s.V1Toleration[];
 };
 
 /**
@@ -56,6 +58,8 @@ export class K8sJobRunner implements JobRunner {
               metadata: { labels: { "app.kubernetes.io/part-of": "benchme", "benchme.dev/role": this.o.runnerLabel } },
               spec: {
                 restartPolicy: "Never",
+                ...(this.o.nodeSelector && Object.keys(this.o.nodeSelector).length ? { nodeSelector: this.o.nodeSelector } : {}),
+                ...(this.o.tolerations?.length ? { tolerations: this.o.tolerations } : {}),
                 serviceAccountName: this.o.serviceAccount,
                 automountServiceAccountToken: false,
                 securityContext: { runAsNonRoot: true, runAsUser: 1001, runAsGroup: 1001, fsGroup: 1001, seccompProfile: { type: "RuntimeDefault" } },

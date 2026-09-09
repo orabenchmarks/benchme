@@ -41,6 +41,7 @@ spec:
         # Roll the pods when the generated/explicit secrets change.
         checksum/values: {{ toYaml $root.Values.secrets | sha256sum }}
     spec:
+      {{- include "benchme.scheduling" $root | nindent 6 }}
       {{- include "benchme.pullSecrets" $root | nindent 6 }}
       {{- if eq $app "verify" }}
       serviceAccountName: {{ $root.Release.Name }}-verify
@@ -117,6 +118,10 @@ spec:
               value: {{ $root.Values.verify.runner.cpu | quote }}
             - name: RUNNER_MEMORY
               value: {{ $root.Values.verify.runner.memory | quote }}
+            - name: RUNNER_NODE_SELECTOR
+              value: {{ $root.Values.scheduling.nodeSelector | toJson | quote }}
+            - name: RUNNER_TOLERATIONS
+              value: {{ $root.Values.scheduling.tolerations | toJson | quote }}
             {{- end }}
           readinessProbe:
             httpGet: { path: /readyz, port: http }

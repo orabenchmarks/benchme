@@ -33,6 +33,7 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/part-of: benchme
     spec:
+      {{- include "benchme.scheduling" . | nindent 6 }}
       containers:
         - name: redis
           image: {{ .Values.redis.image }}

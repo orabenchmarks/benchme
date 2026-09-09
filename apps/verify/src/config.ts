@@ -16,6 +16,9 @@ export const configSchema = z.object({
   RUNNER_LABEL: z.string().default("runner"),
   RUNNER_CPU: z.string().default("2"),
   RUNNER_MEMORY: z.string().default("2Gi"),
+  /** JSON: nodeSelector map / tolerations array applied to runner pods (the dedicated benchme pool). */
+  RUNNER_NODE_SELECTOR: z.string().default("{}"),
+  RUNNER_TOLERATIONS: z.string().default("[]"),
   LOG_LEVEL: z.string().default("info"),
 });
 export type Config = z.infer<typeof configSchema>;

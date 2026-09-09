@@ -104,3 +104,23 @@ verify:
   specs: {}
 
 logLevel: info
+
+# Scheduling isolation. Staging/production pin EVERY benchme workload — apps,
+# postgres, redis, the migrate/reaper jobs AND the verifier's runner Jobs — to
+# a dedicated node pool (nodeSelector + toleration for its taint) so benchmark
+# load can never compete with the platform's own services. Dev leaves both empty.
+scheduling:
+  nodeSelector: {}
+  tolerations: []
+
+# A hard ceiling on what the namespace may request in total (a second guard on
+# top of the node pool). Empty = no quota object.
+resourceQuota:
+  enabled: false
+  requests:
+    cpu: "16"
+    memory: 48Gi
+  limits:
+    cpu: "48"
+    memory: 96Gi
+  pods: "120"
