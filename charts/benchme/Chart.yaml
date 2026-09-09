@@ -2,8 +2,8 @@ apiVersion: v2
 name: benchme
 description: benchme — hosted demo sites, MCP servers and a verifier for agentic benchmarks, with per-run isolated workspaces
 type: application
-version: 0.4.2
-appVersion: "0.4.2"
+version: 0.4.3
+appVersion: "0.4.3"
 keywords: [benchmark, mcp, agents]
 sources:
   - https://github.com/orabenchmarks/benchme
