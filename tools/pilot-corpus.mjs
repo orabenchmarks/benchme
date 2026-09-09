@@ -328,27 +328,34 @@ if (problems.length) {
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, "pilot-tasks.json"), JSON.stringify({ base: BASE, repoSha: REPO_SHA, workspaceSeed: WS_SEED, dataSeed: DATA_SEED, tasks }, null, 2));
 
-// One create body per harness × category is the sharding the design chose; here one per harness (all 18 tasks) for the pilot.
+// ONE benchmark for the whole pilot: a single matrix (≤ 48 cells on the
+// platform) gives one summary across harnesses and models instead of five
+// sharded benchmarks. The platform has no "model" subject kind: a model
+// shootout is `subjectKind: "custom"` in `comparisonMode: "single"` (one arm
+// per task × cell, no baseline), whose single arm must still be spelled out —
+// the default tool mode, i.e. a bare run. Fireworks ids are the ones the
+// account serves (deepseek-v4-pro's base alias is retired: 404).
 const cells = {
-  openclaw: ["claude-sonnet-5", "gpt-5.5", "accounts/fireworks/models/glm-5p2", "accounts/fireworks/models/kimi-k3", "accounts/fireworks/models/deepseek-v4-pro", "accounts/fireworks/models/qwen3p8-max"],
-  deepseek: ["claude-sonnet-5", "gpt-5.5", "accounts/fireworks/models/glm-5p2", "accounts/fireworks/models/kimi-k3", "accounts/fireworks/models/deepseek-v4-pro", "accounts/fireworks/models/qwen3p8-max"],
-  opencode: ["claude-sonnet-5", "gpt-5.5", "accounts/fireworks/models/glm-5p2", "accounts/fireworks/models/kimi-k3", "accounts/fireworks/models/deepseek-v4-pro", "accounts/fireworks/models/qwen3p8-max"],
-  "claude-code": ["claude-sonnet-5", "accounts/fireworks/models/glm-5p2", "accounts/fireworks/models/kimi-k3", "accounts/fireworks/models/deepseek-v4-pro", "accounts/fireworks/models/qwen3p8-max"],
-  codex: ["gpt-5.5", "accounts/fireworks/models/glm-5p2", "accounts/fireworks/models/kimi-k3", "accounts/fireworks/models/deepseek-v4-pro", "accounts/fireworks/models/qwen3p8-max"],
+  openclaw: ["claude-sonnet-5", "gpt-5.5", "accounts/fireworks/models/glm-5p2", "accounts/fireworks/models/kimi-k3", "accounts/fireworks/models/deepseek-v4-pro-0813", "accounts/fireworks/models/qwen3p8-max"],
+  deepseek: ["claude-sonnet-5", "gpt-5.5", "accounts/fireworks/models/glm-5p2", "accounts/fireworks/models/kimi-k3", "accounts/fireworks/models/deepseek-v4-pro-0813", "accounts/fireworks/models/qwen3p8-max"],
+  opencode: ["claude-sonnet-5", "gpt-5.5", "accounts/fireworks/models/glm-5p2", "accounts/fireworks/models/kimi-k3", "accounts/fireworks/models/deepseek-v4-pro-0813", "accounts/fireworks/models/qwen3p8-max"],
+  "claude-code": ["claude-sonnet-5", "accounts/fireworks/models/glm-5p2", "accounts/fireworks/models/kimi-k3", "accounts/fireworks/models/deepseek-v4-pro-0813", "accounts/fireworks/models/qwen3p8-max"],
+  codex: ["gpt-5.5", "accounts/fireworks/models/glm-5p2", "accounts/fireworks/models/kimi-k3", "accounts/fireworks/models/deepseek-v4-pro-0813", "accounts/fireworks/models/qwen3p8-max"],
 };
-for (const [harness, models] of Object.entries(cells)) {
-  const body = {
-    name: `open-vs-closed pilot — ${harness}`,
-    subjectKind: "model",
-    subjectName: "open-weights vs closed models",
-    comparisonMode: "single",
-    lenses: ["evals"],
-    repeats: 1,
-    variantsPerTask: 1,
-    matrix: models.map((model) => ({ harness, model })),
-    promise: "PILOT (not the headline): calibrate the six-category × three-difficulty ladder before authoring the full corpus. Every task is graded by response-level checks derived from seeded generators; no rubric anchors are needed.",
-    tasks: tasks.map((t) => ({ prompt: t.prompt, rationale: `${t.category}/${t.difficulty} — ${t.id}`, category: `${t.category}-${t.difficulty}`, requiresWeb: t.requiresWeb, expectations: t.expectations.map(({ kind, pattern, label }) => ({ kind, pattern, label })) })),
-  };
-  writeFileSync(join(OUT, `create-${harness}.json`), JSON.stringify(body, null, 2));
-}
-console.log(JSON.stringify({ tasks: tasks.length, out: OUT, harnesses: Object.keys(cells) }));
+const matrix = Object.entries(cells).flatMap(([harness, models]) => models.map((model) => ({ harness, model })));
+if (matrix.length > 48) throw new Error(`matrix has ${matrix.length} cells; the platform caps a benchmark at 48`);
+const body = {
+  name: "open-vs-closed pilot",
+  subjectKind: "custom",
+  subjectName: "open-weight vs closed models",
+  armConfig: { treatment: { tools: "default" } },
+  comparisonMode: "single",
+  lenses: ["evals"],
+  repeats: 1,
+  variantsPerTask: 1,
+  matrix,
+  promise: "PILOT (not the headline): calibrate the six-category × three-difficulty ladder before authoring the full corpus. Every task is graded by response-level checks derived from seeded generators; no rubric anchors are needed.",
+  tasks: tasks.map((t) => ({ prompt: t.prompt, rationale: `${t.category}/${t.difficulty} — ${t.id}`, category: `${t.category}-${t.difficulty}`, requiresWeb: t.requiresWeb, expectations: t.expectations.map(({ kind, pattern, label }) => ({ kind, pattern, label })) })),
+};
+writeFileSync(join(OUT, "create-pilot.json"), JSON.stringify(body, null, 2));
+console.log(JSON.stringify({ tasks: tasks.length, out: OUT, cells: matrix.length, runs: matrix.length * tasks.length }));
