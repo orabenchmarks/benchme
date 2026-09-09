@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lowStock, openOrdersFor, orderTotalCents, stockOf } from "../answers.js";
+import { lowStock, openOrdersFor, openTicketsFor, orderTotalCents, slaBreaches, stockOf } from "../answers.js";
 import { ACME_V1_SIZES, acmeV1 } from "./index.js";
 import { scenarios } from "../index.js";
 import type { ScenarioRows } from "../scenario.js";
@@ -21,6 +21,15 @@ describe("acme-v1", () => {
     expect(w.orders).toHaveLength(ACME_V1_SIZES.orders);
     expect(w.transfers).toHaveLength(ACME_V1_SIZES.transfers);
     expect(w.locations).toHaveLength(4);
+    expect(r.helpdesk.agents).toHaveLength(ACME_V1_SIZES.agents);
+    expect(r.helpdesk.tickets).toHaveLength(ACME_V1_SIZES.tickets);
+    const agentCodes = new Set(r.helpdesk.agents.map((a) => a.code));
+    const ticketNos = new Set(r.helpdesk.tickets.map((t) => t.ticketNo));
+    for (const t of r.helpdesk.tickets) {
+      if (t.assigneeCode !== null) expect(agentCodes.has(t.assigneeCode)).toBe(true);
+      if (t.status === "resolved" || t.status === "closed") expect(t.resolvedAt).not.toBeNull();
+    }
+    for (const c of r.helpdesk.comments) expect(ticketNos.has(c.ticketNo)).toBe(true);
     const skus = new Set(w.products.map((p) => p.sku));
     const codes = new Set(w.locations.map((l) => l.code));
     const custs = new Set(w.customers.map((c) => c.code));
@@ -81,6 +90,20 @@ const fixture: ScenarioRows = {
     ],
     transfers: [],
   },
+  helpdesk: {
+    agents: [{ code: "AG-1", name: "", team: "t" }],
+    slaPolicies: [
+      { priority: "normal", respondHours: 24, resolveHours: 120 },
+      { priority: "urgent", respondHours: 1, resolveHours: 8 },
+    ],
+    tickets: [
+      { ticketNo: "T1", subject: "", body: "", requester: "C1", priority: "normal", status: "open", assigneeCode: "AG-1", openedAt: "2026-03-01T00:00:00Z", resolvedAt: null },
+      { ticketNo: "T2", subject: "", body: "", requester: "C1", priority: "normal", status: "resolved", assigneeCode: "AG-1", openedAt: "2026-03-01T00:00:00Z", resolvedAt: "2026-03-07T00:00:00Z" },
+      { ticketNo: "T3", subject: "", body: "", requester: "C1", priority: "urgent", status: "resolved", assigneeCode: null, openedAt: "2026-03-01T00:00:00Z", resolvedAt: "2026-03-01T04:00:00Z" },
+      { ticketNo: "T4", subject: "", body: "", requester: "C1", priority: "urgent", status: "closed", assigneeCode: "AG-1", openedAt: "2026-03-01T00:00:00Z", resolvedAt: "2026-03-01T10:00:00Z" },
+    ],
+    comments: [],
+  },
 };
 
 describe("answers", () => {
@@ -96,6 +119,14 @@ describe("answers", () => {
   it("orderTotalCents multiplies qty by unit price per line", () => {
     expect(orderTotalCents(fixture, "O1")).toBe(2 * 100 + 1 * 250);
     expect(orderTotalCents(fixture, "O2")).toBe(1000);
+  });
+  it("openTicketsFor filters by assignee AND open/pending status", () => {
+    expect(openTicketsFor(fixture, "AG-1")).toEqual(["T1"]);
+    expect(openTicketsFor(fixture, "AG-9")).toEqual([]);
+  });
+  it("slaBreaches compares resolution time against the priority's resolve hours", () => {
+    // T2: normal, 144h > 120h → breach. T3: urgent 4h ≤ 8h → ok. T4: urgent 10h > 8h → breach.
+    expect(slaBreaches(fixture)).toEqual(["T2", "T4"]);
   });
   it("lowStock compares the per-sku total against the threshold", () => {
     expect(lowStock(fixture, 13)).toEqual(["A"]);

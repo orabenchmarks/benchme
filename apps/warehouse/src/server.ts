@@ -1,6 +1,6 @@
 import { createPool } from "@benchme/core";
 import { scenarios } from "@benchme/scenarios";
-import { HttpMailer } from "./auth/http-mailer.js";
+import { HttpMailer } from "@benchme/site-kit";
 import { buildWarehouse } from "./build-app.js";
 import { readConfig } from "./config.js";
 
@@ -9,7 +9,7 @@ const pool = createPool(cfg.DATABASE_URL);
 const app = await buildWarehouse({
   pool,
   scenarios,
-  mailer: new HttpMailer(cfg.MAIL_URL, cfg.MAIL_INTERNAL_SECRET),
+  mailer: new HttpMailer(cfg.MAIL_URL, cfg.MAIL_INTERNAL_SECRET, "no-reply@warehouse.benchme"),
   gatewaySecret: cfg.GATEWAY_SECRET,
   sessionTtlSeconds: cfg.SESSION_TTL_SECONDS,
   logLevel: cfg.LOG_LEVEL,

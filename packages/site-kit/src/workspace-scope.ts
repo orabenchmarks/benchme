@@ -3,9 +3,9 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 
 declare module "fastify" {
   interface FastifyRequest {
-    /** Bound by the gateway (signed); every query is scoped by it. */
+    /** Bound by the gateway (signed); every tenant query is scoped by it. */
     workspaceId: string;
-    /** The public path prefix the gateway stripped ("/w/<id>/warehouse"), for links + cookies. */
+    /** The public path prefix the gateway stripped ("/w/<id>/<app>"), for links + cookie paths. */
     prefix: string;
   }
 }
@@ -14,14 +14,15 @@ const UNSCOPED = new Set(["/healthz", "/readyz"]);
 
 /**
  * Trust the workspace ONLY from the gateway's signed header. A request without
- * it (or with a bad signature) never reaches a tenant query.
+ * it (or with a bad signature) never reaches a tenant query. Paths in
+ * `unscopedPrefixes` (internal endpoints authenticated some other way) skip it.
  */
-export function registerWorkspaceScope(app: FastifyInstance, gatewaySecret: string): void {
+export function registerWorkspaceScope(app: FastifyInstance, gatewaySecret: string, unscopedPrefixes: readonly string[] = []): void {
   app.decorateRequest("workspaceId", "");
   app.decorateRequest("prefix", "");
   app.addHook("onRequest", async (req, reply) => {
     const path = req.url.split("?")[0] ?? "";
-    if (UNSCOPED.has(path)) return;
+    if (UNSCOPED.has(path) || unscopedPrefixes.some((p) => path.startsWith(p))) return;
     const id = header(req, WORKSPACE_HEADER);
     const sig = header(req, WORKSPACE_SIG_HEADER);
     if (!id || !isWorkspaceId(id) || !sig || !verifyWorkspaceHeader(gatewaySecret, id, sig)) {
@@ -32,7 +33,7 @@ export function registerWorkspaceScope(app: FastifyInstance, gatewaySecret: stri
   });
 }
 
-function header(req: FastifyRequest, name: string): string | undefined {
+export function header(req: FastifyRequest, name: string): string | undefined {
   const v = req.headers[name];
   return Array.isArray(v) ? v[0] : v;
 }

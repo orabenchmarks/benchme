@@ -33,3 +33,21 @@ export function lowStock(rows: ScenarioRows, threshold: number): string[] {
     .map(([sku]) => sku)
     .sort();
 }
+
+/** Open (or pending) tickets currently assigned to one agent, sorted. */
+export function openTicketsFor(rows: ScenarioRows, agentCode: string): string[] {
+  return rows.helpdesk.tickets
+    .filter((t) => t.assigneeCode === agentCode && (t.status === "open" || t.status === "pending"))
+    .map((t) => t.ticketNo)
+    .sort();
+}
+
+/** Tickets whose resolution took longer than their priority's SLA (resolved ones only). */
+export function slaBreaches(rows: ScenarioRows): string[] {
+  const hours = new Map(rows.helpdesk.slaPolicies.map((p) => [p.priority, p.resolveHours]));
+  return rows.helpdesk.tickets
+    .filter((t) => t.resolvedAt !== null)
+    .filter((t) => (new Date(t.resolvedAt as string).getTime() - new Date(t.openedAt).getTime()) / 3_600_000 > (hours.get(t.priority) ?? Infinity))
+    .map((t) => t.ticketNo)
+    .sort();
+}

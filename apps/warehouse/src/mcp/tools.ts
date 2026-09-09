@@ -1,14 +1,17 @@
+import { DomainError, ToolRegistry } from "@benchme/site-kit";
 import { z } from "zod";
-import { DomainError } from "../db/orders-repo.js";
-import { ToolRegistry } from "./tool-registry.js";
+import type { CatalogRepo } from "../db/catalog-repo.js";
+import type { OrdersRepo } from "../db/orders-repo.js";
+
+export type ToolContext = { workspaceId: string; catalog: CatalogRepo; orders: OrdersRepo };
 
 const notFound = (what: string) => {
   throw new DomainError("NOT_FOUND", `${what} not found`, 404);
 };
 
 /** The warehouse MCP surface: read chains with pagination, writes with preconditions, one restraint trap. */
-export function warehouseTools(): ToolRegistry {
-  return new ToolRegistry()
+export function warehouseTools(): ToolRegistry<ToolContext> {
+  return new ToolRegistry<ToolContext>()
     .register({
       name: "list_products",
       description: "List products, optionally filtered by a name/SKU substring and/or category. Paginated: pass nextCursor back as cursor.",

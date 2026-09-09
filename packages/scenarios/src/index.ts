@@ -2,11 +2,13 @@ import { acmeV1 } from "./acme-v1/index.js";
 import { ScenarioRegistry } from "./scenario.js";
 
 export { ACME_V1_SIZES, acmeV1 } from "./acme-v1/index.js";
-export { lowStock, openOrdersFor, orderTotalCents, stockOf } from "./answers.js";
+export { lowStock, openOrdersFor, openTicketsFor, orderTotalCents, slaBreaches, stockOf } from "./answers.js";
 export { int, minstd, pick, shuffle, type Rng } from "./prng.js";
 export {
   ScenarioRegistry,
   UnknownScenarioError,
+  type Agent,
+  type Comment,
   type CompanyFacts,
   type Customer,
   type Location,
@@ -16,7 +18,11 @@ export {
   type Product,
   type Scenario,
   type ScenarioRows,
+  type SlaPolicy,
   type Stock,
+  type Ticket,
+  type TicketPriority,
+  type TicketStatus,
   type Transfer,
   type TransferStatus,
 } from "./scenario.js";

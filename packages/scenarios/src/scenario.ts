@@ -12,6 +12,23 @@ export type OrderLine = { orderNo: string; sku: string; qty: number };
 export type TransferStatus = "pending" | "completed";
 export type Transfer = { transferNo: string; sku: string; fromCode: string; toCode: string; qty: number; status: TransferStatus };
 
+export type Agent = { code: string; name: string; team: string };
+export type TicketPriority = "low" | "normal" | "high" | "urgent";
+export type TicketStatus = "open" | "pending" | "resolved" | "closed";
+export type Ticket = {
+  ticketNo: string;
+  subject: string;
+  body: string;
+  requester: string;
+  priority: TicketPriority;
+  status: TicketStatus;
+  assigneeCode: string | null;
+  openedAt: string;
+  resolvedAt: string | null;
+};
+export type Comment = { ticketNo: string; seq: number; author: string; body: string; internal: boolean; createdAt: string };
+export type SlaPolicy = { priority: TicketPriority; respondHours: number; resolveHours: number };
+
 export type CompanyFacts = {
   name: string;
   founded: number;
@@ -30,6 +47,12 @@ export type ScenarioRows = {
     orders: Order[];
     orderLines: OrderLine[];
     transfers: Transfer[];
+  };
+  helpdesk: {
+    agents: Agent[];
+    tickets: Ticket[];
+    comments: Comment[];
+    slaPolicies: SlaPolicy[];
   };
 };
 

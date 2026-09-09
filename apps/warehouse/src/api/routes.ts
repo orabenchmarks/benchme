@@ -1,8 +1,8 @@
+import { DomainError, apiUser, type AuthService } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import type { AuthService } from "../auth/auth-service.js";
 import type { CatalogRepo } from "../db/catalog-repo.js";
-import { DomainError, type OrdersRepo } from "../db/orders-repo.js";
+import type { OrdersRepo } from "../db/orders-repo.js";
 import { SESSION_COOKIE } from "../ui/routes.js";
 
 export type ApiDeps = { catalog: CatalogRepo; orders: OrdersRepo; auth: AuthService };
@@ -14,9 +14,9 @@ const transferBody = z.object({ sku: z.string().min(1), from: z.string().min(1),
 
 /** REST under /api/v1. Reads are open inside the workspace; writes need a bearer token or a session. */
 export function registerApi(app: FastifyInstance, d: ApiDeps): void {
+  const caller = apiUser(d.auth, SESSION_COOKIE);
   const authed = async (req: FastifyRequest, reply: FastifyReply): Promise<boolean> => {
-    const bearer = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
-    const user = (await d.auth.userForApiToken(req.workspaceId, bearer || undefined)) ?? (await d.auth.userForSession(req.workspaceId, req.cookies[SESSION_COOKIE]));
+    const user = await caller(req);
     if (!user) {
       reply.code(401).send({ error: "UNAUTHORIZED", message: "sign in or send Authorization: Bearer <api token>" });
       return false;

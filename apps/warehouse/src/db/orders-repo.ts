@@ -1,20 +1,12 @@
 import { withTx, type Pool } from "@benchme/core";
+import { DomainError } from "@benchme/site-kit";
 
 export type OrderRow = { orderNo: string; customerCode: string; status: "open" | "shipped" | "cancelled"; placedAt: string };
 export type OrderLineRow = { sku: string; qty: number; unitPriceCents: number };
 export type OrderDetail = OrderRow & { lines: OrderLineRow[]; totalCents: number };
 export type TransferRow = { transferNo: string; sku: string; fromCode: string; toCode: string; qty: number; status: "pending" | "completed" | "cancelled" };
 
-export class DomainError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly status = 422,
-  ) {
-    super(message);
-    this.name = "DomainError";
-  }
-}
+export { DomainError };
 
 /** Orders and transfers: the write side, with the business preconditions tasks will probe. */
 export interface OrdersRepo {

@@ -20,9 +20,20 @@ export class AuthError extends Error {
   }
 }
 
-export type AuthDeps = { users: UsersRepo; mailer: Mailer; sessionTtlSeconds: number; now?: () => Date };
+/** What the verification mail says — each site words its own. */
+export type VerificationCopy = { subject: string; body: (code: string) => string };
 
-/** Signup → verification mail → verify → login → session. Passwords hashed with scrypt. */
+export type AuthDeps = {
+  users: UsersRepo;
+  mailer: Mailer;
+  sessionTtlSeconds: number;
+  verification: VerificationCopy;
+  /** Prefix of issued api tokens (e.g. "whk", "hdk") so a token names its site. */
+  tokenPrefix: string;
+  now?: () => Date;
+};
+
+/** Signup → verification mail → verify → login → session. Passwords hashed with scrypt. Shared by every site. */
 export class AuthService {
   private readonly now: () => Date;
   constructor(private readonly d: AuthDeps) {
@@ -42,11 +53,7 @@ export class AuthService {
   async sendVerification(ws: string, email: string): Promise<void> {
     const code = String(randomInt(100000, 999999));
     await this.d.users.setVerificationCode(ws, email, code, new Date(this.now().getTime() + 30 * 60_000));
-    await this.d.mailer.deliver(ws, {
-      to: email,
-      subject: "Your warehouse verification code",
-      body: `Welcome to the warehouse portal.\n\nYour verification code is ${code}. It expires in 30 minutes.\n\nIf you did not sign up, ignore this message.`,
-    });
+    await this.d.mailer.deliver(ws, { to: email, subject: this.d.verification.subject, body: this.d.verification.body(code) });
   }
 
   async verify(ws: string, email: string, code: string): Promise<void> {
@@ -82,7 +89,7 @@ export class AuthService {
   }
 
   async issueApiToken(ws: string, email: string): Promise<string> {
-    const token = `whk_${randomBytes(18).toString("hex")}`;
+    const token = `${this.d.tokenPrefix}_${randomBytes(18).toString("hex")}`;
     await this.d.users.setApiToken(ws, email, token);
     return token;
   }

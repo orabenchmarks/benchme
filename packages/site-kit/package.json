@@ -1,0 +1,25 @@
+{
+  "name": "@benchme/site-kit",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@benchme/core": "0.1.0",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "fastify": "^5.2.0",
+    "zod": "^3.24.0",
+    "@fastify/cookie": "^11.0.0"
+  }
+}

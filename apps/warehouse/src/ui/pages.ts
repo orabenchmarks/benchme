@@ -1,6 +1,6 @@
 import type { CustomerRow, LocationRow, ProductRow, StockRow } from "../db/catalog-repo.js";
 import type { OrderDetail, OrderRow, TransferRow } from "../db/orders-repo.js";
-import { esc, money } from "./layout.js";
+import { esc, money } from "@benchme/site-kit";
 
 export function dashboard(p: string, counts: { products: number; openOrders: number; pendingTransfers: number }): string {
   return `<h1>Dashboard</h1>
@@ -77,26 +77,3 @@ export function customerDetail(p: string, c: CustomerRow, orders: OrderRow[]): s
   return `<h1>${esc(c.name)}</h1><p><code>${esc(c.code)}</code> · ${esc(c.tier)} · ${esc(c.city)}</p><h2>Orders</h2><table><tr><th>Order</th><th>Status</th><th>Placed</th></tr>${rows}</table>`;
 }
 
-export function signupForm(p: string, error?: string): string {
-  return `<h1>Create an account</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<form class="card" method="post" action="${p}/signup">
-<label>Name</label><input name="name" required><label>Email</label><input name="email" type="email" required><label>Password (8+ characters)</label><input name="password" type="password" required>
-<button>Sign up</button></form><p class="muted">A verification code is sent to the workspace inbox; enter it on the next screen.</p>`;
-}
-
-export function verifyForm(p: string, email: string, error?: string): string {
-  return `<h1>Verify your email</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<p>We sent a 6-digit code to <strong>${esc(email)}</strong>. Check the workspace inbox.</p>
-<form class="card" method="post" action="${p}/verify"><input type="hidden" name="email" value="${esc(email)}"><label>Code</label><input name="code" required pattern="[0-9]{6}"><button>Verify</button></form>`;
-}
-
-export function loginForm(p: string, error?: string): string {
-  return `<h1>Sign in</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<form class="card" method="post" action="${p}/login">
-<label>Email</label><input name="email" type="email" required><label>Password</label><input name="password" type="password" required><button>Sign in</button></form>
-<p class="muted">No account? <a href="${p}/signup">Sign up</a>.</p>`;
-}
-
-export function accountPage(p: string, user: { email: string; displayName: string; apiToken: string | null }): string {
-  return `<h1>Account</h1><p>${esc(user.displayName)} · ${esc(user.email)}</p>
-<h2>API token</h2><p>Use it as <code>Authorization: Bearer &lt;token&gt;</code> against <code>${esc(p)}/api/v1/…</code>.</p>
-<p>${user.apiToken ? `<code>${esc(user.apiToken)}</code>` : "<em>none yet</em>"}</p>
-<form method="post" action="${p}/account/token"><button>${user.apiToken ? "Rotate token" : "Create token"}</button></form>`;
-}

@@ -6,7 +6,7 @@ import type { FastifyInstance, InjectOptions } from "fastify";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Mailer } from "./auth/auth-service.js";
+import type { Mailer } from "@benchme/site-kit";
 import { buildWarehouse } from "./build-app.js";
 
 const DB = process.env.DATABASE_URL;

@@ -1,15 +1,32 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { FastifyInstance } from "fastify";
-import { DomainError } from "../db/orders-repo.js";
-import type { ToolContext, ToolRegistry } from "./tool-registry.js";
+import type { ToolRegistry } from "./tool-registry.js";
 
-export type McpDeps = { tools: ToolRegistry; context: (workspaceId: string) => ToolContext };
+/** Thrown by a tool/domain operation to render a structured error (never a 500). */
+export class DomainError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly status = 422,
+  ) {
+    super(message);
+    this.name = "DomainError";
+  }
+}
 
-/** Build a fresh MCP server bound to one workspace (stateless per request). */
-export function buildMcpServer(registry: ToolRegistry, ctx: ToolContext): McpServer {
-  const server = new McpServer({ name: "benchme-warehouse", version: "0.1.0" });
-  for (const tool of registry.list()) {
+export type McpDeps<C> = {
+  serverName: string;
+  version: string;
+  tools: ToolRegistry<C>;
+  /** Build the tool context for one request's workspace. */
+  context: (workspaceId: string) => C;
+};
+
+/** A fresh MCP server bound to one workspace (stateless per request). */
+export function buildMcpServer<C>(d: McpDeps<C>, ctx: C): McpServer {
+  const server = new McpServer({ name: d.serverName, version: d.version });
+  for (const tool of d.tools.list()) {
     server.tool(tool.name, tool.description, tool.input, async (args) => {
       try {
         const result = await tool.handler(args as never, ctx);
@@ -26,15 +43,17 @@ export function buildMcpServer(registry: ToolRegistry, ctx: ToolContext): McpSer
 }
 
 /**
- * Streamable HTTP at /mcp. Stateless mode: each request builds a server for
- * the request's workspace, so a workspace's tools never see another's rows.
+ * Streamable HTTP at /mcp inside its own Fastify plugin scope (it replaces the
+ * content-type parsers so JSON-RPC bodies reach the transport untouched).
+ * Stateless: every request builds a server for the request's workspace, so a
+ * workspace's tools never see another's rows.
  */
-export function registerMcp(app: FastifyInstance, d: McpDeps): void {
+export function registerMcp<C>(app: FastifyInstance, d: McpDeps<C>): void {
   app.removeAllContentTypeParsers();
   app.addContentTypeParser("*", { parseAs: "buffer" }, (_req, body, done) => done(null, body));
   app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
     try {
-      done(null, body.length ? JSON.parse(body as string) : {});
+      done(null, (body as string).length ? JSON.parse(body as string) : {});
     } catch (err) {
       done(err as Error);
     }
@@ -44,7 +63,7 @@ export function registerMcp(app: FastifyInstance, d: McpDeps): void {
   });
 
   app.all("/mcp", async (req, reply) => {
-    const server = buildMcpServer(d.tools, d.context(req.workspaceId));
+    const server = buildMcpServer(d, d.context(req.workspaceId));
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     reply.hijack();
     reply.raw.on("close", () => {

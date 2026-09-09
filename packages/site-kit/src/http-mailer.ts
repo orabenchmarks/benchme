@@ -5,6 +5,7 @@ export class HttpMailer implements Mailer {
   constructor(
     private readonly mailUrl: string,
     private readonly secret: string,
+    private readonly from: string,
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
@@ -12,7 +13,7 @@ export class HttpMailer implements Mailer {
     const res = await this.fetchImpl(`${this.mailUrl.replace(/\/+$/, "")}/internal/deliver`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-benchme-internal-secret": this.secret },
-      body: JSON.stringify({ workspaceId: ws, from: "no-reply@warehouse.benchme", ...msg }),
+      body: JSON.stringify({ workspaceId: ws, from: this.from, ...msg }),
     });
     if (!res.ok) throw new Error(`mail delivery failed: ${res.status} ${await res.text().catch(() => "")}`);
   }
