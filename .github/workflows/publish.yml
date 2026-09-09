@@ -16,6 +16,8 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,6 +45,7 @@ jobs:
             }' "${VERSION:-${GITHUB_REF_NAME#v}}"
           git diff --stat -- packages/*/package.json
       - name: publish (core → scenarios → site-kit)
+        if: env.NPM_TOKEN != ''
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
@@ -50,3 +53,8 @@ jobs:
           for p in core scenarios site-kit; do
             npm publish -w "packages/$p" --provenance --access public
           done
+      - name: not published — NPM_TOKEN is not configured
+        if: env.NPM_TOKEN == ''
+        run: |
+          echo "::warning::NPM_TOKEN repository secret is missing — the @benchme packages were versioned and dry-run only. Add the secret and re-run this workflow (workflow_dispatch with the version) to publish."
+          for p in core scenarios site-kit; do npm publish --dry-run -w "packages/$p" --access public; done

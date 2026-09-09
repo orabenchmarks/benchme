@@ -57,3 +57,25 @@ until publication.
 helm install benchme oci://ghcr.io/orabenchmarks/charts/benchme --version X.Y.Z -n benchme --create-namespace \
   --set ingress.host=benchme.example.test --set publicBaseUrl=http://benchme.example.test
 ```
+
+### GitOps deployments (ArgoCD and friends)
+
+Two chart inputs cannot travel through `helm template`:
+
+- **Secrets.** By default the chart generates its five secrets on first
+  install and keeps them with a `lookup` — a rendering that has no cluster
+  (ArgoCD's repo-server) would mint new values on every sync and rotate the
+  Postgres password. Provide a Secret yourself (an ExternalSecret from your
+  secret manager, keys `gatewaySecret`, `operatorKey`, `receiptSecret`,
+  `mailInternalSecret`, `postgresPassword`) and name it in
+  `secrets.existingSecret`.
+- **Hidden task specs.** Never commit them. Build a ConfigMap from your
+  hidden-tasks checkout and apply it out-of-band, then name it in
+  `verify.existingSpecsConfigMap` (the chart renders no specs ConfigMap of its
+  own and mounts yours at `/specs`):
+
+  ```bash
+  node tools/build-specs.mjs --hidden ../benchme-hidden \
+    --configmap benchme-task-specs-hidden --namespace benchme --out specs-cm.yaml
+  kubectl -n benchme apply -f specs-cm.yaml     # re-run after every hidden-tasks change
+  ```

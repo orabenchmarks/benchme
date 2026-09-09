@@ -67,6 +67,7 @@ spec:
       benchme.dev/role: runner
   policyTypes: [Egress]
   egress: []
+{{- if not .Values.verify.existingSpecsConfigMap }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -78,3 +79,4 @@ data:
   {{- range $id, $spec := .Values.verify.specs }}
   {{ $id }}.json: {{ toJson $spec | quote }}
   {{- end }}
+{{- end }}

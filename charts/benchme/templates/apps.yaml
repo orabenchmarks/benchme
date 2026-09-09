@@ -148,6 +148,6 @@ spec:
         {{- if eq $app "verify" }}
         - name: specs
           configMap:
-            name: {{ $root.Release.Name }}-task-specs
+            name: {{ $root.Values.verify.existingSpecsConfigMap | default (printf "%s-task-specs" $root.Release.Name) }}
         {{- end }}
 {{- end }}

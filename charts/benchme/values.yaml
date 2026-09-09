@@ -99,9 +99,14 @@ verify:
     cpu: "2"
     memory: 2Gi
   # Hidden task specs (taskId → spec object), rendered into a ConfigMap at
-  # /specs. Production supplies them from benchme-hidden through a values
-  # file that is never committed here; dev ships a couple of smoke specs.
+  # /specs. Dev ships a couple of smoke specs and a generated values file
+  # (tools/build-specs.mjs) that is never committed.
   specs: {}
+  # GitOps deployments (ArgoCD) cannot carry the hidden specs in values at all:
+  # name a ConfigMap applied out-of-band instead (`tools/build-specs.mjs
+  # --configmap <name>` emits it) — the chart then renders no specs ConfigMap
+  # and mounts this one by name. Keys are `<taskId>.json`.
+  existingSpecsConfigMap: ""
 
 logLevel: info
 

@@ -4,6 +4,8 @@
  *
  *   node tools/build-specs.mjs --hidden ../benchme-hidden --out specs.values.yaml
  *        [--image-prefix k3d-ora-registry:5000/benchme]   # dev: rewrite ghcr.io/orabenchmarks/<name>:<tag> → <prefix>/<name>:<tag>
+ *        [--configmap <name> [--namespace <ns>]]           # GitOps: emit a ConfigMap manifest (keys <taskId>.json) for
+ *                                                          # `verify.existingSpecsConfigMap` instead of a values file
  *
  * For every tasks/<id>/spec.json it inlines tasks/<id>/hidden/** into
  * oracle.hiddenFiles (path → content), checks that every requiredTest names a
@@ -18,6 +20,8 @@ const args = Object.fromEntries(process.argv.slice(2).map((a, i, all) => (a.star
 const hiddenRoot = args.hidden ?? "../benchme-hidden";
 const out = args.out ?? "specs.values.yaml";
 const imagePrefix = args["image-prefix"];
+const configMapName = args.configmap;
+const configMapNamespace = args.namespace;
 
 function walk(dir) {
   const files = [];
@@ -72,8 +76,14 @@ if (problems.length) {
   console.error("build-specs refused:\n  " + problems.join("\n  "));
   process.exit(1);
 }
-// Minimal YAML emitter: the chart consumes `verify.specs` as a map of JSON-compatible objects.
-const yaml = ["benchme:", "  verify:", "    specs:"];
-for (const [id, spec] of Object.entries(specs)) yaml.push(`      ${id}: ${JSON.stringify(spec)}`);
+// Minimal YAML emitter (JSON is valid YAML): either the chart's `verify.specs`
+// values map, or — for GitOps deployments, where values can never carry the
+// hidden specs — a ConfigMap manifest to apply out-of-band and name in
+// `verify.existingSpecsConfigMap` (keys `<taskId>.json`, exactly what the
+// chart's own ConfigMap renders).
+const yaml = configMapName
+  ? ["apiVersion: v1", "kind: ConfigMap", "metadata:", `  name: ${configMapName}`, ...(configMapNamespace ? [`  namespace: ${configMapNamespace}`] : []), "data:"]
+  : ["benchme:", "  verify:", "    specs:"];
+for (const [id, spec] of Object.entries(specs)) yaml.push(configMapName ? `  ${id}.json: ${JSON.stringify(JSON.stringify(spec))}` : `      ${id}: ${JSON.stringify(spec)}`);
 writeFileSync(out, yaml.join("\n") + "\n");
-console.log(JSON.stringify({ tasks: Object.keys(specs), out }));
+console.log(JSON.stringify({ tasks: Object.keys(specs), out, format: configMapName ? "configmap" : "values" }));
