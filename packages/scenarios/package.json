@@ -5,6 +5,28 @@
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "scripts": { "build": "tsc -b", "test": "vitest run" }
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "description": "benchme seeded scenario generators (acme-v1) and the derived ground truths tasks are graded against",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orabenchmarks/benchme.git",
+    "directory": "packages/scenarios"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
 }

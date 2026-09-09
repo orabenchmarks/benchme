@@ -1,0 +1,43 @@
+name: publish
+# Publishes the public @benchme packages to npm on a version tag (vX.Y.Z), with
+# provenance. Needs the NPM_TOKEN repository secret (an npm granular access
+# token with publish rights on the @benchme scope). Apps are never published.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, registry-url: "https://registry.npmjs.org" }
+      - run: npm ci
+      - run: npx tsc -b tsconfig.build.json
+      - name: version every package from the tag
+        run: |
+          set -euo pipefail
+          V="${GITHUB_REF_NAME#v}"
+          for p in core scenarios site-kit; do
+            npm version "$V" --no-git-tag-version -w "packages/$p" >/dev/null
+          done
+          # workspace deps must point at the published version, not 0.1.0
+          node -e '
+            const fs=require("fs");
+            for (const p of ["site-kit"]) {
+              const f=`packages/${p}/package.json`; const j=JSON.parse(fs.readFileSync(f));
+              for (const k of Object.keys(j.dependencies||{})) if (k.startsWith("@benchme/")) j.dependencies[k]=process.argv[1];
+              fs.writeFileSync(f, JSON.stringify(j,null,2)+"\n");
+            }' "$V"
+      - name: publish (core → scenarios → site-kit)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          for p in core scenarios site-kit; do
+            npm publish -w "packages/$p" --provenance --access public
+          done

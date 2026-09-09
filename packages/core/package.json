@@ -5,8 +5,16 @@
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "scripts": { "build": "tsc -b", "test": "vitest run" },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
   "dependencies": {
     "fastify": "^5.2.0",
     "pg": "^8.13.0",
@@ -14,5 +22,21 @@
     "pino": "^9.6.0",
     "zod": "^3.24.0"
   },
-  "devDependencies": { "@types/pg": "^8.11.0" }
+  "devDependencies": {
+    "@types/pg": "^8.11.0"
+  },
+  "description": "benchme core: config, http conventions, workspace ids, HMAC receipts, Postgres migrations, the workspace model",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orabenchmarks/benchme.git",
+    "directory": "packages/core"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
 }
