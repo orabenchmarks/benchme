@@ -24,6 +24,9 @@
     },
     {
       "path": "apps/data"
+    },
+    {
+      "path": "apps/verify"
     }
   ]
 }

@@ -42,6 +42,9 @@ spec:
         checksum/values: {{ toYaml $root.Values.secrets | sha256sum }}
     spec:
       {{- include "benchme.pullSecrets" $root | nindent 6 }}
+      {{- if eq $app "verify" }}
+      serviceAccountName: {{ $root.Release.Name }}-verify
+      {{- end }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001
@@ -76,9 +79,9 @@ spec:
             - name: INTERNAL_BASE_URL
               value: {{ $internal | quote }}
             - name: APP_TARGETS
-              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
+              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\",\"verify\":\"http://%s-verify\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
             - name: SEEDED_APPS
-              value: "warehouse,helpdesk,mail"
+              value: "warehouse,helpdesk,mail,verify"
             - name: MCP_APPS
               value: "warehouse,helpdesk"
             - name: WORKSPACE_TTL_SECONDS
@@ -91,6 +94,29 @@ spec:
             {{- if or (eq $app "warehouse") (eq $app "helpdesk") }}
             - name: MAIL_URL
               value: http://{{ $root.Release.Name }}-mail
+            {{- end }}
+            {{- if eq $app "verify" }}
+            - name: RECEIPT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "benchme.secretName" $root }}
+                  key: receiptSecret
+            - name: SPECS_DIR
+              value: /specs
+            - name: MAX_ATTEMPTS_PER_TASK
+              value: {{ $root.Values.verify.maxAttemptsPerTask | quote }}
+            - name: MAX_ARTIFACT_BYTES
+              value: {{ $root.Values.verify.maxArtifactBytes | quote }}
+            - name: RUNNER_NAMESPACE
+              value: {{ $root.Release.Namespace | quote }}
+            - name: RUNNER_SERVICE_ACCOUNT
+              value: {{ $root.Release.Name }}-runner
+            - name: RUNNER_LABEL
+              value: runner
+            - name: RUNNER_CPU
+              value: {{ $root.Values.verify.runner.cpu | quote }}
+            - name: RUNNER_MEMORY
+              value: {{ $root.Values.verify.runner.memory | quote }}
             {{- end }}
           readinessProbe:
             httpGet: { path: /readyz, port: http }
@@ -106,7 +132,17 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            {{- if eq $app "verify" }}
+            - name: specs
+              mountPath: /specs
+              readOnly: true
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
+        {{- if eq $app "verify" }}
+        - name: specs
+          configMap:
+            name: {{ $root.Release.Name }}-task-specs
+        {{- end }}
 {{- end }}

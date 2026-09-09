@@ -81,5 +81,21 @@ apps:
     resources:
       requests: { cpu: 25m, memory: 64Mi }
       limits: { cpu: 300m, memory: 256Mi }
+  verify:
+    replicas: 1
+    resources:
+      requests: { cpu: 50m, memory: 192Mi }
+      limits: { cpu: "1", memory: 768Mi }
+
+verify:
+  maxAttemptsPerTask: 20
+  maxArtifactBytes: 10485760
+  runner:
+    cpu: "2"
+    memory: 2Gi
+  # Hidden task specs (taskId → spec object), rendered into a ConfigMap at
+  # /specs. Production supplies them from benchme-hidden through a values
+  # file that is never committed here; dev ships a couple of smoke specs.
+  specs: {}
 
 logLevel: info

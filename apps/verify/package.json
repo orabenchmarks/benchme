@@ -1,0 +1,23 @@
+{
+  "name": "@benchme/verify",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "migrate": "node dist/migrate.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@benchme/core": "0.1.0",
+    "@benchme/site-kit": "0.1.0",
+    "@kubernetes/client-node": "^1.1.0",
+    "exceljs": "^4.4.0",
+    "fastify": "^5.2.0",
+    "jszip": "^3.10.1",
+    "zod": "^3.24.0"
+  }
+}
