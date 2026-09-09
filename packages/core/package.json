@@ -32,7 +32,8 @@
     "directory": "packages/core"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "files": [
     "dist",

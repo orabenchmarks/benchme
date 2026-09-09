@@ -29,7 +29,8 @@
     "directory": "packages/site-kit"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "files": [
     "dist",

@@ -1,10 +1,9 @@
 name: publish
-# Publishes the public @benchme packages to npm on a version tag (vX.Y.Z).
-# Needs the NPM_TOKEN repository secret (an npm granular access token with
-# publish rights on the @benchme scope). Apps are never published.
-# Provenance is OFF until this repository is public: npm rejects a sigstore
-# bundle from a private source repo (E422). When it goes public, add
-# --provenance back and stop stripping publishConfig.provenance below.
+# Publishes the public @benchme packages to npm on a version tag (vX.Y.Z), with
+# provenance (the repository is public; npm rejects attestations from a private
+# source repo with E422). Needs the NPM_TOKEN repository secret (an npm
+# granular access token with publish rights on the @benchme scope). Apps are
+# never published.
 on:
   push:
     tags: ["v*"]
@@ -43,7 +42,6 @@ jobs:
             for (const p of ["core","scenarios","site-kit"]) {
               const f=`packages/${p}/package.json`; const j=JSON.parse(fs.readFileSync(f));
               j.version=V;
-              if (j.publishConfig) delete j.publishConfig.provenance; // private repo: no provenance (see header)
               for (const k of Object.keys(j.dependencies||{})) if (k.startsWith("@benchme/")) j.dependencies[k]=V;
               fs.writeFileSync(f, JSON.stringify(j,null,2)+"\n");
             }' "${VERSION:-${GITHUB_REF_NAME#v}}"
@@ -55,7 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           for p in core scenarios site-kit; do
-            npm publish -w "packages/$p" --access public
+            npm publish -w "packages/$p" --provenance --access public
           done
       - name: not published — NPM_TOKEN is not configured
         if: env.NPM_TOKEN == ''
