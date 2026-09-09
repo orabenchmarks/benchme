@@ -54,6 +54,11 @@ for (const id of readdirSync(tasksDir).sort()) {
     spec.oracle.hiddenFiles = Object.fromEntries(files.map((f) => [relative(hiddenDir, f), readFileSync(f, "utf8")]));
     const available = files.flatMap((f) => testNames(readFileSync(f, "utf8")));
     for (const t of spec.oracle.requiredTests ?? []) if (!available.includes(t)) problems.push(`${id}: requiredTest "${t}" not found in hidden tests`);
+    // An EMPTY requiredTests would let a runner that never received the hidden
+    // files pass on visible tests alone — so every hidden test is required by
+    // default. Authors may list a subset explicitly.
+    if (!(spec.oracle.requiredTests ?? []).length) spec.oracle.requiredTests = available;
+    if (!spec.oracle.requiredTests.length) problems.push(`${id}: no hidden tests found`);
     const bytes = Object.values(spec.oracle.hiddenFiles).reduce((n, s) => n + Buffer.byteLength(s), 0);
     if (bytes > 800_000) problems.push(`${id}: hidden files are ${bytes} bytes (ConfigMap limit)`);
     if (imagePrefix && typeof spec.oracle.runnerImage === "string") {
