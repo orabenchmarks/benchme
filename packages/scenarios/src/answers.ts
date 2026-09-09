@@ -25,8 +25,13 @@ export function orderTotalCents(rows: ScenarioRows, orderNo: string): number {
     .reduce((sum, l) => sum + l.qty * (price.get(l.sku) ?? 0), 0);
 }
 
+/**
+ * SKUs whose total stock across every location is below `threshold`. A product
+ * with NO stock rows has a total of 0 and therefore counts — the answer key
+ * once skipped those and graded seven of eight agents wrong for listing them.
+ */
 export function lowStock(rows: ScenarioRows, threshold: number): string[] {
-  const totals = new Map<string, number>();
+  const totals = new Map<string, number>(rows.warehouse.products.map((p) => [p.sku, 0]));
   for (const s of rows.warehouse.stock) totals.set(s.sku, (totals.get(s.sku) ?? 0) + s.qty);
   return [...totals.entries()]
     .filter(([, qty]) => qty < threshold)

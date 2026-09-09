@@ -70,7 +70,15 @@ export class PgCatalogRepo implements CatalogRepo {
 
   async lowStock(ws: string, threshold: number): Promise<{ sku: string; total: number }[]> {
     const r = await this.pool.query<{ sku: string; total: string }>(
-      `SELECT sku, SUM(qty)::text AS total FROM warehouse.stock WHERE workspace_id = $1 GROUP BY sku HAVING SUM(qty) < $2 ORDER BY sku`,
+      // Every product counts, including one with no stock rows (total 0) — the
+      // same definition as @benchme/scenarios' lowStock, which grades the tasks.
+      `SELECT p.sku, COALESCE(SUM(s.qty), 0)::text AS total
+         FROM warehouse.products p
+         LEFT JOIN warehouse.stock s ON s.workspace_id = p.workspace_id AND s.sku = p.sku
+        WHERE p.workspace_id = $1
+        GROUP BY p.sku
+       HAVING COALESCE(SUM(s.qty), 0) < $2
+        ORDER BY p.sku`,
       [ws, threshold],
     );
     return r.rows.map((x) => ({ sku: x.sku, total: Number(x.total) }));
