@@ -37,7 +37,12 @@ export class K8sJobRunner implements JobRunner {
   async run({ spec, patch, ctx }: Parameters<JobRunner["run"]>[0]): Promise<RunnerReport> {
     const name = `verify-${ctx.taskId}-${randomBytes(4).toString("hex")}`.slice(0, 60);
     const ns = this.o.namespace;
-    await this.core.createNamespacedConfigMap({ namespace: ns, body: { metadata: { name, labels: { "app.kubernetes.io/part-of": "benchme", "benchme.dev/role": this.o.runnerLabel } }, data: { "submission.patch": patch.toString("utf8") } } });
+    // One ConfigMap carries the patch and the hidden files; keys cannot hold
+    // "/" so paths are encoded and a manifest maps them back for the runner.
+    const hidden = Object.entries(spec.hiddenFiles);
+    const data: Record<string, string> = { "submission.patch": patch.toString("utf8"), "hidden-manifest.json": JSON.stringify(hidden.map(([path], i) => ({ key: `hidden-${i}`, path }))) };
+    hidden.forEach(([, content], i) => (data[`hidden-${i}`] = content));
+    await this.core.createNamespacedConfigMap({ namespace: ns, body: { metadata: { name, labels: { "app.kubernetes.io/part-of": "benchme", "benchme.dev/role": this.o.runnerLabel } }, data } });
     try {
       await this.batch.createNamespacedJob({
         namespace: ns,
@@ -61,6 +66,8 @@ export class K8sJobRunner implements JobRunner {
                     ...(spec.runnerCommand ? { command: spec.runnerCommand } : {}),
                     env: [
                       { name: "PATCH_FILE", value: "/patch/submission.patch" },
+                      { name: "HIDDEN_MANIFEST", value: "/patch/hidden-manifest.json" },
+                      { name: "HIDDEN_DIR", value: "/patch" },
                       { name: "BASE_SHA", value: spec.baseSha },
                       { name: "RUN_LINT", value: String(spec.lint) },
                       { name: "RUN_TYPECHECK", value: String(spec.typecheck) },

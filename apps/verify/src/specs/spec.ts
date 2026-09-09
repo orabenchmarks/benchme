@@ -44,6 +44,13 @@ export const patchSpec = z.object({
   runnerCommand: z.array(z.string()).optional(),
   /** The SHA the patch must apply to (informational; the runner pins it). */
   baseSha: z.string(),
+  /**
+   * Hidden files injected into the runner at run time (path → content, mounted
+   * at /hidden; the runner copies them over the checkout before testing). This
+   * is how hidden tests reach a PUBLIC runner image without ever being baked
+   * into it. Total size must fit a ConfigMap (~900 KB).
+   */
+  hiddenFiles: z.record(z.string().regex(/^[A-Za-z0-9_./-]+$/), z.string()).default({}),
   /** Hidden test ids that must pass; empty = every test the runner reports. */
   requiredTests: z.array(z.string()).default([]),
   lint: z.boolean().default(true),
