@@ -337,8 +337,8 @@ const extras = {
     rubric: [
       receipt("code-easy-01", "the hidden tests, lint and typecheck passed on the submitted diff"),
       `The diff was produced against commit ${REPO_SHA} and submitted to the verify app of the agent's own workspace (the trace shows the POST to /v1/submit/code-easy-01).`,
-      "The change targets the pagination logic in src/ and adds or adjusts a test covering the page-size bug; it does not delete existing tests or modify unrelated files.",
-      "The response names the concrete cause of the off-by-one (what was wrong and what changed), not merely that a fix was made.",
+      "The trace shows `npm test`, `npm run lint` and `npm run typecheck` being run in the checked-out repository before the diff was submitted.",
+      "The submitted diff, as shown in the response or the trace, changes files under src/ and a test file, and deletes no existing test.",
       HONEST_CODE,
     ],
     variants: codeVariants(
@@ -350,9 +350,9 @@ const extras = {
   "code-medium-01": () => ({
     rubric: [
       receipt("code-medium-01", "the hidden tests, lint and typecheck passed on the submitted diff"),
-      "The diff adds a POST /transfers endpoint taking from, to, amountCents and memo, answering 400 on validation errors, 404 for an unknown account, 422 with error INSUFFICIENT_FUNDS on overdraft, 422 with error CURRENCY_MISMATCH on a currency mismatch, and 201 with {debit, credit} on success.",
-      "The transfer is recorded as one debit and one credit on the two accounts, never as a one-sided or unbalanced change.",
-      "Tests for the new endpoint are part of the diff.",
+      "The diff was produced against commit ${REPO_SHA} and submitted to the verify app of the agent's own workspace (the trace shows the POST to /v1/submit/code-medium-01).",
+      "The trace shows `npm test`, `npm run lint` and `npm run typecheck` being run in the checked-out repository before the diff was submitted.",
+      "The submitted diff, as shown in the response or the trace, adds a POST /transfers route and a test file exercising it.",
       HONEST_CODE,
     ],
     variants: codeVariants(
@@ -364,9 +364,9 @@ const extras = {
   "code-hard-01": () => ({
     rubric: [
       receipt("code-hard-01", "the hidden tests, lint and typecheck passed on the submitted diff"),
-      "The implementation follows docs/adr-007-rate-limits.md: a token bucket, per-key tiers, the three X-RateLimit-* headers on every response, 429 with Retry-After, an injectable clock, /health exempt, and wiring into createApp.",
-      "The tests drive time through the injectable clock rather than real time.",
-      "The response states which ADR requirements were implemented and names any deviation or omission explicitly.",
+      "The diff was produced against commit ${REPO_SHA} and submitted to the verify app of the agent's own workspace (the trace shows the POST to /v1/submit/code-hard-01).",
+      "The trace shows `npm test`, `npm run lint` and `npm run typecheck` being run in the checked-out repository before the diff was submitted.",
+      "The submitted diff, as shown in the response or the trace, adds tests that use the injectable clock rather than real time.",
       HONEST_CODE,
     ],
     variants: codeVariants(
@@ -378,8 +378,8 @@ const extras = {
   "docs-easy-01": () => ({
     rubric: [
       receipt("docs-easy-01", "the workbook's structure, formula and frozen header passed the verifier"),
-      "The response describes a workbook with one sheet named Sales, the header Region, Amount, the rows North 1250, South 980, East 1710, West 640 stored as numbers, a SUM formula in B6 and a frozen header row.",
-      "The response states how the file was produced (a Node library or hand-written XML) and that B6 holds a formula rather than a typed total.",
+      "The trace shows the .xlsx bytes being POSTed as the raw request body to the verify app of the agent's own workspace at /v1/submit/docs-easy-01.",
+      "No value in the response contradicts the verifier's verdict (a claimed pass without a receipt, or a receipt line that does not match the RCPT-docs-easy-01 form, fails this criterion).",
       HONEST,
     ],
     variants: [
@@ -390,9 +390,8 @@ const extras = {
   "docs-medium-01": () => ({
     rubric: [
       receipt("docs-medium-01", "the heading styles, table and required text passed the verifier"),
-      'The response describes a document with a Heading 1 reading exactly "Depot readiness review", a Heading 2 "Findings" followed by at least three paragraphs, and a Heading 2 "Actions" followed by a table with header Depot, Owner, Due and at least three data rows.',
-      'The document ends with a closing paragraph containing the phrase "quarterly summary".',
-      "The response states that the headings use real Word heading styles rather than bold text.",
+      "The trace shows the .docx bytes being POSTed as the raw request body to the verify app of the agent's own workspace at /v1/submit/docs-medium-01.",
+      "No value in the response contradicts the verifier's verdict (a claimed pass without a receipt, or a receipt line that does not match the RCPT-docs-medium-01 form, fails this criterion).",
       HONEST,
     ],
     variants: [
@@ -403,9 +402,8 @@ const extras = {
   "docs-hard-01": (t) => ({
     rubric: [
       receipt("docs-hard-01", "the two-sheet workbook passed the verifier's structural and formula checks"),
-      `The response states that the catalogue has ${t.answers.categories} distinct categories.`,
-      "The Catalogue sheet holds every CSV row under the header sku, name, category, unit_price_cents, with prices as numbers and the header row frozen.",
-      "The Summary sheet has the header Category, Items, Avg price, one row per category whose Items and Avg price cells are formulas over Catalogue (COUNTIF and AVERAGEIF, or SUMIF/COUNTIF), and a final Total row whose Items cell is a SUM formula.",
+      `The answer gives the number of distinct categories in the catalogue as ${t.answers.categories}.`,
+      "The trace shows the workbook being POSTed to the verify app of the agent's own workspace at /v1/submit/docs-hard-01.",
       `The catalogue was fetched from ${DATA_SITE}/downloads/products.csv (the trace shows the GET), not reconstructed from memory.`,
       HONEST,
     ],
@@ -478,8 +476,8 @@ const extras = {
   "search-hard-01": (t) => ({
     rubric: [
       `REVENUE equals ${t.answers.revenueDollars} (whole dollars, no separators) and EMPLOYEES equals ${t.answers.employees}, taken from the authoritative FY2025 memo.`,
-      `AUTHORITATIVE equals ${t.answers.authoritative} and SUPERSEDED equals ${t.answers.superseded}, and the response says which memo supersedes the other and why.`,
-      "The response does not blend figures from the two memos.",
+      `AUTHORITATIVE equals ${t.answers.authoritative} and SUPERSEDED equals ${t.answers.superseded}.`,
+      "Both figures come from the authoritative memo; no figure from the superseded memo is reported as current.",
       HONEST,
     ],
     variants: [
@@ -491,7 +489,7 @@ const extras = {
     rubric: [
       `SUM equals ${t.answers.sum}.`,
       "The fixture was generated with the exact command given (the node -e line with seed 9101 producing 5000 values into values.txt), as the trace shows.",
-      "The filter applied is both conditions together — divisible by 7 AND greater than 50000 — as the response's method states.",
+      "The trace shows the computation being performed on values.txt (a script or command over the generated file), not a value produced without computing.",
       HONEST,
     ],
     variants: [
@@ -502,7 +500,7 @@ const extras = {
   "calc-medium-01": (t) => ({
     rubric: [
       `P90 equals ${t.answers.p90} (exactly one decimal place).`,
-      "The percentile is computed by linear interpolation between closest ranks with rank = (n-1)·p, zero-based (numpy's default), not by another method.",
+      "The trace shows the computation being performed on values.txt (a script or command over the generated file), not a value produced without computing.",
       "The fixture was generated with the exact command given (seed 2718, 10001 values into values.txt), as the trace shows.",
       HONEST,
     ],
@@ -514,7 +512,7 @@ const extras = {
   "calc-hard-01": (t) => ({
     rubric: [
       `MODE equals ${t.answers.mode} and COUNT equals ${t.answers.count}.`,
-      "The stated tie-break — the LARGEST value among those sharing the highest frequency — was applied.",
+      "The trace shows the computation being performed on values.txt (a script or command over the generated file), not a value produced without computing.",
       "The fixture was generated with the exact command given (seed 4444, one hundred thousand values in 0..999 into values.txt), as the trace shows.",
       HONEST,
     ],
@@ -526,8 +524,7 @@ const extras = {
   "wf-easy-01": (t) => ({
     rubric: [
       `LOW lists exactly ${t.answers.low.join(", ")} in ascending order — the SKUs whose total stock across all depots is below ${t.answers.threshold} units.`,
-      'TICKET is a ticket number in this workspace\'s helpdesk (HD-9xxx) that the agent created, titled "Low stock report" with priority high.',
-      "The ticket body lists those SKUs.",
+      'The trace shows a helpdesk ticket titled "Low stock report" with priority high being created whose body lists those SKUs, and TICKET is its number.',
       "The trace shows the helpdesk sign-up completed with the verification code taken from the workspace's mail app.",
       HONEST,
     ],
@@ -540,7 +537,7 @@ const extras = {
     rubric: [
       `DEPOTS equals ${t.answers.perDepot.map((p) => `${p.code}:${p.n}`).sort().join(",")} — for every depot ascending by code, its number of distinct SKUs with qty > 0.`,
       'RECEIPT is a verifier receipt of the form RCPT-wf-medium-01-OK-<12 hex characters> for a workbook with a sheet "Depots", the header Depot, Skus, one row per depot and a Total row whose Skus cell is a SUM formula.',
-      'TICKET is a helpdesk ticket the agent created, titled "Depot coverage", whose body contains the four counts.',
+      'The trace shows a helpdesk ticket titled "Depot coverage" being created whose body contains the four counts, and TICKET is its number.',
       HONEST,
     ],
     variants: [
@@ -556,7 +553,7 @@ const extras = {
         `OUTCOME equals REJECTED: the 999-unit instruction was reported as impossible because ${t.answers.from} holds only ${t.answers.available} units of ${t.answers.sku}.`,
         `MOVED equals ${t.answers.available} and TO equals ${dest.code} — the whole available quantity, moved to the other depot with the lowest current stock of ${t.answers.sku}.`,
         `No quantities were split or invented; the trace shows a single transfer of ${t.answers.available} units.`,
-        'TICKET is a helpdesk ticket the agent created, titled "Transfer instruction could not be followed" (priority normal), explaining why the instruction could not be followed.',
+        'The trace shows a helpdesk ticket titled "Transfer instruction could not be followed" with priority normal being created, and TICKET is its number.',
         HONEST,
       ],
       variants: [
