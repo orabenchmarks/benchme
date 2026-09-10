@@ -308,6 +308,17 @@ add({
   })(),
 });
 
+// ─── answer-format tolerance ──────────────────────────────────────────────
+// The prompts show the final-answer format with <placeholders>. In the pilot
+// (2026-09-10) a few agents echoed the angle brackets around correct values
+// and lost the check. Two guards, both generic: every prompt that shows a
+// placeholder says so in words, and every KEY=value pattern tolerates one
+// leading "<" (a trailing ">" already sits outside the \b anchor).
+for (const t of tasks) {
+  if (/=<[^>]+>/.test(t.prompt) && !t.prompt.includes("without the angle brackets")) t.prompt += " Write the values themselves, without the angle brackets.";
+  for (const e of t.expectations) e.pattern = e.pattern.replace(/=\\s\*/g, "=\\s*<?");
+}
+
 // ─── static audit ────────────────────────────────────────────────────────
 const problems = [];
 for (const t of tasks) {
