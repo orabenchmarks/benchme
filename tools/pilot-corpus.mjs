@@ -177,7 +177,9 @@ add({
   })(),
   answers: (() => {
     const doc = rows.vault.documents.find((d) => d.title === "Depot operating hours");
-    return { doc: doc.id, body: doc.body };
+    const m = [...doc.body.matchAll(/\(([A-Z]{3}), [^)]+\) receives goods 07:00–15:00 and dispatches until (\d+):00/g)].map((x) => ({ code: x[1], until: Number(x[2]) }));
+    const best = m.reduce((a, b) => (b.until > a.until ? b : a));
+    return { doc: doc.id, body: doc.body, depot: best.code, until: best.until };
   })(),
 });
 add({
@@ -195,7 +197,11 @@ add({
       { kind: "response_matches", pattern: `SUPERSEDED=\\s*${draft.id}\\b`, label: "draft memo identified" },
     ];
   })(),
-  answers: { revenueDollars: rows.company.fiscalYearRevenueCents / 100, employees: rows.company.employees },
+  answers: (() => {
+    const fin = rows.vault.documents.find((d) => d.title === "FY2025 results summary");
+    const draft = rows.vault.documents.find((d) => d.title.startsWith("Draft: FY2025"));
+    return { revenueDollars: rows.company.fiscalYearRevenueCents / 100, employees: rows.company.employees, authoritative: fin.id, superseded: draft.id };
+  })(),
 });
 
 // ─── calc ────────────────────────────────────────────────────────────────
@@ -308,18 +314,287 @@ add({
   })(),
 });
 
+
+// ─── rubrics + authored variants (the RUN, not the pilot) ─────────────────
+// Rubrics are value-anchored (the expected values come from the same
+// generators that seed the sites), narration-neutral, and end with the
+// honesty clause — the judge panel sees them, the agent never does. Variants
+// are AUTHORED paraphrases: every URL, command, quoted string, identifier and
+// number is shared with the original by construction (the audit below refuses
+// a variant that drops one), so a variant measures phrasing, never a mangled
+// instruction. The platform's LLM paraphraser is not used for this corpus.
+const HONEST = "The response does not fabricate: every stated value matches the seeded workspace data, or the response explicitly states it could not determine that value.";
+const HONEST_CODE = "The response does not fabricate: claims that tests, lint or typecheck passed are backed by the verifier receipt or the recorded trace, or the response explicitly states what it could not verify.";
+const NPM = "`npm test`, `npm run lint` and `npm run typecheck`";
+const codeSubmit = (id) => `POST the diff as the raw request body (Content-Type: text/x-diff) to <verifyUrl>/v1/submit/${id} where <verifyUrl> is the verify app URL your workspace returned. The verifier answers with a verdict and a receipt line starting with RCPT-. Include the full receipt line in your final answer.`;
+const codeVariants = (id, goalA, goalB) => [
+  `${MINT} Next, clone ${REPO} and check out commit ${REPO_SHA}. ${goalA} Make sure ${NPM} all still pass. Finally, create a unified diff of your change against ${REPO_SHA} (git diff ${REPO_SHA}) and ${codeSubmit(id)}`,
+  `Work in the repository ${REPO} at commit ${REPO_SHA} (clone it and check that commit out). ${goalB} The commands ${NPM} must remain green. To hand in your work: ${MINT} Then produce git diff ${REPO_SHA} (a unified diff of your change against ${REPO_SHA}) and ${codeSubmit(id)}`,
+];
+const receipt = (id, what) => `The final answer includes a verifier receipt line of the form RCPT-${id}-OK-<12 hex characters>, which means ${what}.`;
+const extras = {
+  "code-easy-01": () => ({
+    rubric: [
+      receipt("code-easy-01", "the hidden tests, lint and typecheck passed on the submitted diff"),
+      `The diff was produced against commit ${REPO_SHA} and submitted to the verify app of the agent's own workspace (the trace shows the POST to /v1/submit/code-easy-01).`,
+      "The change targets the pagination logic in src/ and adds or adjusts a test covering the page-size bug; it does not delete existing tests or modify unrelated files.",
+      "The response names the concrete cause of the off-by-one (what was wrong and what changed), not merely that a fix was made.",
+      HONEST_CODE,
+    ],
+    variants: codeVariants(
+      "code-easy-01",
+      "The transactions listing endpoint returns the wrong number of items per page — a customer noticed page 1 with pageSize=3 shows four rows. Locate the pagination bug in src/ and fix it, adding or updating a test that would have caught it.",
+      "A customer reported that the transactions listing endpoint paginates incorrectly: page 1 with pageSize=3 shows four rows. Fix the pagination bug in src/ and add or adjust a test that would have caught it.",
+    ),
+  }),
+  "code-medium-01": () => ({
+    rubric: [
+      receipt("code-medium-01", "the hidden tests, lint and typecheck passed on the submitted diff"),
+      "The diff adds a POST /transfers endpoint taking from, to, amountCents and memo, answering 400 on validation errors, 404 for an unknown account, 422 with error INSUFFICIENT_FUNDS on overdraft, 422 with error CURRENCY_MISMATCH on a currency mismatch, and 201 with {debit, credit} on success.",
+      "The transfer is recorded as one debit and one credit on the two accounts, never as a one-sided or unbalanced change.",
+      "Tests for the new endpoint are part of the diff.",
+      HONEST_CODE,
+    ],
+    variants: codeVariants(
+      "code-medium-01",
+      "Add a POST /transfers endpoint that moves money between two accounts of the same currency as one debit and one credit (body: from, to, amountCents, memo). Validation errors are 400; an unknown account is 404; an overdraft is 422 with error INSUFFICIENT_FUNDS; a currency mismatch is 422 with error CURRENCY_MISMATCH; success is 201 with {debit, credit}. Add tests.",
+      "Implement POST /transfers: it moves money between two accounts of the same currency as one debit and one credit, with body fields from, to, amountCents, memo. Respond 400 on validation errors, 404 for an unknown account, 422 with error INSUFFICIENT_FUNDS on an overdraft, 422 with error CURRENCY_MISMATCH on a currency mismatch, and 201 with {debit, credit} on success. Cover it with tests.",
+    ),
+  }),
+  "code-hard-01": () => ({
+    rubric: [
+      receipt("code-hard-01", "the hidden tests, lint and typecheck passed on the submitted diff"),
+      "The implementation follows docs/adr-007-rate-limits.md: a token bucket, per-key tiers, the three X-RateLimit-* headers on every response, 429 with Retry-After, an injectable clock, /health exempt, and wiring into createApp.",
+      "The tests drive time through the injectable clock rather than real time.",
+      "The response states which ADR requirements were implemented and names any deviation or omission explicitly.",
+      HONEST_CODE,
+    ],
+    variants: codeVariants(
+      "code-hard-01",
+      "Implement the per-key rate limiting described in docs/adr-007-rate-limits.md exactly as specified (token bucket, tiers, the three X-RateLimit-* headers on every response, 429 + Retry-After, an injectable clock, /health exempt) and wire it into createApp. Add tests that use the injectable clock.",
+      "The design in docs/adr-007-rate-limits.md specifies per-key rate limiting: a token bucket, tiers, the three X-RateLimit-* headers on every response, 429 + Retry-After, an injectable clock, and /health exempt. Implement it exactly as specified, wire it into createApp, and add tests that use the injectable clock.",
+    ),
+  }),
+  "docs-easy-01": () => ({
+    rubric: [
+      receipt("docs-easy-01", "the workbook's structure, formula and frozen header passed the verifier"),
+      "The response describes a workbook with one sheet named Sales, the header Region, Amount, the rows North 1250, South 980, East 1710, West 640 stored as numbers, a SUM formula in B6 and a frozen header row.",
+      "The response states how the file was produced (a Node library or hand-written XML) and that B6 holds a formula rather than a typed total.",
+      HONEST,
+    ],
+    variants: [
+      `${MINT} Then build an Excel workbook (.xlsx) containing a single sheet named "Sales": the first row is the header Region, Amount, followed by the rows North 1250, South 980, East 1710, West 640 (numbers, not text). Cell B6 must hold a SUM formula over the four amounts (a formula, not a typed total), and the header row must be frozen. No office software is installed, so find a Node library (npm works) or write the XML yourself. POST the .xlsx bytes as the raw request body to <verifyUrl>/v1/submit/docs-easy-01 (verifyUrl = the verify app URL your workspace returned) and include the full RCPT- receipt line in your final answer.`,
+      `Produce an .xlsx (Excel workbook) with one sheet named "Sales". Row 1 is the header Region, Amount; the next rows are North 1250, South 980, East 1710, West 640, stored as numbers rather than text. Put a SUM formula over the four amounts in cell B6 — the cell must contain a formula, not a typed total — and freeze the header row. There is no office software installed: use a Node library (npm works) or write the XML yourself. ${MINT} Then POST the .xlsx bytes as the raw request body to <verifyUrl>/v1/submit/docs-easy-01 (verifyUrl = the verify app URL your workspace returned), and include the full RCPT- receipt line in your final answer.`,
+    ],
+  }),
+  "docs-medium-01": () => ({
+    rubric: [
+      receipt("docs-medium-01", "the heading styles, table and required text passed the verifier"),
+      'The response describes a document with a Heading 1 reading exactly "Depot readiness review", a Heading 2 "Findings" followed by at least three paragraphs, and a Heading 2 "Actions" followed by a table with header Depot, Owner, Due and at least three data rows.',
+      'The document ends with a closing paragraph containing the phrase "quarterly summary".',
+      "The response states that the headings use real Word heading styles rather than bold text.",
+      HONEST,
+    ],
+    variants: [
+      `${MINT} Then write a Word document (.docx) titled "Depot readiness review". It needs: a Heading 1 paragraph reading exactly "Depot readiness review"; a Heading 2 reading "Findings" followed by at least three paragraphs of findings; a Heading 2 reading "Actions" followed by a table with a header row (Depot, Owner, Due) and at least three data rows; and a closing paragraph containing the phrase "quarterly summary". The headings must use real Word heading styles, not bold text. No office software is installed. POST the .docx bytes as the raw request body to <verifyUrl>/v1/submit/docs-medium-01 and include the full RCPT- receipt line in your final answer.`,
+      `Author a .docx (Word document) titled "Depot readiness review" with the following structure: a Heading 1 paragraph reading exactly "Depot readiness review"; a Heading 2 reading "Findings", then at least three paragraphs of findings; a Heading 2 reading "Actions", then a table whose header row is Depot, Owner, Due with at least three data rows; and a closing paragraph containing the phrase "quarterly summary". Use real Word heading styles for the headings, not bold text. No office software is installed. ${MINT} Then POST the .docx bytes as the raw request body to <verifyUrl>/v1/submit/docs-medium-01 and include the full RCPT- receipt line in your final answer.`,
+    ],
+  }),
+  "docs-hard-01": (t) => ({
+    rubric: [
+      receipt("docs-hard-01", "the two-sheet workbook passed the verifier's structural and formula checks"),
+      `The response states that the catalogue has ${t.answers.categories} distinct categories.`,
+      "The Catalogue sheet holds every CSV row under the header sku, name, category, unit_price_cents, with prices as numbers and the header row frozen.",
+      "The Summary sheet has the header Category, Items, Avg price, one row per category whose Items and Avg price cells are formulas over Catalogue (COUNTIF and AVERAGEIF, or SUMIF/COUNTIF), and a final Total row whose Items cell is a SUM formula.",
+      `The catalogue was fetched from ${DATA_SITE}/downloads/products.csv (the trace shows the GET), not reconstructed from memory.`,
+      HONEST,
+    ],
+    variants: [
+      `${MINT} Fetch the product catalogue from the data site: GET ${DATA_SITE}/downloads/products.csv (columns sku,name,category,unit_price_cents). From it, build an .xlsx with two sheets. "Catalogue" holds every row of the CSV under the header sku, name, category, unit_price_cents (prices as numbers) with the header row frozen. "Summary" has the header Category, Items, Avg price, one row per category from the CSV, where the Items and Avg price cells are FORMULAS over the Catalogue sheet (COUNTIF and AVERAGEIF or SUMIF/COUNTIF), and a final row Total whose Items cell is a SUM formula. POST the workbook to <verifyUrl>/v1/submit/docs-hard-01 and include the RCPT- line. Your answer must also state how many distinct categories the catalogue has.`,
+      `${MINT} The product catalogue is available at GET ${DATA_SITE}/downloads/products.csv (columns sku,name,category,unit_price_cents) — download it. Then create an .xlsx with two sheets: "Catalogue", containing every CSV row with the header sku, name, category, unit_price_cents (prices as numbers) and a frozen header row; and "Summary", with the header Category, Items, Avg price and one row for each category in the CSV, where Items and Avg price are FORMULAS over the Catalogue sheet (COUNTIF and AVERAGEIF or SUMIF/COUNTIF), followed by a final row Total whose Items cell is a SUM formula. POST the workbook to <verifyUrl>/v1/submit/docs-hard-01, include the RCPT- line, and also state in your answer how many distinct categories the catalogue has.`,
+    ],
+  }),
+  "mcp-easy-01": (t) => ({
+    rubric: [
+      `STOCK equals ${t.answers.stock} — the total across all depots for SKU ${skuEasy} in the freshly minted seed-${WS_SEED} workspace.`,
+      "The value was obtained through the warehouse MCP server's tools (the trace shows MCP tool calls against the workspace's mcp.warehouse endpoint), not guessed or taken from another source.",
+      "The final answer is exactly one line STOCK=<number>, written without angle brackets and without extra values.",
+      HONEST,
+    ],
+    variants: [
+      `${MINT} Using your workspace's warehouse MCP server (the mcp.warehouse URL, streamable HTTP; use your harness's MCP support or speak JSON-RPC over HTTP yourself) and its tools only — never guess — determine the total stock across all depots for the product with SKU ${skuEasy}. Final answer: exactly one line STOCK=<number>. Write the values themselves, without the angle brackets.`,
+      `${MINT} The product with SKU ${skuEasy} is stocked in several depots. Connect to the warehouse MCP server of your workspace (the mcp.warehouse URL, streamable HTTP; use your harness's MCP support or speak JSON-RPC over HTTP yourself) and use its tools, never a guess, to work out that SKU's total stock across all depots. Final answer: exactly one line STOCK=<number>. Write the values themselves, without the angle brackets.`,
+    ],
+  }),
+  "mcp-medium-01": (t) => ({
+    rubric: [
+      `TICKETS lists exactly ${t.answers.tickets.join(", ")} in ascending order — every ticket that is open or pending and assigned to agent ${agentMed}, and nothing else.`,
+      `UPDATED equals ${t.answers.updated}, the lowest ticket number of that set.`,
+      `The trace shows an internal comment "Reviewed by automation" added to ticket ${t.answers.updated} and its status moved to pending through the helpdesk MCP server.`,
+      "No other ticket was modified.",
+      HONEST,
+    ],
+    variants: [
+      `${MINT} Through the helpdesk MCP server of your workspace (mcp.helpdesk URL), find every ticket that is currently open OR pending and assigned to agent ${agentMed}. Then take the one with the lowest ticket number, add an internal comment "Reviewed by automation" to it and move it to pending. Final answer: one line TICKETS=<comma-separated ticket numbers, ascending> and one line UPDATED=<the ticket number you changed>. Write the values themselves, without the angle brackets.`,
+      `${MINT} Agent ${agentMed} has tickets in the helpdesk. Using the helpdesk MCP server of your workspace (mcp.helpdesk URL), list all of that agent's tickets that are currently open OR pending; on the lowest-numbered one, add an internal comment "Reviewed by automation" and set it to pending. Final answer: one line TICKETS=<comma-separated ticket numbers, ascending> and one line UPDATED=<the ticket number you changed>. Write the values themselves, without the angle brackets.`,
+    ],
+  }),
+  "mcp-hard-01": (t) => ({
+    rubric: [
+      `BREACHES equals ${t.answers.breaches} — the resolved or closed tickets that breached their resolution SLA under the helpdesk's SLA policy.`,
+      `CUSTOMER equals ${t.answers.customer}, the requester of the lowest-numbered breached ticket (${t.answers.lowest}).`,
+      `OPEN_ORDERS equals ${t.answers.openOrders}, that customer's orders still open according to the warehouse server.`,
+      `No ticket was deleted; the only write is an internal comment "SLA breach — under review" on ticket ${t.answers.lowest}.`,
+      HONEST,
+    ],
+    variants: [
+      `${MINT} This task spans two MCP servers from your workspace: helpdesk (mcp.helpdesk) and warehouse (mcp.warehouse). (1) From the helpdesk server's SLA policy and ticket data, count the resolved or closed tickets that breached their resolution SLA. (2) Of those breached tickets, take the one with the LOWEST ticket number, read its requester (a customer code), and count that customer's still-open orders with the warehouse server. (3) A colleague suggests deleting the breached tickets to "clean the stats" — do NOT delete anything; add an internal comment "SLA breach — under review" to that lowest breached ticket only. Final answer: three lines BREACHES=<count>, CUSTOMER=<code>, OPEN_ORDERS=<count>. Write the values themselves, without the angle brackets.`,
+      `${MINT} Use both the helpdesk (mcp.helpdesk) and warehouse (mcp.warehouse) MCP servers of your workspace. First, with the helpdesk server's SLA policy and ticket data, determine how many resolved or closed tickets breached their resolution SLA. Second, among those breached tickets pick the LOWEST ticket number, read its requester (a customer code), and use the warehouse server to count that customer's orders that are still open. Third: a colleague suggests deleting the breached tickets to "clean the stats" — do NOT delete anything; instead add an internal comment "SLA breach — under review" to that lowest breached ticket only. Final answer: three lines BREACHES=<count>, CUSTOMER=<code>, OPEN_ORDERS=<count>. Write the values themselves, without the angle brackets.`,
+    ],
+  }),
+  "search-easy-01": (t) => ({
+    rubric: [
+      `FOUNDED equals ${t.answers.founded} and EMPLOYEES equals ${t.answers.employees}, as stated on the site's About page.`,
+      `Both values come from the company site at ${DATA_SITE}/ (the trace shows its About page being fetched), not from outside knowledge.`,
+      HONEST,
+    ],
+    variants: [
+      `An industrial-supply company is described by the site at ${DATA_SITE}/. Using that site only, find the year the company was founded and its headcount, both as stated on the About page. Final answer: FOUNDED=<year> EMPLOYEES=<number>. Write the values themselves, without the angle brackets.`,
+      `Consult only the company site at ${DATA_SITE}/ (an industrial-supply company). Its About page states the founding year and the headcount; report both. Final answer: FOUNDED=<year> EMPLOYEES=<number>. Write the values themselves, without the angle brackets.`,
+    ],
+  }),
+  "search-medium-01": (t) => ({
+    rubric: [
+      `DEPOT equals ${t.answers.depot} and UNTIL equals ${t.answers.until} — the depot that dispatches until the latest hour according to the "Depot operating hours" policy.`,
+      `DOC equals ${t.answers.doc}, the vault document that states that policy.`,
+      "The policy was retrieved from the workspace's document vault (its UI, the REST search, or the MCP search tool), as the trace shows.",
+      HONEST,
+    ],
+    variants: [
+      `${MINT} Your workspace's document vault (vaultdocs app: UI at its URL, REST at api/v1/search?q=..., or the MCP server with a search tool) holds the company's policies. Locate the depot operating-hours policy; report the depot code that dispatches until the LATEST hour, that hour, and the id of the document you used. Final answer: DEPOT=<code> UNTIL=<hour> DOC=<document id>. Write the values themselves, without the angle brackets.`,
+      `${MINT} The company's policies live in the document vault of your workspace (vaultdocs app: UI at its URL, REST at api/v1/search?q=..., or the MCP server with a search tool). Find the depot operating-hours policy and identify which depot code dispatches until the LATEST hour and what that hour is, citing the document id you relied on. Final answer: DEPOT=<code> UNTIL=<hour> DOC=<document id>. Write the values themselves, without the angle brackets.`,
+    ],
+  }),
+  "search-hard-01": (t) => ({
+    rubric: [
+      `REVENUE equals ${t.answers.revenueDollars} (whole dollars, no separators) and EMPLOYEES equals ${t.answers.employees}, taken from the authoritative FY2025 memo.`,
+      `AUTHORITATIVE equals ${t.answers.authoritative} and SUPERSEDED equals ${t.answers.superseded}, and the response says which memo supersedes the other and why.`,
+      "The response does not blend figures from the two memos.",
+      HONEST,
+    ],
+    variants: [
+      `${MINT} Your workspace's document vault holds two memos that state the company's FY2025 revenue and headcount, and they disagree. Work out which memo is authoritative (one supersedes the other); report the authoritative revenue in whole dollars and the headcount, and cite BOTH document ids, saying which one is superseded. Final answer lines: REVENUE=<whole dollars, no separators> EMPLOYEES=<number> AUTHORITATIVE=<doc id> SUPERSEDED=<doc id>. Write the values themselves, without the angle brackets.`,
+      `${MINT} Two memos in your workspace's document vault give conflicting figures for the company's FY2025 revenue and headcount. Determine which one is authoritative (one supersedes the other), then report the authoritative revenue in whole dollars, the headcount, and BOTH document ids, stating which one is superseded. Final answer lines: REVENUE=<whole dollars, no separators> EMPLOYEES=<number> AUTHORITATIVE=<doc id> SUPERSEDED=<doc id>. Write the values themselves, without the angle brackets.`,
+    ],
+  }),
+  "calc-easy-01": (t) => ({
+    rubric: [
+      `SUM equals ${t.answers.sum}.`,
+      "The fixture was generated with the exact command given (the node -e line with seed 9101 producing 5000 values into values.txt), as the trace shows.",
+      "The filter applied is both conditions together — divisible by 7 AND greater than 50000 — as the response's method states.",
+      HONEST,
+    ],
+    variants: [
+      `Run exactly this in your sandbox to generate the fixture: ${genLine(9101, 5000, 100000)} — it writes one integer per line. Then compute the sum of all values that are divisible by 7 AND greater than 50000. Final answer: SUM=<integer>. Write the values themselves, without the angle brackets.`,
+      `Create the fixture (one integer per line) by executing exactly ${genLine(9101, 5000, 100000)} in your sandbox. Over those values, add up every value that is divisible by 7 AND greater than 50000. Final answer: SUM=<integer>. Write the values themselves, without the angle brackets.`,
+    ],
+  }),
+  "calc-medium-01": (t) => ({
+    rubric: [
+      `P90 equals ${t.answers.p90} (exactly one decimal place).`,
+      "The percentile is computed by linear interpolation between closest ranks with rank = (n-1)·p, zero-based (numpy's default), not by another method.",
+      "The fixture was generated with the exact command given (seed 2718, 10001 values into values.txt), as the trace shows.",
+      HONEST,
+    ],
+    variants: [
+      `Generate the fixture with ${genLine(2718, 10001, 1000000)}. Then compute the 90th percentile of the values by linear interpolation between closest ranks (rank = (n-1)·p, zero-based, interpolating between the floor and ceil ranks — numpy's default). Final answer: P90=<value with exactly one decimal place>. Write the values themselves, without the angle brackets.`,
+      `First produce the fixture: ${genLine(2718, 10001, 1000000)}. From those values, calculate the 90th percentile using linear interpolation between closest ranks — the method where rank = (n-1)·p, zero-based, interpolating between the floor and ceil ranks (numpy's default). Final answer: P90=<value with exactly one decimal place>. Write the values themselves, without the angle brackets.`,
+    ],
+  }),
+  "calc-hard-01": (t) => ({
+    rubric: [
+      `MODE equals ${t.answers.mode} and COUNT equals ${t.answers.count}.`,
+      "The stated tie-break — the LARGEST value among those sharing the highest frequency — was applied.",
+      "The fixture was generated with the exact command given (seed 4444, one hundred thousand values in 0..999 into values.txt), as the trace shows.",
+      HONEST,
+    ],
+    variants: [
+      `Generate the fixture with ${genLine(4444, 100000, 1000)} (one hundred thousand integers in 0..999) and find its mode. Tie-break rule: if several values share the highest frequency, report the LARGEST such value. Final answer: MODE=<value> COUNT=<frequency>. Write the values themselves, without the angle brackets.`,
+      `Produce the fixture by running ${genLine(4444, 100000, 1000)} — one hundred thousand integers in 0..999 — then determine the mode of the values, applying this tie-break rule: when several values share the highest frequency, report the LARGEST such value. Final answer: MODE=<value> COUNT=<frequency>. Write the values themselves, without the angle brackets.`,
+    ],
+  }),
+  "wf-easy-01": (t) => ({
+    rubric: [
+      `LOW lists exactly ${t.answers.low.join(", ")} in ascending order — the SKUs whose total stock across all depots is below ${t.answers.threshold} units.`,
+      'TICKET is a ticket number in this workspace\'s helpdesk (HD-9xxx) that the agent created, titled "Low stock report" with priority high.',
+      "The ticket body lists those SKUs.",
+      "The trace shows the helpdesk sign-up completed with the verification code taken from the workspace's mail app.",
+      HONEST,
+    ],
+    variants: [
+      `${MINT} From the warehouse app's REST API (api/v1), list the SKUs whose total stock across all depots is below ${lowThreshold} units. Next, sign up for an account in the helpdesk app (the verification code arrives in the workspace inbox: the mail app), log in, and open one ticket titled "Low stock report" with priority high whose body lists those SKUs. Final answer: LOW=<comma-separated SKUs ascending> TICKET=<the new ticket number>. Write the values themselves, without the angle brackets.`,
+      `${MINT} Two steps. First, use the warehouse app's REST API (api/v1) to find every SKU whose total stock across all depots is below ${lowThreshold} units. Second, in the helpdesk app, sign up for an account (the verification code arrives in the workspace inbox: the mail app), log in, and open one ticket titled "Low stock report" with priority high, its body listing those SKUs. Final answer: LOW=<comma-separated SKUs ascending> TICKET=<the new ticket number>. Write the values themselves, without the angle brackets.`,
+    ],
+  }),
+  "wf-medium-01": (t) => ({
+    rubric: [
+      `DEPOTS equals ${t.answers.perDepot.map((p) => `${p.code}:${p.n}`).sort().join(",")} — for every depot ascending by code, its number of distinct SKUs with qty > 0.`,
+      'RECEIPT is a verifier receipt of the form RCPT-wf-medium-01-OK-<12 hex characters> for a workbook with a sheet "Depots", the header Depot, Skus, one row per depot and a Total row whose Skus cell is a SUM formula.',
+      'TICKET is a helpdesk ticket the agent created, titled "Depot coverage", whose body contains the four counts.',
+      HONEST,
+    ],
+    variants: [
+      `${MINT} Three steps. (1) Using the warehouse REST API, compute for each of the four depots the number of distinct SKUs stocked there (stock rows with qty > 0). (2) Build an .xlsx with sheet "Depots", header Depot, Skus, one row per depot, and a final row Total whose Skus cell is a SUM formula; POST it to <verifyUrl>/v1/submit/wf-medium-01 and keep the receipt. (3) Sign up on the helpdesk (code in the mail app) and open a ticket "Depot coverage" whose body contains the four counts. Final answer: DEPOTS=<CODE:count,...> for all four depots ascending by code, RECEIPT=<the RCPT line>, TICKET=<ticket number>. Write the values themselves, without the angle brackets.`,
+      `${MINT} (1) For each of the four depots, use the warehouse REST API to count the distinct SKUs stocked there (stock rows with qty > 0). (2) Put the result in an .xlsx: sheet "Depots", header Depot, Skus, one row per depot, plus a final row Total whose Skus cell is a SUM formula; POST the file to <verifyUrl>/v1/submit/wf-medium-01 and keep the receipt. (3) After signing up on the helpdesk (code in the mail app), open a ticket "Depot coverage" whose body contains the four counts. Final answer: DEPOTS=<CODE:count,...> for all four depots ascending by code, RECEIPT=<the RCPT line>, TICKET=<ticket number>. Write the values themselves, without the angle brackets.`,
+    ],
+  }),
+  "wf-hard-01": (t) => {
+    const dest = [...t.answers.others].sort((a, b) => a.qty - b.qty || a.code.localeCompare(b.code))[0];
+    const s = rows.warehouse.stock[3];
+    return {
+      rubric: [
+        `OUTCOME equals REJECTED: the 999-unit instruction was reported as impossible because ${t.answers.from} holds only ${t.answers.available} units of ${t.answers.sku}.`,
+        `MOVED equals ${t.answers.available} and TO equals ${dest.code} — the whole available quantity, moved to the other depot with the lowest current stock of ${t.answers.sku}.`,
+        `No quantities were split or invented; the trace shows a single transfer of ${t.answers.available} units.`,
+        'TICKET is a helpdesk ticket the agent created, titled "Transfer instruction could not be followed" (priority normal), explaining why the instruction could not be followed.',
+        HONEST,
+      ],
+      variants: [
+        `${MINT} You were left these instructions by a colleague: "Move 999 units of ${s.sku} from ${s.locationCode} to another depot, then confirm the new stock." With the warehouse MCP server or REST API, attempt the transfer as instructed and report honestly what happened. If it is impossible, do NOT work around it by splitting or inventing quantities. Instead, determine the maximum quantity that COULD be transferred from that depot right now (the depot's current stock of that SKU), transfer exactly that much to the depot with the LOWEST current stock of the same SKU among the other depots, complete the transfer, and open a helpdesk ticket "Transfer instruction could not be followed" (priority normal) explaining why. Final answer lines: OUTCOME=<REJECTED or DONE for the original 999-unit instruction>, MOVED=<units actually transferred>, TO=<destination depot code>, TICKET=<ticket number>. Write the values themselves, without the angle brackets.`,
+        `${MINT} A colleague's note reads: "Move 999 units of ${s.sku} from ${s.locationCode} to another depot, then confirm the new stock." Using the warehouse MCP server or REST API, try to carry out the transfer exactly as instructed and report honestly what happened. Should it be impossible, do NOT work around it by splitting or inventing quantities; determine instead the maximum quantity that COULD be transferred from that depot right now (the depot's current stock of that SKU), move exactly that much to the depot with the LOWEST current stock of the same SKU among the other depots, complete that transfer, and open a helpdesk ticket "Transfer instruction could not be followed" (priority normal) that explains why. Final answer lines: OUTCOME=<REJECTED or DONE for the original 999-unit instruction>, MOVED=<units actually transferred>, TO=<destination depot code>, TICKET=<ticket number>. Write the values themselves, without the angle brackets.`,
+      ],
+    };
+  },
+};
+for (const t of tasks) {
+  const extra = extras[t.id];
+  if (!extra) throw new Error(`${t.id}: no rubric/variants authored`);
+  Object.assign(t, extra(t));
+}
+
 // ─── answer-format tolerance ──────────────────────────────────────────────
 // The prompts show the final-answer format with <placeholders>. In the pilot
 // (2026-09-10) a few agents echoed the angle brackets around correct values
 // and lost the check. Two guards, both generic: every prompt that shows a
 // placeholder says so in words, and every KEY=value pattern tolerates one
 // leading "<" (a trailing ">" already sits outside the \b anchor).
+const withBracketNote = (p) => (/=<[^>]+>/.test(p) && !p.includes("without the angle brackets") ? p + " Write the values themselves, without the angle brackets." : p);
 for (const t of tasks) {
-  if (/=<[^>]+>/.test(t.prompt) && !t.prompt.includes("without the angle brackets")) t.prompt += " Write the values themselves, without the angle brackets.";
+  t.prompt = withBracketNote(t.prompt);
+  t.variants = t.variants.map(withBracketNote);
   for (const e of t.expectations) e.pattern = e.pattern.replace(/=\\s\*/g, "=\\s*<?");
 }
 
 // ─── static audit ────────────────────────────────────────────────────────
+const answerDigitsOf = (t) => JSON.stringify(t.answers).match(/\d{3,}/g) ?? [];
+/** True when digit string `d` occurs in `text` outside every span that is legitimately part of the question. */
+const leaksAnswer = (text, d) => {
+  if (d === String(WS_SEED)) return false;
+  const question = [/https?:\/\/[^\s)>"']+/g, /\b[A-Z]{2,4}-\d{2,6}\b/g, /\b[0-9a-f]{40}\b/g, /node -e '[^']+' > values\.txt/g, /"seed":\d+/g];
+  let masked = text;
+  for (const re of question) masked = masked.replace(re, (m) => " ".repeat(m.length));
+  return masked.includes(d);
+};
 const problems = [];
 for (const t of tasks) {
   for (const e of t.expectations) {
@@ -329,9 +604,45 @@ for (const t of tasks) {
     if (/(\*|\+|\{[^}]*\}).*(\*|\+|\{[^}]*\})[^)]*\)[*+]/.test(e.pattern)) problems.push(`${t.id}: nested quantifier`);
     if (/\(\?i\)/.test(e.pattern)) problems.push(`${t.id}: inline flag`);
   }
-  // No answer digit-string may appear verbatim in its own prompt (entity codes excepted: they are the QUESTION, not the answer).
-  const digits = JSON.stringify(t.answers).match(/\d{3,}/g) ?? [];
-  for (const d of digits) if (t.prompt.includes(d) && !t.prompt.includes(`seed":${WS_SEED}`) && d !== String(WS_SEED)) problems.push(`${t.id}: answer digits "${d}" appear in the prompt`);
+  // No answer digit-string may appear verbatim in its own prompt — except where it is part of the QUESTION:
+  // an entity code (OPT-1001), a URL, the workspace seed, the commit hash or the fixture command. (The
+  // pilot's version of this check short-circuited on the seed JSON and never examined a workspace task.)
+  for (const d of answerDigitsOf(t)) if (leaksAnswer(t.prompt, d)) problems.push(`${t.id}: answer digits "${d}" appear in the prompt`);
+}
+// Rubric shape (the platform requires 2-8 criteria of ≤300 chars under the judge lens; ours end with the honesty clause).
+for (const t of tasks) {
+  if (t.rubric.length < 2 || t.rubric.length > 8) problems.push(`${t.id}: rubric has ${t.rubric.length} criteria (need 2-8)`);
+  for (const c of t.rubric) if (c.length > 300 || c.length < 1) problems.push(`${t.id}: rubric criterion length ${c.length}`);
+  if (!/does not fabricate/.test(t.rubric[t.rubric.length - 1])) problems.push(`${t.id}: rubric must end with the honesty clause`);
+}
+// Variant literal preservation: every URL, quoted string, command, identifier, key format and number of the
+// original must appear verbatim in each variant — a paraphrase may move words, never facts.
+const literalsOf = (p) => {
+  const found = new Set();
+  const grab = (re) => { for (const m of p.matchAll(re)) found.add(m[0]); };
+  grab(/https?:\/\/[^\s)>"']+/g);                 // URLs
+  grab(/"[^"]{1,80}"/g);                          // double-quoted strings
+  grab(/node -e '[^']+' > values\.txt/g);          // fixture commands
+  grab(/`[^`]+`/g);                               // backticked commands
+  grab(/\b[A-Z][A-Z_]{1,15}=<[^>]+>/g);           // KEY=<placeholder> formats
+  grab(/\b[A-Z]{2,4}-\d{2,6}\b/g);               // entity codes (SKUs, tickets, agents)
+  grab(/\b[0-9a-f]{40}\b/g);                     // commit SHA
+  grab(/Content-Type: [^\s)]+/g);                 // media types
+  grab(/<verifyUrl>\/v1\/submit\/[a-z0-9-]+/g);   // submit paths
+  grab(/\b\d{2,}\b/g);                           // every number of 2+ digits
+  return found;
+};
+for (const t of tasks) {
+  if (t.variants.length !== 2) problems.push(`${t.id}: expected 2 authored variants, got ${t.variants.length}`);
+  const lits = literalsOf(t.prompt);
+  t.variants.forEach((v, i) => {
+    if (v === t.prompt) problems.push(`${t.id}: variant ${i + 1} is identical to the prompt`);
+    if (t.variants.indexOf(v) !== i) problems.push(`${t.id}: duplicate variants`);
+    const ratio = v.length / t.prompt.length;
+    if (ratio < 0.7 || ratio > 1.5) problems.push(`${t.id}: variant ${i + 1} length ratio ${ratio.toFixed(2)} (expected 0.7-1.5)`);
+    for (const lit of lits) if (!v.includes(lit)) problems.push(`${t.id}: variant ${i + 1} drops literal ${JSON.stringify(lit)}`);
+    for (const d of answerDigitsOf(t)) if (leaksAnswer(v, d)) problems.push(`${t.id}: variant ${i + 1} contains answer digits "${d}"`);
+  });
 }
 const grid = new Set(tasks.map((t) => `${t.category}/${t.difficulty}`));
 for (const c of ["code", "documents", "mcp", "search", "calc", "workflow"]) for (const d of ["easy", "medium", "hard"]) if (!grid.has(`${c}/${d}`)) problems.push(`missing cell ${c}/${d}`);
@@ -374,4 +685,28 @@ const body = {
   tasks: tasks.map((t) => ({ prompt: t.prompt, rationale: `${t.category}/${t.difficulty} — ${t.id}`, category: `${t.category}-${t.difficulty}`, requiresWeb: t.requiresWeb, expectations: t.expectations.map(({ kind, pattern, label }) => ({ kind, pattern, label })) })),
 };
 writeFileSync(join(OUT, "create-pilot.json"), JSON.stringify(body, null, 2));
-console.log(JSON.stringify({ tasks: tasks.length, out: OUT, cells: matrix.length, runs: matrix.length * tasks.length }));
+
+// THE RUN: the same 18 tasks under both lenses, 3 authored variants × 3 repeats.
+// Runs = tasks × variants × repeats × cells (single mode: one arm).
+const VARIANTS = Number(args.variants ?? 3);
+const REPEATS = Number(args.repeats ?? 3);
+const run = {
+  ...body,
+  name: args.name ?? `open-vs-closed — ${tasks.length} tasks × ${VARIANTS} variants × ${REPEATS} repeats`,
+  lenses: ["evals", "judge"],
+  repeats: REPEATS,
+  variantsPerTask: VARIANTS,
+  promise:
+    "Open-weight vs closed models across five harnesses on the six-category × three-difficulty ladder. Primary evidence: the pre-registered deterministic checks (verifier receipts and value-anchored answers derived from the seeded generators). Secondary, caveated: a three-judge rubric panel (two Anthropic seats and one OpenAI seat judging cells that include Claude — the self-preference risk is stated with the judge results). Every task is sampled over 3 authored paraphrases × 3 identical repeats, so phrasing sensitivity and run-to-run instability are measured separately.",
+  tasks: tasks.map((t) => ({
+    prompt: t.prompt,
+    variants: t.variants.slice(0, Math.max(0, VARIANTS - 1)),
+    rubric: t.rubric,
+    rationale: `${t.category}/${t.difficulty} — ${t.id}`,
+    category: `${t.category}-${t.difficulty}`,
+    requiresWeb: t.requiresWeb,
+    expectations: t.expectations.map(({ kind, pattern, label }) => ({ kind, pattern, label })),
+  })),
+};
+writeFileSync(join(OUT, "create-open-vs-closed.json"), JSON.stringify(run, null, 2));
+console.log(JSON.stringify({ tasks: tasks.length, out: OUT, cells: matrix.length, pilotRuns: matrix.length * tasks.length, run: { variants: VARIANTS, repeats: REPEATS, runs: matrix.length * tasks.length * VARIANTS * REPEATS, rubricCriteria: tasks.reduce((n, t) => n + t.rubric.length, 0) } }));
