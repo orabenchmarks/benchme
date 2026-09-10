@@ -26,6 +26,11 @@ const REPO_SHA = args["repo-sha"] ?? "main";
 const OUT = args.out ?? "pilot";
 const DATA_SEED = Number(args["data-seed"] ?? 20260908);
 const WS_SEED = 4242; // every task minting a workspace uses this seed; answers derive from it
+// The company site is generated from DATA_SEED and served INSIDE a workspace
+// (benchme 0.4.3: `/w/<workspace>/data/`; there is no `/data/` on the base
+// host). The gateway's long-lived shared alias pins the seed, so every run
+// reads the same site the answers below were derived from.
+const DATA_SITE = `${BASE}/w/shared-acme-v1-${DATA_SEED}/data`;
 
 const rows = acmeV1.generate(WS_SEED);
 const site = acmeV1.generate(DATA_SEED);
@@ -88,7 +93,7 @@ add({
   id: "docs-hard-01",
   category: "documents",
   difficulty: "hard",
-  prompt: `${MINT} Download the product catalogue from the data site: GET ${BASE}/data/downloads/products.csv (columns sku,name,category,unit_price_cents). Build an .xlsx with two sheets: "Catalogue" holding every row of the CSV with the header sku, name, category, unit_price_cents (prices as numbers), the header row frozen; and "Summary" with header Category, Items, Avg price where each category from the CSV has one row and the Items and Avg price cells are FORMULAS over the Catalogue sheet (COUNTIF and AVERAGEIF or SUMIF/COUNTIF), and a final row Total whose Items cell is a SUM formula. POST the workbook to <verifyUrl>/v1/submit/docs-hard-01 and include the RCPT- line. Also state in your answer how many distinct categories the catalogue has.`,
+  prompt: `${MINT} Download the product catalogue from the data site: GET ${DATA_SITE}/downloads/products.csv (columns sku,name,category,unit_price_cents). Build an .xlsx with two sheets: "Catalogue" holding every row of the CSV with the header sku, name, category, unit_price_cents (prices as numbers), the header row frozen; and "Summary" with header Category, Items, Avg price where each category from the CSV has one row and the Items and Avg price cells are FORMULAS over the Catalogue sheet (COUNTIF and AVERAGEIF or SUMIF/COUNTIF), and a final row Total whose Items cell is a SUM formula. POST the workbook to <verifyUrl>/v1/submit/docs-hard-01 and include the RCPT- line. Also state in your answer how many distinct categories the catalogue has.`,
   expectations: [
     { kind: "response_matches", pattern: "RCPT-docs-hard-01-OK-[0-9a-f]{12}", label: "verifier receipt (blind)" },
     { kind: "response_matches", pattern: `\\b${new Set(site.warehouse.products.map((p) => p.category)).size}\\b`, label: "distinct category count" },
@@ -147,7 +152,7 @@ add({
   id: "search-easy-01",
   category: "search",
   difficulty: "easy",
-  prompt: `The company site at ${BASE}/data/ describes an industrial-supply company. Using that site only, find the year the company was founded and its headcount as stated on the About page. Final answer: FOUNDED=<year> EMPLOYEES=<number>.`,
+  prompt: `The company site at ${DATA_SITE}/ describes an industrial-supply company. Using that site only, find the year the company was founded and its headcount as stated on the About page. Final answer: FOUNDED=<year> EMPLOYEES=<number>.`,
   expectations: [
     { kind: "response_matches", pattern: `FOUNDED=\\s*${site.company.founded}\\b`, label: "founding year from the site" },
     { kind: "response_matches", pattern: `EMPLOYEES=\\s*${site.company.employees}\\b`, label: "headcount from the site" },
