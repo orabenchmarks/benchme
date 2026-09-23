@@ -32,16 +32,22 @@ describe("structured data", () => {
   it("publishes schema/feed.jsonl with one JSON-LD object per line", () => {
     const files = buildSite(20260908);
     const rows = scenarios.get("acme-v1").generate(20260908);
+    const pageCount = files.filter((f) => f.contentType.startsWith("text/html")).length;
     const feed = files.find((f) => f.path === "schema/feed.jsonl")!;
     expect(feed.contentType).toBe("application/jsonl");
     const lines = feed.body.split("\n").filter(Boolean);
-    expect(lines.length).toBeGreaterThanOrEqual(rows.warehouse.products.length + rows.warehouse.locations.length + 1);
-    for (const line of lines) {
-      const obj = JSON.parse(line);
+    // products + locations + the organization + one WebPage per generated
+    // html page — the full floor, not just products+locations+1, so a
+    // regression that drops every WebPage entry still fails this.
+    expect(lines.length).toBeGreaterThanOrEqual(rows.warehouse.products.length + rows.warehouse.locations.length + 1 + pageCount);
+    const objs = lines.map((line) => JSON.parse(line));
+    for (const obj of objs) {
       expect(obj["@context"]).toBe("https://schema.org");
       expect(obj["@type"]).toBeTruthy();
       expect(obj["@id"]).toBeTruthy();
     }
+    expect(objs.some((o) => o["@type"] === "WebPage")).toBe(true);
+    expect(objs.some((o) => o["@type"] === "Product")).toBe(true);
   });
 
   it("publishes schema/map.xml as a schemafeed sitemap and robots.txt advertises it", () => {

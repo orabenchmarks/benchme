@@ -8,6 +8,11 @@ const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;"
 const money = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
 
 function page(company: string, title: string, body: string, nav: string, jsonLd: unknown): string {
+  // This is intentionally stricter than robots.txt below: the synthetic
+  // company site must never land in a search index (hence noindex,nofollow
+  // on every page, regardless of what robots.txt allows), while an agent
+  // crawler is still free to fetch the page itself and its JSON-LD, and the
+  // schema feed/map robots.txt points at.
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>${esc(title)} — ${esc(company)}</title>
 <style>body{font:15px/1.5 system-ui,sans-serif;margin:0;color:#1b1b1b}header{background:#233;color:#fff;padding:.6rem 1rem}header a{color:#fff;margin-right:1rem;text-decoration:none}main{max-width:60rem;margin:1.5rem auto;padding:0 1rem}table{border-collapse:collapse}td,th{border:1px solid #ddd;padding:.3em .6em;text-align:left}</style></head>
 <body><header>${nav}</header><main>${body}</main><script type="application/ld+json">${JSON.stringify(jsonLd)}</script></body></html>`;
@@ -144,6 +149,13 @@ export function buildSite(seed: number, scenarioKey = "acme-v1"): SiteFile[] {
     "application/xml",
   );
 
+  // Allow: / here is deliberately looser than the per-page <meta
+  // name="robots" content="noindex,nofollow"> in page() above: this site
+  // must never land in a search index (that's what the meta tag blocks),
+  // but agent/answer-engine crawlers must still be able to FETCH every page
+  // — and, via `schemamap:`, the structured-data feed/map — which is what
+  // Allow: / (vs. the old Disallow: /) makes possible. Two different
+  // policies for two different readers, on purpose.
   add("robots.txt", "User-agent: *\nAllow: /\nschemamap: schema/map.xml\n", "text/plain");
   return files;
 }
