@@ -70,6 +70,12 @@ afterAll(async () => {
 });
 
 describe.skipIf(!DB)("helpdesk (real Postgres)", () => {
+  it("serves the WebMCP bridge with the full catalog on the home page", async () => {
+    const res = await app.inject(scoped({ method: "GET", url: "/" }));
+    expect(res.body).toContain('data-webmcp="bridge"');
+    expect(res.body).toContain('"name":"list_tickets"');
+  });
+
   it("serves seeded tickets that agree with the generator's derived answers", async () => {
     const agent = rows.helpdesk.agents[0]!.code;
     const list = (await app.inject(scoped({ url: `/api/v1/tickets?assignee=${agent}&status=open&limit=200` }))).json() as { items: { ticketNo: string }[] };

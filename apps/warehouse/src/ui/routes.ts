@@ -1,12 +1,13 @@
-import { registerAuthRoutes, requireSession, sessionUser, shell, type AuthService, type ShellCtx } from "@benchme/site-kit";
+import { registerAuthRoutes, requireSession, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { CatalogRepo } from "../db/catalog-repo.js";
 import { DomainError, type OrdersRepo } from "../db/orders-repo.js";
+import type { ToolContext } from "../mcp/tools.js";
 import * as pages from "./pages.js";
 
 export const SESSION_COOKIE = "wh_session";
 
-export type UiDeps = { catalog: CatalogRepo; orders: OrdersRepo; auth: AuthService };
+export type UiDeps = { catalog: CatalogRepo; orders: OrdersRepo; auth: AuthService; tools: ToolRegistry<ToolContext> };
 
 type Q = Record<string, string | undefined>;
 const q = (req: FastifyRequest): Q => (req.query ?? {}) as Q;
@@ -29,6 +30,7 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
     nav: NAV,
     user: await user(req),
     flash,
+    scripts: [webmcpScript(d.tools, req.prefix)],
   });
   const html = (reply: FastifyReply, body: string) => reply.type("text/html; charset=utf-8").send(body);
   const authDeps = { auth: d.auth, cookie: SESSION_COOKIE, shellCtx: ctx };

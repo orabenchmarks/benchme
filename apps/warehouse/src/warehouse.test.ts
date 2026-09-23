@@ -60,6 +60,12 @@ afterAll(async () => {
 });
 
 describe.skipIf(!DB)("warehouse (real Postgres)", () => {
+  it("serves the WebMCP bridge with the full catalog on the home page", async () => {
+    const res = await app.inject(scoped({ method: "GET", url: "/" }));
+    expect(res.body).toContain('data-webmcp="bridge"');
+    expect(res.body).toContain('"name":"get_stock"');
+  });
+
   it("refuses requests without the gateway's signed header", async () => {
     expect((await app.inject("/api/v1/products")).statusCode).toBe(401);
     expect((await app.inject({ url: "/api/v1/products", headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: "bad" } })).statusCode).toBe(401);

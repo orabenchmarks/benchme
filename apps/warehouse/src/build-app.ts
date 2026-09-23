@@ -33,11 +33,12 @@ export async function buildWarehouse(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
   registerSeedRoute(app, d.pool, d.scenarios);
+  const tools = warehouseTools();
   registerApi(app, { catalog, orders, auth });
-  registerUi(app, { catalog, orders, auth });
+  registerUi(app, { catalog, orders, auth, tools });
   // MCP lives in its own plugin scope: it replaces the content-type parsers for /mcp only.
   await app.register(async (scope) =>
-    registerMcp(scope, { serverName: "benchme-warehouse", version: "0.1.0", tools: warehouseTools(), context: (workspaceId) => ({ workspaceId, catalog, orders }) }),
+    registerMcp(scope, { serverName: "benchme-warehouse", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, catalog, orders }) }),
   );
   return app;
 }

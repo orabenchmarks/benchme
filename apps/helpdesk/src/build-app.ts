@@ -45,10 +45,11 @@ export async function buildHelpdesk(d: BuildDeps): Promise<FastifyInstance> {
     }
   });
 
+  const tools = helpdeskTools();
   registerApi(app, { tickets, auth });
-  registerUi(app, { tickets, auth });
+  registerUi(app, { tickets, auth, tools });
   await app.register(async (scope) =>
-    registerMcp(scope, { serverName: "benchme-helpdesk", version: "0.1.0", tools: helpdeskTools(), context: (workspaceId) => ({ workspaceId, tickets, actor: "agent" }) }),
+    registerMcp(scope, { serverName: "benchme-helpdesk", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, tickets, actor: "agent" }) }),
   );
   return app;
 }

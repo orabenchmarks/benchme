@@ -1,10 +1,11 @@
-import { DomainError, registerAuthRoutes, requireSession, sessionUser, shell, type AuthService, type ShellCtx } from "@benchme/site-kit";
+import { DomainError, registerAuthRoutes, requireSession, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { TicketsRepo } from "../db/tickets-repo.js";
+import type { ToolContext } from "../mcp/tools.js";
 import * as pages from "./pages.js";
 
 export const SESSION_COOKIE = "hd_session";
-export type UiDeps = { tickets: TicketsRepo; auth: AuthService };
+export type UiDeps = { tickets: TicketsRepo; auth: AuthService; tools: ToolRegistry<ToolContext> };
 
 type Q = Record<string, string | undefined>;
 const q = (req: FastifyRequest): Q => (req.query ?? {}) as Q;
@@ -17,7 +18,15 @@ const NAV = [
 
 export function registerUi(app: FastifyInstance, d: UiDeps): void {
   const user = sessionUser(d.auth, SESSION_COOKIE);
-  const ctx = async (req: FastifyRequest, flash?: string): Promise<ShellCtx> => ({ site: "Helpdesk", accent: "#5b2a86", prefix: req.prefix, nav: NAV, user: await user(req), flash });
+  const ctx = async (req: FastifyRequest, flash?: string): Promise<ShellCtx> => ({
+    site: "Helpdesk",
+    accent: "#5b2a86",
+    prefix: req.prefix,
+    nav: NAV,
+    user: await user(req),
+    flash,
+    scripts: [webmcpScript(d.tools, req.prefix)],
+  });
   const html = (reply: FastifyReply, body: string) => reply.type("text/html; charset=utf-8").send(body);
   const authDeps = { auth: d.auth, cookie: SESSION_COOKIE, shellCtx: ctx };
   const requireUser = requireSession(authDeps);
