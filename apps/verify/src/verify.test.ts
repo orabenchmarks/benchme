@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildVerify } from "./build-app.js";
 import type { JobRunner, RunnerReport } from "./oracles/patch-oracle.js";
+import type { WorkspaceStateReader } from "./oracles/state-reader.js";
 import { MemorySpecRegistry } from "./specs/spec.js";
 
 const DB = process.env.DATABASE_URL;
@@ -31,6 +32,13 @@ const specs = new MemorySpecRegistry([
   { id: "code-easy-01", blind: false, oracle: { kind: "patch", runnerImage: "stub", baseSha: "abc", requiredTests: ["pagination", "status"], lint: true, typecheck: true, timeoutSeconds: 60 } },
   { id: "code-hard-01", blind: true, oracle: { kind: "patch", runnerImage: "stub", baseSha: "abc", requiredTests: [], lint: true, typecheck: true, timeoutSeconds: 60 } },
 ]);
+
+/** No test task in this suite uses the `state` oracle; this fake is only here to satisfy the composition root's required dependency. */
+class NullStateReader implements WorkspaceStateReader {
+  async get(): Promise<unknown> {
+    return null;
+  }
+}
 
 let pool: Pool;
 let app: FastifyInstance;
@@ -68,7 +76,7 @@ beforeAll(async () => {
   pool = createPool(DB, 4);
   await migrate(pool, "core", join(here, "..", "..", "gateway", "migrations"));
   await migrate(pool, "verify", join(here, "..", "migrations"));
-  app = (await buildVerify({ pool, specs, receipts: signer, runner, gatewaySecret: SECRET, maxAttemptsPerTask: 3, maxArtifactBytes: 1024 * 1024, logLevel: "silent" })).app;
+  app = (await buildVerify({ pool, specs, receipts: signer, runner, stateReader: new NullStateReader(), gatewaySecret: SECRET, maxAttemptsPerTask: 3, maxArtifactBytes: 1024 * 1024, logLevel: "silent" })).app;
   ws = newWorkspaceId();
   await pool.query("INSERT INTO core.workspaces (id, scenario, seed, expires_at) VALUES ($1, 'acme-v1', 1, now() + interval '1 hour')", [ws]);
 });

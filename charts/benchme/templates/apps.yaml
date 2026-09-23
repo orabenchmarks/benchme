@@ -108,6 +108,9 @@ spec:
                   key: receiptSecret
             - name: SPECS_DIR
               value: /specs
+            # The `state` oracle reads a workspace's live app state straight from these (never through the gateway proxy).
+            - name: APP_TARGETS
+              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"vaultdocs\":\"http://%s-vaultdocs\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
             - name: MAX_ATTEMPTS_PER_TASK
               value: {{ $root.Values.verify.maxAttemptsPerTask | quote }}
             - name: MAX_ARTIFACT_BYTES
