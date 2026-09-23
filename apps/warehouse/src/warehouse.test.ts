@@ -194,10 +194,17 @@ describe.skipIf(!DB)("warehouse (real Postgres)", () => {
     for (const line of a.trim().split("\n")) expect(JSON.parse(line)).toMatchObject({ "@context": "https://schema.org" });
   });
 
-  it("publishes the schemamap directive on robots.txt", async () => {
+  // The gateway proxies with reply-from, which rewrites Host to the INTERNAL
+  // target — so the public URL must come from x-forwarded-host, never Host,
+  // or robots.txt advertises "http://warehouse:3000/..." (live-verified).
+  it("publishes the schemamap directive on robots.txt from the FORWARDED host, not the rewritten Host", async () => {
     const fresh = await createWorkspace(4242);
-    const robots = (await app.inject(scoped({ method: "GET", url: "/robots.txt", headers: { host: "gw.test" } }, fresh))).body;
+    const headers = { host: "warehouse:3000", "x-forwarded-host": "gw.test", "x-forwarded-proto": "http" };
+    const robots = (await app.inject(scoped({ method: "GET", url: "/robots.txt", headers }, fresh))).body;
     expect(robots).toContain(`schemamap: http://gw.test/w/${fresh}/warehouse/schema/map.xml`);
+    expect(robots).not.toContain("warehouse:3000");
+    const map = (await app.inject(scoped({ method: "GET", url: "/schema/map.xml", headers }, fresh))).body;
+    expect(map).toContain(`<loc>http://gw.test/w/${fresh}/warehouse/schema/feed.jsonl</loc>`);
   });
 
   it("names item urls/@ids by the FORWARDED prefix under a shared-alias path, not the resolved workspace id", async () => {

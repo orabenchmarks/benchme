@@ -4,7 +4,13 @@ import type { FastifyInstance } from "fastify";
 import type { AppRegistry } from "../app-registry.js";
 import type { WorkspaceService } from "../workspace-service.js";
 
-export type ProxyDeps = { apps: AppRegistry; service: WorkspaceService; gatewaySecret: string };
+export type ProxyDeps = {
+  apps: AppRegistry;
+  service: WorkspaceService;
+  gatewaySecret: string;
+  /** The gateway's own public URL: what the app must advertise, not the internal target reply-from rewrites Host to. */
+  publicBaseUrl: string;
+};
 
 /**
  * /w/:id/<app>/* → <app>/*, with the workspace bound as a signed header and the
@@ -12,6 +18,13 @@ export type ProxyDeps = { apps: AppRegistry; service: WorkspaceService; gatewayS
  */
 export async function registerProxy(app: FastifyInstance, d: ProxyDeps): Promise<void> {
   await app.register(replyFrom);
+  // reply-from rewrites Host to the TARGET (e.g. "warehouse:3000"), so an app
+  // deriving its public base from Host would advertise an unreachable
+  // robots.txt / schema map (live-verified). Forward the gateway's own public
+  // host + scheme instead; `defaultPublicBaseUrl` prefers these over Host.
+  const publicUrl = new URL(d.publicBaseUrl);
+  const forwardedHost = publicUrl.host;
+  const forwardedProto = publicUrl.protocol.replace(/:$/, "");
 
   app.all<{ Params: { id: string; app: string; "*": string } }>("/w/:id/:app/*", async (req, reply) => {
     const { app: appName } = req.params;
@@ -34,6 +47,8 @@ export async function registerProxy(app: FastifyInstance, d: ProxyDeps): Promise
         [WORKSPACE_HEADER]: id,
         [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(d.gatewaySecret, id),
         [FORWARDED_PREFIX_HEADER]: `/w/${req.params.id}/${appName}`,
+        "x-forwarded-host": forwardedHost,
+        "x-forwarded-proto": forwardedProto,
       }),
     });
   });

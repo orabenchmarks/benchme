@@ -64,6 +64,6 @@ export async function buildGateway(d: BuildDeps): Promise<{ app: FastifyInstance
   // Registered before the /w/ proxy's catch-all so /robots.txt is never
   // swallowed by the "/w/:id/:app/*" route.
   registerRobots(app, { apps: d.apps, scenarios: d.scenarios, publicBaseUrl: d.publicBaseUrl, sharedSeed: d.sharedSeed });
-  await registerProxy(app, { apps: d.apps, service, gatewaySecret: d.gatewaySecret });
+  await registerProxy(app, { apps: d.apps, service, gatewaySecret: d.gatewaySecret, publicBaseUrl: d.publicBaseUrl });
   return { app, service };
 }

@@ -25,7 +25,18 @@ async function stubApp(): Promise<{ app: FastifyInstance; url: string; seeds: st
     return reply.code(201).send({ ok: true });
   });
   app.register(import("@fastify/formbody"));
-  app.all("/*", async (req) => ({ path: req.url, workspace: req.headers[WORKSPACE_HEADER], prefix: req.headers["x-forwarded-prefix"], contentType: req.headers["content-type"] ?? null, body: req.body ?? null }));
+  app.all("/*", async (req) => ({
+    path: req.url,
+    workspace: req.headers[WORKSPACE_HEADER],
+    prefix: req.headers["x-forwarded-prefix"],
+    // Echoed so the proxy test can prove the PUBLIC host/scheme reach the app:
+    // reply-from rewrites Host to this stub's own 127.0.0.1:<port>.
+    host: req.headers.host,
+    forwardedHost: req.headers["x-forwarded-host"],
+    forwardedProto: req.headers["x-forwarded-proto"],
+    contentType: req.headers["content-type"] ?? null,
+    body: req.body ?? null,
+  }));
   await app.listen({ port: 0, host: "127.0.0.1" });
   const addr = app.server.address();
   const port = typeof addr === "object" && addr ? addr.port : 0;
@@ -134,6 +145,10 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     const res = await gateway.inject(`/w/${created.id}/warehouse/api/v1/products?limit=2`);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ path: "/api/v1/products?limit=2", workspace: created.id, prefix: `/w/${created.id}/warehouse` });
+    // Without these the app derives its public base from the REWRITTEN Host
+    // and advertises an internal, uncrawlable robots.txt / schema map.
+    expect(res.json()).toMatchObject({ forwardedHost: "benchme.test", forwardedProto: "http" });
+    expect(res.json().host).not.toBe("benchme.test");
     expect((await gateway.inject(`/w/${created.id}/nosuchapp/x`)).statusCode).toBe(404);
     expect((await gateway.inject(`/w/ws_000000000000/warehouse/x`)).statusCode).toBe(404);
     const form = await gateway.inject({ method: "POST", url: `/w/${created.id}/warehouse/signup`, headers: { "content-type": "application/x-www-form-urlencoded" }, payload: "email=a%40b.test&password=pw" });

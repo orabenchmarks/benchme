@@ -102,8 +102,12 @@ describe.skipIf(!DB)("vaultdocs (real Postgres full-text search)", () => {
     for (const line of a.trim().split("\n")) expect(JSON.parse(line)).toMatchObject({ "@context": "https://schema.org" });
   });
 
-  it("publishes the schemamap directive on robots.txt", async () => {
-    const robots = (await app.inject(scoped({ method: "GET", url: "/robots.txt", headers: { host: "gw.test" } }))).body;
+  // See warehouse.test.ts: reply-from rewrites Host to the internal target,
+  // so the advertised URL must come from x-forwarded-host.
+  it("publishes the schemamap directive on robots.txt from the FORWARDED host, not the rewritten Host", async () => {
+    const headers = { host: "vaultdocs:3000", "x-forwarded-host": "gw.test" };
+    const robots = (await app.inject(scoped({ method: "GET", url: "/robots.txt", headers }))).body;
     expect(robots).toContain(`schemamap: http://gw.test/w/${ws}/vaultdocs/schema/map.xml`);
+    expect(robots).not.toContain("vaultdocs:3000");
   });
 });
