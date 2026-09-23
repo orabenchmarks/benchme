@@ -2,6 +2,7 @@ import { HmacReceiptSigner, createPool } from "@benchme/core";
 import { buildVerify } from "./build-app.js";
 import { readConfig } from "./config.js";
 import { createRunner } from "./oracles/runner-factory.js";
+import { HttpWorkspaceStateReader } from "./oracles/state-reader.js";
 import { FsSpecRegistry } from "./specs/spec.js";
 
 const cfg = readConfig();
@@ -12,6 +13,7 @@ const { app } = await buildVerify({
   specs,
   receipts: new HmacReceiptSigner(cfg.RECEIPT_SECRET),
   runner: createRunner(cfg),
+  stateReader: new HttpWorkspaceStateReader(cfg.APP_TARGETS, cfg.GATEWAY_SECRET),
   gatewaySecret: cfg.GATEWAY_SECRET,
   maxAttemptsPerTask: cfg.MAX_ATTEMPTS_PER_TASK,
   maxArtifactBytes: cfg.MAX_ARTIFACT_BYTES,

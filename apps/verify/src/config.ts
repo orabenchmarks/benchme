@@ -2,11 +2,30 @@ import { loadConfig } from "@benchme/core";
 import { z } from "zod";
 import { RUNNER_KINDS } from "./oracles/runner-factory.js";
 
+const appTargets = z.record(z.string().min(1), z.string().url());
+
 export const configSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().min(1),
   GATEWAY_SECRET: z.string().min(16),
   RECEIPT_SECRET: z.string().min(16),
+  /**
+   * JSON: { warehouse: "http://warehouse:3000", ... } — the same map the
+   * gateway uses. The `state` oracle reads a workspace's live app state
+   * straight from these, never through the gateway proxy. Defaults empty:
+   * a deployment with no `state` tasks yet needs nothing here.
+   */
+  APP_TARGETS: z
+    .string()
+    .default("{}")
+    .transform((s, ctx) => {
+      try {
+        return appTargets.parse(JSON.parse(s));
+      } catch (e) {
+        ctx.addIssue({ code: "custom", message: `APP_TARGETS must be a JSON object of app → url (${(e as Error).message})` });
+        return z.NEVER;
+      }
+    }),
   /** Directory of hidden task specs (<taskId>.json), baked from benchme-hidden. */
   SPECS_DIR: z.string().default("/specs"),
   MAX_ATTEMPTS_PER_TASK: z.coerce.number().int().positive().default(20),

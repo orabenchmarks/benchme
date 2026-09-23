@@ -58,11 +58,35 @@ export const patchSpec = z.object({
   timeoutSeconds: z.number().int().positive().default(600),
 });
 
+export const stateSpec = z.object({
+  kind: z.literal("state"),
+  /**
+   * Each check reads one app's live REST state for this workspace (never the
+   * submitted artifact — end state is the evidence) and must find at least
+   * one row that survives `where` and satisfies `expect`.
+   */
+  checks: z.array(
+    z.object({
+      name: z.string().min(1),
+      /** APP_TARGETS key of the app to read (e.g. "warehouse", "helpdesk"). */
+      app: z.string().min(1),
+      /** A REST list or detail path on that app, e.g. "/api/v1/orders" or "/api/v1/orders/SO-1". */
+      path: z.string().min(1),
+      /** Every field here must equal the row's field (case-insensitive for strings). */
+      expect: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+      /** Narrows a list response to matching rows before `expect`/`count` apply. */
+      where: z.record(z.string(), z.string()).optional(),
+      /** Bounds on how many rows survive `where` (e.g. max:1 catches a duplicate). */
+      count: z.object({ min: z.number().int().min(0).optional(), max: z.number().int().min(0).optional() }).optional(),
+    }),
+  ).min(1),
+});
+
 export const taskSpecSchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,63}$/),
   /** Blind receipts (hard tier): details carry counts only, never names. */
   blind: z.boolean().default(false),
-  oracle: z.discriminatedUnion("kind", [jsonSpec, xlsxSpec, docxSpec, patchSpec]),
+  oracle: z.discriminatedUnion("kind", [jsonSpec, xlsxSpec, docxSpec, patchSpec, stateSpec]),
 });
 
 export type TaskSpec = z.infer<typeof taskSpecSchema>;

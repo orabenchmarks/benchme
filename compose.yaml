@@ -170,6 +170,8 @@ services:
       RECEIPT_SECRET: ${RECEIPT_SECRET:-benchme-local-receipt-secret-change-me}
       SPECS_DIR: /specs
       MAX_ATTEMPTS_PER_TASK: ${MAX_ATTEMPTS_PER_TASK:-20}
+      # The `state` oracle reads a workspace's live app state straight from these (never through the gateway proxy).
+      APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000"}'
       RUNNER_KIND: ${RUNNER_KIND:-docker}
       DOCKER_HOST: unix:///var/run/docker.sock
       RUNNER_CPU: ${RUNNER_CPU:-2}
