@@ -36,6 +36,25 @@ workspaces:
       requests: { cpu: 50m, memory: 128Mi }
       limits: { cpu: 500m, memory: 512Mi }
 
+# The NLWeb ranker warehouse/helpdesk/vaultdocs run behind /ask, and its
+# non-secret config — see rankerEnvSchema in
+# packages/site-kit/src/nlweb/ranker-config.ts (the schema these defaults
+# mirror). API keys live in secrets.llmApiKey / secrets.jevApiKey below, never
+# here. A key missing for the SELECTED ranker is a boot failure, not a silent
+# fall-back to lexical.
+ranker:
+  askRanker: lexical
+  llmBaseUrl: ""
+  llmModel: claude-haiku-4-5-20251001
+  llmInputUsdPerMtok: 1.0
+  llmOutputUsdPerMtok: 5.0
+  jevBaseUrl: https://api.typesafe.ai
+  jevModel: jev-latest
+  concurrency: 8
+  # Enables an X-Ask-Ranker per-request override on /ask — evaluations only
+  # (tools/ask-eval.mjs).
+  override: false
+
 # Secrets are generated on first install and kept across upgrades (lookup),
 # or supplied explicitly here / via existingSecret.
 secrets:
@@ -45,6 +64,12 @@ secrets:
   receiptSecret: ""
   mailInternalSecret: ""
   postgresPassword: ""
+  # llm/jev ranker provider credentials. Unlike the five secrets above these
+  # are NEVER auto-generated (a random string is not a valid API key) — leave
+  # empty for the default lexical ranker, or supply via secrets.existingSecret
+  # (keys llmApiKey / jevApiKey) for a GitOps deployment.
+  llmApiKey: ""
+  jevApiKey: ""
 
 postgres:
   image: postgres:16

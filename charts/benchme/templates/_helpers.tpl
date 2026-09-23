@@ -53,6 +53,38 @@ seccompProfile:
     secretKeyRef:
       name: {{ include "benchme.secretName" . }}
       key: mailInternalSecret
+- name: ASK_RANKER
+  value: {{ .Values.ranker.askRanker | quote }}
+- name: LLM_BASE_URL
+  value: {{ .Values.ranker.llmBaseUrl | quote }}
+- name: LLM_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "benchme.secretName" . }}
+      key: llmApiKey
+      # Optional: absent from an existingSecret predating the llm/jev rankers,
+      # or simply unused by the default lexical ranker.
+      optional: true
+- name: LLM_MODEL
+  value: {{ .Values.ranker.llmModel | quote }}
+- name: LLM_INPUT_USD_PER_MTOK
+  value: {{ .Values.ranker.llmInputUsdPerMtok | quote }}
+- name: LLM_OUTPUT_USD_PER_MTOK
+  value: {{ .Values.ranker.llmOutputUsdPerMtok | quote }}
+- name: JEV_BASE_URL
+  value: {{ .Values.ranker.jevBaseUrl | quote }}
+- name: JEV_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "benchme.secretName" . }}
+      key: jevApiKey
+      optional: true
+- name: JEV_MODEL
+  value: {{ .Values.ranker.jevModel | quote }}
+- name: RANKER_CONCURRENCY
+  value: {{ .Values.ranker.concurrency | quote }}
+- name: ASK_RANKER_OVERRIDE
+  value: {{ .Values.ranker.override | ternary "1" "0" | quote }}
 {{- end -}}
 
 {{- define "benchme.pullSecrets" -}}
