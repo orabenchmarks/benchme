@@ -123,6 +123,8 @@ services:
       APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000","verify":"http://verify:3000"}'
       SEEDED_APPS: warehouse,helpdesk,vaultdocs,mail,verify
       MCP_APPS: warehouse,helpdesk,vaultdocs
+      ASK_APPS: warehouse,helpdesk,vaultdocs
+      WEBMCP_APPS: warehouse,helpdesk,vaultdocs
       WORKSPACE_TTL_SECONDS: ${WORKSPACE_TTL_SECONDS:-86400}
       WORKSPACE_MAX_TTL_SECONDS: ${WORKSPACE_MAX_TTL_SECONDS:-604800}
       # Your own machine: no need to throttle yourself.
