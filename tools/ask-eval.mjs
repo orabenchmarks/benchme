@@ -25,9 +25,14 @@
  * Exits non-zero if any (app, ranker) pair answered 422 or 503 — or was
  * simply unreachable — on EVERY query: that is not "this ranker scored
  * lower", it is "this arm produced no data at all" and the run should be
- * treated as failed, not published.
+ * treated as failed, not published. Same for an arm whose answers came back
+ * attributed to a DIFFERENT ranker (the `mismatch` column): the override was
+ * ignored, so the numbers are real but carry the wrong label.
+ *
+ * Its own tests: `node --test tools/ask-eval.test.mjs`.
  */
 import { writeFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { acmeV1, documentsMatching, lowStock, openTicketsFor } from "../packages/scenarios/dist/index.js";
 import { highConfidenceMisses, ndcgAt, percentile, precisionAt } from "../packages/site-kit/dist/index.js";
 
@@ -50,6 +55,7 @@ Options:
 const RELEVANCE_K = 10; // nDCG@10
 const PRECISION_K = 5; // P@5
 const HIGH_CONFIDENCE_THRESHOLD = 0.75;
+const ASK_TIMEOUT_MS = 30_000;
 
 function printHelp() {
   process.stdout.write(HELP);
@@ -175,7 +181,9 @@ async function askOnce(askUrl, kind, query) {
   const url = `${askUrl}?query=${encodeURIComponent(query)}&streaming=false`;
   const start = performance.now();
   try {
-    const res = await fetch(url, { headers: { "x-ask-ranker": kind } });
+    // A ranker that never answers must fail this query, not hang the whole
+    // eval: one upstream call per candidate makes a stuck arm plausible.
+    const res = await fetch(url, { headers: { "x-ask-ranker": kind }, signal: AbortSignal.timeout(ASK_TIMEOUT_MS) });
     const latencyMs = performance.now() - start;
     if (!res.ok) return { ok: false, status: res.status, latencyMs };
     const body = await res.json();
@@ -217,6 +225,12 @@ async function evaluateArm(askUrl, kind, queries) {
   const answered = perQuery.filter((q) => q.ndcg !== undefined);
   const hardFailures = perQuery.filter((q) => q.ndcg === undefined);
   const degradedCount = answered.filter((q) => q.rankerDegraded).length;
+  // The deployment names the ranker that actually answered. If it is not the
+  // one this arm ASKED for, the X-Ask-Ranker override was ignored
+  // (ASK_RANKER_OVERRIDE off) and every number here belongs to some other
+  // ranker — a wrong label, which is worse than a missing one, so it fails
+  // the run rather than quietly publishing as this arm.
+  const mismatched = answered.filter((q) => q.rankerAnswered !== kind);
 
   return {
     queries: perQuery,
@@ -225,6 +239,7 @@ async function evaluateArm(askUrl, kind, queries) {
     hardFailureQueries: hardFailures.length,
     // Every query is a hard failure: this arm produced no data at all.
     totalFailure: hardFailures.length > 0 && hardFailures.length === queries.length,
+    ...(mismatched.length > 0 ? { rankerMismatch: mismatched.length } : {}),
     metrics: {
       ndcgAt10: avg(answered.map((q) => q.ndcg)),
       precisionAt5: avg(answered.map((q) => q.precision)),
@@ -233,6 +248,7 @@ async function evaluateArm(askUrl, kind, queries) {
       costPerQueryUsd: avg(answered.map((q) => q.costUsd)),
       highConfidenceMisses: sum(answered.map((q) => q.highConfidenceMisses)),
       degraded: degradedCount,
+      mismatch: mismatched.length,
     },
   };
 }
@@ -253,15 +269,16 @@ function renderMarkdown({ base, scenario, seed, workspaceId, rankers, perApp, to
   lines.push(
     "**Disclosures:** the `jev` ranker emits no generated text — a jev result's `description` is always the item's own boilerplate, not written by the ranker. " +
       "`degraded` counts queries where the named ranker fell back (its answer came from `lexical` instead, but is still counted under the ranker it was asked for) — read alongside the quality columns, not folded silently into them. " +
+      "`mismatch` counts answers the deployment attributed to a DIFFERENT ranker than the one this arm asked for (the `X-Ask-Ranker` override was ignored) — any mismatch fails the run, because those numbers are labelled with a ranker that did not produce them. " +
       "`hc miss` (high-confidence miss) is a result scored ≥ 0.75 that was NOT relevant; lexical's scores are token-overlap fractions, not a calibrated confidence, so its hc-miss count is not directly comparable to llm/jev's.",
     "",
   );
 
   const table = (rows) => {
-    lines.push("| ranker | queries | nDCG@10 | P@5 | p50 ms | p95 ms | $/query | hc miss | degraded | failed |");
-    lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+    lines.push("| ranker | queries | nDCG@10 | P@5 | p50 ms | p95 ms | $/query | hc miss | degraded | mismatch | failed |");
+    lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
     for (const r of rows) {
-      lines.push(`| ${r.kind} | ${r.answeredQueries}/${r.totalQueries} | ${fmt(r.metrics.ndcgAt10)} | ${fmt(r.metrics.precisionAt5)} | ${fmt(r.metrics.latencyP50Ms, 0)} | ${fmt(r.metrics.latencyP95Ms, 0)} | ${fmt(r.metrics.costPerQueryUsd, 5)} | ${r.metrics.highConfidenceMisses} | ${r.metrics.degraded} | ${r.hardFailureQueries} |`);
+      lines.push(`| ${r.kind} | ${r.answeredQueries}/${r.totalQueries} | ${fmt(r.metrics.ndcgAt10)} | ${fmt(r.metrics.precisionAt5)} | ${fmt(r.metrics.latencyP50Ms, 0)} | ${fmt(r.metrics.latencyP95Ms, 0)} | ${fmt(r.metrics.costPerQueryUsd, 5)} | ${r.metrics.highConfidenceMisses} | ${r.metrics.degraded} | ${r.metrics.mismatch ?? 0} | ${r.hardFailureQueries} |`);
     }
     lines.push("");
   };
@@ -305,7 +322,7 @@ async function main() {
     // encode the deployment's BENCHME_PUBLIC_URL (for OTHER consumers, e.g. a
     // k3d pod resolving host.k3d.internal), which the eval process itself may
     // not be able to resolve or reach even though --base can.
-    const isAskCapable = workspace.urls.ask?.[app] !== undefined || workspace.urls.apps[app] !== undefined;
+    const isAskCapable = workspace.urls.ask?.[app] !== undefined;
     const askUrl = isAskCapable ? `${base}/w/${workspace.id}/${app}/ask` : undefined;
     if (!askUrl) {
       console.warn(`skipping ${app}: not an ask-capable app on this deployment`);
@@ -319,7 +336,10 @@ async function main() {
       const arm = await evaluateArm(askUrl, kind, queries);
       perApp[app][kind] = arm;
       allQueriesByKind[kind].push(...arm.queries);
-      if (arm.totalFailure) hardFailures.push({ app, ranker: kind });
+      if (arm.totalFailure) hardFailures.push({ app, ranker: kind, reason: "every query answered 422/503 (or was unreachable): this arm produced no data at all" });
+      if (arm.rankerMismatch) {
+        hardFailures.push({ app, ranker: kind, reason: `${arm.rankerMismatch}/${arm.answeredQueries} answers came back from a different ranker (is ASK_RANKER_OVERRIDE=1 set on the deployment?)` });
+      }
     }
   }
 
@@ -343,6 +363,7 @@ async function main() {
         costPerQueryUsd: avg(answered.map((q) => q.costUsd)),
         highConfidenceMisses: sum(answered.map((q) => q.highConfidenceMisses)),
         degraded: answered.filter((q) => q.rankerDegraded).length,
+        mismatch: answered.filter((q) => q.rankerAnswered !== kind).length,
       },
     };
   }
@@ -364,9 +385,13 @@ async function main() {
   console.error(`wrote ${opts.out}.json and ${opts.out}.md`);
 
   if (hardFailures.length > 0) {
-    console.error(`FAILED: every query 422/503'd (or was unreachable) for: ${hardFailures.map((f) => `${f.app}/${f.ranker}`).join(", ")}`);
+    for (const f of hardFailures) console.error(`FAILED: ${f.app}/${f.ranker}: ${f.reason}`);
     process.exitCode = 1;
   }
 }
 
-await main();
+// Exported for tools/ask-eval.test.mjs; `main` only runs when this file IS the
+// entry point, so importing it does not drive a deployment.
+export { evaluateArm, main };
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

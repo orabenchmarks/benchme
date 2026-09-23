@@ -122,6 +122,11 @@ exact validation.
 | `RANKER_CONCURRENCY` | `8` | in-flight upstream requests per `/ask`; one request per candidate |
 | `ASK_RANKER_OVERRIDE` | `0` | enables an `X-Ask-Ranker` per-request override on `/ask` — evaluations only, see below |
 
+`ASK_RANKER_OVERRIDE=1` lets any caller who knows a workspace URL choose the
+ranker per request and therefore spend the configured provider credits (one
+upstream call per candidate); never enable it on an internet-reachable
+deployment.
+
 ## Evaluate the rankers
 
 ```bash
@@ -157,6 +162,10 @@ llm/jev score ≥ 0.75 on a non-relevant item). The report discloses that a
 `jev` result's `description` is always the item's own boilerplate text (jev
 emits no text of its own) and counts `ranker_degraded` queries separately
 rather than folding a fallen-back answer silently into the healthy numbers.
+Every answer's self-reported `ranker` is checked against the arm that asked
+for it: a `mismatch` column counts answers that came back from a *different*
+ranker (the override was ignored), and any mismatch fails the run — numbers
+labelled with a ranker that did not produce them are worse than no numbers.
 Exits non-zero if any (app, ranker) pair answered 422/503 — or was simply
 unreachable — on every single query: that arm produced no data, not just a
 worse score.
