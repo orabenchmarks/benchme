@@ -42,7 +42,9 @@ beforeAll(async () => {
   pool = createPool(DB, 4);
   await migrate(pool, "core", join(dirname(fileURLToPath(import.meta.url)), "..", "migrations"));
   stub = await stubApp();
-  const apps = new AppRegistry({ warehouse: stub.url, data: stub.url }, ["warehouse"]);
+  // warehouse: mcp + ask (NLWeb) flagged; data: webmcp flagged only — proves
+  // urls()/the registry gate each capability independently, not as a bundle.
+  const apps = new AppRegistry({ warehouse: stub.url, data: stub.url }, ["warehouse"], ["warehouse"], ["warehouse"], ["data"]);
   limiter = new MemoryRateLimiter(2, 3600);
   const seeder: WorkspaceSeeder = new HttpWorkspaceSeeder(apps.seeded(), SECRET);
   gateway = (
@@ -59,6 +61,7 @@ beforeAll(async () => {
       internalBaseUrl: "http://gateway.benchme.svc",
       defaultTtlSeconds: 3600,
       maxTtlSeconds: 7200,
+      sharedSeed: 20260908,
       logLevel: "silent",
     })
   ).app;
@@ -78,6 +81,9 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     expect(body.seed).toBe(4242);
     expect(body.urls.apps.warehouse).toBe(`http://benchme.test/w/${body.id}/warehouse`);
     expect(body.urls.mcp).toEqual({ warehouse: `http://benchme.test/w/${body.id}/warehouse/mcp` });
+    expect(body.urls.ask).toEqual({ warehouse: `http://benchme.test/w/${body.id}/warehouse/ask` });
+    expect(body.urls.askMcp).toEqual({ warehouse: `http://benchme.test/w/${body.id}/warehouse/ask/mcp` });
+    expect(body.urls.webmcp).toEqual({ data: `http://benchme.test/w/${body.id}/data/` });
     expect(stub.seeds).toContain(body.id);
 
     const get = await gateway.inject(`/api/workspaces/${body.id}`);
@@ -169,8 +175,28 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
 
   it("serves the portal, the registry and the workspace page", async () => {
     expect((await gateway.inject("/")).body).toContain("acme-v1");
-    expect((await gateway.inject("/registry")).body).toContain("/warehouse/mcp");
+    const registry = (await gateway.inject("/registry")).body;
+    expect(registry).toContain("/warehouse/mcp");
+    expect(registry).toContain("NLWeb /ask");
+    expect(registry).toContain("ask MCP");
+    expect(registry).toContain("WebMCP");
+    expect(registry).toContain("/warehouse/ask/mcp");
+    expect(registry).toContain("/warehouse/ask</code>");
+    expect(registry).toContain("/data/</code>");
+    // data has no ask capability — its ask/ask-MCP cells must not claim one.
+    const dataRow = registry.slice(registry.indexOf("<code>data</code>"), registry.indexOf("</tr>", registry.indexOf("<code>data</code>")));
+    expect(dataRow).not.toContain("/data/ask");
     const created = (await gateway.inject({ method: "POST", url: "/api/workspaces", headers: { "x-benchme-operator-key": "operator-key-for-tests" }, payload: { scenario: "acme-v1" } })).json();
     expect((await gateway.inject(`/w/${created.id}`)).body).toContain(created.id);
+  });
+
+  it("serves a host-root robots.txt that disallows /w/ and lists a schemamap per ask-capable app", async () => {
+    const res = await gateway.inject("/robots.txt");
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/plain");
+    expect(res.body).toContain("User-agent: *\nDisallow: /w/\n");
+    expect(res.body).toContain(`schemamap: http://benchme.test/w/shared-acme-v1-20260908/warehouse/schema/map.xml`);
+    // data is webmcp-only, not ask-capable — no schemamap line for it.
+    expect(res.body).not.toContain("/data/schema/map.xml");
   });
 });

@@ -38,11 +38,16 @@ export function registerPortal(app: FastifyInstance, d: PortalDeps): void {
   });
 
   app.get("/registry", async (_req, reply) => {
-    const rows = d.apps
-      .mcp()
+    const capable = d.apps.list().filter((a) => a.mcp || a.ask || a.webmcp);
+    const link = (has: boolean, path: string) => (has ? `<code>${d.publicBaseUrl}/w/&lt;workspaceId&gt;/${path}</code>` : "—");
+    const rows = capable
       .map(
         (a) =>
-          `<tr><td><code>${a.name}</code></td><td><code>${d.publicBaseUrl}/w/&lt;workspaceId&gt;/${a.name}/mcp</code></td><td>Streamable HTTP</td></tr>`,
+          `<tr><td><code>${a.name}</code></td>` +
+          `<td>${link(a.mcp, `${a.name}/mcp`)}</td><td>${a.mcp ? "Streamable HTTP" : "—"}</td>` +
+          `<td>${link(a.ask, `${a.name}/ask`)}</td>` +
+          `<td>${link(a.ask, `${a.name}/ask/mcp`)}</td>` +
+          `<td>${link(a.webmcp, `${a.name}/`)}</td></tr>`,
       )
       .join("");
     return reply.type("text/html").send(
@@ -50,7 +55,7 @@ export function registerPortal(app: FastifyInstance, d: PortalDeps): void {
         "benchme — MCP registry",
         `<h1>MCP server registry</h1>
 <p>Each server is scoped to a workspace by its URL. No authentication: the unguessable workspace id is the capability.</p>
-<table><tr><th>server</th><th>endpoint</th><th>transport</th></tr>${rows}</table>`,
+<table><tr><th>server</th><th>endpoint</th><th>transport</th><th>NLWeb /ask</th><th>ask MCP</th><th>WebMCP</th></tr>${rows}</table>`,
       ),
     );
   });

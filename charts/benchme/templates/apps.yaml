@@ -85,6 +85,10 @@ spec:
               value: "warehouse,helpdesk,vaultdocs,mail,verify"
             - name: MCP_APPS
               value: "warehouse,helpdesk,vaultdocs"
+            - name: ASK_APPS
+              value: "warehouse,helpdesk,vaultdocs"
+            - name: WEBMCP_APPS
+              value: "warehouse,helpdesk,vaultdocs"
             - name: WORKSPACE_TTL_SECONDS
               value: {{ $root.Values.workspaces.ttlSeconds | quote }}
             - name: WORKSPACE_MAX_TTL_SECONDS

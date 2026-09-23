@@ -30,6 +30,12 @@ export const configSchema = z.object({
   SEEDED_APPS: z.string().default("warehouse,mail").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
   /** Apps exposing an MCP server (subset of APP_TARGETS keys). */
   MCP_APPS: z.string().default("warehouse").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
+  /** Apps exposing an NLWeb /ask endpoint (subset of APP_TARGETS keys). */
+  ASK_APPS: z.string().default("").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
+  /** Apps exposing their own WebMCP tools on their pages (subset of APP_TARGETS keys). */
+  WEBMCP_APPS: z.string().default("").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
+  /** Seed used for the shared-<scenario>-<seed> workspace advertised in /robots.txt. */
+  SHARED_SEED: z.coerce.number().int().positive().default(20260908),
   WORKSPACE_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),
   WORKSPACE_MAX_TTL_SECONDS: z.coerce.number().int().positive().default(7 * 86_400),
   RATE_CREATE_PER_HOUR: z.coerce.number().int().positive().default(10),
