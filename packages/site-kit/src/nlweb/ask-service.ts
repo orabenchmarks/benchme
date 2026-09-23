@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { retrieve } from "./lexical.js";
-import type { AskDeps, AskItem, AskResponse, AskResult, RankedCandidate } from "./types.js";
+import type { AskDeps, AskItem, AskResponse, AskResult, Ranker, RankedCandidate } from "./types.js";
 
 const DEFAULT_TOP_K = 25;
 const DESCRIPTION_CHARS = 160;
@@ -15,7 +15,14 @@ export type AskQuery = { query: string; prev?: string[]; queryId?: string };
 export class AskService {
   constructor(private readonly d: AskDeps) {}
 
-  async ask(workspaceId: string, q: AskQuery): Promise<AskResponse> {
+  /**
+   * `rankerOverride` lets a single call answer with a ranker other than the
+   * one this service was built with — the `X-Ask-Ranker` eval knob (see
+   * `AskDeps.rankerFor`) resolves it at the route and hands it in here, so the
+   * pipeline itself stays ignorant of HTTP headers.
+   */
+  async ask(workspaceId: string, q: AskQuery, rankerOverride?: Ranker): Promise<AskResponse> {
+    const ranker = rankerOverride ?? this.d.ranker;
     const topK = this.d.topK ?? DEFAULT_TOP_K;
     const items = await this.d.items(workspaceId);
     // Earlier turns widen RETRIEVAL only (a follow-up like "cheaper ones" has no
@@ -23,7 +30,7 @@ export class AskService {
     // actually asked now.
     const retrievalQuery = [...(q.prev ?? []), q.query].join(" ");
     const candidates = retrieve(retrievalQuery, items, topK).map((c) => c.item);
-    const { ranked, usage } = await this.d.ranker.rank(q.query, candidates);
+    const { ranked, usage } = await ranker.rank(q.query, candidates);
 
     const byId = new Map(candidates.map((c) => [c.id, c]));
     const results = ranked
@@ -35,7 +42,8 @@ export class AskService {
     return {
       query_id: q.queryId ?? randomUUID(),
       results,
-      ranker: this.d.ranker.kind,
+      ranker: ranker.kind,
+      usage: { calls: usage.calls, inputTokens: usage.inputTokens, costUsd: usage.costUsd, latencyMs: usage.latencyMs },
       ...(usage.degraded ? { ranker_degraded: true as const } : {}),
     };
   }

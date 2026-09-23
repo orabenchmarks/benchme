@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import { describe, expect, it, beforeAll } from "vitest";
-import { registerNlweb } from "./ask-routes.js";
+import { registerNlweb, type NlwebDeps } from "./ask-routes.js";
 import { LexicalRanker } from "./lexical.js";
 import type { AskItem, Ranker } from "./types.js";
 const items: AskItem[] = [
@@ -23,7 +23,20 @@ class DegradedRanker implements Ranker {
   }
 }
 
-async function buildApp(ranker: Ranker) {
+/** A second, distinguishable ranker so an override test can prove IT (not the default) answered. */
+class OtherRanker implements Ranker {
+  readonly kind = "other";
+  async rank(_query: string, candidates: AskItem[]) {
+    return {
+      ranked: candidates.map((c) => ({ id: c.id, score: 1 })),
+      usage: { calls: 1, inputTokens: 5, latencyMs: 1, costUsd: 0.001, degraded: false },
+    };
+  }
+}
+
+type ExtraDeps = Partial<Pick<NlwebDeps, "allowRankerOverride" | "rankerFor">>;
+
+async function buildApp(ranker: Ranker, extra: ExtraDeps = {}) {
   const instance = Fastify();
   instance.decorateRequest("workspaceId", "");
   instance.decorateRequest("prefix", "");
@@ -31,7 +44,7 @@ async function buildApp(ranker: Ranker) {
     req.workspaceId = "x";
     req.prefix = "/w/x/warehouse";
   });
-  await instance.register(async (s) => registerNlweb(s, { site: "warehouse", items: async () => items, ranker, publicBaseUrl: () => "http://gw.test/w/x/warehouse" }));
+  await instance.register(async (s) => registerNlweb(s, { site: "warehouse", items: async () => items, ranker, publicBaseUrl: () => "http://gw.test/w/x/warehouse", ...extra }));
   await instance.ready();
   return instance;
 }
@@ -98,6 +111,29 @@ describe("/ask", () => {
     const body = (await app.inject({ method: "GET", url: "/ask?query=bolt&streaming=false" })).json();
     expect(body.ranker).toBe("lexical");
     expect("ranker_degraded" in body).toBe(false);
+  });
+  describe("X-Ask-Ranker override", () => {
+    it("is ignored when the deployment has not opted in", async () => {
+      // allowRankerOverride is absent here, even though rankerFor could satisfy "other".
+      const disabled = await buildApp(new LexicalRanker(), { rankerFor: (kind) => (kind === "other" ? new OtherRanker() : undefined) });
+      const body = (await disabled.inject({ method: "GET", url: "/ask?query=bolt&streaming=false", headers: { "x-ask-ranker": "other" } })).json();
+      expect(body.ranker).toBe("lexical");
+      await disabled.close();
+    });
+    it("picks the named ranker when the deployment opted in", async () => {
+      const enabled = await buildApp(new LexicalRanker(), { allowRankerOverride: true, rankerFor: (kind) => (kind === "other" ? new OtherRanker() : undefined) });
+      const body = (await enabled.inject({ method: "GET", url: "/ask?query=bolt&streaming=false", headers: { "x-ask-ranker": "other" } })).json();
+      expect(body.ranker).toBe("other");
+      expect(body.results[0]).toMatchObject({ score: 1 });
+      await enabled.close();
+    });
+    it("422s an unrecognised ranker kind", async () => {
+      const enabled = await buildApp(new LexicalRanker(), { allowRankerOverride: true, rankerFor: () => undefined });
+      const res = await enabled.inject({ method: "GET", url: "/ask?query=bolt&streaming=false", headers: { "x-ask-ranker": "nope" } });
+      expect(res.statusCode).toBe(422);
+      expect(res.json()).toMatchObject({ error: "UNKNOWN_RANKER" });
+      await enabled.close();
+    });
   });
   it("discloses a degraded ranker as an SSE frame before the complete frame", async () => {
     const degraded = await buildApp(new DegradedRanker());

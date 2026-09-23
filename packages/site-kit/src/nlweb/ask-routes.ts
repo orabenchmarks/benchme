@@ -7,6 +7,7 @@ import { parseAskParams } from "./ask-params.js";
 import { AskService } from "./ask-service.js";
 import { streamAsk } from "./ask-sse.js";
 import { registerSchemaRoutes, type SchemaDeps } from "./schema-routes.js";
+import type { Ranker } from "./types.js";
 
 /**
  * Mounts a site's whole NLWeb surface on the scope it is given: /ask (JSON and
@@ -17,6 +18,9 @@ export type NlwebDeps = SchemaDeps & { version?: string };
 
 type AskCtx = { workspaceId: string };
 
+/** The eval-only per-request override header; see `AskDeps.allowRankerOverride`. */
+const RANKER_OVERRIDE_HEADER = "x-ask-ranker";
+
 export async function registerNlweb(app: FastifyInstance, d: NlwebDeps): Promise<void> {
   const service = new AskService(d);
 
@@ -25,11 +29,22 @@ export async function registerNlweb(app: FastifyInstance, d: NlwebDeps): Promise
     // 422, not 400: the request is well-formed HTTP the site simply cannot answer.
     if (!parsed.ok) return reply.code(422).send({ error: parsed.error });
     const { params } = parsed;
+
+    // Ignored unless the deployment opted in: a stray/forged header must never
+    // change which ranker answers a real request.
+    let rankerOverride: Ranker | undefined;
+    const overrideHeader = req.headers[RANKER_OVERRIDE_HEADER];
+    if (d.allowRankerOverride && overrideHeader !== undefined) {
+      const kind = Array.isArray(overrideHeader) ? overrideHeader[0] : overrideHeader;
+      rankerOverride = kind ? d.rankerFor?.(kind) : undefined;
+      if (!rankerOverride) return reply.code(422).send({ error: "UNKNOWN_RANKER" });
+    }
+
     // Minted here rather than in the service so the SSE error path can still
     // close the stream with the id the client is correlating on.
     const queryId = params.queryId ?? randomUUID();
-    if (params.streaming) return streamAsk(reply, service, req.workspaceId, params, queryId);
-    return reply.send(await service.ask(req.workspaceId, { query: params.query, prev: params.prev, queryId }));
+    if (params.streaming) return streamAsk(reply, service, req.workspaceId, params, queryId, rankerOverride);
+    return reply.send(await service.ask(req.workspaceId, { query: params.query, prev: params.prev, queryId }, rankerOverride));
   };
 
   app.get("/ask", async (req, reply) => answer(req, reply, req.query));

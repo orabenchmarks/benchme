@@ -63,11 +63,14 @@ Each of `warehouse`, `helpdesk` and `vaultdocs` (the apps in the gateway's
   JSON-LD. **SSE is the default** for both methods — NLWeb's own default, so
   only an explicit opt-out turns it off: pass `streaming=false` (GET) or
   `"streaming": false` (POST; `prefer.streaming` in the nested body) for a
-  single JSON response instead. There is no `stream` parameter. An SSE
-  response frames, in order, a `license` message, a `data_retention` message,
-  the `results` (plus a `ranker` message if the ranker degraded), and always
-  terminates with a `complete` frame — even on failure, so a client never
-  hangs waiting for an end that isn't coming.
+  single JSON response instead. There is no `stream` parameter. The
+  single-response JSON body also carries `usage` (`calls`, `inputTokens`,
+  `costUsd`, `latencyMs`) for the ranking pass, so a caller can compare
+  rankers on cost and latency, not just relevance. An SSE response frames, in
+  order, a `license` message, a `data_retention` message, the `results` (plus
+  a `ranker` message if the ranker degraded), and always terminates with a
+  `complete` frame — even on failure, so a client never hangs waiting for an
+  end that isn't coming.
 - **`/ask/mcp`** is a separate, deliberately narrow MCP server: ONE read-only
   `ask` tool ("ask a natural-language question and get JSON-LD back"), not the
   site's full tool surface (that's `/mcp` — see WebMCP above).
@@ -125,11 +128,38 @@ exact validation.
 node tools/ask-eval.mjs --base <gateway> --rankers lexical,llm,jev --out ask-eval
 ```
 
-Drives `/ask` on a workspace behind `<gateway>` with every ranker named in
-`--rankers` (via the `X-Ask-Ranker` override — set `ASK_RANKER_OVERRIDE=1` on
-the deployment first) and writes the comparison to `--out`, so the three arms
-of the grid are scored against one running deployment instead of three
-separately-configured ones.
+Mints a workspace behind `<gateway>` and drives `/ask` on `warehouse`,
+`helpdesk` and `vaultdocs` with every ranker named in `--rankers` (via the
+`X-Ask-Ranker` override — set `ASK_RANKER_OVERRIDE=1` on the deployment
+first, or every header is silently ignored and every arm scores whatever
+`ASK_RANKER` it booted with), so the three arms of the grid are scored
+against one running deployment instead of three separately-configured ones.
+
+| flag | default | |
+| --- | --- | --- |
+| `--base <url>` | — | the gateway base URL (required) |
+| `--scenario <key>` | `acme-v1` | the only scenario this tool's query derivation currently supports |
+| `--seed <n>` | `4242` | workspace seed |
+| `--rankers <list>` | `lexical,llm,jev` | comma-separated ranker kinds to score |
+| `--out <path>` | `ask-eval` | writes `<path>.json` (full per-query detail) and `<path>.md` (a results table per app + a totals table) |
+| `--operator-key <key>` | — | `x-benchme-operator-key`, so minting the workspace skips the create rate limit |
+
+~15 queries per app are built from the SAME generator that seeded the
+workspace (`@benchme/scenarios`), so their relevant ids are derived, never
+hand-picked: a warehouse category name against its products, `lowStock`
+against the low-stock query, a customer city against its customers; a
+helpdesk priority/status phrase against matching tickets, an agent's name
+against their open tickets (`openTicketsFor`); a vaultdocs phrase against
+`documentsMatching`. Per query it computes nDCG@10, P@5, wall-clock latency
+(p50/p95 per app and overall), cost/query (from the `usage` the response now
+carries — see `AskResponse.usage`), and `high_confidence_miss` counts (an
+llm/jev score ≥ 0.75 on a non-relevant item). The report discloses that a
+`jev` result's `description` is always the item's own boilerplate text (jev
+emits no text of its own) and counts `ranker_degraded` queries separately
+rather than folding a fallen-back answer silently into the healthy numbers.
+Exits non-zero if any (app, ranker) pair answered 422/503 — or was simply
+unreachable — on every single query: that arm produced no data, not just a
+worse score.
 
 ## Develop
 

@@ -85,13 +85,35 @@ export type AskDeps = {
   topK?: number;
   /** Injected clock, so the schema map's <lastmod> is testable. */
   now?: () => Date;
+  /**
+   * Resolves an `X-Ask-Ranker` override to the Ranker it names, or `undefined`
+   * for a kind the deployment doesn't have (unregistered, or missing its
+   * credentials) — the route answers 422 rather than silently keeping the
+   * default ranker. Only consulted when `allowRankerOverride` is true; site-kit
+   * never builds a ranker itself here, so it stays free of ranker credentials
+   * and of `process.env`.
+   */
+  rankerFor?: (kind: string) => Ranker | undefined;
+  /**
+   * Enables the `X-Ask-Ranker` override — an eval-only knob (tools/ask-eval.mjs
+   * scores every arm of the ranker grid against one running deployment instead
+   * of redeploying per arm) that must default OFF in production. The app sets
+   * this from its own `ASK_RANKER_OVERRIDE=1` env read; site-kit itself must
+   * never read process.env.
+   */
+  allowRankerOverride?: boolean;
 };
 
-/** The non-streaming /ask body; the SSE frames carry the same `results`. */
+/** What one /ask call cost and how long it took, surfaced so an eval can compare rankers on cost/latency, not just relevance. */
+export type AskUsage = { calls: number; inputTokens: number; costUsd: number; latencyMs: number };
+
+/** The non-streaming /ask body; the SSE frames carry only `results` (and a `ranker` message on degrade) from the same answer. */
 export type AskResponse = {
   query_id: string;
   results: AskResult[];
   ranker: string;
   /** Present only when the ranker fell back, so a grader can tell a degraded answer from a good one. */
   ranker_degraded?: true;
+  /** What ranking this answer cost — the primitive tools/ask-eval.mjs reads for its cost/query and latency columns. */
+  usage: AskUsage;
 };

@@ -2,6 +2,7 @@ export { parseAskParams, type AskParamError, type AskParamResult, type AskParams
 export { registerNlweb, type NlwebDeps } from "./ask-routes.js";
 export { AskService, type AskQuery } from "./ask-service.js";
 export { streamAsk } from "./ask-sse.js";
+export { highConfidenceMisses, ndcgAt, percentile, precisionAt } from "./eval-metrics.js";
 export { JevRanker } from "./jev-ranker.js";
 export { LexicalRanker, retrieve, tokenize } from "./lexical.js";
 export { LlmRanker, NLWEB_RANKING_PROMPT, type LlmRankerOptions } from "./llm-ranker.js";
@@ -15,6 +16,7 @@ export {
   type AskItem,
   type AskResponse,
   type AskResult,
+  type AskUsage,
   type RankedCandidate,
   type Ranker,
   type RankerFactory,
