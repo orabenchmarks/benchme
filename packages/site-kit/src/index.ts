@@ -8,3 +8,17 @@ export { DomainError, buildMcpServer, registerMcp, type McpDeps } from "./mcp-se
 export { esc, money, shell, authPages, type NavLink, type ShellCtx } from "./html.js";
 export { webmcpScript, WEBMCP_SCRIPT_MARKER } from "./webmcp.js";
 export { registerAuthRoutes, requireSession, sessionUser, apiUser, type AuthRoutesDeps, type SessionUser } from "./auth-routes.js";
+export {
+  SCHEMA_CONTEXT,
+  comment,
+  digitalDocument,
+  offer,
+  organization,
+  person,
+  place,
+  product,
+  question,
+  webPage,
+  type Availability,
+} from "./jsonld.js";
+export * from "./nlweb/index.js";
