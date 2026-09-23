@@ -57,10 +57,17 @@ Each of `warehouse`, `helpdesk` and `vaultdocs` (the apps in the gateway's
 `ASK_APPS`) mounts the same NLWeb surface, from `registerNlweb` in
 `@benchme/site-kit`:
 
-- **`GET /ask`** (query params) and **`POST /ask`** (JSON body) answer a
-  natural-language question with matching items as schema.org JSON-LD.
-  Add `stream=true` (GET) or `"streaming": true` (POST) for **SSE** instead of
-  a single JSON response — the same ranked results, framed as they resolve.
+- **`GET /ask`** (query params) and **`POST /ask`** (JSON body — flat, or the
+  nested v0.55 `{query:{text},context:{prev},prefer:{mode,streaming}}` shape)
+  answer a natural-language question with matching items as schema.org
+  JSON-LD. **SSE is the default** for both methods — NLWeb's own default, so
+  only an explicit opt-out turns it off: pass `streaming=false` (GET) or
+  `"streaming": false` (POST; `prefer.streaming` in the nested body) for a
+  single JSON response instead. There is no `stream` parameter. An SSE
+  response frames, in order, a `license` message, a `data_retention` message,
+  the `results` (plus a `ranker` message if the ranker degraded), and always
+  terminates with a `complete` frame — even on failure, so a client never
+  hangs waiting for an end that isn't coming.
 - **`/ask/mcp`** is a separate, deliberately narrow MCP server: ONE read-only
   `ask` tool ("ask a natural-language question and get JSON-LD back"), not the
   site's full tool surface (that's `/mcp` — see WebMCP above).
