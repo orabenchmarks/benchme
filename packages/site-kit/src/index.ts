@@ -6,7 +6,7 @@ export { ToolRegistry, type ToolDef } from "./tool-registry.js";
 export { toolInputJsonSchema, type JsonSchemaObject } from "./tool-schema.js";
 export { DomainError, buildMcpServer, registerMcp, type McpDeps } from "./mcp-server.js";
 export { esc, money, shell, authPages, type NavLink, type ShellCtx } from "./html.js";
-export { webmcpScript, WEBMCP_SCRIPT_MARKER } from "./webmcp.js";
+export { webmcpScript, WEBMCP_SCRIPT_MARKER, WEBMCP_REGISTER_GLOBAL } from "./webmcp.js";
 export { registerAuthRoutes, requireSession, sessionUser, apiUser, type AuthRoutesDeps, type SessionUser } from "./auth-routes.js";
 export {
   SCHEMA_CONTEXT,
