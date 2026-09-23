@@ -26,8 +26,11 @@ export type RemoteRankerOptions = {
   log?: (msg: string) => void;
 };
 
-/** One upstream answer about one candidate, before normalisation to the 0-1 result score. */
-export type Verdict = { score: number; description?: string; inputTokens: number; outputTokens: number };
+/** What the provider billed for one answered request. */
+export type Tokens = { inputTokens: number; outputTokens: number };
+
+/** What one upstream answer says about one candidate, before normalisation to the 0-1 result score. */
+export type Verdict = { score: number; description?: string };
 
 /** 429 = rate limited, 529 = overloaded: both mean "the same request will work shortly". */
 const RETRY_STATUS = new Set([429, 529]);
@@ -60,11 +63,19 @@ export abstract class RemoteRanker implements Ranker {
   /** The request that scores ONE candidate. */
   protected abstract request(query: string, item: AskItem): { url: string; init: FetchInit };
 
-  /** Reads the provider's successful body; throwing here degrades just this candidate. */
-  protected abstract interpret(body: unknown): Verdict;
+  /**
+   * The BILLED half of a 200: what the provider charged for this answer.
+   * Deliberately separate from the verdict — a reply we cannot interpret was
+   * still paid for, and cost is this benchmark's headline number, so it is
+   * read (and metered) before anything can throw over the answer's content.
+   */
+  protected abstract usageOf(body: unknown): Tokens;
 
-  /** What this verdict cost in USD. */
-  protected abstract costUsd(v: Verdict): number;
+  /** The ANSWER half of a 200; throwing here degrades just this candidate, after it has been metered. */
+  protected abstract verdictOf(body: unknown): Verdict;
+
+  /** What those tokens cost in USD. */
+  protected abstract costUsd(t: Tokens): number;
 
   async rank(query: string, candidates: AskItem[]): Promise<{ ranked: RankedCandidate[]; usage: RankerUsage }> {
     const startedAt = Date.now();
@@ -87,9 +98,9 @@ export abstract class RemoteRanker implements Ranker {
 
   private async scoreOne(query: string, item: AskItem, meter: Meter, failures: string[]): Promise<RankedCandidate> {
     try {
-      const verdict = await this.call(query, item, meter);
-      meter.inputTokens += verdict.inputTokens;
-      meter.costUsd += this.costUsd(verdict);
+      // `call` has already metered whatever the provider billed, so the only
+      // thing that can be lost below is this candidate's score — never its cost.
+      const verdict = this.verdictOf(await this.call(query, item, meter));
       return { id: item.id, score: clamp01(verdict.score), ...(verdict.description ? { description: verdict.description } : {}) };
     } catch (e) {
       failures.push(e instanceof Error ? e.message : String(e));
@@ -97,7 +108,8 @@ export abstract class RemoteRanker implements Ranker {
     }
   }
 
-  private async call(query: string, item: AskItem, meter: Meter): Promise<Verdict> {
+  /** Issues the request (with retries) and returns the billed body, already metered. */
+  private async call(query: string, item: AskItem, meter: Meter): Promise<unknown> {
     const { url, init } = this.request(query, item);
     for (let attempt = 0; ; attempt++) {
       // Attempts, retries included: `calls` is what the provider's rate limit
@@ -106,7 +118,11 @@ export abstract class RemoteRanker implements Ranker {
       // A network error throws straight out: retrying a refused connection just
       // delays the degraded answer the caller is already waiting for.
       const res = await this.fetchImpl(url, init);
-      if (res.ok) return this.interpret(await res.json());
+      if (res.ok) {
+        const body: unknown = await res.json();
+        this.meterBilled(body, meter);
+        return body;
+      }
       const detail = await res.text().catch(() => "");
       if (RETRY_STATUS.has(res.status) && attempt < BACKOFF_MS.length) {
         await sleep(BACKOFF_MS[attempt] as number);
@@ -114,5 +130,21 @@ export abstract class RemoteRanker implements Ranker {
       }
       throw new Error(`${this.kind} ranker: ${res.status} ${detail.slice(0, 200)}`);
     }
+  }
+
+  /**
+   * Adds an answered request's tokens and cost to the meter. An envelope so
+   * malformed that even the usage block is unreadable meters nothing — but it
+   * must not throw here, or a broken envelope would skip the degradation path.
+   */
+  private meterBilled(body: unknown, meter: Meter): void {
+    let tokens: Tokens;
+    try {
+      tokens = this.usageOf(body);
+    } catch {
+      return;
+    }
+    meter.inputTokens += tokens.inputTokens;
+    meter.costUsd += this.costUsd(tokens);
   }
 }

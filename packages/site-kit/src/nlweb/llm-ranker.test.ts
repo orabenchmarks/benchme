@@ -42,6 +42,10 @@ beforeAll(async () => {
       };
       if (req.url !== "/v1/messages") return send(404, { error: "not found" });
       if (asked.includes("FAIL")) return send(500, { error: "boom" });
+      // A good answer whose envelope omits `usage`: scoreable, just not meterable.
+      if (asked.includes("NOUSAGE")) return send(200, { content: [{ type: "text", text: '{"score":80,"description":"d"}' }] });
+      // A 200 with no usage block at all: nothing to meter, still degrades.
+      if (asked.includes("GARBAGE")) return send(200, { nope: true });
       // A 200 the ranker cannot read: the model answered in prose.
       if (asked.includes("NOJSON")) return send(200, { content: [{ type: "text", text: "I cannot rate this." }], usage: { input_tokens: 5, output_tokens: 5 } });
       if (asked.includes("RETRY")) {
@@ -129,10 +133,30 @@ describe("LlmRanker", () => {
     expect(out.ranked.filter((r) => r.score === 0.8).map((r) => r.id)).toEqual(["a", "c"]);
     expect(out.usage.degraded).toBe(true);
     expect(logged).toHaveLength(1);
-    // The unreadable reply was still a call; its tokens never parsed, so only
-    // the two good replies are metered.
+    // The unreadable reply was billed like any other: its tokens and its cost
+    // are metered even though its score was lost. Cost is this benchmark's
+    // headline, so a degraded query must never look cheaper than it was.
     expect(out.usage.calls).toBe(3);
-    expect(out.usage.inputTokens).toBe(240);
+    expect(out.usage.inputTokens).toBe(245);
+    expect(out.usage.costUsd).toBeCloseTo((2 * (120 * 1.0 + 10 * 5.0) + (5 * 1.0 + 5 * 5.0)) / 1e6, 12);
+  });
+
+  it("meters nothing, and still degrades, when even the usage block is unreadable", async () => {
+    const out = await ranker(() => {}).rank("steel bolt", [item("a", "Steel bolt"), item("junk", "GARBAGE widget", 0.2)]);
+    expect(out.ranked).toContainEqual({ id: "junk", score: 0.2 });
+    expect(out.usage.degraded).toBe(true);
+    expect(out.usage.calls).toBe(2);
+    expect(out.usage.inputTokens).toBe(120);
+    expect(out.usage.costUsd).toBeCloseTo((120 * 1.0 + 10 * 5.0) / 1e6, 12);
+  });
+
+  it("still scores a candidate whose envelope omits usage, metering nothing for it", async () => {
+    const out = await ranker(() => {}).rank("steel bolt", [item("free", "NOUSAGE widget", 0.2)]);
+    expect(out.ranked).toEqual([{ id: "free", score: 0.8, description: "d" }]);
+    expect(out.usage.degraded).toBe(false);
+    expect(out.usage.calls).toBe(1);
+    expect(out.usage.inputTokens).toBe(0);
+    expect(out.usage.costUsd).toBe(0);
   });
 
   it("degrades, rather than throwing, when the endpoint is unreachable", async () => {
