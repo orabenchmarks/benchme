@@ -9,7 +9,7 @@ import { HttpWorkspaceSeeder } from "./seeder.js";
 const cfg = readConfig();
 const pool = createPool(cfg.DATABASE_URL);
 const redis = createRedis(cfg.REDIS_URL);
-const apps = new AppRegistry(cfg.APP_TARGETS, cfg.SEEDED_APPS, cfg.MCP_APPS);
+const apps = new AppRegistry(cfg.APP_TARGETS, cfg.SEEDED_APPS, cfg.MCP_APPS, cfg.ASK_APPS, cfg.WEBMCP_APPS);
 
 const { app } = await buildGateway({
   pool,
@@ -24,6 +24,7 @@ const { app } = await buildGateway({
   internalBaseUrl: cfg.INTERNAL_BASE_URL ?? cfg.PUBLIC_BASE_URL,
   defaultTtlSeconds: cfg.WORKSPACE_TTL_SECONDS,
   maxTtlSeconds: cfg.WORKSPACE_MAX_TTL_SECONDS,
+  sharedSeed: cfg.SHARED_SEED,
   logLevel: cfg.LOG_LEVEL,
 });
 

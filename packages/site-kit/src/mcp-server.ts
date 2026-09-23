@@ -19,8 +19,10 @@ export type McpDeps<C> = {
   serverName: string;
   version: string;
   tools: ToolRegistry<C>;
-  /** Build the tool context for one request's workspace. */
-  context: (workspaceId: string) => C;
+  /** Build the tool context for one request's workspace. `prefix` is the gateway-forwarded `req.prefix` (existing callers that only take `workspaceId` still type-check and simply ignore it). */
+  context: (workspaceId: string, prefix: string) => C;
+  /** Register anything beyond tools (resources, prompts) — run after the tool loop. */
+  extras?: (server: McpServer, ctx: C) => void;
 };
 
 /** A fresh MCP server bound to one workspace (stateless per request). */
@@ -39,6 +41,7 @@ export function buildMcpServer<C>(d: McpDeps<C>, ctx: C): McpServer {
       }
     });
   }
+  d.extras?.(server, ctx);
   return server;
 }
 
@@ -63,7 +66,7 @@ export function registerMcp<C>(app: FastifyInstance, d: McpDeps<C>): void {
   });
 
   app.all("/mcp", async (req, reply) => {
-    const server = buildMcpServer(d, d.context(req.workspaceId));
+    const server = buildMcpServer(d, d.context(req.workspaceId, req.prefix));
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     reply.hijack();
     reply.raw.on("close", () => {

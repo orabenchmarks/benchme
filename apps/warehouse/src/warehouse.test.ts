@@ -6,7 +6,7 @@ import type { FastifyInstance, InjectOptions } from "fastify";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Mailer } from "@benchme/site-kit";
+import { LexicalRanker, type Mailer } from "@benchme/site-kit";
 import { buildWarehouse } from "./build-app.js";
 
 const DB = process.env.DATABASE_URL;
@@ -47,7 +47,7 @@ beforeAll(async () => {
   await migrate(pool, "core", CORE_SQL);
   await migrate(pool, "warehouse", WH_SQL);
   mailer = new CapturingMailer();
-  app = await buildWarehouse({ pool, scenarios, mailer, gatewaySecret: SECRET, sessionTtlSeconds: 3600, logLevel: "silent" });
+  app = await buildWarehouse({ pool, scenarios, mailer, gatewaySecret: SECRET, sessionTtlSeconds: 3600, ranker: new LexicalRanker(), logLevel: "silent" });
   await app.listen({ port: 0, host: "127.0.0.1" });
   const addr = app.server.address();
   baseUrl = `http://127.0.0.1:${typeof addr === "object" && addr ? addr.port : 0}`;
@@ -60,6 +60,12 @@ afterAll(async () => {
 });
 
 describe.skipIf(!DB)("warehouse (real Postgres)", () => {
+  it("serves the WebMCP bridge with the full catalog on the home page", async () => {
+    const res = await app.inject(scoped({ method: "GET", url: "/" }));
+    expect(res.body).toContain('data-webmcp="bridge"');
+    expect(res.body).toContain('"name":"get_stock"');
+  });
+
   it("refuses requests without the gateway's signed header", async () => {
     expect((await app.inject("/api/v1/products")).statusCode).toBe(401);
     expect((await app.inject({ url: "/api/v1/products", headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: "bad" } })).statusCode).toBe(401);
@@ -167,6 +173,55 @@ describe.skipIf(!DB)("warehouse (real Postgres)", () => {
     const missing = await client.callTool({ name: "get_product", arguments: { sku: "NOPE-1" } });
     expect(missing.isError).toBe(true);
     await client.close();
+  });
+
+  it("/ask ranks the seeded products and agrees with the category catalog", async () => {
+    const fresh = await createWorkspace(4242);
+    const prefix = `/w/${fresh}/warehouse`;
+    const res = await app.inject(scoped({ method: "GET", url: "/ask?query=fasteners&streaming=false" }, fresh));
+    expect(res.statusCode).toBe(200);
+    const ids = res.json().results.map((r: { schema_object: { "@id": string } }) => r.schema_object["@id"]);
+    expect(ids.length).toBeGreaterThan(0);
+    const expected = rows.warehouse.products.filter((p) => p.category === "fasteners").map((p) => `${prefix}/products/${p.sku}`);
+    expect(new Set(ids)).toEqual(new Set(expected));
+  });
+
+  it("the schema feed is deterministic for a seed and every line is JSON-LD", async () => {
+    const fresh = await createWorkspace(4242);
+    const a = (await app.inject(scoped({ method: "GET", url: "/schema/feed.jsonl" }, fresh))).body;
+    const b = (await app.inject(scoped({ method: "GET", url: "/schema/feed.jsonl" }, fresh))).body;
+    expect(a).toBe(b);
+    for (const line of a.trim().split("\n")) expect(JSON.parse(line)).toMatchObject({ "@context": "https://schema.org" });
+  });
+
+  // The gateway proxies with reply-from, which rewrites Host to the INTERNAL
+  // target — so the public URL must come from x-forwarded-host, never Host,
+  // or robots.txt advertises "http://warehouse:3000/..." (live-verified).
+  it("publishes the schemamap directive on robots.txt from the FORWARDED host, not the rewritten Host", async () => {
+    const fresh = await createWorkspace(4242);
+    const headers = { host: "warehouse:3000", "x-forwarded-host": "gw.test", "x-forwarded-proto": "http" };
+    const robots = (await app.inject(scoped({ method: "GET", url: "/robots.txt", headers }, fresh))).body;
+    expect(robots).toContain(`schemamap: http://gw.test/w/${fresh}/warehouse/schema/map.xml`);
+    expect(robots).not.toContain("warehouse:3000");
+    const map = (await app.inject(scoped({ method: "GET", url: "/schema/map.xml", headers }, fresh))).body;
+    expect(map).toContain(`<loc>http://gw.test/w/${fresh}/warehouse/schema/feed.jsonl</loc>`);
+  });
+
+  it("names item urls/@ids by the FORWARDED prefix under a shared-alias path, not the resolved workspace id", async () => {
+    // The gateway forwards x-forwarded-prefix from the ORIGINAL path segment
+    // (a shared-<scenario>-<seed> alias resolves to a different internal id),
+    // while the workspace header carries the RESOLVED id. Items must be named
+    // from the forwarded prefix — never a prefix rebuilt from workspaceId.
+    const fresh = await createWorkspace(4242);
+    const req = scoped({ method: "GET", url: "/ask?query=fasteners&streaming=false" }, fresh);
+    const res = await app.inject({ ...req, headers: { ...req.headers, "x-forwarded-prefix": "/w/shared-acme-v1-4242/warehouse" } });
+    expect(res.statusCode).toBe(200);
+    const ids = res.json().results.map((r: { schema_object: { "@id": string } }) => r.schema_object["@id"]);
+    expect(ids.length).toBeGreaterThan(0);
+    for (const id of ids) {
+      expect(id.startsWith("/w/shared-acme-v1-4242/warehouse/")).toBe(true);
+      expect(id).not.toContain(fresh);
+    }
   });
 });
 

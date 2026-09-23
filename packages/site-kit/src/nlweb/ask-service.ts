@@ -1,0 +1,63 @@
+import { randomUUID } from "node:crypto";
+import { retrieve } from "./lexical.js";
+import type { AskDeps, AskItem, AskResponse, AskResult, Ranker, RankedCandidate } from "./types.js";
+
+const DEFAULT_TOP_K = 25;
+const DESCRIPTION_CHARS = 160;
+
+/** `prefix` is the request-time forwarded path (`req.prefix`) — see `AskDeps.items`'s doc comment for why it can't be re-derived from `workspaceId`. */
+export type AskQuery = { query: string; prev?: string[]; queryId?: string; prefix: string };
+
+/**
+ * The /ask pipeline, free of HTTP: corpus → lexical retrieval → the injected
+ * Ranker → NLWeb result objects. Transports (JSON, SSE, the ask MCP tool) all
+ * call this one method, so every surface answers identically.
+ */
+export class AskService {
+  constructor(private readonly d: AskDeps) {}
+
+  /**
+   * `rankerOverride` lets a single call answer with a ranker other than the
+   * one this service was built with — the `X-Ask-Ranker` eval knob (see
+   * `AskDeps.rankerFor`) resolves it at the route and hands it in here, so the
+   * pipeline itself stays ignorant of HTTP headers.
+   */
+  async ask(workspaceId: string, q: AskQuery, rankerOverride?: Ranker): Promise<AskResponse> {
+    const ranker = rankerOverride ?? this.d.ranker;
+    const topK = this.d.topK ?? DEFAULT_TOP_K;
+    const items = await this.d.items(workspaceId, q.prefix);
+    // Earlier turns widen RETRIEVAL only (a follow-up like "cheaper ones" has no
+    // nouns of its own); the ranker still judges relevance against what the user
+    // actually asked now.
+    const retrievalQuery = [...(q.prev ?? []), q.query].join(" ");
+    const candidates = retrieve(retrievalQuery, items, topK).map((c) => c.item);
+    const { ranked, usage } = await ranker.rank(q.query, candidates);
+
+    const byId = new Map(candidates.map((c) => [c.id, c]));
+    const results = ranked
+      .filter((r) => byId.has(r.id))
+      .sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .slice(0, topK)
+      .map((r) => toResult(r, byId.get(r.id) as AskItem, this.d.site));
+
+    return {
+      query_id: q.queryId ?? randomUUID(),
+      results,
+      ranker: ranker.kind,
+      usage: { calls: usage.calls, inputTokens: usage.inputTokens, costUsd: usage.costUsd, latencyMs: usage.latencyMs },
+      ...(usage.degraded ? { ranker_degraded: true as const } : {}),
+    };
+  }
+}
+
+function toResult(r: RankedCandidate, item: AskItem, site: string): AskResult {
+  return {
+    url: item.url,
+    name: item.name,
+    site,
+    // Rounded so two runs of the same query produce byte-identical answers a grader can diff.
+    score: Math.round(r.score * 1000) / 1000,
+    description: r.description ?? item.text.slice(0, DESCRIPTION_CHARS),
+    schema_object: item.schema,
+  };
+}

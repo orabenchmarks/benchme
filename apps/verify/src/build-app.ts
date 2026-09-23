@@ -6,6 +6,8 @@ import { DocxOracle } from "./oracles/docx-oracle.js";
 import { JsonOracle } from "./oracles/json-oracle.js";
 import { OracleRegistry } from "./oracles/oracle.js";
 import { PatchOracle, type JobRunner } from "./oracles/patch-oracle.js";
+import { StateOracle } from "./oracles/state-oracle.js";
+import type { WorkspaceStateReader } from "./oracles/state-reader.js";
 import { XlsxOracle } from "./oracles/xlsx-oracle.js";
 import type { SpecRegistry } from "./specs/spec.js";
 import { Verifier } from "./verifier.js";
@@ -15,15 +17,21 @@ export type BuildDeps = {
   specs: SpecRegistry;
   receipts: ReceiptSigner;
   runner: JobRunner;
+  stateReader: WorkspaceStateReader;
   gatewaySecret: string;
   maxAttemptsPerTask: number;
   maxArtifactBytes: number;
   logLevel?: string;
 };
 
-/** Composition root: the four oracles registered, the verifier, the routes. */
+/** Composition root: the five oracles registered, the verifier, the routes. */
 export async function buildVerify(d: BuildDeps): Promise<{ app: FastifyInstance; verifier: Verifier }> {
-  const oracles = new OracleRegistry().register(new JsonOracle()).register(new XlsxOracle()).register(new DocxOracle()).register(new PatchOracle(d.runner));
+  const oracles = new OracleRegistry()
+    .register(new JsonOracle())
+    .register(new XlsxOracle())
+    .register(new DocxOracle())
+    .register(new PatchOracle(d.runner))
+    .register(new StateOracle(d.stateReader));
   const attempts = new PgAttemptsRepo(d.pool);
   const verifier = new Verifier({ specs: d.specs, oracles, receipts: d.receipts, attempts, pool: d.pool, maxAttemptsPerTask: d.maxAttemptsPerTask });
 

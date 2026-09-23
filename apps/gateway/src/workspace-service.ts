@@ -8,6 +8,9 @@ export type WorkspaceUrls = {
   portal: string;
   apps: Record<string, string>;
   mcp: Record<string, string>;
+  ask: Record<string, string>;
+  askMcp: Record<string, string>;
+  webmcp: Record<string, string>;
 };
 
 export type CreateInput = { scenario: string; seed?: number; ttlSeconds?: number };
@@ -52,11 +55,19 @@ export class WorkspaceService {
     const root = base.replace(/\/+$/, "");
     const apps: Record<string, string> = {};
     const mcp: Record<string, string> = {};
+    const ask: Record<string, string> = {};
+    const askMcp: Record<string, string> = {};
+    const webmcp: Record<string, string> = {};
     for (const app of this.d.apps.list()) {
       apps[app.name] = `${root}/w/${id}/${app.name}`;
       if (app.mcp) mcp[app.name] = `${root}/w/${id}/${app.name}/mcp`;
+      if (app.ask) {
+        ask[app.name] = `${root}/w/${id}/${app.name}/ask`;
+        askMcp[app.name] = `${root}/w/${id}/${app.name}/ask/mcp`;
+      }
+      if (app.webmcp) webmcp[app.name] = `${root}/w/${id}/${app.name}/`;
     }
-    return { portal: `${root}/w/${id}`, apps, mcp };
+    return { portal: `${root}/w/${id}`, apps, mcp, ask, askMcp, webmcp };
   }
 
   /** Semantic validation, separate from create so a caller can reject BEFORE spending a rate-limit unit. */

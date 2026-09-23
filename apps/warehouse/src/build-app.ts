@@ -2,16 +2,28 @@ import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
 import { createApp, type Pool } from "@benchme/core";
 import type { ScenarioRegistry } from "@benchme/scenarios";
-import { AuthService, PgUsersRepo, registerMcp, registerWorkspaceScope, type Mailer } from "@benchme/site-kit";
+import { AuthService, PgUsersRepo, defaultPublicBaseUrl, registerMcp, registerNlweb, registerWorkspaceScope, type Mailer, type Ranker } from "@benchme/site-kit";
 import type { FastifyInstance } from "fastify";
 import { registerApi } from "./api/routes.js";
 import { PgCatalogRepo } from "./db/catalog-repo.js";
 import { PgOrdersRepo } from "./db/orders-repo.js";
 import { registerSeedRoute } from "./internal/seed-route.js";
 import { warehouseTools } from "./mcp/tools.js";
+import { warehouseItems } from "./nlweb/items.js";
 import { registerUi } from "./ui/routes.js";
 
-export type BuildDeps = { pool: Pool; scenarios: ScenarioRegistry; mailer: Mailer; gatewaySecret: string; sessionTtlSeconds: number; logLevel?: string };
+export type BuildDeps = {
+  pool: Pool;
+  scenarios: ScenarioRegistry;
+  mailer: Mailer;
+  gatewaySecret: string;
+  sessionTtlSeconds: number;
+  ranker: Ranker;
+  logLevel?: string;
+  /** Eval-only X-Ask-Ranker override — see AskDeps.allowRankerOverride/rankerFor in @benchme/site-kit. */
+  allowRankerOverride?: boolean;
+  rankerFor?: (kind: string) => Ranker | undefined;
+};
 
 /** Composition root: repos → services → routes. Tests inject a capturing mailer. */
 export async function buildWarehouse(d: BuildDeps): Promise<FastifyInstance> {
@@ -33,11 +45,22 @@ export async function buildWarehouse(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
   registerSeedRoute(app, d.pool, d.scenarios);
+  const tools = warehouseTools();
   registerApi(app, { catalog, orders, auth });
-  registerUi(app, { catalog, orders, auth });
+  registerUi(app, { catalog, orders, auth, tools });
   // MCP lives in its own plugin scope: it replaces the content-type parsers for /mcp only.
   await app.register(async (scope) =>
-    registerMcp(scope, { serverName: "benchme-warehouse", version: "0.1.0", tools: warehouseTools(), context: (workspaceId) => ({ workspaceId, catalog, orders }) }),
+    registerMcp(scope, { serverName: "benchme-warehouse", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, catalog, orders }) }),
+  );
+  await app.register(async (scope) =>
+    registerNlweb(scope, {
+      site: "warehouse",
+      items: (workspaceId, prefix) => warehouseItems(catalog, workspaceId, prefix),
+      ranker: d.ranker,
+      publicBaseUrl: defaultPublicBaseUrl,
+      allowRankerOverride: d.allowRankerOverride,
+      rankerFor: d.rankerFor,
+    }),
   );
   return app;
 }

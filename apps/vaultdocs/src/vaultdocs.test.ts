@@ -1,5 +1,6 @@
 import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signWorkspaceHeader, type Pool } from "@benchme/core";
 import { acmeV1, documentsMatching, scenarios, type ScenarioRows } from "@benchme/scenarios";
+import { LexicalRanker } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { FastifyInstance, InjectOptions } from "fastify";
@@ -23,7 +24,7 @@ beforeAll(async () => {
   pool = createPool(DB, 4);
   await migrate(pool, "core", join(here, "..", "..", "gateway", "migrations"));
   await migrate(pool, "vaultdocs", join(here, "..", "migrations"));
-  app = await buildVaultdocs({ pool, scenarios, gatewaySecret: SECRET, logLevel: "silent" });
+  app = await buildVaultdocs({ pool, scenarios, gatewaySecret: SECRET, ranker: new LexicalRanker(), logLevel: "silent" });
   await app.listen({ port: 0, host: "127.0.0.1" });
   const addr = app.server.address();
   baseUrl = `http://127.0.0.1:${typeof addr === "object" && addr ? addr.port : 0}`;
@@ -65,6 +66,7 @@ describe.skipIf(!DB)("vaultdocs (real Postgres full-text search)", () => {
       expect((read.contents[0] as { text: string }).text).toContain(first.title);
       const tools = await client.listTools();
       expect(tools.tools.map((t) => t.name).sort()).toEqual(["get_document", "list_documents", "search"]);
+      expect(tools.tools).toHaveLength(3);
       const prompts = await client.listPrompts();
       expect(prompts.prompts.map((p) => p.name).sort()).toEqual(["answer_from_docs", "summarize_document"]);
       const prompt = await client.getPrompt({ name: "answer_from_docs", arguments: { question: "What is the return window?" } });
@@ -77,7 +79,35 @@ describe.skipIf(!DB)("vaultdocs (real Postgres full-text search)", () => {
   });
 
   it("renders the UI", async () => {
-    expect((await app.inject(scoped({ url: "/" }))).body).toContain("Document vault");
+    const home = (await app.inject(scoped({ url: "/" }))).body;
+    expect(home).toContain("Document vault");
+    expect(home).toContain('data-webmcp="bridge"');
+    expect(home).toContain('"name":"search"');
     expect((await app.inject(scoped({ url: "/search?q=warranty" }))).body).toContain("<b>");
+  });
+
+  it("/ask ranks the seeded documents and agrees with documentsMatching", async () => {
+    const prefix = `/w/${ws}/vaultdocs`;
+    const res = await app.inject(scoped({ method: "GET", url: "/ask?query=faq&streaming=false" }));
+    expect(res.statusCode).toBe(200);
+    const ids = res.json().results.map((r: { schema_object: { "@id": string } }) => r.schema_object["@id"]);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(new Set(ids)).toEqual(new Set(documentsMatching(rows, "faq").map((id) => `${prefix}/documents/${id}`)));
+  });
+
+  it("the schema feed is deterministic for a seed and every line is JSON-LD", async () => {
+    const a = (await app.inject(scoped({ method: "GET", url: "/schema/feed.jsonl" }))).body;
+    const b = (await app.inject(scoped({ method: "GET", url: "/schema/feed.jsonl" }))).body;
+    expect(a).toBe(b);
+    for (const line of a.trim().split("\n")) expect(JSON.parse(line)).toMatchObject({ "@context": "https://schema.org" });
+  });
+
+  // See warehouse.test.ts: reply-from rewrites Host to the internal target,
+  // so the advertised URL must come from x-forwarded-host.
+  it("publishes the schemamap directive on robots.txt from the FORWARDED host, not the rewritten Host", async () => {
+    const headers = { host: "vaultdocs:3000", "x-forwarded-host": "gw.test" };
+    const robots = (await app.inject(scoped({ method: "GET", url: "/robots.txt", headers }))).body;
+    expect(robots).toContain(`schemamap: http://gw.test/w/${ws}/vaultdocs/schema/map.xml`);
+    expect(robots).not.toContain("vaultdocs:3000");
   });
 });

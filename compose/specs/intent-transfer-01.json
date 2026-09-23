@@ -1,0 +1,23 @@
+{
+  "id": "intent-transfer-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "transfer-completed",
+        "app": "warehouse",
+        "path": "/api/v1/transfers",
+        "where": {
+          "sku": "FAS-1096",
+          "fromCode": "VLM",
+          "toCode": "OST"
+        },
+        "expect": {
+          "qty": 12,
+          "status": "completed"
+        }
+      }
+    ]
+  }
+}

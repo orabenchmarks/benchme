@@ -9,8 +9,10 @@ import { z } from "zod";
  */
 export const jsonSpec = z.object({
   kind: z.literal("json"),
-  /** Expected top-level fields; numbers may carry a tolerance. */
-  expect: z.record(z.string(), z.union([z.string(), z.boolean(), z.number(), z.object({ value: z.number(), tolerance: z.number().min(0) })])),
+  /** Expected top-level fields; numbers may carry a tolerance. Never empty — see `stateSpec.checks.expect`. */
+  expect: z
+    .record(z.string(), z.union([z.string(), z.boolean(), z.number(), z.object({ value: z.number(), tolerance: z.number().min(0) })]))
+    .refine((o) => Object.keys(o).length > 0, "expect must name at least one field"),
 });
 
 export const xlsxSpec = z.object({
@@ -58,11 +60,62 @@ export const patchSpec = z.object({
   timeoutSeconds: z.number().int().positive().default(600),
 });
 
+/**
+ * An `expect` value: a scalar matched directly against a row's field, or a
+ * nested object that recurses — against an object field it matches key by
+ * key, against an ARRAY field it matches if ANY element satisfies every key
+ * (array-any; e.g. `{ lines: { sku: "...", qty: 40 } }` against an order's
+ * `lines[]` — see StateOracle for the match semantics).
+ */
+type ExpectValue = string | number | boolean | { [key: string]: ExpectValue };
+const expectValue: z.ZodType<ExpectValue> = z.lazy(() => z.union([z.string(), z.number(), z.boolean(), z.record(z.string(), expectValue)]));
+
+export const stateSpec = z.object({
+  kind: z.literal("state"),
+  /**
+   * Each check reads one app's live REST state for this workspace (never the
+   * submitted artifact — end state is the evidence) and must find at least
+   * one row that survives `where` and satisfies `expect`.
+   */
+  checks: z.array(
+    z.object({
+      name: z.string().min(1),
+      /** APP_TARGETS key of the app to read (e.g. "warehouse", "helpdesk"). */
+      app: z.string().min(1),
+      /** A REST list or detail path on that app, e.g. "/api/v1/orders" or "/api/v1/orders/SO-1". */
+      path: z.string().min(1),
+      /**
+       * Every field here must equal the row's field (case-insensitive for
+       * strings); see `ExpectValue`. An EMPTY `expect` is rejected at load:
+       * it is satisfied by any row at all, so the check would silently
+       * degrade to "something exists here" and pass a wrong submission.
+       */
+      expect: z.record(z.string(), expectValue).refine((o) => Object.keys(o).length > 0, "expect must name at least one field"),
+      /** Narrows a list response to matching rows before `expect`/`count`/`rowPath` apply. */
+      where: z.record(z.string(), z.string()).optional(),
+      /** Bounds on how many rows survive `where` (e.g. max:1 catches a duplicate). */
+      count: z.object({ min: z.number().int().min(0).optional(), max: z.number().int().min(0).optional() }).optional(),
+      /**
+       * Optional per-row detail fetch. For each `where`-matched LIST row (up
+       * to MAX_ROW_FETCHES), `{field}` placeholders are substituted from
+       * that row's own fields and the resulting path is fetched; `expect`
+       * is then evaluated against the fetched detail row, with the list
+       * row's fields merged underneath (so `expect` can still name a field
+       * that only exists on the list row). Lets a check reach a field (e.g.
+       * nested line items) that only exists on a detail route addressed by
+       * a value the list row carries (e.g. an order number) — without the
+       * task having to predict that value up front.
+       */
+      rowPath: z.string().optional(),
+    }),
+  ).min(1),
+});
+
 export const taskSpecSchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,63}$/),
   /** Blind receipts (hard tier): details carry counts only, never names. */
   blind: z.boolean().default(false),
-  oracle: z.discriminatedUnion("kind", [jsonSpec, xlsxSpec, docxSpec, patchSpec]),
+  oracle: z.discriminatedUnion("kind", [jsonSpec, xlsxSpec, docxSpec, patchSpec, stateSpec]),
 });
 
 export type TaskSpec = z.infer<typeof taskSpecSchema>;

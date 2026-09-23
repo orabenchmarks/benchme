@@ -1,0 +1,28 @@
+{
+  "id": "intent-order-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "order-open-for-customer",
+        "app": "warehouse",
+        "path": "/api/v1/orders?customer=C-108&status=open",
+        "where": {
+          "customerCode": "C-108",
+          "status": "open"
+        },
+        "count": {
+          "min": 6
+        },
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "ADH-1038",
+            "qty": 40
+          }
+        }
+      }
+    ]
+  }
+}

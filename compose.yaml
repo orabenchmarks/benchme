@@ -22,9 +22,30 @@ x-common-env: &common-env
   DATABASE_URL: postgres://benchme:${POSTGRES_PASSWORD:-benchme-local-postgres}@postgres:5432/benchme
   GATEWAY_SECRET: ${GATEWAY_SECRET:-benchme-local-gateway-secret-change-me}
   MAIL_INTERNAL_SECRET: ${MAIL_INTERNAL_SECRET:-benchme-local-mail-secret-change-me}
+  # Which ranker warehouse/helpdesk/vaultdocs run behind /ask, and its
+  # credentials — see rankerEnvSchema in
+  # packages/site-kit/src/nlweb/ranker-config.ts (the schema these defaults
+  # mirror). A key missing for the SELECTED ranker is a boot failure, not a
+  # silent fall-back to lexical — see README § Rankers.
+  ASK_RANKER: ${ASK_RANKER:-lexical}
+  LLM_BASE_URL: ${LLM_BASE_URL:-}
+  LLM_API_KEY: ${LLM_API_KEY:-}
+  LLM_MODEL: ${LLM_MODEL:-claude-haiku-4-5-20251001}
+  LLM_INPUT_USD_PER_MTOK: ${LLM_INPUT_USD_PER_MTOK:-1.0}
+  LLM_OUTPUT_USD_PER_MTOK: ${LLM_OUTPUT_USD_PER_MTOK:-5.0}
+  JEV_BASE_URL: ${JEV_BASE_URL:-https://api.typesafe.ai}
+  JEV_API_KEY: ${JEV_API_KEY:-}
+  JEV_MODEL: ${JEV_MODEL:-jev-latest}
+  RANKER_CONCURRENCY: ${RANKER_CONCURRENCY:-8}
+  # Enables an X-Ask-Ranker per-request override on /ask — evaluations only
+  # (tools/ask-eval.mjs), so one deployment can be scored across every ranker
+  # without a restart. Unset (0) ignores the header entirely.
+  ASK_RANKER_OVERRIDE: ${ASK_RANKER_OVERRIDE:-0}
 
 x-app: &app
   restart: unless-stopped
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   depends_on:
     migrate-verify:
       condition: service_completed_successfully
@@ -123,6 +144,8 @@ services:
       APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000","verify":"http://verify:3000"}'
       SEEDED_APPS: warehouse,helpdesk,vaultdocs,mail,verify
       MCP_APPS: warehouse,helpdesk,vaultdocs
+      ASK_APPS: warehouse,helpdesk,vaultdocs
+      WEBMCP_APPS: warehouse,helpdesk,vaultdocs
       WORKSPACE_TTL_SECONDS: ${WORKSPACE_TTL_SECONDS:-86400}
       WORKSPACE_MAX_TTL_SECONDS: ${WORKSPACE_MAX_TTL_SECONDS:-604800}
       # Your own machine: no need to throttle yourself.
@@ -170,6 +193,8 @@ services:
       RECEIPT_SECRET: ${RECEIPT_SECRET:-benchme-local-receipt-secret-change-me}
       SPECS_DIR: /specs
       MAX_ATTEMPTS_PER_TASK: ${MAX_ATTEMPTS_PER_TASK:-20}
+      # The `state` oracle reads a workspace's live app state straight from these (never through the gateway proxy).
+      APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000"}'
       RUNNER_KIND: ${RUNNER_KIND:-docker}
       DOCKER_HOST: unix:///var/run/docker.sock
       RUNNER_CPU: ${RUNNER_CPU:-2}
