@@ -301,7 +301,12 @@ async function main() {
   const allQueriesByKind = Object.fromEntries(opts.rankers.map((k) => [k, []]));
 
   for (const [app, buildQueries] of Object.entries(QUERY_BUILDERS)) {
-    const askUrl = workspace.urls.ask?.[app] ?? (workspace.urls.apps[app] ? `${workspace.urls.apps[app]}/ask` : undefined);
+    // Built from --base, not from the workspace's self-reported urls: those
+    // encode the deployment's BENCHME_PUBLIC_URL (for OTHER consumers, e.g. a
+    // k3d pod resolving host.k3d.internal), which the eval process itself may
+    // not be able to resolve or reach even though --base can.
+    const isAskCapable = workspace.urls.ask?.[app] !== undefined || workspace.urls.apps[app] !== undefined;
+    const askUrl = isAskCapable ? `${base}/w/${workspace.id}/${app}/ask` : undefined;
     if (!askUrl) {
       console.warn(`skipping ${app}: not an ask-capable app on this deployment`);
       continue;
