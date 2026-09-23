@@ -171,6 +171,35 @@ Exits non-zero if any (app, ranker) pair answered 422/503 — or was simply
 unreachable — on every single query: that arm produced no data, not just a
 worse score.
 
+## Evaluate a decision model
+
+```bash
+JEV_API_KEY=… LLM_API_KEY=… node tools/decision-eval.mjs \
+  --models jev:jev-latest,anthropic:claude-haiku-4-5-20251001 --out decision-eval
+```
+
+Benchmarks a decision model *natively*: the model answers closed-set
+questions directly, with no agent, no tools and no workspace. The same
+questions go to LLM baselines as a strict-JSON prompt, so accuracy,
+calibration, latency and cost are compared on identical items. Every item's
+answer is a function of the state it carries, and its ground truth is
+computed from the seeded rows (`@benchme/scenarios`), never hand-labelled:
+
+| family | kind | what it asks |
+| --- | --- | --- |
+| `match` | choice | the ONE customer / ticket / product that satisfies a two-part description; the hard negatives satisfy exactly one part |
+| `argmin` | choice | the cheapest of six products in one category |
+| `claim` | yes/no | is a statement true given evidence: a table lookup, an aggregate (stock summed over depots), a policy rule (resolved within SLA) |
+| `route` | choice | which app handles a user request (warehouse / helpdesk / document vault) |
+
+Per (family, subtype, model) it reports accuracy (an invalid answer counts
+as wrong, and is also counted), accuracy on the most-confident half,
+expected calibration error, Brier and AUROC for the yes/no claims, wall-clock
+p50/p95, and $ per 1,000 decisions. `LLM_BASE_URL` / `JEV_BASE_URL` point
+either side at a proxy; route both through the same one when comparing
+latency. Its own tests: `node --test tools/decision-eval.test.mjs` (they
+assert every match item has exactly one fully-matching option).
+
 ## Develop
 
 ```bash
