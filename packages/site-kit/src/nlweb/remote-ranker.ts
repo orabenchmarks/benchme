@@ -104,6 +104,7 @@ export abstract class RemoteRanker implements Ranker {
       return { id: item.id, score: clamp01(verdict.score), ...(verdict.description ? { description: verdict.description } : {}) };
     } catch (e) {
       failures.push(e instanceof Error ? e.message : String(e));
+      // The fallback score came from retrieval over the PREV-WIDENED query (earlier turns included), while a paid score judges the current question alone — so a degraded item is ranked on a slightly different question than its neighbours.
       return { id: item.id, score: item.lexicalScore ?? 0 };
     }
   }

@@ -130,7 +130,7 @@ ticket, which HD-5001 is not.
 **Prerequisites:** a fresh `acme-v1` workspace at seed 4242 (the vault is
 read-only for this task).
 
-**Derivation:** `documentId` = `documentsMatching(rows, "returns and warranty policy")[0].id`
+**Derivation:** `documentId` = `documentsMatching(rows, "returns and warranty policy")[0]`
 = **doc-101** (packages/scenarios/src/answers.ts). The phrase was
 found by running every vault document's own title back through
 `documentsMatching()` and keeping the first one (preferring a `"policy"`

@@ -14,11 +14,12 @@ describe("ranker config", () => {
   // A missing key must fail BOOT, never silently serve lexical answers while a
   // benchmark believes it is measuring the llm/jev ranker.
   it("fails loudly when the selected ranker has no credentials", () => {
-    expect(() => buildRanker({ ASK_RANKER: "jev" })).toThrow("invalid configuration: ASK_RANKER=jev requires JEV_BASE_URL and JEV_API_KEY");
-    expect(() => buildRanker({ ASK_RANKER: "llm", LLM_BASE_URL: "http://llm.test" })).toThrow(
-      "invalid configuration: ASK_RANKER=llm requires LLM_BASE_URL and LLM_API_KEY",
-    );
-    expect(() => buildRanker({ ASK_RANKER: "llm", LLM_API_KEY: "k" })).toThrow("invalid configuration: ASK_RANKER=llm requires LLM_BASE_URL and LLM_API_KEY");
+    // JEV_BASE_URL has a default, so the key is the only thing ever missing here.
+    expect(() => buildRanker({ ASK_RANKER: "jev" })).toThrow("invalid configuration: ASK_RANKER=jev requires JEV_API_KEY");
+    // Only the key actually missing is named: an operator who set one of the
+    // two must not be sent re-checking both.
+    expect(() => buildRanker({ ASK_RANKER: "llm", LLM_BASE_URL: "http://llm.test" })).toThrow("invalid configuration: ASK_RANKER=llm requires LLM_API_KEY");
+    expect(() => buildRanker({ ASK_RANKER: "llm", LLM_API_KEY: "k" })).toThrow("invalid configuration: ASK_RANKER=llm requires LLM_BASE_URL");
   });
 
   it("builds the selected ranker once its credentials are present", () => {
@@ -33,5 +34,12 @@ describe("ranker config", () => {
 
   it("coerces the per-million-token prices used for the llm cost line", () => {
     expect(rankerEnvSchema.parse({ LLM_INPUT_USD_PER_MTOK: "3", LLM_OUTPUT_USD_PER_MTOK: "15" })).toMatchObject({ LLM_INPUT_USD_PER_MTOK: 3, LLM_OUTPUT_USD_PER_MTOK: 15 });
+  });
+
+  // jev's list price is config like the llm's, not a constant compiled into
+  // the ranker: a price change must not have to ship as code.
+  it("prices jev from the environment, defaulting to the published list price", () => {
+    expect(rankerEnvSchema.parse({})).toMatchObject({ JEV_INPUT_USD_PER_MTOK: 0.042 });
+    expect(rankerEnvSchema.parse({ JEV_INPUT_USD_PER_MTOK: "0.1" })).toMatchObject({ JEV_INPUT_USD_PER_MTOK: 0.1 });
   });
 });

@@ -31,7 +31,7 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | `apps/warehouse` | products, stock, orders, transfers: SSR UI, REST v1, a 14-tool MCP server, NLWeb `/ask`, WebMCP |
 | `apps/helpdesk` | tickets, comments, SLAs, assignment: SSR UI, REST v1, an 11-tool MCP server (with a destructive `delete_ticket`), NLWeb `/ask`, WebMCP |
 | `apps/vaultdocs` | ~40 seeded documents as MCP **resources** (`docs://<id>`), `search`/`get_document`/`list_documents` tools, two MCP **prompts**; full-text search UI + REST, NLWeb `/ask`, WebMCP |
-| `apps/verify` | the verifier: json / xlsx / docx / patch oracles, HMAC receipts, attempt log, isolated Kubernetes Job runner |
+| `apps/verify` | the verifier: json / xlsx / docx / patch / **state** oracles (state reads the app's own REST API after the fact — end state is the evidence, the artifact is ignored), HMAC receipts, attempt log, isolated Kubernetes Job runner; the six intent tasks it ships with are described in [`compose/specs/intent-tasks.md`](compose/specs/intent-tasks.md) |
 | `apps/mail` | per-workspace inbox with an internal delivery endpoint |
 | `apps/data` | the generated company site |
 | `charts/benchme` | the Helm chart: own postgres + redis, apps, migrate job, reaper, ingress |
@@ -119,6 +119,7 @@ exact validation.
 | `JEV_BASE_URL` | `https://api.typesafe.ai` | |
 | `JEV_API_KEY` | — | required when `ASK_RANKER=jev` |
 | `JEV_MODEL` | `jev-latest` | |
+| `JEV_INPUT_USD_PER_MTOK` | `0.042` | input only — jev writes no tokens; priced per run like the llm prices above |
 | `RANKER_CONCURRENCY` | `8` | in-flight upstream requests per `/ask`; one request per candidate |
 | `ASK_RANKER_OVERRIDE` | `0` | enables an `X-Ask-Ranker` per-request override on `/ask` — evaluations only, see below |
 

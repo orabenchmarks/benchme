@@ -392,7 +392,7 @@ ticket, which ${ticketCandidate.ticketNo} is not.
 **Prerequisites:** a fresh \`acme-v1\` workspace at seed ${SEED} (the vault is
 read-only for this task).
 
-**Derivation:** \`documentId\` = \`documentsMatching(rows, "${docPick.phrase}")[0].id\`
+**Derivation:** \`documentId\` = \`documentsMatching(rows, "${docPick.phrase}")[0]\`
 = **${docPick.doc.id}** (packages/scenarios/src/answers.ts). The phrase was
 found by running every vault document's own title back through
 \`documentsMatching()\` and keeping the first one (preferring a \`"policy"\`

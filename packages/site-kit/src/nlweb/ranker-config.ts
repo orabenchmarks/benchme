@@ -26,6 +26,8 @@ export const rankerEnvSchema = z.object({
   JEV_BASE_URL: z.string().url().default("https://api.typesafe.ai"),
   JEV_API_KEY: z.string().min(1).optional(),
   JEV_MODEL: z.string().min(1).default("jev-latest"),
+  /** Priced per run like the llm prices above; jev writes no tokens, so there is no output price. */
+  JEV_INPUT_USD_PER_MTOK: z.coerce.number().nonnegative().default(0.042),
   /** In-flight upstream requests per /ask; one request is sent per candidate. */
   RANKER_CONCURRENCY: z.coerce.number().int().positive().default(8),
 });
@@ -37,9 +39,11 @@ export function readRankerEnv(env: NodeJS.ProcessEnv): RankerEnv {
   return loadConfig(rankerEnvSchema, env);
 }
 
+/** Names only the keys that are ACTUALLY missing, so the operator sets the one thing that is wrong rather than re-checking both. */
 function credentials(kind: "llm" | "jev", baseUrl: string | undefined, apiKey: string | undefined): { baseUrl: string; apiKey: string } {
   const prefix = kind.toUpperCase();
-  if (!baseUrl || !apiKey) throw new Error(`invalid configuration: ASK_RANKER=${kind} requires ${prefix}_BASE_URL and ${prefix}_API_KEY`);
+  const missing = [...(baseUrl ? [] : [`${prefix}_BASE_URL`]), ...(apiKey ? [] : [`${prefix}_API_KEY`])];
+  if (missing.length > 0 || !baseUrl || !apiKey) throw new Error(`invalid configuration: ASK_RANKER=${kind} requires ${missing.join(" and ")}`);
   return { baseUrl, apiKey };
 }
 
@@ -62,7 +66,7 @@ export function defaultRankerRegistry(): RankerRegistry {
     })
     .register("jev", (env) => {
       const c = readRankerEnv(env);
-      return new JevRanker({ ...credentials("jev", c.JEV_BASE_URL, c.JEV_API_KEY), model: c.JEV_MODEL, concurrency: c.RANKER_CONCURRENCY });
+      return new JevRanker({ ...credentials("jev", c.JEV_BASE_URL, c.JEV_API_KEY), model: c.JEV_MODEL, concurrency: c.RANKER_CONCURRENCY, inputUsdPerMTok: c.JEV_INPUT_USD_PER_MTOK });
     });
 }
 

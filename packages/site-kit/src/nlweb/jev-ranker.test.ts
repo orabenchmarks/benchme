@@ -138,3 +138,18 @@ describe("JevRanker", () => {
     expect(out.usage.costUsd).toBeCloseTo((3 * 200 * 0.042) / 1e6, 12);
   });
 });
+
+describe("jev pricing", () => {
+  // The configured price is what the cost line reports: a list-price change is
+  // config, not a code change (see JEV_INPUT_USD_PER_MTOK in ranker-config).
+  it("bills input tokens at the configured per-million price, and jev's list price by default", async () => {
+    const body = { usage: { input_tokens: 1_000_000, output_tokens: 0 }, answers: { relevance: { type: "score", score: 4 } } };
+    const fetchStub = (async () => new Response(JSON.stringify(body))) as unknown as typeof fetch;
+    const item = { id: "a", url: "/a", name: "A", text: "a", schema: {} };
+    const base = { baseUrl: "http://jev.test", apiKey: "k", model: "m", fetch: fetchStub };
+    const dflt = await new JevRanker(base).rank("q", [item]);
+    expect(dflt.usage.costUsd).toBeCloseTo(0.042, 6);
+    const priced = await new JevRanker({ ...base, inputUsdPerMTok: 0.5 }).rank("q", [item]);
+    expect(priced.usage.costUsd).toBeCloseTo(0.5, 6);
+  });
+});

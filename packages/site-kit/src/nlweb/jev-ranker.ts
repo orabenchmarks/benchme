@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { RemoteRanker, type FetchInit, type Tokens, type Verdict } from "./remote-ranker.js";
+import { RemoteRanker, type FetchInit, type RemoteRankerOptions, type Tokens, type Verdict } from "./remote-ranker.js";
 import type { AskItem } from "./types.js";
 
 /**
@@ -14,15 +14,24 @@ import type { AskItem } from "./types.js";
 /** The scale the score is a position on; the last index is "perfect match", so levels-1 normalises it. */
 const RELEVANCE_CRITERIA = ["irrelevant", "tangential", "somewhat relevant", "relevant", "exactly what was asked"] as const;
 const RELEVANCE_INSTRUCTIONS = "How relevant is this item to the user's question?";
-/** System One list price, input only: it writes no tokens, so output is free. */
-const JEV_INPUT_USD_PER_MTOK = 0.042;
+/** System One list price, input only: it writes no tokens, so output is free. A default, not a constant — see `JevRankerOptions.inputUsdPerMTok`. */
+const DEFAULT_INPUT_USD_PER_MTOK = 0.042;
 
 /** Read separately from the answers, so a reply we cannot score is still billed. */
 const systemOneUsage = z.object({ usage: z.object({ input_tokens: z.number(), output_tokens: z.number() }) });
 const systemOneAnswers = z.object({ answers: z.object({ relevance: z.object({ type: z.string(), score: z.number() }) }) });
 
+/** Priced per run like the llm ranker's: a list-price change must not silently misreport cost. */
+export type JevRankerOptions = RemoteRankerOptions & { inputUsdPerMTok?: number };
+
 export class JevRanker extends RemoteRanker {
   readonly kind = "jev";
+  private readonly inputUsdPerMTok: number;
+
+  constructor(o: JevRankerOptions) {
+    super(o);
+    this.inputUsdPerMTok = o.inputUsdPerMTok ?? DEFAULT_INPUT_USD_PER_MTOK;
+  }
 
   protected override request(query: string, item: AskItem): { url: string; init: FetchInit } {
     return {
@@ -52,6 +61,6 @@ export class JevRanker extends RemoteRanker {
   }
 
   protected override costUsd(t: Tokens): number {
-    return (t.inputTokens * JEV_INPUT_USD_PER_MTOK) / 1e6;
+    return (t.inputTokens * this.inputUsdPerMTok) / 1e6;
   }
 }

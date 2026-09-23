@@ -127,7 +127,7 @@ export function buildSite(seed: number, scenarioKey = "acme-v1"): SiteFile[] {
     "MCP registry",
     () =>
       `<h1>MCP servers</h1><p>Our systems expose Model Context Protocol servers per benchme workspace. See the benchme gateway's <a href="/registry">registry</a> for endpoints.</p><table><tr><th>Server</th><th>Purpose</th></tr><tr><td>warehouse</td><td>products, stock, orders, transfers</td></tr><tr><td>helpdesk</td><td>tickets, comments, SLAs (coming)</td></tr><tr><td>vaultdocs</td><td>documents as resources + search (coming)</td></tr></table>` +
-      `<p>Sibling apps also answer natural-language questions directly over NLWeb, e.g. ${esc("…/w/<workspace>/warehouse/ask")} (helpdesk and vaultdocs to follow).</p>`,
+      `<p>Sibling apps also answer natural-language questions directly over NLWeb, e.g. ${esc("…/w/<workspace>/warehouse/ask")}.</p>`,
     `Model Context Protocol servers published by ${co.name}.`,
   );
 
