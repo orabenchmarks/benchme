@@ -210,7 +210,9 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     expect(res.statusCode).toBe(200);
     expect(res.headers["content-type"]).toContain("text/plain");
     expect(res.body).toContain("User-agent: *\nDisallow: /w/\n");
-    expect(res.body).toContain(`schemamap: http://benchme.test/w/shared-acme-v1-20260908/warehouse/schema/map.xml`);
+    // The broad Disallow would otherwise forbid the schema map the line right
+    // below it advertises; the narrower Allow wins by longest match.
+    expect(res.body).toContain("Allow: /w/shared-acme-v1-20260908/warehouse/schema/\nschemamap: http://benchme.test/w/shared-acme-v1-20260908/warehouse/schema/map.xml");
     // data is webmcp-only, not ask-capable — no schemamap line for it.
     expect(res.body).not.toContain("/data/schema/map.xml");
   });
