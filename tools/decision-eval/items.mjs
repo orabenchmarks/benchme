@@ -209,7 +209,24 @@ function routeRequests(rows, rng, perApp) {
       `What would 40 units of ${p.name} cost?`,
     ][i % 4];
   });
-  const helpdesk = shuffle(rng, [...new Set(rows.helpdesk.tickets.map((t) => t.subject))]).slice(0, perApp);
+  // Built from helpdesk-ONLY entities (tickets, agents, SLAs). The first cut
+  // used raw ticket subjects, and a third of those labels were contestable:
+  // "Update the shipping address on SO-…" or "Request for a datasheet on …"
+  // arrive AS tickets but belong to the warehouse / the vault — every model
+  // "missed" them the same way. A label a careful human would dispute is not
+  // ground truth.
+  const h = rows.helpdesk;
+  const helpdesk = Array.from({ length: perApp }, (_, i) => {
+    const t = pick(rng, h.tickets);
+    const a = pick(rng, h.agents);
+    return [
+      `What is the status of ticket ${t.ticketNo}?`,
+      `Assign ticket ${t.ticketNo} to ${a.name}.`,
+      `Which support tickets are breaching their SLA right now?`,
+      `Add a note to ${t.ticketNo} saying we called the customer back.`,
+      `How many open tickets does ${a.name} have?`,
+    ][i % 5];
+  });
   const vaultdocs = shuffle(rng, rows.vault.documents)
     .slice(0, perApp)
     .map((d) => `I need to read the "${d.title}" document.`);

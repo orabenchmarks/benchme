@@ -37,13 +37,16 @@ const LLM_MODELS = {
 };
 
 /**
- * `anthropic:<model>` = a direct answer (thinking off, 80 output tokens) — the
+ * `anthropic:<model>` = a direct answer (thinking off, 400 output tokens) — the
  * like-for-like baseline for a decision model. `anthropic:<model>+think` =
  * adaptive thinking with room to finish (2,000 tokens) — a reasoning ceiling.
  */
 function thinkingFor(spec, entry) {
   if (spec.endsWith("+think")) return { thinking: { type: "adaptive" }, maxTokens: 2000 };
-  return { thinking: entry.thinksByDefault ? { type: "disabled" } : undefined, maxTokens: 80 };
+  // 400, not 80: with thinking off, claude-sonnet-5 still writes its arithmetic
+  // (hours between two timestamps) in the visible reply before the JSON, and a
+  // tight cap truncated 28/30 SLA answers — a budget artifact, not a wrong answer.
+  return { thinking: entry.thinksByDefault ? { type: "disabled" } : undefined, maxTokens: 400 };
 }
 
 function parseArgs(argv) {
