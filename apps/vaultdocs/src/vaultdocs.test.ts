@@ -65,6 +65,7 @@ describe.skipIf(!DB)("vaultdocs (real Postgres full-text search)", () => {
       expect((read.contents[0] as { text: string }).text).toContain(first.title);
       const tools = await client.listTools();
       expect(tools.tools.map((t) => t.name).sort()).toEqual(["get_document", "list_documents", "search"]);
+      expect(tools.tools).toHaveLength(3);
       const prompts = await client.listPrompts();
       expect(prompts.prompts.map((p) => p.name).sort()).toEqual(["answer_from_docs", "summarize_document"]);
       const prompt = await client.getPrompt({ name: "answer_from_docs", arguments: { question: "What is the return window?" } });
@@ -77,7 +78,10 @@ describe.skipIf(!DB)("vaultdocs (real Postgres full-text search)", () => {
   });
 
   it("renders the UI", async () => {
-    expect((await app.inject(scoped({ url: "/" }))).body).toContain("Document vault");
+    const home = (await app.inject(scoped({ url: "/" }))).body;
+    expect(home).toContain("Document vault");
+    expect(home).toContain('data-webmcp="bridge"');
+    expect(home).toContain('"name":"search"');
     expect((await app.inject(scoped({ url: "/search?q=warranty" }))).body).toContain("<b>");
   });
 });

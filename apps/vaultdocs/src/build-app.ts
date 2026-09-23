@@ -1,19 +1,21 @@
 import { createApp, type Pool } from "@benchme/core";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
-import { esc, registerWorkspaceScope, shell, type ShellCtx } from "@benchme/site-kit";
+import { esc, registerMcp, registerWorkspaceScope, shell, webmcpScript, type ShellCtx } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { PgDocsRepo } from "./docs-repo.js";
-import { registerVaultMcp } from "./mcp.js";
+import { vaultExtras } from "./mcp/extras.js";
+import { vaultTools } from "./mcp/tools.js";
 
 export type BuildDeps = { pool: Pool; scenarios: ScenarioRegistry; gatewaySecret: string; logLevel?: string };
 
 /** Read-only document vault: UI + REST + MCP (resources, tools, prompts). No signups. */
 export async function buildVaultdocs(d: BuildDeps): Promise<FastifyInstance> {
   const repo = new PgDocsRepo(d.pool);
+  const tools = vaultTools();
   const app = createApp({ name: "vaultdocs", readiness: async () => (await d.pool.query("SELECT 1")).rowCount === 1, ...(d.logLevel ? { logLevel: d.logLevel } : {}) });
   registerWorkspaceScope(app, d.gatewaySecret);
-  const ctx = (req: FastifyRequest, flash?: string): ShellCtx => ({ site: "Vault", accent: "#2f5d50", prefix: req.prefix, nav: [{ href: "/documents", label: "Documents" }, { href: "/search", label: "Search" }], user: null, flash });
+  const ctx = (req: FastifyRequest, flash?: string): ShellCtx => ({ site: "Vault", accent: "#2f5d50", prefix: req.prefix, nav: [{ href: "/documents", label: "Documents" }, { href: "/search", label: "Search" }], user: null, flash, scripts: [webmcpScript(tools, req.prefix)] });
 
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
     if (req.params.id !== req.workspaceId) return reply.code(400).send({ error: "WORKSPACE_MISMATCH" });
@@ -55,6 +57,9 @@ export async function buildVaultdocs(d: BuildDeps): Promise<FastifyInstance> {
     return reply.type("text/html").send(shell(ctx(req), "Search", `<h1>Search</h1><form method="get" action="${req.prefix}/search"><input name="q" value="${esc(q)}" placeholder="words or &quot;a phrase&quot;" style="width:20rem;display:inline"> <button style="margin:0">Search</button></form>${q ? `<table style="margin-top:1rem"><tr><th>Id</th><th>Title</th><th>Snippet</th></tr>${rows || "<tr><td colspan=3>No matches.</td></tr>"}</table>` : ""}`));
   });
 
-  await app.register(async (scope) => registerVaultMcp(scope, repo));
+  // MCP lives in its own plugin scope: it replaces the content-type parsers for /mcp only.
+  await app.register(async (scope) =>
+    registerMcp(scope, { serverName: "benchme-vaultdocs", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, repo }), extras: vaultExtras }),
+  );
   return app;
 }

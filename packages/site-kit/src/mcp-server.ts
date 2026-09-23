@@ -21,6 +21,8 @@ export type McpDeps<C> = {
   tools: ToolRegistry<C>;
   /** Build the tool context for one request's workspace. */
   context: (workspaceId: string) => C;
+  /** Register anything beyond tools (resources, prompts) — run after the tool loop. */
+  extras?: (server: McpServer, ctx: C) => void;
 };
 
 /** A fresh MCP server bound to one workspace (stateless per request). */
@@ -39,6 +41,7 @@ export function buildMcpServer<C>(d: McpDeps<C>, ctx: C): McpServer {
       }
     });
   }
+  d.extras?.(server, ctx);
   return server;
 }
 
