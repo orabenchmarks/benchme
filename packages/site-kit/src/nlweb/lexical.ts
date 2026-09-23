@@ -57,13 +57,20 @@ export function retrieve(query: string, items: readonly AskItem[], topK: number)
 
 const FREE: RankerUsage = { calls: 0, inputTokens: 0, latencyMs: 0, costUsd: 0, degraded: false };
 
-/** Re-emits the retrieval score: the default ranker, and the fallback every paid ranker degrades to. */
+/** The zero-cost default ranker, and the fallback every paid ranker degrades to. */
 export class LexicalRanker implements Ranker {
   readonly kind = "lexical";
 
+  /**
+   * Scores against the `query` it is handed — the CURRENT turn — rather than
+   * re-emitting `lexicalScore`, which retrieval computed over the conversation
+   * (earlier turns widen recall). Re-emitting it would let a previous turn's
+   * words decide the order of this turn's answer; re-scoring costs one pass
+   * over the already-narrowed candidate set.
+   */
   async rank(query: string, candidates: AskItem[]): Promise<{ ranked: RankedCandidate[]; usage: RankerUsage }> {
     const q = tokenize(query);
-    const ranked = candidates.map((c) => ({ id: c.id, score: c.lexicalScore ?? scoreItem(q, c) }));
+    const ranked = candidates.map((c) => ({ id: c.id, score: scoreItem(q, c) }));
     return { ranked, usage: { ...FREE } };
   }
 }

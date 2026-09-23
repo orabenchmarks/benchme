@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import { describe, expect, it, beforeAll } from "vitest";
 import { registerNlweb } from "./ask-routes.js";
 import { LexicalRanker } from "./lexical.js";
-import type { AskItem } from "./types.js";
+import type { AskItem, Ranker } from "./types.js";
 const items: AskItem[] = [
   {
     id: "sku-1",
@@ -12,18 +12,33 @@ const items: AskItem[] = [
     schema: { "@context": "https://schema.org", "@type": "Product", "@id": "sku-1", url: "/w/x/warehouse/products/sku-1", name: "Steel bolt M8" },
   },
 ];
-const app = Fastify();
-beforeAll(async () => {
-  app.decorateRequest("workspaceId", "");
-  app.decorateRequest("prefix", "");
-  app.addHook("onRequest", async (req) => {
+/** A ranker that answered, but only by falling back — the state /ask must disclose. */
+class DegradedRanker implements Ranker {
+  readonly kind = "llm";
+  async rank(_query: string, candidates: AskItem[]) {
+    return {
+      ranked: candidates.map((c) => ({ id: c.id, score: 0.5 })),
+      usage: { calls: 1, inputTokens: 10, latencyMs: 1, costUsd: 0, degraded: true },
+    };
+  }
+}
+
+async function buildApp(ranker: Ranker) {
+  const instance = Fastify();
+  instance.decorateRequest("workspaceId", "");
+  instance.decorateRequest("prefix", "");
+  instance.addHook("onRequest", async (req) => {
     req.workspaceId = "x";
     req.prefix = "/w/x/warehouse";
   });
-  await app.register(async (s) =>
-    registerNlweb(s, { site: "warehouse", items: async () => items, ranker: new LexicalRanker(), publicBaseUrl: () => "http://gw.test/w/x/warehouse" }),
-  );
-  await app.ready();
+  await instance.register(async (s) => registerNlweb(s, { site: "warehouse", items: async () => items, ranker, publicBaseUrl: () => "http://gw.test/w/x/warehouse" }));
+  await instance.ready();
+  return instance;
+}
+
+let app: Awaited<ReturnType<typeof buildApp>>;
+beforeAll(async () => {
+  app = await buildApp(new LexicalRanker());
 });
 describe("/ask", () => {
   it("answers JSON when streaming=false with NLWeb result fields", async () => {
@@ -70,6 +85,34 @@ describe("/ask", () => {
     expect(map.body).toContain("http://gw.test/w/x/warehouse/schema/feed.jsonl");
     const robots = await app.inject({ method: "GET", url: "/robots.txt" });
     expect(robots.body).toContain("schemamap: http://gw.test/w/x/warehouse/schema/map.xml");
+  });
+  it("discloses a degraded ranker on the JSON path", async () => {
+    const degraded = await buildApp(new DegradedRanker());
+    const body = (await degraded.inject({ method: "GET", url: "/ask?query=bolt&streaming=false" })).json();
+    expect(body.ranker).toBe("llm");
+    expect(body.ranker_degraded).toBe(true);
+    expect(body.results).toHaveLength(1);
+    await degraded.close();
+  });
+  it("omits ranker_degraded when the ranker was healthy", async () => {
+    const body = (await app.inject({ method: "GET", url: "/ask?query=bolt&streaming=false" })).json();
+    expect(body.ranker).toBe("lexical");
+    expect("ranker_degraded" in body).toBe(false);
+  });
+  it("discloses a degraded ranker as an SSE frame before the complete frame", async () => {
+    const degraded = await buildApp(new DegradedRanker());
+    const res = await degraded.inject({ method: "POST", url: "/ask", payload: { query: "bolt" } });
+    const frames = res.body
+      .split("\n\n")
+      .filter(Boolean)
+      .map((f) => JSON.parse(f.replace(/^data: /, "")));
+    const degradedFrame = frames.findIndex((f) => f.message_type === "ranker");
+    expect(degradedFrame).toBeGreaterThan(-1);
+    expect(frames[degradedFrame]).toMatchObject({ message_type: "ranker", content: { ranker: "llm", degraded: true } });
+    // It must not be the last word: the client still needs its terminator.
+    expect(frames.findIndex((f) => f.complete === true)).toBeGreaterThan(degradedFrame);
+    expect(frames.at(-1)).toMatchObject({ complete: true });
+    await degraded.close();
   });
   it("/ask/mcp exposes exactly one tool, ask, returning the same results", async () => {
     const list = await app.inject({

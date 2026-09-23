@@ -23,9 +23,16 @@ describe("lexical", () => {
   });
   it("returns nothing for a query with no overlap", () => expect(retrieve("banana", [item("a", "bolt", "")], 10)).toEqual([]));
   it("keeps only topK", () => expect(retrieve("bolt", [item("a", "bolt", ""), item("b", "bolt", ""), item("c", "bolt", "")], 2).map((x) => x.item.id)).toEqual(["a", "b"]));
-  it("LexicalRanker re-emits the retrieval score with zero cost", async () => {
+  it("LexicalRanker scores the candidates at zero cost", async () => {
     const out = await new LexicalRanker().rank("bolt", [item("a", "bolt", "")]);
-    expect(out.ranked[0]).toMatchObject({ id: "a" });
+    expect(out.ranked[0]).toMatchObject({ id: "a", score: 1 });
     expect(out.usage).toMatchObject({ calls: 0, costUsd: 0, degraded: false });
+  });
+  it("LexicalRanker scores the CURRENT turn, not the conversation-widened retrieval score", async () => {
+    // retrieve() stamps a score computed over prev turns too; re-emitting it would
+    // let an earlier turn's words order this turn's answer.
+    const stale = { ...item("a", "Copper wire", "2mm"), lexicalScore: 0.9 };
+    const out = await new LexicalRanker().rank("bolt", [stale]);
+    expect(out.ranked[0]).toMatchObject({ id: "a", score: 0 });
   });
 });
