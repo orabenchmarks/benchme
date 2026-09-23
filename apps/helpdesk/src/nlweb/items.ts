@@ -1,13 +1,5 @@
-import { comment, person, question, type AskItem } from "@benchme/site-kit";
+import { comment, person, question, wordVariants, type AskItem } from "@benchme/site-kit";
 import type { AgentRow, CommentRow, TicketRow, TicketsRepo } from "../db/tickets-repo.js";
-
-const APP = "helpdesk";
-
-/** Naive plural/singular pair — `tokenize` has no stemming (see warehouse/src/nlweb/items.ts for the same helper). */
-function wordVariants(word: string): string[] {
-  const w = word.toLowerCase();
-  return w.endsWith("s") ? [w, w.slice(0, -1)] : [w, `${w}s`];
-}
 
 const RESOLVED_STATUSES: readonly TicketRow["status"][] = ["resolved", "closed"];
 
@@ -15,9 +7,11 @@ const RESOLVED_STATUSES: readonly TicketRow["status"][] = ["resolved", "closed"]
  * Every ticket as a Question (the last public comment becomes its
  * `acceptedAnswer` once the ticket is resolved or closed; internal comments
  * never leave the item) and every agent as a Person.
+ *
+ * `prefix` is the caller's request-time `req.prefix`, NOT re-derived from
+ * `ws` — see warehouse/src/nlweb/items.ts's doc comment for why.
  */
-export async function helpdeskItems(tickets: TicketsRepo, ws: string): Promise<AskItem[]> {
-  const prefix = `/w/${ws}/${APP}`;
+export async function helpdeskItems(tickets: TicketsRepo, ws: string, prefix: string): Promise<AskItem[]> {
   const [page, agents, allComments] = await Promise.all([tickets.listTickets(ws, { limit: 1000 }), tickets.listAgents(ws), tickets.listAllComments(ws)]);
   const agentByCode = new Map(agents.map((a) => [a.code, a]));
   const commentsByTicket = new Map<string, CommentRow[]>();

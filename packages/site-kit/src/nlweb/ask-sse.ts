@@ -15,7 +15,7 @@ const DATA_RETENTION = { message_type: "data_retention", content: { retention: "
  * incrementally) and always terminates with a `complete` frame — including on
  * failure, so a client never hangs waiting for an end that is not coming.
  */
-export async function streamAsk(reply: FastifyReply, service: AskService, workspaceId: string, params: AskParams, queryId: string): Promise<void> {
+export async function streamAsk(reply: FastifyReply, service: AskService, workspaceId: string, params: AskParams, queryId: string, prefix: string): Promise<void> {
   reply.hijack();
   const raw = reply.raw;
   raw.writeHead(200, {
@@ -30,7 +30,7 @@ export async function streamAsk(reply: FastifyReply, service: AskService, worksp
   frame(LICENSE);
   frame(DATA_RETENTION);
   try {
-    const answer = await service.ask(workspaceId, { query: params.query, prev: params.prev, queryId });
+    const answer = await service.ask(workspaceId, { query: params.query, prev: params.prev, queryId, prefix });
     frame({ results: answer.results });
     if (answer.ranker_degraded) frame({ message_type: "ranker", content: { ranker: answer.ranker, degraded: true } });
   } catch (err) {

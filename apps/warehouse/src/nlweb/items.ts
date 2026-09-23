@@ -1,42 +1,35 @@
-import { organization, place, product, type AskItem } from "@benchme/site-kit";
+import { organization, place, product, wordVariants, type AskItem } from "@benchme/site-kit";
 import type { CatalogRepo } from "../db/catalog-repo.js";
-
-const APP = "warehouse";
-
-/**
- * `tokenize` (site-kit's lexical retrieval) has no stemming, so a query for
- * either form of a word must hit: "fasteners" and "fastener" are different
- * tokens to it. Naive (drop/add a trailing "s") is enough for this corpus's
- * invented vocabulary — it does not need to be linguistically correct.
- */
-function wordVariants(word: string): string[] {
-  const w = word.toLowerCase();
-  return w.endsWith("s") ? [w, w.slice(0, -1)] : [w, `${w}s`];
-}
 
 /**
  * Every product (with nested Offer availability from live stock), depot
  * (Place), and customer (Organization) as NLWeb items. Built fresh per
  * request — the corpus is small and this keeps items free of a cache
  * invalidation story the CDC doctrine would otherwise require.
+ *
+ * `prefix` is the caller's request-time `req.prefix`, NOT re-derived from
+ * `ws` — under a `shared-<scenario>-<seed>` alias the gateway forwards the
+ * alias in the prefix while `ws` is the resolved internal workspace id; an
+ * item minted from a re-derived prefix would name an unstable internal id.
  */
-export async function warehouseItems(catalog: CatalogRepo, ws: string): Promise<AskItem[]> {
-  const prefix = `/w/${ws}/${APP}`;
-  const [products, locations, customers] = await Promise.all([
+export async function warehouseItems(catalog: CatalogRepo, ws: string, prefix: string): Promise<AskItem[]> {
+  const [products, locations, customers, outOfStock] = await Promise.all([
     catalog.listProducts(ws, { limit: 1000 }),
     catalog.listLocations(ws),
     catalog.listCustomers(ws),
+    // lowStock(ws, 1): total < 1, i.e. total === 0 — the out-of-stock set,
+    // one query instead of a getStock call per product.
+    catalog.lowStock(ws, 1),
   ]);
+  const outOfStockSkus = new Set(outOfStock.map((s) => s.sku));
 
-  const productItems = await Promise.all(products.items.map((p) => productItem(catalog, ws, prefix, p)));
+  const productItems = products.items.map((p) => productItem(prefix, p, !outOfStockSkus.has(p.sku)));
   const locationItems = locations.map((l) => locationItem(prefix, l));
   const customerItems = customers.map((c) => customerItem(prefix, c));
   return [...productItems, ...locationItems, ...customerItems];
 }
 
-async function productItem(catalog: CatalogRepo, ws: string, prefix: string, p: { sku: string; name: string; category: string; unitPriceCents: number }): Promise<AskItem> {
-  const stock = await catalog.getStock(ws, p.sku);
-  const inStock = stock.reduce((sum, s) => sum + s.qty, 0) > 0;
+function productItem(prefix: string, p: { sku: string; name: string; category: string; unitPriceCents: number }, inStock: boolean): AskItem {
   const url = `${prefix}/products/${p.sku}`;
   const text = `${p.name} is a ${p.category} product, SKU ${p.sku}, priced at $${(p.unitPriceCents / 100).toFixed(2)}.`;
   return {

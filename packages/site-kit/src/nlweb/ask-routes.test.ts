@@ -31,7 +31,7 @@ async function buildApp(ranker: Ranker) {
     req.workspaceId = "x";
     req.prefix = "/w/x/warehouse";
   });
-  await instance.register(async (s) => registerNlweb(s, { site: "warehouse", items: async () => items, ranker, publicBaseUrl: () => "http://gw.test/w/x/warehouse" }));
+  await instance.register(async (s) => registerNlweb(s, { site: "warehouse", items: async (_workspaceId, _prefix) => items, ranker, publicBaseUrl: () => "http://gw.test/w/x/warehouse" }));
   await instance.ready();
   return instance;
 }
@@ -144,5 +144,46 @@ describe("/ask", () => {
     );
     const payload = JSON.parse(called.result.content[0].text);
     expect(payload.results[0]).toMatchObject({ name: "Steel bolt M8", site: "warehouse" });
+  });
+  it("builds item urls/@ids from the FORWARDED prefix, not the resolved workspace id — the shared-alias case", async () => {
+    // The gateway forwards x-forwarded-prefix from the ORIGINAL path segment
+    // (which may be a `shared-<scenario>-<seed>` alias), while req.workspaceId
+    // is the id it RESOLVED to. `items` must build urls from the prefix it is
+    // handed, never re-derive one from workspaceId — this is the regression
+    // Task 7 shipped with (every item named an unstable internal id).
+    const aliasApp = Fastify();
+    aliasApp.decorateRequest("workspaceId", "");
+    aliasApp.decorateRequest("prefix", "");
+    aliasApp.addHook("onRequest", async (req) => {
+      req.workspaceId = "ws_internal_123";
+      req.prefix = (req.headers["x-forwarded-prefix"] as string) ?? "/w/ws_internal_123/warehouse";
+    });
+    await aliasApp.register(async (s) =>
+      registerNlweb(s, {
+        site: "warehouse",
+        items: async (_workspaceId, prefix) => [
+          {
+            id: `${prefix}/products/sku-1`,
+            url: `${prefix}/products/sku-1`,
+            name: "Steel bolt M8",
+            text: "zinc plated",
+            schema: { "@context": "https://schema.org", "@type": "Product", "@id": `${prefix}/products/sku-1`, url: `${prefix}/products/sku-1`, name: "Steel bolt M8" },
+          },
+        ],
+        ranker: new LexicalRanker(),
+        publicBaseUrl: () => "http://gw.test",
+      }),
+    );
+    await aliasApp.ready();
+    const res = await aliasApp.inject({
+      method: "GET",
+      url: "/ask?query=steel%20bolt&streaming=false",
+      headers: { "x-forwarded-prefix": "/w/shared-acme-v1-4242/warehouse" },
+    });
+    const body = res.json();
+    expect(body.results[0].url).toBe("/w/shared-acme-v1-4242/warehouse/products/sku-1");
+    expect(body.results[0].schema_object["@id"]).toBe("/w/shared-acme-v1-4242/warehouse/products/sku-1");
+    expect(body.results[0].url).not.toContain("ws_internal_123");
+    await aliasApp.close();
   });
 });

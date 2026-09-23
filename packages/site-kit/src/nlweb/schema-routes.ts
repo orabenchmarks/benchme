@@ -18,7 +18,7 @@ export function registerSchemaRoutes(app: FastifyInstance, d: SchemaDeps): void 
   // One JSON-LD object per line: a consumer streams it and never has to hold
   // the whole corpus (or a well-formed enclosing array) in memory.
   app.get("/schema/feed.jsonl", async (req, reply) => {
-    const items = await d.items(req.workspaceId);
+    const items = await d.items(req.workspaceId, req.prefix);
     return reply.type("application/jsonl; charset=utf-8").send(items.map((i) => `${JSON.stringify(i.schema)}\n`).join(""));
   });
 

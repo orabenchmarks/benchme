@@ -1,6 +1,6 @@
 import { createApp, type Pool } from "@benchme/core";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
-import { esc, registerMcp, registerNlweb, registerWorkspaceScope, shell, webmcpScript, type Ranker, type ShellCtx } from "@benchme/site-kit";
+import { esc, defaultPublicBaseUrl, registerMcp, registerNlweb, registerWorkspaceScope, shell, webmcpScript, type Ranker, type ShellCtx } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { PgDocsRepo } from "./docs-repo.js";
@@ -9,8 +9,6 @@ import { vaultTools } from "./mcp/tools.js";
 import { vaultItems } from "./nlweb/items.js";
 
 export type BuildDeps = { pool: Pool; scenarios: ScenarioRegistry; gatewaySecret: string; ranker: Ranker; logLevel?: string };
-
-const publicBaseUrl = (req: FastifyRequest): string => `${req.headers["x-forwarded-proto"] ?? "http"}://${req.headers.host}${req.prefix}`;
 
 /** Read-only document vault: UI + REST + MCP (resources, tools, prompts). No signups. */
 export async function buildVaultdocs(d: BuildDeps): Promise<FastifyInstance> {
@@ -64,6 +62,8 @@ export async function buildVaultdocs(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(async (scope) =>
     registerMcp(scope, { serverName: "benchme-vaultdocs", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, repo }), extras: vaultExtras }),
   );
-  await app.register(async (scope) => registerNlweb(scope, { site: "vaultdocs", items: (workspaceId) => vaultItems(repo, workspaceId), ranker: d.ranker, publicBaseUrl }));
+  await app.register(async (scope) =>
+    registerNlweb(scope, { site: "vaultdocs", items: (workspaceId, prefix) => vaultItems(repo, workspaceId, prefix), ranker: d.ranker, publicBaseUrl: defaultPublicBaseUrl }),
+  );
   return app;
 }

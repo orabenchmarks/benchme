@@ -199,6 +199,23 @@ describe.skipIf(!DB)("warehouse (real Postgres)", () => {
     const robots = (await app.inject(scoped({ method: "GET", url: "/robots.txt", headers: { host: "gw.test" } }, fresh))).body;
     expect(robots).toContain(`schemamap: http://gw.test/w/${fresh}/warehouse/schema/map.xml`);
   });
+
+  it("names item urls/@ids by the FORWARDED prefix under a shared-alias path, not the resolved workspace id", async () => {
+    // The gateway forwards x-forwarded-prefix from the ORIGINAL path segment
+    // (a shared-<scenario>-<seed> alias resolves to a different internal id),
+    // while the workspace header carries the RESOLVED id. Items must be named
+    // from the forwarded prefix — never a prefix rebuilt from workspaceId.
+    const fresh = await createWorkspace(4242);
+    const req = scoped({ method: "GET", url: "/ask?query=fasteners&streaming=false" }, fresh);
+    const res = await app.inject({ ...req, headers: { ...req.headers, "x-forwarded-prefix": "/w/shared-acme-v1-4242/warehouse" } });
+    expect(res.statusCode).toBe(200);
+    const ids = res.json().results.map((r: { schema_object: { "@id": string } }) => r.schema_object["@id"]);
+    expect(ids.length).toBeGreaterThan(0);
+    for (const id of ids) {
+      expect(id.startsWith("/w/shared-acme-v1-4242/warehouse/")).toBe(true);
+      expect(id).not.toContain(fresh);
+    }
+  });
 });
 
 async function signupAndToken(wsId: string, email: string): Promise<string> {

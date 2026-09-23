@@ -2,8 +2,8 @@ import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
 import { createApp, type Pool } from "@benchme/core";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
-import { AuthService, PgUsersRepo, registerMcp, registerNlweb, registerWorkspaceScope, type Mailer, type Ranker } from "@benchme/site-kit";
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import { AuthService, PgUsersRepo, defaultPublicBaseUrl, registerMcp, registerNlweb, registerWorkspaceScope, type Mailer, type Ranker } from "@benchme/site-kit";
+import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { registerApi } from "./api/routes.js";
 import { seedHelpdesk } from "./db/seed.js";
@@ -13,8 +13,6 @@ import { helpdeskItems } from "./nlweb/items.js";
 import { registerUi } from "./ui/routes.js";
 
 export type BuildDeps = { pool: Pool; scenarios: ScenarioRegistry; mailer: Mailer; gatewaySecret: string; sessionTtlSeconds: number; ranker: Ranker; logLevel?: string };
-
-const publicBaseUrl = (req: FastifyRequest): string => `${req.headers["x-forwarded-proto"] ?? "http"}://${req.headers.host}${req.prefix}`;
 
 /** Composition root: repos → services → routes. */
 export async function buildHelpdesk(d: BuildDeps): Promise<FastifyInstance> {
@@ -55,7 +53,7 @@ export async function buildHelpdesk(d: BuildDeps): Promise<FastifyInstance> {
     registerMcp(scope, { serverName: "benchme-helpdesk", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, tickets, actor: "agent" }) }),
   );
   await app.register(async (scope) =>
-    registerNlweb(scope, { site: "helpdesk", items: (workspaceId) => helpdeskItems(tickets, workspaceId), ranker: d.ranker, publicBaseUrl }),
+    registerNlweb(scope, { site: "helpdesk", items: (workspaceId, prefix) => helpdeskItems(tickets, workspaceId, prefix), ranker: d.ranker, publicBaseUrl: defaultPublicBaseUrl }),
   );
   return app;
 }
