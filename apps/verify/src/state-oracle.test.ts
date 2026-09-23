@@ -381,6 +381,104 @@ describe("StateOracle", () => {
       );
       expect(result.verdict).toBe("OK");
     });
+
+    it("URL-encodes a {field} placeholder value (a space and an & in an order number) when resolving rowPath", async () => {
+      const reader = new MemoryStateReader();
+      const weirdOrderNo = "SO 1&X";
+      reader.seed("warehouse", "/api/v1/orders", [{ orderNo: weirdOrderNo, customerCode: "C-1", status: "open" }]);
+      // Only seeded at the ENCODED path — if resolvePlaceholders fails to
+      // encode, the reader is asked for the raw (unseeded) path and returns
+      // null, so this only passes when encoding actually happened.
+      reader.seed("warehouse", `/api/v1/orders/${encodeURIComponent(weirdOrderNo)}`, { orderNo: weirdOrderNo, lines: [{ sku: "A", qty: 5 }] });
+      const result = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([
+          {
+            name: "line-match",
+            app: "warehouse",
+            path: "/api/v1/orders",
+            where: { customerCode: "C-1", status: "open" },
+            rowPath: "/api/v1/orders/{orderNo}",
+            expect: { lines: { sku: "A", qty: 5 } },
+          },
+        ]),
+        ctx,
+      );
+      expect(result.verdict).toBe("OK");
+    });
+
+    it("array-any requires both keys to hold on the SAME element, not scattered across different elements", async () => {
+      const reader = new MemoryStateReader();
+      reader.seed("warehouse", "/api/v1/orders/SO-1", {
+        orderNo: "SO-1",
+        lines: [
+          { sku: "A", qty: 1 },
+          { sku: "B", qty: 5 },
+        ],
+      });
+      const result = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([{ name: "line-match", app: "warehouse", path: "/api/v1/orders/SO-1", expect: { lines: { sku: "A", qty: 5 } } }]),
+        ctx,
+      );
+      expect(result.verdict).toBe("FAIL");
+    });
+
+    it("a detail fetch that throws for one matched row is a non-match for that row, not a check failure — the loop continues", async () => {
+      class FlakyReader implements WorkspaceStateReader {
+        async get(_workspaceId: string, _app: string, path: string): Promise<unknown> {
+          if (path === "/api/v1/orders") {
+            return [
+              { orderNo: "SO-1", customerCode: "C-1", status: "open" },
+              { orderNo: "SO-2", customerCode: "C-1", status: "open" },
+            ];
+          }
+          if (path === "/api/v1/orders/SO-1") throw new Error("404");
+          if (path === "/api/v1/orders/SO-2") return { orderNo: "SO-2", lines: [{ sku: "A", qty: 5 }] };
+          return null;
+        }
+      }
+      const result = await new StateOracle(new FlakyReader()).check(
+        Buffer.alloc(0),
+        spec([
+          {
+            name: "line-match",
+            app: "warehouse",
+            path: "/api/v1/orders",
+            where: { customerCode: "C-1", status: "open" },
+            rowPath: "/api/v1/orders/{orderNo}",
+            expect: { lines: { sku: "A", qty: 5 } },
+          },
+        ]),
+        ctx,
+      );
+      expect(result.verdict).toBe("OK");
+    });
+
+    it("a detail fetch that throws for every matched row FAILs with a short note, not an uncaught rejection", async () => {
+      class AlwaysThrowingDetailReader implements WorkspaceStateReader {
+        async get(_workspaceId: string, _app: string, path: string): Promise<unknown> {
+          if (path === "/api/v1/orders") return [{ orderNo: "SO-1", customerCode: "C-1", status: "open" }];
+          throw new Error("boom");
+        }
+      }
+      const result = await new StateOracle(new AlwaysThrowingDetailReader()).check(
+        Buffer.alloc(0),
+        spec([
+          {
+            name: "line-match",
+            app: "warehouse",
+            path: "/api/v1/orders",
+            where: { customerCode: "C-1", status: "open" },
+            rowPath: "/api/v1/orders/{orderNo}",
+            expect: { lines: { sku: "A", qty: 5 } },
+          },
+        ]),
+        ctx,
+      );
+      expect(result.verdict).toBe("FAIL");
+      expect(result.checks[0].note).toMatch(/detail unavailable/);
+    });
   });
 
   it("the discriminated union recognizes kind: \"state\" and the registry can dispatch to it", () => {

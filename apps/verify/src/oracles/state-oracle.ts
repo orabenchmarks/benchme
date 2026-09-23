@@ -98,9 +98,9 @@ function firstMismatch(row: Row, expect: Record<string, ExpectValue>): string | 
   return undefined;
 }
 
-/** Substitutes `{field}` placeholders in a `rowPath` template from a matched list row's own fields. */
+/** Substitutes `{field}` placeholders in a `rowPath` template from a matched list row's own fields, URL-encoding each value (same as `withCursor` does for a cursor) so a space or `&` in e.g. an order number can't corrupt the path or inject a stray query param. */
 function resolvePlaceholders(template: string, row: Row): string {
-  return template.replace(/\{(\w+)\}/g, (_, field: string) => String(row[field] ?? ""));
+  return template.replace(/\{(\w+)\}/g, (_, field: string) => encodeURIComponent(String(row[field] ?? "")));
 }
 
 /** Fetches `rowPath` (with `{field}` resolved from `row`) via `fetchRow`, and merges it UNDER the list row (detail fields win, but a list-only field is still reachable by `expect`). */
@@ -138,8 +138,19 @@ async function checkOne(rows: Row[], c: Check, truncated: boolean, fetchRow: (pa
   const examined = matched.slice(0, MAX_ROW_FETCHES);
   const rowFetchNote = matched.length > MAX_ROW_FETCHES ? ` (stopped after examining ${MAX_ROW_FETCHES} matching rows; more may exist)` : "";
   let lastMismatch: string | undefined;
-  for (const row of examined) {
-    const merged = await fetchMergedRow(row, c.rowPath, fetchRow);
+  for (const [i, row] of examined.entries()) {
+    // A single row's detail fetch failing (404, non-2xx, a thrown network
+    // error) is a property of THAT row, not of the check — one bad row must
+    // not hide a real match on another, so it's a non-match, not a thrown
+    // error out of the whole check (the outer catch in `check()` would
+    // otherwise fail every check sharing this app on one flaky row).
+    let merged: Row;
+    try {
+      merged = await fetchMergedRow(row, c.rowPath, fetchRow);
+    } catch {
+      lastMismatch = `row ${i + 1}: detail unavailable`;
+      continue;
+    }
     const mismatch = firstMismatch(merged, c.expect);
     if (mismatch === undefined) return { name: c.name, ok: true };
     lastMismatch = mismatch;
