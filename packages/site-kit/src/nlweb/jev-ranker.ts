@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { RemoteRanker, type FetchInit, type Verdict } from "./remote-ranker.js";
+import { RemoteRanker, type FetchInit, type Tokens, type Verdict } from "./remote-ranker.js";
 import type { AskItem } from "./types.js";
 
 /**
@@ -17,10 +17,9 @@ const RELEVANCE_INSTRUCTIONS = "How relevant is this item to the user's question
 /** System One list price, input only: it writes no tokens, so output is free. */
 const JEV_INPUT_USD_PER_MTOK = 0.042;
 
-const systemOneResponse = z.object({
-  answers: z.object({ relevance: z.object({ type: z.string(), score: z.number() }) }),
-  usage: z.object({ input_tokens: z.number(), output_tokens: z.number() }),
-});
+/** Read separately from the answers, so a reply we cannot score is still billed. */
+const systemOneUsage = z.object({ usage: z.object({ input_tokens: z.number(), output_tokens: z.number() }) });
+const systemOneAnswers = z.object({ answers: z.object({ relevance: z.object({ type: z.string(), score: z.number() }) }) });
 
 export class JevRanker extends RemoteRanker {
   readonly kind = "jev";
@@ -42,17 +41,17 @@ export class JevRanker extends RemoteRanker {
     };
   }
 
-  protected override interpret(body: unknown): Verdict {
-    const parsed = systemOneResponse.parse(body);
-    return {
-      // The API returns the weighted position over the levels, in [0, levels-1].
-      score: parsed.answers.relevance.score / (RELEVANCE_CRITERIA.length - 1),
-      inputTokens: parsed.usage.input_tokens,
-      outputTokens: parsed.usage.output_tokens,
-    };
+  protected override usageOf(body: unknown): Tokens {
+    const { usage } = systemOneUsage.parse(body);
+    return { inputTokens: usage.input_tokens, outputTokens: usage.output_tokens };
   }
 
-  protected override costUsd(v: Verdict): number {
-    return (v.inputTokens * JEV_INPUT_USD_PER_MTOK) / 1e6;
+  protected override verdictOf(body: unknown): Verdict {
+    // The API returns the weighted position over the levels, in [0, levels-1].
+    return { score: systemOneAnswers.parse(body).answers.relevance.score / (RELEVANCE_CRITERIA.length - 1) };
+  }
+
+  protected override costUsd(t: Tokens): number {
+    return (t.inputTokens * JEV_INPUT_USD_PER_MTOK) / 1e6;
   }
 }

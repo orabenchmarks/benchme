@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { RemoteRanker, type FetchInit, type RemoteRankerOptions, type Verdict } from "./remote-ranker.js";
+import { RemoteRanker, type FetchInit, type RemoteRankerOptions, type Tokens, type Verdict } from "./remote-ranker.js";
 import type { AskItem } from "./types.js";
 
 /**
@@ -21,10 +21,9 @@ const MAX_TOKENS = 200;
 const DEFAULT_INPUT_USD_PER_MTOK = 1.0;
 const DEFAULT_OUTPUT_USD_PER_MTOK = 5.0;
 
-const messagesResponse = z.object({
-  content: z.array(z.object({ type: z.string(), text: z.string().optional() })),
-  usage: z.object({ input_tokens: z.number(), output_tokens: z.number() }),
-});
+/** Read separately from the content, so a reply we cannot score is still billed. */
+const messagesUsage = z.object({ usage: z.object({ input_tokens: z.number(), output_tokens: z.number() }) });
+const messagesContent = z.object({ content: z.array(z.object({ type: z.string(), text: z.string().optional() })) });
 
 const scoreJson = z.object({ score: z.number(), description: z.string().optional() });
 
@@ -86,21 +85,20 @@ export class LlmRanker extends RemoteRanker {
     };
   }
 
-  protected override interpret(body: unknown): Verdict {
-    const parsed = messagesResponse.parse(body);
-    const text = parsed.content.find((b) => b.type === "text")?.text;
+  protected override usageOf(body: unknown): Tokens {
+    const { usage } = messagesUsage.parse(body);
+    return { inputTokens: usage.input_tokens, outputTokens: usage.output_tokens };
+  }
+
+  protected override verdictOf(body: unknown): Verdict {
+    const text = messagesContent.parse(body).content.find((b) => b.type === "text")?.text;
     if (!text) throw new Error("llm ranker: reply had no text block");
     const scored = scoreJson.parse(firstJsonObject(text));
     const description = scored.description?.trim();
-    return {
-      score: scored.score / 100,
-      ...(description ? { description } : {}),
-      inputTokens: parsed.usage.input_tokens,
-      outputTokens: parsed.usage.output_tokens,
-    };
+    return { score: scored.score / 100, ...(description ? { description } : {}) };
   }
 
-  protected override costUsd(v: Verdict): number {
-    return (v.inputTokens * this.inputUsdPerMTok + v.outputTokens * this.outputUsdPerMTok) / 1e6;
+  protected override costUsd(t: Tokens): number {
+    return (t.inputTokens * this.inputUsdPerMTok + t.outputTokens * this.outputUsdPerMTok) / 1e6;
   }
 }

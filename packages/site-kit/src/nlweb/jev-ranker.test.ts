@@ -41,6 +41,8 @@ beforeAll(async () => {
       };
       if (req.url !== "/v1/systemone") return send(404, { error: "not found" });
       if (asked.includes("FAIL")) return send(500, { error: "boom" });
+      // A 200 whose answer set is missing the question we asked.
+      if (asked.includes("NOANSWER")) return send(200, { model: "jev-1.13.0", answers: { other: { type: "score", score: 1 } }, usage: { input_tokens: 200, output_tokens: 20 } });
       if (asked.includes("RETRY")) {
         const n = (attempts.get("retry") ?? 0) + 1;
         attempts.set("retry", n);
@@ -116,5 +118,23 @@ describe("JevRanker", () => {
     expect(out.ranked).toEqual([{ id: "retry", score: 0.8 }]);
     expect(out.usage.degraded).toBe(false);
     expect(calls).toHaveLength(2);
+    // usage.calls counts ATTEMPTS, so a retried query still shows what the
+    // provider's rate limit counted.
+    expect(out.usage.calls).toBe(2);
+  });
+
+  it("keeps the lexical score when a 200 omits the relevance answer, and still ranks the rest", async () => {
+    const logged: string[] = [];
+    const out = await ranker((m) => logged.push(m)).rank("steel bolt", [item("a", "Steel bolt"), item("empty", "NOANSWER widget", 0.35), item("c", "Steel nut")]);
+    expect(out.ranked).toContainEqual({ id: "empty", score: 0.35 });
+    expect(out.ranked.filter((r) => r.score === 0.8).map((r) => r.id)).toEqual(["a", "c"]);
+    expect(out.usage.degraded).toBe(true);
+    expect(logged).toHaveLength(1);
+    // The unreadable reply was billed like any other: its tokens and its cost
+    // are metered even though its score was lost. Cost is this benchmark's
+    // headline, so a degraded query must never look cheaper than it was.
+    expect(out.usage.calls).toBe(3);
+    expect(out.usage.inputTokens).toBe(600);
+    expect(out.usage.costUsd).toBeCloseTo((3 * 200 * 0.042) / 1e6, 12);
   });
 });
