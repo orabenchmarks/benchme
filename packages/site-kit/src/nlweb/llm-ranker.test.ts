@@ -42,6 +42,8 @@ beforeAll(async () => {
       };
       if (req.url !== "/v1/messages") return send(404, { error: "not found" });
       if (asked.includes("FAIL")) return send(500, { error: "boom" });
+      // A 200 the ranker cannot read: the model answered in prose.
+      if (asked.includes("NOJSON")) return send(200, { content: [{ type: "text", text: "I cannot rate this." }], usage: { input_tokens: 5, output_tokens: 5 } });
       if (asked.includes("RETRY")) {
         const n = (attempts.get("retry") ?? 0) + 1;
         attempts.set("retry", n);
@@ -115,6 +117,22 @@ describe("LlmRanker", () => {
     expect(out.ranked).toEqual([{ id: "retry", score: 0.8, description: "d" }]);
     expect(out.usage.degraded).toBe(false);
     expect(calls).toHaveLength(2);
+    // usage.calls counts ATTEMPTS, so a retried query still shows what the
+    // provider's rate limit counted.
+    expect(out.usage.calls).toBe(2);
+  });
+
+  it("keeps the lexical score when a 200 carries no JSON object, and still ranks the rest", async () => {
+    const logged: string[] = [];
+    const out = await ranker((m) => logged.push(m)).rank("steel bolt", [item("a", "Steel bolt"), item("prose", "NOJSON widget", 0.35), item("c", "Steel nut")]);
+    expect(out.ranked).toContainEqual({ id: "prose", score: 0.35 });
+    expect(out.ranked.filter((r) => r.score === 0.8).map((r) => r.id)).toEqual(["a", "c"]);
+    expect(out.usage.degraded).toBe(true);
+    expect(logged).toHaveLength(1);
+    // The unreadable reply was still a call; its tokens never parsed, so only
+    // the two good replies are metered.
+    expect(out.usage.calls).toBe(3);
+    expect(out.usage.inputTokens).toBe(240);
   });
 
   it("degrades, rather than throwing, when the endpoint is unreachable", async () => {
