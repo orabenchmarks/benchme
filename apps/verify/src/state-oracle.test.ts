@@ -20,6 +20,20 @@ class MemoryStateReader implements WorkspaceStateReader {
 const ctx = { workspaceId: "ws_state_oracle_test", taskId: "state-oracle-test" };
 const spec = (checks: Spec["checks"]): Spec => ({ kind: "state", checks });
 
+describe("the state spec schema", () => {
+  // An empty `expect` is satisfied by ANY row, so the check silently becomes
+  // "something exists at this path" and passes a wrong submission.
+  it("rejects a check whose expect names no field at all", () => {
+    const check = { name: "any", app: "warehouse", path: "/api/v1/orders", expect: {} };
+    expect(() => stateSpec.parse({ kind: "state", checks: [check] })).toThrow(/at least one field/);
+    expect(() => stateSpec.parse({ kind: "state", checks: [{ ...check, expect: { status: "open" } }] })).not.toThrow();
+  });
+
+  it("rejects a json oracle whose expect names no field at all", () => {
+    expect(() => taskSpecSchema.parse({ id: "t-1", oracle: { kind: "json", expect: {} } })).toThrow(/at least one field/);
+  });
+});
+
 describe("StateOracle", () => {
   it("passes when a matching row exists", async () => {
     const reader = new MemoryStateReader();
@@ -188,7 +202,7 @@ describe("StateOracle", () => {
       reader.seed("warehouse", "/api/v1/orders?status=open&cursor=c1", { items: [{ no: "SO-2" }], nextCursor: null });
       const result = await new StateOracle(reader).check(
         Buffer.alloc(0),
-        spec([{ name: "found-on-page-2", app: "warehouse", path: "/api/v1/orders?status=open", where: { no: "SO-2" }, expect: {} }]),
+        spec([{ name: "found-on-page-2", app: "warehouse", path: "/api/v1/orders?status=open", where: { no: "SO-2" }, expect: { no: "SO-2" } }]),
         ctx,
       );
       expect(result.verdict).toBe("OK");
@@ -204,12 +218,29 @@ describe("StateOracle", () => {
       }
       const result = await new StateOracle(new InfiniteReader()).check(
         Buffer.alloc(0),
-        spec([{ name: "never-matches", app: "warehouse", path: "/api/v1/orders", where: { no: "SO-999" }, expect: {} }]),
+        spec([{ name: "never-matches", app: "warehouse", path: "/api/v1/orders", where: { no: "SO-999" }, expect: { no: "SO-999" } }]),
         ctx,
       );
       expect(calls).toBe(10);
       expect(result.verdict).toBe("FAIL");
       expect(result.checks[0].note).toMatch(/10 pages/);
+    });
+
+    // MAX_PAGES bounds a CYCLIC cursor too, and a cyclic cursor re-serves the
+    // same row on every page: counting those as distinct would fail a
+    // duplicate check on data that holds exactly one row.
+    it("does not fail count.max on a truncated read, where repeated pages can invent duplicates", async () => {
+      class CyclicReader implements WorkspaceStateReader {
+        async get(): Promise<unknown> {
+          return { items: [{ no: "SO-1", status: "open" }], nextCursor: "same" };
+        }
+      }
+      const result = await new StateOracle(new CyclicReader()).check(
+        Buffer.alloc(0),
+        spec([{ name: "exactly-one-open", app: "warehouse", path: "/api/v1/orders", where: { no: "SO-1" }, expect: { status: "open" }, count: { max: 1 } }]),
+        ctx,
+      );
+      expect(result.verdict).toBe("OK");
     });
 
     it("a bare object without an items array is still treated as one row (unchanged detail-route behavior)", async () => {

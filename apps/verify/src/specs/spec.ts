@@ -9,8 +9,10 @@ import { z } from "zod";
  */
 export const jsonSpec = z.object({
   kind: z.literal("json"),
-  /** Expected top-level fields; numbers may carry a tolerance. */
-  expect: z.record(z.string(), z.union([z.string(), z.boolean(), z.number(), z.object({ value: z.number(), tolerance: z.number().min(0) })])),
+  /** Expected top-level fields; numbers may carry a tolerance. Never empty — see `stateSpec.checks.expect`. */
+  expect: z
+    .record(z.string(), z.union([z.string(), z.boolean(), z.number(), z.object({ value: z.number(), tolerance: z.number().min(0) })]))
+    .refine((o) => Object.keys(o).length > 0, "expect must name at least one field"),
 });
 
 export const xlsxSpec = z.object({
@@ -82,8 +84,13 @@ export const stateSpec = z.object({
       app: z.string().min(1),
       /** A REST list or detail path on that app, e.g. "/api/v1/orders" or "/api/v1/orders/SO-1". */
       path: z.string().min(1),
-      /** Every field here must equal the row's field (case-insensitive for strings); see `ExpectValue`. */
-      expect: z.record(z.string(), expectValue),
+      /**
+       * Every field here must equal the row's field (case-insensitive for
+       * strings); see `ExpectValue`. An EMPTY `expect` is rejected at load:
+       * it is satisfied by any row at all, so the check would silently
+       * degrade to "something exists here" and pass a wrong submission.
+       */
+      expect: z.record(z.string(), expectValue).refine((o) => Object.keys(o).length > 0, "expect must name at least one field"),
       /** Narrows a list response to matching rows before `expect`/`count`/`rowPath` apply. */
       where: z.record(z.string(), z.string()).optional(),
       /** Bounds on how many rows survive `where` (e.g. max:1 catches a duplicate). */

@@ -121,8 +121,13 @@ async function checkOne(rows: Row[], c: Check, truncated: boolean, fetchRow: (pa
   if (c.count?.min !== undefined && matched.length < c.count.min) {
     return { name: c.name, ok: false, note: `expected at least ${c.count.min} matching rows, got ${matched.length}${pagingNote}` };
   }
-  if (c.count?.max !== undefined && matched.length > c.count.max) {
-    return { name: c.name, ok: false, note: `expected at most ${c.count.max} matching rows, got ${matched.length}` };
+  // A truncated read is NOT evidence of too many rows: MAX_PAGES exists to
+  // bound a runaway or cyclic cursor, and a cyclic one hands back the same
+  // rows over and over — counting those as distinct would fail a duplicate
+  // check (`max: 1`) on data that has no duplicate at all. `min` is still
+  // safe (more rows than we saw can only help it), so only `max` is skipped.
+  if (c.count?.max !== undefined && !truncated && matched.length > c.count.max) {
+    return { name: c.name, ok: false, note: `expected at most ${c.count.max} matching rows, got ${matched.length}${pagingNote}` };
   }
 
   if (!c.rowPath) {

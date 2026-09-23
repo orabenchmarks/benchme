@@ -150,6 +150,29 @@ describe("/ask", () => {
     expect(frames.at(-1)).toMatchObject({ complete: true });
     await degraded.close();
   });
+  // A ranker error carries upstream detail — an endpoint URL, a key prefix, a
+  // provider's own message. The client gets a stable code; the detail is the
+  // operator's, and belongs in the server log.
+  it("sends only a stable error code on failure, never the thrown message, and still terminates the stream", async () => {
+    class ThrowingRanker implements Ranker {
+      readonly kind = "boom";
+      async rank(): Promise<never> {
+        throw new Error("jev ranker: 401 key sk-secret-123 rejected by https://internal.upstream");
+      }
+    }
+    const failing = await buildApp(new ThrowingRanker());
+    const res = await failing.inject({ method: "POST", url: "/ask", payload: { query: "bolt" } });
+    const frames = res.body
+      .split("\n\n")
+      .filter(Boolean)
+      .map((f) => JSON.parse(f.replace(/^data: /, "")));
+    const errorFrame = frames.find((f) => f.message_type === "error");
+    expect(errorFrame).toEqual({ message_type: "error", content: { error: "ASK_FAILED" } });
+    expect(res.body).not.toContain("sk-secret-123");
+    expect(res.body).not.toContain("internal.upstream");
+    expect(frames.at(-1)).toMatchObject({ complete: true });
+    await failing.close();
+  });
   it("/ask/mcp exposes exactly one tool, ask, returning the same results", async () => {
     const list = await app.inject({
       method: "POST",

@@ -35,7 +35,11 @@ export async function streamAsk(reply: FastifyReply, service: AskService, worksp
     frame({ results: answer.results });
     if (answer.ranker_degraded) frame({ message_type: "ranker", content: { ranker: answer.ranker, degraded: true } });
   } catch (err) {
-    frame({ message_type: "error", content: { error: "ASK_FAILED", message: err instanceof Error ? err.message : String(err) } });
+    // A ranker failure's message carries upstream detail (endpoint, key
+    // fragment, provider text). The client gets a stable code it can branch
+    // on; the detail goes to the operator's log, where it belongs.
+    reply.log.error({ err, queryId }, "ask failed");
+    frame({ message_type: "error", content: { error: "ASK_FAILED" } });
   }
   frame({ query_id: queryId, complete: true });
   raw.end();
