@@ -158,6 +158,84 @@ describe("StateOracle", () => {
     expect(withGarbageBody.verdict).toBe("OK");
   });
 
+  describe("pagination ({ items, nextCursor } envelope)", () => {
+    it("a single page with nextCursor: null is treated as its items", async () => {
+      const reader = new MemoryStateReader();
+      reader.seed("warehouse", "/api/v1/orders", { items: [{ no: "SO-1", status: "open" }], nextCursor: null });
+      const result = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([{ name: "open", app: "warehouse", path: "/api/v1/orders", where: { no: "SO-1" }, expect: { status: "open" } }]),
+        ctx,
+      );
+      expect(result.verdict).toBe("OK");
+    });
+
+    it("follows nextCursor to a second page and a check can match a row that only exists there", async () => {
+      const reader = new MemoryStateReader();
+      reader.seed("warehouse", "/api/v1/orders", { items: [{ no: "SO-1", status: "open" }], nextCursor: "c1" });
+      reader.seed("warehouse", "/api/v1/orders?cursor=c1", { items: [{ no: "SO-2", status: "shipped" }], nextCursor: null });
+      const result = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([{ name: "shipped", app: "warehouse", path: "/api/v1/orders", where: { no: "SO-2" }, expect: { status: "shipped" } }]),
+        ctx,
+      );
+      expect(result.verdict).toBe("OK");
+    });
+
+    it("appends the cursor with & when the path already carries a query string", async () => {
+      const reader = new MemoryStateReader();
+      reader.seed("warehouse", "/api/v1/orders?status=open", { items: [{ no: "SO-1" }], nextCursor: "c1" });
+      reader.seed("warehouse", "/api/v1/orders?status=open&cursor=c1", { items: [{ no: "SO-2" }], nextCursor: null });
+      const result = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([{ name: "found-on-page-2", app: "warehouse", path: "/api/v1/orders?status=open", where: { no: "SO-2" }, expect: {} }]),
+        ctx,
+      );
+      expect(result.verdict).toBe("OK");
+    });
+
+    it("stops after MAX_PAGES (10) reads and notes it when the check still fails", async () => {
+      let calls = 0;
+      class InfiniteReader implements WorkspaceStateReader {
+        async get(): Promise<unknown> {
+          calls++;
+          return { items: [{ no: `SO-${calls}` }], nextCursor: "more" };
+        }
+      }
+      const result = await new StateOracle(new InfiniteReader()).check(
+        Buffer.alloc(0),
+        spec([{ name: "never-matches", app: "warehouse", path: "/api/v1/orders", where: { no: "SO-999" }, expect: {} }]),
+        ctx,
+      );
+      expect(calls).toBe(10);
+      expect(result.verdict).toBe("FAIL");
+      expect(result.checks[0].note).toMatch(/10 pages/);
+    });
+
+    it("a bare object without an items array is still treated as one row (unchanged detail-route behavior)", async () => {
+      const reader = new MemoryStateReader();
+      reader.seed("warehouse", "/api/v1/orders/SO-1", { no: "SO-1", status: "shipped" });
+      const result = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([{ name: "shipped", app: "warehouse", path: "/api/v1/orders/SO-1", expect: { status: "shipped" } }]),
+        ctx,
+      );
+      expect(result.verdict).toBe("OK");
+    });
+
+    it("empty items in a paginated envelope FAILs the same way an empty bare array does", async () => {
+      const reader = new MemoryStateReader();
+      reader.seed("warehouse", "/api/v1/orders", { items: [], nextCursor: null });
+      const result = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([{ name: "shipped", app: "warehouse", path: "/api/v1/orders", expect: { status: "shipped" } }]),
+        ctx,
+      );
+      expect(result.verdict).toBe("FAIL");
+      expect(result.checks[0].note).toMatch(/no row/);
+    });
+  });
+
   it("the discriminated union recognizes kind: \"state\" and the registry can dispatch to it", () => {
     const parsed = taskSpecSchema.parse({
       id: "state-oracle-schema-test",

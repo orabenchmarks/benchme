@@ -16,14 +16,16 @@
  * compose/specs/intent-tasks.md (prerequisites + how each answer was
  * derived — read that before touching the picks below).
  *
- * Two REST-shape footguns drove several of the choices here (see the .md for
+ * Two REST-shape facts drove several of the choices here (see the .md for
  * the full explanation): `GET /api/v1/orders` and `GET /api/v1/tickets` are
- * PAGINATED — `{items, nextCursor}`, not a bare array — and the state
- * oracle's `asRows()` only unwraps a bare array, so a `where` filter against
- * those list routes silently never matches. `GET /api/v1/orders/:no` nests
- * line items under `lines[]`, which the oracle's flat `expect` cannot
- * address directly either. Both are worked around below, not upstream —
- * this tool only authors specs, it does not touch apps/verify.
+ * PAGINATED — `{items, nextCursor}`, not a bare array. The state oracle
+ * (task 10b) follows `nextCursor` and unwraps `items`, so a `where` filter
+ * against those list routes now matches a real row — this tool no longer
+ * needs to predict an order number to work around it. `GET /api/v1/orders/:no`
+ * still nests line items under `lines[]`, which the oracle's flat `expect`
+ * cannot address directly and which the list route never carries at all, so
+ * intent-order-01 checks that an order exists rather than its line contents
+ * (see the .md).
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -47,13 +49,14 @@ const ORDER_QTY = 40;
 const orderStock = rankPick(stockedDesc, 0.05);
 const orderProduct = productBySku.get(orderStock.sku);
 const orderCustomer = rankPick(rows.warehouse.customers, 0.22);
-// warehouse.counters is DELETEd (never repopulated) on every seed — see
-// apps/warehouse/src/db/seed.ts — so the first order a fresh workspace's API
-// ever creates gets counter value 1: SO-${30000+1}. Seed-generated orders
-// occupy SO-20000..SO-20000+count-1, so this can never collide with them.
-const PREDICTED_ORDER_NO = "SO-30001";
-const orderTotalCentsExpected = ORDER_QTY * orderProduct.unitPriceCents;
-if (rows.warehouse.orders.some((o) => o.orderNo === PREDICTED_ORDER_NO)) problems.push(`predicted order no ${PREDICTED_ORDER_NO} collides with a seeded order`);
+// The check filters `GET /api/v1/orders` by customer instead of predicting
+// an order number (see the module doc + intent-tasks.md) — but the seed
+// already gives most customers a handful of open orders, so "the customer
+// has ≥1 open order" alone would pass vacuously, before the agent does
+// anything. Count the customer's PRE-EXISTING open orders here and require
+// one more than that — true only once the agent has actually placed (and
+// left open) a new one, regardless of how many attempts it took.
+const orderCustomerExistingOpen = rows.warehouse.orders.filter((o) => o.customerCode === orderCustomer.code && o.status === "open").length;
 
 // ─── transfer-01: a different SKU than the order task, plenty of stock at
 // the source, and NOT already a completed transfer in the seed (else the
@@ -123,21 +126,19 @@ const specs = [
       kind: "state",
       checks: [
         {
+          // Filters the (now correctly paginated-through, task 10b) orders
+          // list by customer instead of predicting an order number. `lines`
+          // only exists on the detail route (OrderDetail in orders-repo.ts),
+          // which needs a known order number to reach — so this can't verify
+          // the SKU/qty of the line, only that the agent left the customer
+          // with one more open order than the seed already had. See
+          // intent-tasks.md for the full trade-off.
           name: "order-open-for-customer",
           app: "warehouse",
-          path: `/api/v1/orders/${PREDICTED_ORDER_NO}`,
-          expect: { customerCode: orderCustomer.code, status: "open" },
-        },
-        {
-          // `lines` is a nested array (OrderDetail in orders-repo.ts) the
-          // oracle's flat `expect` can't address by sku/qty directly, so
-          // this asserts the DERIVED total instead — the same technique as
-          // answers.ts' orderTotalCents, computed inline because the order
-          // doesn't exist in the seeded rows to call that helper against.
-          name: "order-line-total-cents",
-          app: "warehouse",
-          path: `/api/v1/orders/${PREDICTED_ORDER_NO}`,
-          expect: { totalCents: orderTotalCentsExpected },
+          path: `/api/v1/orders?customer=${orderCustomer.code}&status=open`,
+          where: { customerCode: orderCustomer.code, status: "open" },
+          count: { min: orderCustomerExistingOpen + 1 },
+          expect: {},
         },
       ],
     },
@@ -201,7 +202,7 @@ const tasks = [
     app: "warehouse",
     intent: `Place a new order for customer ${orderCustomer.name} (${orderCustomer.code}) for ${ORDER_QTY} units of the ${orderProduct.name} (SKU ${orderProduct.sku}).`,
     oracle: "state",
-    summary: `An open order for ${orderCustomer.code} whose total equals ${ORDER_QTY} × the SKU's unit price (line items are nested, so the check compares the derived total).`,
+    summary: `${orderCustomer.code} ends up with one more open order than the seed already gave it (checked by customer, not by a predicted order number; line contents aren't independently verified — see intent-tasks.md).`,
   },
   {
     id: "intent-transfer-01",
@@ -262,56 +263,53 @@ Six natural-language intent tasks against a fresh \`acme-v1\` workspace
 from \`@benchme/scenarios\`' generator or \`answers.ts\` helpers — never typed
 by hand — so re-running the tool for a different seed regenerates matching
 specs and \`intent-tasks.json\` together. All six assume the SAME fresh
-workspace (seed ${SEED}): none of them create their own workspace, and
-intent-order-01 additionally assumes no order has been created in that
-workspace yet (see below).
+workspace (seed ${SEED}); none of them create their own workspace.
 
 Two REST-shape facts, true for every task below, are worth stating once:
 \`GET /api/v1/orders\` and \`GET /api/v1/tickets\` return a **paginated
 envelope** \`{ items, nextCursor }\` (see \`apps/warehouse/src/api/routes.ts\`,
-\`apps/helpdesk/src/api/routes.ts\`), not a bare array. The \`state\` oracle's
-\`asRows()\` (\`apps/verify/src/oracles/state-oracle.ts\`) only unwraps a bare
-array — a non-array object becomes exactly ONE row, whose fields are
-\`items\`/\`nextCursor\`, not the fields of any individual order or ticket. A
-\`where\` filter against those two LIST routes therefore never matches a real
-row; it silently fails every time, pass or fail. This is why every \`state\`
-check below targets a DETAIL route (\`/api/v1/orders/:no\`,
-\`/api/v1/tickets/:no\`) instead — except transfers, whose list route
-(\`/api/v1/transfers\`) is a bare array and works as a list check.
+\`apps/helpdesk/src/api/routes.ts\`), not a bare array. The \`state\` oracle
+(\`apps/verify/src/oracles/state-oracle.ts\`, task 10b) unwraps \`items\` and
+follows \`nextCursor\` across pages (up to a bounded cap), so a \`where\`
+filter against those two LIST routes now matches a real row instead of
+silently seeing only \`{items, nextCursor}\` as one object. \`GET
+/api/v1/orders/:no\` still nests line items under \`lines: [{sku, qty,
+unitPriceCents}]\` (\`OrderDetail\` in \`orders-repo.ts\`), which the oracle's
+flat, per-field \`expect\` cannot reach into and which the list route never
+carries at all — that's why intent-order-01 below checks that an order
+exists rather than its line contents. intent-ticket-01 still targets a
+DETAIL route (\`/api/v1/tickets/:no\`) because it targets one specific,
+already-known seeded ticket number, not because the list route can't be
+filtered.
 
 ## intent-order-01 (state)
 
 **Intent:** "Place a new order for customer ${orderCustomer.name} (${orderCustomer.code}) for ${ORDER_QTY} units of the ${orderProduct.name} (SKU ${orderProduct.sku})."
 
-**Prerequisites:** a fresh \`acme-v1\` workspace at seed ${SEED} in which no
-order has yet been created through the warehouse API (i.e. \`warehouse.counters\`
-has no \`order\` row). \`apps/warehouse/src/db/seed.ts\` \`DELETE\`s
-\`warehouse.counters\` on every seed and never repopulates it, so this holds
-for any just-seeded workspace.
+**Prerequisites:** a fresh \`acme-v1\` workspace at seed ${SEED}. Unlike the
+prior revision of this task, nothing further is assumed about
+\`warehouse.counters\` or prior orders — the check no longer predicts an order
+number, so it doesn't care how many orders (if any) already exist.
 
-**Derivation:** \`orders-repo.ts\` mints order numbers as
-\`SO-${"$"}{30000 + counter}\`, and the counter's first \`INSERT\` (no existing
-row) returns \`value = 1\` — so the FIRST order an untouched workspace's API
-creates is always \`SO-30001\`. Seed-generated orders occupy
-\`SO-20000..SO-${20000 + rows.warehouse.orders.length - 1}\`, so there is no
-collision. \`GET /api/v1/orders/:no\` nests line items under \`lines: [{sku,
-qty, unitPriceCents}]\` (\`OrderDetail\` in \`orders-repo.ts\`) — an array the
-oracle's flat, per-field \`expect\` cannot reach into. Since the intent asks
-for a single-SKU order, the second check instead asserts the order's
-\`totalCents\` equals \`${ORDER_QTY} × ${orderProduct.unitPriceCents}\` =
-**${orderTotalCentsExpected}** — the same "derived value" idea as
-\`answers.ts\`' \`orderTotalCents\`, computed inline here since the order does
-not exist in the seeded rows to call that helper against.
-
-**Known limitation:** if the agent creates more than one order while
-attempting this task (a failed or corrected attempt, say), the order that
-actually satisfies the intent may land on a number other than \`SO-30001\` and
-this check reports FAIL even though the visible intent was eventually met.
-This is a real constraint of the paginated \`/api/v1/orders\` list (see
-above) — there is no way to find "the customer's newest open order" without
-either a bare-array list endpoint or a line-item-aware oracle, neither of
-which exists today. The intent is worded as one unambiguous ask so a
-competent agent creates exactly one order.
+**Derivation:** the check reads \`GET /api/v1/orders?customer=${orderCustomer.code}&status=open\`
+(narrowed server-side by the query params the route already supports) and
+filters with \`where: { customerCode: "${orderCustomer.code}", status: "open" }\`
+as a belt-and-suspenders match on the same fields. The seed already gives
+${orderCustomer.code} **${orderCustomerExistingOpen}** open order(s)
+(counted straight from the generated rows, not hand-typed), so "at least one
+open order" alone would pass with no agent action at all — the check instead
+requires \`count.min: ${orderCustomerExistingOpen + 1}\`, true only once the
+agent has placed (and left open) one additional order, regardless of how
+many attempts it took to get there. \`GET /api/v1/orders/:no\` nests line
+items under \`lines: [{sku, qty, unitPriceCents}]\` (\`OrderDetail\` in
+\`orders-repo.ts\`) — an array the oracle's flat, per-field \`expect\` cannot
+reach into — and that detail route needs a known order number to call at
+all, which this check deliberately never predicts. **Trade-off:** this check
+therefore cannot verify the new order is actually for
+${ORDER_QTY} units of ${orderProduct.sku} rather than some other line; it
+only verifies the customer ends up with one more open order than the seed
+gave it. A line-item-aware oracle able to search-then-inspect would close
+this gap; none exists today.
 
 ## intent-transfer-01 (state)
 

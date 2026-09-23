@@ -4,7 +4,7 @@
     "app": "warehouse",
     "intent": "Place a new order for customer Vidorfal Industrial (C-108) for 40 units of the Marmar Marka kit (SKU ADH-1038).",
     "oracle": "state",
-    "summary": "An open order for C-108 whose total equals 40 × the SKU's unit price (line items are nested, so the check compares the derived total)."
+    "summary": "C-108 ends up with one more open order than the seed already gave it (checked by customer, not by a predicted order number; line contents aren't independently verified — see intent-tasks.md)."
   },
   {
     "id": "intent-transfer-01",

@@ -7,19 +7,15 @@
       {
         "name": "order-open-for-customer",
         "app": "warehouse",
-        "path": "/api/v1/orders/SO-30001",
-        "expect": {
+        "path": "/api/v1/orders?customer=C-108&status=open",
+        "where": {
           "customerCode": "C-108",
           "status": "open"
-        }
-      },
-      {
-        "name": "order-line-total-cents",
-        "app": "warehouse",
-        "path": "/api/v1/orders/SO-30001",
-        "expect": {
-          "totalCents": 897000
-        }
+        },
+        "count": {
+          "min": 6
+        },
+        "expect": {}
       }
     ]
   }
