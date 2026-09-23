@@ -78,8 +78,15 @@ export class RankerRegistry {
 export type AskDeps = {
   /** The site's name, echoed in every result's `site` field. */
   site: string;
-  /** The workspace's corpus. Scoped by workspace so one tenant never answers with another's rows. */
-  items: (workspaceId: string) => Promise<AskItem[]>;
+  /**
+   * The workspace's corpus. Scoped by workspace so one tenant never answers
+   * with another's rows. `prefix` is the gateway-forwarded, request-time
+   * path (`req.prefix`) — NOT derivable from `workspaceId` alone: under a
+   * shared alias (e.g. `/w/shared-<scenario>-<seed>/<app>`) the forwarded
+   * prefix carries the alias, while `workspaceId` is the resolved internal
+   * id. Item urls/@ids must be built from `prefix`, never a re-derived one.
+   */
+  items: (workspaceId: string, prefix: string) => Promise<AskItem[]>;
   ranker: Ranker;
   /** Candidates retrieved before ranking, and the maximum results returned. */
   topK?: number;

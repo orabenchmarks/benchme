@@ -1,6 +1,6 @@
 import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signWorkspaceHeader, type Pool } from "@benchme/core";
 import { acmeV1, openTicketsFor, scenarios, slaBreaches, type ScenarioRows } from "@benchme/scenarios";
-import type { Mailer } from "@benchme/site-kit";
+import { LexicalRanker, type Mailer } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { FastifyInstance, InjectOptions } from "fastify";
@@ -57,7 +57,7 @@ beforeAll(async () => {
   await migrate(pool, "core", join(here, "..", "..", "gateway", "migrations"));
   await migrate(pool, "helpdesk", join(here, "..", "migrations"));
   mailer = new CapturingMailer();
-  app = await buildHelpdesk({ pool, scenarios, mailer, gatewaySecret: SECRET, sessionTtlSeconds: 3600, logLevel: "silent" });
+  app = await buildHelpdesk({ pool, scenarios, mailer, gatewaySecret: SECRET, sessionTtlSeconds: 3600, ranker: new LexicalRanker(), logLevel: "silent" });
   await app.listen({ port: 0, host: "127.0.0.1" });
   const addr = app.server.address();
   baseUrl = `http://127.0.0.1:${typeof addr === "object" && addr ? addr.port : 0}`;
@@ -137,5 +137,30 @@ describe.skipIf(!DB)("helpdesk (real Postgres)", () => {
     } finally {
       await client.close();
     }
+  });
+
+  it("/ask ranks the seeded tickets and agrees with the priority filter", async () => {
+    const fresh = await createWorkspace(4242);
+    const prefix = `/w/${fresh}/helpdesk`;
+    const res = await app.inject(scoped({ method: "GET", url: "/ask?query=low&streaming=false" }, fresh));
+    expect(res.statusCode).toBe(200);
+    const ids = res.json().results.map((r: { schema_object: { "@id": string } }) => r.schema_object["@id"]);
+    expect(ids.length).toBeGreaterThan(0);
+    const expected = rows.helpdesk.tickets.filter((t) => t.priority === "low").map((t) => `${prefix}/tickets/${t.ticketNo}`);
+    expect(new Set(ids)).toEqual(new Set(expected));
+  });
+
+  it("the schema feed is deterministic for a seed and every line is JSON-LD", async () => {
+    const fresh = await createWorkspace(4242);
+    const a = (await app.inject(scoped({ method: "GET", url: "/schema/feed.jsonl" }, fresh))).body;
+    const b = (await app.inject(scoped({ method: "GET", url: "/schema/feed.jsonl" }, fresh))).body;
+    expect(a).toBe(b);
+    for (const line of a.trim().split("\n")) expect(JSON.parse(line)).toMatchObject({ "@context": "https://schema.org" });
+  });
+
+  it("publishes the schemamap directive on robots.txt", async () => {
+    const fresh = await createWorkspace(4242);
+    const robots = (await app.inject(scoped({ method: "GET", url: "/robots.txt", headers: { host: "gw.test" } }, fresh))).body;
+    expect(robots).toContain(`schemamap: http://gw.test/w/${fresh}/helpdesk/schema/map.xml`);
   });
 });

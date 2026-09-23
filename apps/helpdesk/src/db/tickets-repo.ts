@@ -36,6 +36,8 @@ export interface TicketsRepo {
   deleteTicket(ws: string, ticketNo: string): Promise<void>;
   /** Resolved/closed tickets whose resolution exceeded their priority's SLA. */
   slaBreaches(ws: string): Promise<string[]>;
+  /** Every comment across every ticket, ordered. One query instead of N getTicket round trips — used to build NLWeb items over the whole corpus. */
+  listAllComments(ws: string): Promise<(CommentRow & { ticketNo: string })[]>;
 }
 
 type TRow = {
@@ -168,6 +170,14 @@ export class PgTicketsRepo implements TicketsRepo {
   async deleteTicket(ws: string, ticketNo: string): Promise<void> {
     const r = await this.pool.query("DELETE FROM helpdesk.tickets WHERE workspace_id = $1 AND ticket_no = $2", [ws, ticketNo]);
     if (!r.rowCount) throw new DomainError("UNKNOWN_TICKET", `no ticket ${ticketNo}`, 404);
+  }
+
+  async listAllComments(ws: string): Promise<(CommentRow & { ticketNo: string })[]> {
+    const r = await this.pool.query<{ ticket_no: string; seq: number; author: string; body: string; internal: boolean; created_at: Date }>(
+      "SELECT ticket_no, seq, author, body, internal, created_at FROM helpdesk.comments WHERE workspace_id = $1 ORDER BY ticket_no, seq",
+      [ws],
+    );
+    return r.rows.map((x) => ({ ticketNo: x.ticket_no, seq: x.seq, author: x.author, body: x.body, internal: x.internal, createdAt: x.created_at.toISOString() }));
   }
 
   async slaBreaches(ws: string): Promise<string[]> {

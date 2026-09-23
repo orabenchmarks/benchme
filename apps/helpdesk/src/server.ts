@@ -1,6 +1,6 @@
 import { createPool } from "@benchme/core";
 import { scenarios } from "@benchme/scenarios";
-import { HttpMailer } from "@benchme/site-kit";
+import { HttpMailer, buildRanker } from "@benchme/site-kit";
 import { buildHelpdesk } from "./build-app.js";
 import { readConfig } from "./config.js";
 
@@ -13,6 +13,7 @@ const app = await buildHelpdesk({
   gatewaySecret: cfg.GATEWAY_SECRET,
   sessionTtlSeconds: cfg.SESSION_TTL_SECONDS,
   logLevel: cfg.LOG_LEVEL,
+  ranker: buildRanker(process.env),
 });
 const shutdown = async () => {
   await app.close();

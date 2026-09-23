@@ -16,7 +16,7 @@ import type { Ranker } from "./types.js";
  */
 export type NlwebDeps = SchemaDeps & { version?: string };
 
-type AskCtx = { workspaceId: string };
+type AskCtx = { workspaceId: string; prefix: string };
 
 /** The eval-only per-request override header; see `AskDeps.allowRankerOverride`. */
 const RANKER_OVERRIDE_HEADER = "x-ask-ranker";
@@ -43,8 +43,8 @@ export async function registerNlweb(app: FastifyInstance, d: NlwebDeps): Promise
     // Minted here rather than in the service so the SSE error path can still
     // close the stream with the id the client is correlating on.
     const queryId = params.queryId ?? randomUUID();
-    if (params.streaming) return streamAsk(reply, service, req.workspaceId, params, queryId, rankerOverride);
-    return reply.send(await service.ask(req.workspaceId, { query: params.query, prev: params.prev, queryId }, rankerOverride));
+    if (params.streaming) return streamAsk(reply, service, req.workspaceId, params, queryId, req.prefix, rankerOverride);
+    return reply.send(await service.ask(req.workspaceId, { query: params.query, prev: params.prev, queryId, prefix: req.prefix }, rankerOverride));
   };
 
   app.get("/ask", async (req, reply) => answer(req, reply, req.query));
@@ -59,7 +59,7 @@ export async function registerNlweb(app: FastifyInstance, d: NlwebDeps): Promise
     name: "ask",
     description: `Ask a natural-language question about ${d.site} and get matching items back as schema.org JSON-LD.`,
     input: { query: z.string(), prev: z.array(z.string()).optional() },
-    handler: async (args, ctx) => service.ask(ctx.workspaceId, { query: args.query, ...(args.prev ? { prev: args.prev } : {}) }),
+    handler: async (args, ctx) => service.ask(ctx.workspaceId, { query: args.query, ...(args.prev ? { prev: args.prev } : {}), prefix: ctx.prefix }),
   });
   await app.register(
     async (scope) =>
@@ -67,7 +67,7 @@ export async function registerNlweb(app: FastifyInstance, d: NlwebDeps): Promise
         serverName: `benchme-${d.site}-ask`,
         version: d.version ?? "0.1.0",
         tools,
-        context: (workspaceId) => ({ workspaceId }),
+        context: (workspaceId, prefix) => ({ workspaceId, prefix }),
       }),
     { prefix: "/ask" },
   );

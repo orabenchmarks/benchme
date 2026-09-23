@@ -5,7 +5,8 @@ import type { AskDeps, AskItem, AskResponse, AskResult, Ranker, RankedCandidate 
 const DEFAULT_TOP_K = 25;
 const DESCRIPTION_CHARS = 160;
 
-export type AskQuery = { query: string; prev?: string[]; queryId?: string };
+/** `prefix` is the request-time forwarded path (`req.prefix`) — see `AskDeps.items`'s doc comment for why it can't be re-derived from `workspaceId`. */
+export type AskQuery = { query: string; prev?: string[]; queryId?: string; prefix: string };
 
 /**
  * The /ask pipeline, free of HTTP: corpus → lexical retrieval → the injected
@@ -24,7 +25,7 @@ export class AskService {
   async ask(workspaceId: string, q: AskQuery, rankerOverride?: Ranker): Promise<AskResponse> {
     const ranker = rankerOverride ?? this.d.ranker;
     const topK = this.d.topK ?? DEFAULT_TOP_K;
-    const items = await this.d.items(workspaceId);
+    const items = await this.d.items(workspaceId, q.prefix);
     // Earlier turns widen RETRIEVAL only (a follow-up like "cheaper ones" has no
     // nouns of its own); the ranker still judges relevance against what the user
     // actually asked now.

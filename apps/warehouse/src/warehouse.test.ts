@@ -6,7 +6,7 @@ import type { FastifyInstance, InjectOptions } from "fastify";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Mailer } from "@benchme/site-kit";
+import { LexicalRanker, type Mailer } from "@benchme/site-kit";
 import { buildWarehouse } from "./build-app.js";
 
 const DB = process.env.DATABASE_URL;
@@ -47,7 +47,7 @@ beforeAll(async () => {
   await migrate(pool, "core", CORE_SQL);
   await migrate(pool, "warehouse", WH_SQL);
   mailer = new CapturingMailer();
-  app = await buildWarehouse({ pool, scenarios, mailer, gatewaySecret: SECRET, sessionTtlSeconds: 3600, logLevel: "silent" });
+  app = await buildWarehouse({ pool, scenarios, mailer, gatewaySecret: SECRET, sessionTtlSeconds: 3600, ranker: new LexicalRanker(), logLevel: "silent" });
   await app.listen({ port: 0, host: "127.0.0.1" });
   const addr = app.server.address();
   baseUrl = `http://127.0.0.1:${typeof addr === "object" && addr ? addr.port : 0}`;
@@ -173,6 +173,48 @@ describe.skipIf(!DB)("warehouse (real Postgres)", () => {
     const missing = await client.callTool({ name: "get_product", arguments: { sku: "NOPE-1" } });
     expect(missing.isError).toBe(true);
     await client.close();
+  });
+
+  it("/ask ranks the seeded products and agrees with the category catalog", async () => {
+    const fresh = await createWorkspace(4242);
+    const prefix = `/w/${fresh}/warehouse`;
+    const res = await app.inject(scoped({ method: "GET", url: "/ask?query=fasteners&streaming=false" }, fresh));
+    expect(res.statusCode).toBe(200);
+    const ids = res.json().results.map((r: { schema_object: { "@id": string } }) => r.schema_object["@id"]);
+    expect(ids.length).toBeGreaterThan(0);
+    const expected = rows.warehouse.products.filter((p) => p.category === "fasteners").map((p) => `${prefix}/products/${p.sku}`);
+    expect(new Set(ids)).toEqual(new Set(expected));
+  });
+
+  it("the schema feed is deterministic for a seed and every line is JSON-LD", async () => {
+    const fresh = await createWorkspace(4242);
+    const a = (await app.inject(scoped({ method: "GET", url: "/schema/feed.jsonl" }, fresh))).body;
+    const b = (await app.inject(scoped({ method: "GET", url: "/schema/feed.jsonl" }, fresh))).body;
+    expect(a).toBe(b);
+    for (const line of a.trim().split("\n")) expect(JSON.parse(line)).toMatchObject({ "@context": "https://schema.org" });
+  });
+
+  it("publishes the schemamap directive on robots.txt", async () => {
+    const fresh = await createWorkspace(4242);
+    const robots = (await app.inject(scoped({ method: "GET", url: "/robots.txt", headers: { host: "gw.test" } }, fresh))).body;
+    expect(robots).toContain(`schemamap: http://gw.test/w/${fresh}/warehouse/schema/map.xml`);
+  });
+
+  it("names item urls/@ids by the FORWARDED prefix under a shared-alias path, not the resolved workspace id", async () => {
+    // The gateway forwards x-forwarded-prefix from the ORIGINAL path segment
+    // (a shared-<scenario>-<seed> alias resolves to a different internal id),
+    // while the workspace header carries the RESOLVED id. Items must be named
+    // from the forwarded prefix — never a prefix rebuilt from workspaceId.
+    const fresh = await createWorkspace(4242);
+    const req = scoped({ method: "GET", url: "/ask?query=fasteners&streaming=false" }, fresh);
+    const res = await app.inject({ ...req, headers: { ...req.headers, "x-forwarded-prefix": "/w/shared-acme-v1-4242/warehouse" } });
+    expect(res.statusCode).toBe(200);
+    const ids = res.json().results.map((r: { schema_object: { "@id": string } }) => r.schema_object["@id"]);
+    expect(ids.length).toBeGreaterThan(0);
+    for (const id of ids) {
+      expect(id.startsWith("/w/shared-acme-v1-4242/warehouse/")).toBe(true);
+      expect(id).not.toContain(fresh);
+    }
   });
 });
 

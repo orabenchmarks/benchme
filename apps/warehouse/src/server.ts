@@ -1,6 +1,6 @@
 import { createPool } from "@benchme/core";
 import { scenarios } from "@benchme/scenarios";
-import { HttpMailer } from "@benchme/site-kit";
+import { HttpMailer, buildRanker } from "@benchme/site-kit";
 import { buildWarehouse } from "./build-app.js";
 import { readConfig } from "./config.js";
 
@@ -13,6 +13,9 @@ const app = await buildWarehouse({
   gatewaySecret: cfg.GATEWAY_SECRET,
   sessionTtlSeconds: cfg.SESSION_TTL_SECONDS,
   logLevel: cfg.LOG_LEVEL,
+  // Env-driven (not cfg — buildRanker re-validates from raw process.env so
+  // one image serves the lexical/llm/jev arms with no code branch between them).
+  ranker: buildRanker(process.env),
 });
 const shutdown = async () => {
   await app.close();
