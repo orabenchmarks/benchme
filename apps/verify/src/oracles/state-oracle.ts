@@ -6,6 +6,17 @@ import type { WorkspaceStateReader } from "./state-reader.js";
 type Spec = z.infer<typeof stateSpec>;
 type Check = Spec["checks"][number];
 type Row = Record<string, unknown>;
+type ExpectValue = Check["expect"][string];
+
+/**
+ * Cap on how many `where`-matched list rows a `rowPath` check will fetch a
+ * detail row for. A wrong-SKU/wrong-qty submission must not pass just
+ * because the right order is buried past whatever page/position an agent's
+ * attempts happened to land on — but an unbounded fan-out of detail fetches
+ * per check is its own footgun, so this bounds it (the check notes when the
+ * cap, not the data, ended the search).
+ */
+const MAX_ROW_FETCHES = 20;
 
 /**
  * Cap on how many pages of a paginated list a check follows. The apps'
@@ -50,19 +61,56 @@ function fieldEquals(actual: unknown, expected: string | number | boolean): bool
   return actual === expected;
 }
 
+function isPlainObject(v: unknown): v is Row {
+  return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
+/**
+ * Matches one `expect` value against one field's actual value. A scalar
+ * `expected` is a direct `fieldEquals`. An object `expected` against an
+ * ARRAY `actual` is array-any: it matches if SOME element satisfies every
+ * key (e.g. `{ lines: { sku: "A", qty: 5 } }` against `lines: [...]` — a
+ * wrong-SKU or wrong-qty line does not satisfy it, only the exact pair
+ * does). An object `expected` against a non-array object `actual` recurses
+ * field by field.
+ */
+function matchesExpectValue(actual: unknown, expected: ExpectValue): boolean {
+  if (isPlainObject(expected)) {
+    if (Array.isArray(actual)) return actual.some((el) => isPlainObject(el) && matchesExpectObject(el, expected));
+    return isPlainObject(actual) && matchesExpectObject(actual, expected);
+  }
+  return fieldEquals(actual, expected);
+}
+
+function matchesExpectObject(row: Row, expected: Record<string, ExpectValue>): boolean {
+  return Object.entries(expected).every(([field, value]) => matchesExpectValue(row[field], value));
+}
+
 function matchesWhere(row: Row, where: Record<string, string> | undefined): boolean {
   return !where || Object.entries(where).every(([field, value]) => fieldEquals(row[field], value));
 }
 
 /** The first field in `expect` that does not match `row`, if any. */
-function firstMismatch(row: Row, expect: Record<string, string | number | boolean>): string | undefined {
+function firstMismatch(row: Row, expect: Record<string, ExpectValue>): string | undefined {
   for (const [field, expected] of Object.entries(expect)) {
-    if (!fieldEquals(row[field], expected)) return `expected ${field}=${JSON.stringify(expected)}, got ${JSON.stringify(row[field])}`;
+    if (!matchesExpectValue(row[field], expected)) return `expected ${field}=${JSON.stringify(expected)}, got ${JSON.stringify(row[field])}`;
   }
   return undefined;
 }
 
-function checkOne(rows: Row[], c: Check, truncated: boolean): CheckResult {
+/** Substitutes `{field}` placeholders in a `rowPath` template from a matched list row's own fields. */
+function resolvePlaceholders(template: string, row: Row): string {
+  return template.replace(/\{(\w+)\}/g, (_, field: string) => String(row[field] ?? ""));
+}
+
+/** Fetches `rowPath` (with `{field}` resolved from `row`) via `fetchRow`, and merges it UNDER the list row (detail fields win, but a list-only field is still reachable by `expect`). */
+async function fetchMergedRow(row: Row, rowPath: string, fetchRow: (path: string) => Promise<unknown>): Promise<Row> {
+  const detail = await fetchRow(resolvePlaceholders(rowPath, row));
+  const detailRow = asRows(detail)[0];
+  return detailRow ? { ...row, ...detailRow } : row;
+}
+
+async function checkOne(rows: Row[], c: Check, truncated: boolean, fetchRow: (path: string) => Promise<unknown>): Promise<CheckResult> {
   // Only decorates a FAILING note — a passing check needs no caveat, and a
   // truncated read that still found its row proves nothing was missed.
   const pagingNote = truncated ? ` (stopped after ${MAX_PAGES} pages of results; more may exist)` : "";
@@ -76,9 +124,27 @@ function checkOne(rows: Row[], c: Check, truncated: boolean): CheckResult {
   if (c.count?.max !== undefined && matched.length > c.count.max) {
     return { name: c.name, ok: false, note: `expected at most ${c.count.max} matching rows, got ${matched.length}` };
   }
-  const mismatches = matched.map((r) => firstMismatch(r, c.expect));
-  if (mismatches.some((m) => m === undefined)) return { name: c.name, ok: true };
-  return { name: c.name, ok: false, note: `${mismatches[0]}${pagingNote}` };
+
+  if (!c.rowPath) {
+    const mismatches = matched.map((r) => firstMismatch(r, c.expect));
+    if (mismatches.some((m) => m === undefined)) return { name: c.name, ok: true };
+    return { name: c.name, ok: false, note: `${mismatches[0]}${pagingNote}` };
+  }
+
+  // `rowPath` set: `expect` can only be trusted against the DETAIL row (the
+  // list row alone can't carry e.g. nested line items), so fetch one detail
+  // row per matched list row — up to MAX_ROW_FETCHES — until one satisfies
+  // `expect`, rather than accepting the first list row that merely exists.
+  const examined = matched.slice(0, MAX_ROW_FETCHES);
+  const rowFetchNote = matched.length > MAX_ROW_FETCHES ? ` (stopped after examining ${MAX_ROW_FETCHES} matching rows; more may exist)` : "";
+  let lastMismatch: string | undefined;
+  for (const row of examined) {
+    const merged = await fetchMergedRow(row, c.rowPath, fetchRow);
+    const mismatch = firstMismatch(merged, c.expect);
+    if (mismatch === undefined) return { name: c.name, ok: true };
+    lastMismatch = mismatch;
+  }
+  return { name: c.name, ok: false, note: `${lastMismatch}${pagingNote}${rowFetchNote}` };
 }
 
 /**
@@ -96,7 +162,8 @@ export class StateOracle implements Oracle<Spec> {
     for (const c of spec.checks) {
       try {
         const { rows, truncated } = await this.readAllRows(ctx.workspaceId, c.app, c.path);
-        checks.push(checkOne(rows, c, truncated));
+        const fetchRow = (path: string) => this.reader.get(ctx.workspaceId, c.app, path);
+        checks.push(await checkOne(rows, c, truncated, fetchRow));
       } catch (err) {
         checks.push({ name: c.name, ok: false, note: `${c.app}${c.path} unreachable: ${(err as Error).message}` });
       }

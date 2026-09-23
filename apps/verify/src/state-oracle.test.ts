@@ -236,6 +236,153 @@ describe("StateOracle", () => {
     });
   });
 
+  describe("expect: array-any and recursive object matching", () => {
+    it("an object expect value against an ARRAY field passes if ANY element satisfies every key", async () => {
+      const reader = new MemoryStateReader();
+      reader.seed("warehouse", "/api/v1/orders/SO-1", {
+        orderNo: "SO-1",
+        lines: [
+          { sku: "A", qty: 5 },
+          { sku: "B", qty: 1 },
+        ],
+      });
+      const result = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([{ name: "line-match", app: "warehouse", path: "/api/v1/orders/SO-1", expect: { lines: { sku: "A", qty: 5 } } }]),
+        ctx,
+      );
+      expect(result.verdict).toBe("OK");
+    });
+
+    it("an object expect value against a non-array object field recurses key by key", async () => {
+      const reader = new MemoryStateReader();
+      reader.seed("warehouse", "/api/v1/orders/SO-1", { orderNo: "SO-1", customer: { code: "C-1", name: "Acme" } });
+      const ok = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([{ name: "nested-ok", app: "warehouse", path: "/api/v1/orders/SO-1", expect: { customer: { code: "C-1" } } }]),
+        ctx,
+      );
+      expect(ok.verdict).toBe("OK");
+
+      const reader2 = new MemoryStateReader();
+      reader2.seed("warehouse", "/api/v1/orders/SO-1", { orderNo: "SO-1", customer: { code: "C-2", name: "Acme" } });
+      const fail = await new StateOracle(reader2).check(
+        Buffer.alloc(0),
+        spec([{ name: "nested-fail", app: "warehouse", path: "/api/v1/orders/SO-1", expect: { customer: { code: "C-1" } } }]),
+        ctx,
+      );
+      expect(fail.verdict).toBe("FAIL");
+    });
+  });
+
+  describe("rowPath (per-row detail fetch)", () => {
+    it("fetches the detail row per where-matched list row, substituting {field} from that row, and merges it under the list row for expect", async () => {
+      const reader = new MemoryStateReader();
+      reader.seed("warehouse", "/api/v1/orders", [{ orderNo: "SO-1", customerCode: "C-1", status: "open" }]);
+      reader.seed("warehouse", "/api/v1/orders/SO-1", { orderNo: "SO-1", lines: [{ sku: "A", qty: 5 }] });
+      const result = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([
+          {
+            name: "line-match",
+            app: "warehouse",
+            path: "/api/v1/orders",
+            where: { customerCode: "C-1", status: "open" },
+            rowPath: "/api/v1/orders/{orderNo}",
+            expect: { lines: { sku: "A", qty: 5 } },
+          },
+        ]),
+        ctx,
+      );
+      expect(result.verdict).toBe("OK");
+    });
+
+    it("FAILs when only the sku matches on the line (qty differs) — one field varied from the passing case", async () => {
+      const reader = new MemoryStateReader();
+      reader.seed("warehouse", "/api/v1/orders", [{ orderNo: "SO-1", customerCode: "C-1", status: "open" }]);
+      reader.seed("warehouse", "/api/v1/orders/SO-1", { orderNo: "SO-1", lines: [{ sku: "A", qty: 99 }] });
+      const result = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([
+          {
+            name: "line-match",
+            app: "warehouse",
+            path: "/api/v1/orders",
+            where: { customerCode: "C-1", status: "open" },
+            rowPath: "/api/v1/orders/{orderNo}",
+            expect: { lines: { sku: "A", qty: 5 } },
+          },
+        ]),
+        ctx,
+      );
+      expect(result.verdict).toBe("FAIL");
+    });
+
+    it("FAILs when only the qty matches on the line (sku differs) — the other field varied from the passing case", async () => {
+      const reader = new MemoryStateReader();
+      reader.seed("warehouse", "/api/v1/orders", [{ orderNo: "SO-1", customerCode: "C-1", status: "open" }]);
+      reader.seed("warehouse", "/api/v1/orders/SO-1", { orderNo: "SO-1", lines: [{ sku: "Z", qty: 5 }] });
+      const result = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([
+          {
+            name: "line-match",
+            app: "warehouse",
+            path: "/api/v1/orders",
+            where: { customerCode: "C-1", status: "open" },
+            rowPath: "/api/v1/orders/{orderNo}",
+            expect: { lines: { sku: "A", qty: 5 } },
+          },
+        ]),
+        ctx,
+      );
+      expect(result.verdict).toBe("FAIL");
+    });
+
+    it("stops after MAX_ROW_FETCHES (20) detail fetches and notes it when no examined row matches", async () => {
+      class CountingRowReader implements WorkspaceStateReader {
+        detailCalls = 0;
+        async get(_workspaceId: string, _app: string, path: string): Promise<unknown> {
+          if (path === "/api/v1/orders") {
+            const items = Array.from({ length: 21 }, (_, i) => ({ orderNo: `SO-${i + 1}`, customerCode: "C-1", status: "open" }));
+            return { items, nextCursor: null };
+          }
+          this.detailCalls++;
+          return { orderNo: path.split("/").pop(), lines: [{ sku: "Z", qty: 999 }] };
+        }
+      }
+      const reader = new CountingRowReader();
+      const result = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([
+          {
+            name: "line-match",
+            app: "warehouse",
+            path: "/api/v1/orders",
+            where: { customerCode: "C-1", status: "open" },
+            rowPath: "/api/v1/orders/{orderNo}",
+            expect: { lines: { sku: "A", qty: 5 } },
+          },
+        ]),
+        ctx,
+      );
+      expect(reader.detailCalls).toBe(20);
+      expect(result.verdict).toBe("FAIL");
+      expect(result.checks[0].note).toMatch(/20/);
+    });
+
+    it("a check without rowPath behaves exactly as it did before rowPath existed", async () => {
+      const reader = new MemoryStateReader();
+      reader.seed("warehouse", "/api/v1/orders", [{ no: "SO-1", status: "shipped" }]);
+      const result = await new StateOracle(reader).check(
+        Buffer.alloc(0),
+        spec([{ name: "shipped", app: "warehouse", path: "/api/v1/orders", where: { no: "SO-1" }, expect: { status: "shipped" } }]),
+        ctx,
+      );
+      expect(result.verdict).toBe("OK");
+    });
+  });
+
   it("the discriminated union recognizes kind: \"state\" and the registry can dispatch to it", () => {
     const parsed = taskSpecSchema.parse({
       id: "state-oracle-schema-test",

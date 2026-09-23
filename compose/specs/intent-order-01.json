@@ -15,7 +15,13 @@
         "count": {
           "min": 6
         },
-        "expect": {}
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "ADH-1038",
+            "qty": 40
+          }
+        }
       }
     ]
   }

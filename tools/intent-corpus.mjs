@@ -22,9 +22,11 @@
  * (task 10b) follows `nextCursor` and unwraps `items`, so a `where` filter
  * against those list routes now matches a real row — this tool no longer
  * needs to predict an order number to work around it. `GET /api/v1/orders/:no`
- * still nests line items under `lines[]`, which the oracle's flat `expect`
- * cannot address directly and which the list route never carries at all, so
- * intent-order-01 checks that an order exists rather than its line contents
+ * nests line items under `lines[]`, unreachable without a known order
+ * number; intent-order-01 reaches it anyway via `rowPath` (task 10b
+ * follow-up) — the oracle fetches the detail route per matched list row,
+ * `{orderNo}` resolved from that row, and matches `lines[]` array-any — so
+ * the check can require the actual SKU/qty, not just that an order exists
  * (see the .md).
  */
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -126,19 +128,21 @@ const specs = [
       kind: "state",
       checks: [
         {
-          // Filters the (now correctly paginated-through, task 10b) orders
-          // list by customer instead of predicting an order number. `lines`
-          // only exists on the detail route (OrderDetail in orders-repo.ts),
-          // which needs a known order number to reach — so this can't verify
-          // the SKU/qty of the line, only that the agent left the customer
-          // with one more open order than the seed already had. See
-          // intent-tasks.md for the full trade-off.
+          // Filters the (correctly paginated-through, task 10b) orders list
+          // by customer instead of predicting an order number, requiring
+          // one more open order than the seed already gave this customer
+          // (see orderCustomerExistingOpen above) — then (task 10b follow-
+          // up) fetches the DETAIL route per matched order (rowPath, {orderNo}
+          // resolved from the list row) and requires the derived SKU/qty to
+          // appear on an actual line (array-any expect against `lines[]`),
+          // so a wrong-SKU or wrong-qty order no longer passes.
           name: "order-open-for-customer",
           app: "warehouse",
           path: `/api/v1/orders?customer=${orderCustomer.code}&status=open`,
           where: { customerCode: orderCustomer.code, status: "open" },
           count: { min: orderCustomerExistingOpen + 1 },
-          expect: {},
+          rowPath: "/api/v1/orders/{orderNo}",
+          expect: { lines: { sku: orderProduct.sku, qty: ORDER_QTY } },
         },
       ],
     },
@@ -202,7 +206,7 @@ const tasks = [
     app: "warehouse",
     intent: `Place a new order for customer ${orderCustomer.name} (${orderCustomer.code}) for ${ORDER_QTY} units of the ${orderProduct.name} (SKU ${orderProduct.sku}).`,
     oracle: "state",
-    summary: `${orderCustomer.code} ends up with one more open order than the seed already gave it (checked by customer, not by a predicted order number; line contents aren't independently verified — see intent-tasks.md).`,
+    summary: `${orderCustomer.code} ends up with one more open order than the seed already gave it, and that order's line items actually contain ${ORDER_QTY} units of ${orderProduct.sku} (checked by customer, not a predicted order number, then verified on the fetched detail row).`,
   },
   {
     id: "intent-transfer-01",
@@ -273,23 +277,28 @@ envelope** \`{ items, nextCursor }\` (see \`apps/warehouse/src/api/routes.ts\`,
 follows \`nextCursor\` across pages (up to a bounded cap), so a \`where\`
 filter against those two LIST routes now matches a real row instead of
 silently seeing only \`{items, nextCursor}\` as one object. \`GET
-/api/v1/orders/:no\` still nests line items under \`lines: [{sku, qty,
-unitPriceCents}]\` (\`OrderDetail\` in \`orders-repo.ts\`), which the oracle's
-flat, per-field \`expect\` cannot reach into and which the list route never
-carries at all — that's why intent-order-01 below checks that an order
-exists rather than its line contents. intent-ticket-01 still targets a
-DETAIL route (\`/api/v1/tickets/:no\`) because it targets one specific,
-already-known seeded ticket number, not because the list route can't be
-filtered.
+/api/v1/orders/:no\` nests line items under \`lines: [{sku, qty,
+unitPriceCents}]\` (\`OrderDetail\` in \`orders-repo.ts\`), unreachable without
+a known order number — a task 10b follow-up added \`rowPath\`: for each
+\`where\`-matched list row (up to a bounded cap) the oracle fetches a detail
+path with \`{field}\` placeholders resolved from that row, then matches
+\`expect\` against the fetched row with the list row merged underneath. An
+object \`expect\` value against an array field is array-any (some element
+satisfies every key), so \`{ lines: { sku, qty } }\` requires an EXACT
+line, not just any line. intent-order-01 below uses this to verify the
+order's actual contents, not just that an order exists. intent-ticket-01
+still targets a DETAIL route (\`/api/v1/tickets/:no\`) directly (no
+\`rowPath\` needed) because it targets one specific, already-known seeded
+ticket number.
 
 ## intent-order-01 (state)
 
 **Intent:** "Place a new order for customer ${orderCustomer.name} (${orderCustomer.code}) for ${ORDER_QTY} units of the ${orderProduct.name} (SKU ${orderProduct.sku})."
 
-**Prerequisites:** a fresh \`acme-v1\` workspace at seed ${SEED}. Unlike the
-prior revision of this task, nothing further is assumed about
-\`warehouse.counters\` or prior orders — the check no longer predicts an order
-number, so it doesn't care how many orders (if any) already exist.
+**Prerequisites:** a fresh \`acme-v1\` workspace at seed ${SEED}. Nothing is
+assumed about \`warehouse.counters\` or prior orders — the check does not
+predict an order number, so it doesn't care how many orders (if any)
+already exist.
 
 **Derivation:** the check reads \`GET /api/v1/orders?customer=${orderCustomer.code}&status=open\`
 (narrowed server-side by the query params the route already supports) and
@@ -297,19 +306,16 @@ filters with \`where: { customerCode: "${orderCustomer.code}", status: "open" }\
 as a belt-and-suspenders match on the same fields. The seed already gives
 ${orderCustomer.code} **${orderCustomerExistingOpen}** open order(s)
 (counted straight from the generated rows, not hand-typed), so "at least one
-open order" alone would pass with no agent action at all — the check instead
+open order" alone would pass with no agent action at all — the check
 requires \`count.min: ${orderCustomerExistingOpen + 1}\`, true only once the
 agent has placed (and left open) one additional order, regardless of how
-many attempts it took to get there. \`GET /api/v1/orders/:no\` nests line
-items under \`lines: [{sku, qty, unitPriceCents}]\` (\`OrderDetail\` in
-\`orders-repo.ts\`) — an array the oracle's flat, per-field \`expect\` cannot
-reach into — and that detail route needs a known order number to call at
-all, which this check deliberately never predicts. **Trade-off:** this check
-therefore cannot verify the new order is actually for
-${ORDER_QTY} units of ${orderProduct.sku} rather than some other line; it
-only verifies the customer ends up with one more open order than the seed
-gave it. A line-item-aware oracle able to search-then-inspect would close
-this gap; none exists today.
+many attempts it took to get there. For each such matched order, \`rowPath:
+"/api/v1/orders/{orderNo}"\` fetches that order's detail route (\`{orderNo}\`
+resolved from the list row), and \`expect: { lines: { sku:
+"${orderProduct.sku}", qty: ${ORDER_QTY} } }\` requires an exact line to
+appear on it (array-any against \`lines[]\`) — so an order for the wrong SKU
+or the wrong quantity does not satisfy the check, even though it is open and
+belongs to the right customer.
 
 ## intent-transfer-01 (state)
 
