@@ -30,8 +30,21 @@ import { anthropicModel, jevModel } from "./decision-eval/models.mjs";
  */
 const LLM_MODELS = {
   "claude-haiku-4-5-20251001": { price: [1.0, 5.0], temperature: 0 },
-  "claude-sonnet-5": { price: [3.0, 15.0], temperature: null },
+  // Thinks adaptively BY DEFAULT: with the direct-answer budget the thinking
+  // eats the tokens and no answer is written (26/30 SLA claims came back
+  // empty), so the direct arm turns it off explicitly.
+  "claude-sonnet-5": { price: [3.0, 15.0], temperature: null, thinksByDefault: true },
 };
+
+/**
+ * `anthropic:<model>` = a direct answer (thinking off, 80 output tokens) — the
+ * like-for-like baseline for a decision model. `anthropic:<model>+think` =
+ * adaptive thinking with room to finish (2,000 tokens) — a reasoning ceiling.
+ */
+function thinkingFor(spec, entry) {
+  if (spec.endsWith("+think")) return { thinking: { type: "adaptive" }, maxTokens: 2000 };
+  return { thinking: entry.thinksByDefault ? { type: "disabled" } : undefined, maxTokens: 80 };
+}
 
 function parseArgs(argv) {
   const args = { seed: 4242, models: "jev:jev-latest,anthropic:claude-haiku-4-5-20251001,anthropic:claude-sonnet-5", families: null, concurrency: 4, out: "decision-eval" };
@@ -54,15 +67,20 @@ export function makeModel(spec, env = process.env) {
     return jevModel({ baseUrl: env.JEV_BASE_URL ?? "https://api.typesafe.ai", apiKey: env.JEV_API_KEY, model });
   }
   if (kind === "anthropic") {
-    const spec = LLM_MODELS[model];
-    if (!spec) throw new Error(`no entry for ${model} — add it to LLM_MODELS`);
+    const id = model.replace(/\+think$/, "");
+    const entry = LLM_MODELS[id];
+    if (!entry) throw new Error(`no entry for ${id} — add it to LLM_MODELS`);
+    const { thinking, maxTokens } = thinkingFor(model, entry);
     return anthropicModel({
       baseUrl: env.LLM_BASE_URL ?? "https://api.anthropic.com",
       apiKey: env.LLM_API_KEY ?? "",
-      model,
-      inputUsdPerMTok: spec.price[0],
-      outputUsdPerMTok: spec.price[1],
-      temperature: spec.temperature,
+      model: id,
+      name: model,
+      inputUsdPerMTok: entry.price[0],
+      outputUsdPerMTok: entry.price[1],
+      temperature: thinking?.type === "adaptive" ? null : entry.temperature,
+      thinking,
+      maxTokens,
     });
   }
   throw new Error(`unknown model kind "${kind}" (jev | anthropic)`);

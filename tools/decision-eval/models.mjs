@@ -75,16 +75,23 @@ function firstJson(text) {
   }
 }
 
-export function anthropicModel({ baseUrl, apiKey, model, inputUsdPerMTok, outputUsdPerMTok, temperature = 0, timeoutMs = 60_000 }) {
+export function anthropicModel({ baseUrl, apiKey, model, name, inputUsdPerMTok, outputUsdPerMTok, temperature = 0, thinking, maxTokens = 80, timeoutMs = 120_000 }) {
   return {
-    name: model,
+    name: name ?? model,
     kind: "llm",
     async answer(item) {
       const { value: res, latencyMs } = await timed(() =>
         fetch(`${baseUrl}/v1/messages`, {
           method: "POST",
           headers: { "x-api-key": apiKey, "anthropic-version": ANTHROPIC_VERSION, "content-type": "application/json" },
-          body: JSON.stringify({ model, max_tokens: 80, ...(temperature === null ? {} : { temperature }), system: SYSTEM, messages: [{ role: "user", content: promptFor(item) }] }),
+          body: JSON.stringify({
+            model,
+            max_tokens: maxTokens,
+            ...(temperature === null ? {} : { temperature }),
+            ...(thinking ? { thinking } : {}),
+            system: SYSTEM,
+            messages: [{ role: "user", content: promptFor(item) }],
+          }),
           signal: AbortSignal.timeout(timeoutMs),
         }),
       );
