@@ -12,7 +12,18 @@ import { helpdeskTools } from "./mcp/tools.js";
 import { helpdeskItems } from "./nlweb/items.js";
 import { registerUi } from "./ui/routes.js";
 
-export type BuildDeps = { pool: Pool; scenarios: ScenarioRegistry; mailer: Mailer; gatewaySecret: string; sessionTtlSeconds: number; ranker: Ranker; logLevel?: string };
+export type BuildDeps = {
+  pool: Pool;
+  scenarios: ScenarioRegistry;
+  mailer: Mailer;
+  gatewaySecret: string;
+  sessionTtlSeconds: number;
+  ranker: Ranker;
+  logLevel?: string;
+  /** Eval-only X-Ask-Ranker override — see AskDeps.allowRankerOverride/rankerFor in @benchme/site-kit. */
+  allowRankerOverride?: boolean;
+  rankerFor?: (kind: string) => Ranker | undefined;
+};
 
 /** Composition root: repos → services → routes. */
 export async function buildHelpdesk(d: BuildDeps): Promise<FastifyInstance> {
@@ -53,7 +64,14 @@ export async function buildHelpdesk(d: BuildDeps): Promise<FastifyInstance> {
     registerMcp(scope, { serverName: "benchme-helpdesk", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, tickets, actor: "agent" }) }),
   );
   await app.register(async (scope) =>
-    registerNlweb(scope, { site: "helpdesk", items: (workspaceId, prefix) => helpdeskItems(tickets, workspaceId, prefix), ranker: d.ranker, publicBaseUrl: defaultPublicBaseUrl }),
+    registerNlweb(scope, {
+      site: "helpdesk",
+      items: (workspaceId, prefix) => helpdeskItems(tickets, workspaceId, prefix),
+      ranker: d.ranker,
+      publicBaseUrl: defaultPublicBaseUrl,
+      allowRankerOverride: d.allowRankerOverride,
+      rankerFor: d.rankerFor,
+    }),
   );
   return app;
 }

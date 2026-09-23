@@ -8,7 +8,16 @@ import { vaultExtras } from "./mcp/extras.js";
 import { vaultTools } from "./mcp/tools.js";
 import { vaultItems } from "./nlweb/items.js";
 
-export type BuildDeps = { pool: Pool; scenarios: ScenarioRegistry; gatewaySecret: string; ranker: Ranker; logLevel?: string };
+export type BuildDeps = {
+  pool: Pool;
+  scenarios: ScenarioRegistry;
+  gatewaySecret: string;
+  ranker: Ranker;
+  logLevel?: string;
+  /** Eval-only X-Ask-Ranker override — see AskDeps.allowRankerOverride/rankerFor in @benchme/site-kit. */
+  allowRankerOverride?: boolean;
+  rankerFor?: (kind: string) => Ranker | undefined;
+};
 
 /** Read-only document vault: UI + REST + MCP (resources, tools, prompts). No signups. */
 export async function buildVaultdocs(d: BuildDeps): Promise<FastifyInstance> {
@@ -63,7 +72,14 @@ export async function buildVaultdocs(d: BuildDeps): Promise<FastifyInstance> {
     registerMcp(scope, { serverName: "benchme-vaultdocs", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, repo }), extras: vaultExtras }),
   );
   await app.register(async (scope) =>
-    registerNlweb(scope, { site: "vaultdocs", items: (workspaceId, prefix) => vaultItems(repo, workspaceId, prefix), ranker: d.ranker, publicBaseUrl: defaultPublicBaseUrl }),
+    registerNlweb(scope, {
+      site: "vaultdocs",
+      items: (workspaceId, prefix) => vaultItems(repo, workspaceId, prefix),
+      ranker: d.ranker,
+      publicBaseUrl: defaultPublicBaseUrl,
+      allowRankerOverride: d.allowRankerOverride,
+      rankerFor: d.rankerFor,
+    }),
   );
   return app;
 }

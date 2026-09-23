@@ -44,6 +44,8 @@ x-common-env: &common-env
 
 x-app: &app
   restart: unless-stopped
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   depends_on:
     migrate-verify:
       condition: service_completed_successfully
