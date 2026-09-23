@@ -17,6 +17,12 @@ export type ShellCtx = {
   nav: NavLink[];
   user: { email: string; displayName: string } | null;
   flash?: string | undefined;
+  /** Extra tags inside <head> (e.g. a rel="nlweb" link, JSON-LD). Rendered verbatim. */
+  head?: string;
+  /** Scripts rendered verbatim before </body> (the WebMCP bridge lives here). */
+  scripts?: string[];
+  /** Pages are noindex by default; a surface meant for crawlers opts in. */
+  robots?: "noindex" | "index";
 };
 
 const STYLE = (accent: string) => `body{font:15px/1.5 system-ui,sans-serif;margin:0;color:#1b1b1b;background:#fafafa}
@@ -36,10 +42,10 @@ export function shell(ctx: ShellCtx, title: string, body: string): string {
   const who = ctx.user
     ? `<span>${esc(ctx.user.displayName)}</span><a href="${p}/account">Account</a><form method="post" action="${p}/logout" style="margin:0"><button style="margin:0;padding:.3em .7em">Sign out</button></form>`
     : `<a href="${p}/login">Sign in</a><a href="${p}/signup">Sign up</a>`;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} — ${esc(ctx.site)}</title><style>${STYLE(ctx.accent)}</style></head>
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="${ctx.robots === "index" ? "index,follow" : "noindex,nofollow"}">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} — ${esc(ctx.site)}</title><style>${STYLE(ctx.accent)}</style>${ctx.head ?? ""}</head>
 <body><header><a href="${p}/"><strong>${esc(ctx.site)}</strong></a>${nav}<span class="sp"></span>${who}</header>
-<main>${ctx.flash ? `<div class="flash">${esc(ctx.flash)}</div>` : ""}${body}</main></body></html>`;
+<main>${ctx.flash ? `<div class="flash">${esc(ctx.flash)}</div>` : ""}${body}</main>${(ctx.scripts ?? []).join("")}</body></html>`;
 }
 
 /** The auth pages every site shares (signup / verify / login / account). */
