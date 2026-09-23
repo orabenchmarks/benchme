@@ -1,0 +1,26 @@
+{
+  "id": "intent-order-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "order-open-for-customer",
+        "app": "warehouse",
+        "path": "/api/v1/orders/SO-30001",
+        "expect": {
+          "customerCode": "C-108",
+          "status": "open"
+        }
+      },
+      {
+        "name": "order-line-total-cents",
+        "app": "warehouse",
+        "path": "/api/v1/orders/SO-30001",
+        "expect": {
+          "totalCents": 897000
+        }
+      }
+    ]
+  }
+}

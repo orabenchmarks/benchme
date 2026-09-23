@@ -1,0 +1,44 @@
+[
+  {
+    "id": "intent-order-01",
+    "app": "warehouse",
+    "intent": "Place a new order for customer Vidorfal Industrial (C-108) for 40 units of the Marmar Marka kit (SKU ADH-1038).",
+    "oracle": "state",
+    "summary": "An open order for C-108 whose total equals 40 × the SKU's unit price (line items are nested, so the check compares the derived total)."
+  },
+  {
+    "id": "intent-transfer-01",
+    "app": "warehouse",
+    "intent": "Transfer 12 units of the Kalo Quendor kit (SKU FAS-1096) from depot VLM to depot OST, and complete the transfer.",
+    "oracle": "state",
+    "summary": "A completed transfer of 12 units of FAS-1096 from VLM to OST."
+  },
+  {
+    "id": "intent-stock-01",
+    "app": "warehouse",
+    "intent": "How many units of the Quentho Dordor pack (SKU ENC-1027) are currently in stock across all depots? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Total stock of ENC-1027 across every depot, derived by stockOf()."
+  },
+  {
+    "id": "intent-lowstock-01",
+    "app": "warehouse",
+    "intent": "Which SKUs currently have fewer than 10 total units in stock across all depots? Answer as JSON: {\"skus\": \"<comma-separated SKUs, ascending>\"}.",
+    "oracle": "json",
+    "summary": "The low-stock SKU set at threshold 10, derived by lowStock()."
+  },
+  {
+    "id": "intent-ticket-01",
+    "app": "helpdesk",
+    "intent": "Assign helpdesk ticket HD-5001 to agent Teodor Voss (AG-13) and mark it resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5001 assigned to AG-13 with status resolved."
+  },
+  {
+    "id": "intent-doc-01",
+    "app": "vaultdocs",
+    "intent": "Search the document vault for the document about returns and warranty policy and report its document id as JSON: {\"documentId\": \"<id>\"}.",
+    "oracle": "json",
+    "summary": "The id of the single vault document matching \"returns and warranty policy\", derived by documentsMatching()."
+  }
+]
