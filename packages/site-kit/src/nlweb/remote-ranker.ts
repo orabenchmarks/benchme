@@ -100,6 +100,8 @@ export abstract class RemoteRanker implements Ranker {
   private async call(query: string, item: AskItem, meter: Meter): Promise<Verdict> {
     const { url, init } = this.request(query, item);
     for (let attempt = 0; ; attempt++) {
+      // Attempts, retries included: `calls` is what the provider's rate limit
+      // counts, so a query that retried its way to an answer still shows it.
       meter.calls++;
       // A network error throws straight out: retrying a refused connection just
       // delays the degraded answer the caller is already waiting for.
