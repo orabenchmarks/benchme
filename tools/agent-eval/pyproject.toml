@@ -1,0 +1,27 @@
+[project]
+name = "benchme-agent-eval"
+version = "0.1.0"
+description = "Benchmark a decision model inside one agent loop across three ways of reaching a site: browser, WebMCP, NLWeb"
+requires-python = ">=3.12"
+dependencies = [
+  # The browser action space (snapshot, indexed elements, guarded executor) is
+  # jev-ultrafast's own, pinned — the benchmark swaps only the DECIDER.
+  "jev-ultrafast @ git+https://github.com/browser-use/jev-ultrafast@1231850",
+  "httpx[http2]>=0.28,<1",
+]
+
+[project.scripts]
+agent-eval = "agent_eval.runner:main"
+
+[dependency-groups]
+dev = ["pytest>=8.4,<9"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent_eval"]

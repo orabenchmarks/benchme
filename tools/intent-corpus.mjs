@@ -32,6 +32,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { acmeV1, documentsMatching, lowStock, stockOf } from "../packages/scenarios/dist/index.js";
+import { deriveReads } from "./intent-corpus/reads.mjs";
 
 const args = Object.fromEntries(process.argv.slice(2).map((a, i, all) => (a.startsWith("--") ? [a.slice(2), all[i + 1]] : [])).filter((e) => e.length));
 const SEED = Number(args.seed ?? 4242);
@@ -113,6 +114,11 @@ function pickUniqueDocument() {
 }
 const docPick = pickUniqueDocument();
 if (!docPick) problems.push(`no vault document has a title that uniquely matches itself for seed ${SEED}`);
+
+const reads = problems.length
+  ? { problems: [], specs: [], tasks: [], md: "" }
+  : deriveReads(rows, { seed: SEED, avoid: { skus: [orderStock.sku, transferSrc.sku], ticketNo: ticketCandidate.ticketNo, docId: docPick.doc.id } });
+problems.push(...reads.problems);
 
 if (problems.length) {
   console.error(`intent-corpus refused (seed ${SEED}):\n  ${problems.join("\n  ")}`);
@@ -198,11 +204,15 @@ const specs = [
 ];
 
 // ─── the public corpus: the NL intent a visitor would type, never the
+// answer for a json task. `surfaces` = which of a site's doors can answer it:
+// "pages" (its web UI), "tools" (WebMCP / MCP), "nlweb" (its /ask index —
+// retrieval only, and its schema.org items carry no stock quantities).
 // answer for a json task (a state task's intent necessarily states the
 // desired quantities — that's the instruction, not a leaked answer) ───────
 const tasks = [
   {
     id: "intent-order-01",
+    surfaces: ["pages", "tools"],
     app: "warehouse",
     intent: `Place a new order for customer ${orderCustomer.name} (${orderCustomer.code}) for ${ORDER_QTY} units of the ${orderProduct.name} (SKU ${orderProduct.sku}).`,
     oracle: "state",
@@ -210,6 +220,7 @@ const tasks = [
   },
   {
     id: "intent-transfer-01",
+    surfaces: ["pages", "tools"],
     app: "warehouse",
     intent: `Transfer ${TRANSFER_QTY} units of the ${transferProduct.name} (SKU ${transferProduct.sku}) from depot ${transferSrc.locationCode} to depot ${transferTo}, and complete the transfer.`,
     oracle: "state",
@@ -217,6 +228,7 @@ const tasks = [
   },
   {
     id: "intent-stock-01",
+    surfaces: ["pages", "tools"],
     app: "warehouse",
     intent: `How many units of the ${stockProduct.name} (SKU ${stockProduct.sku}) are currently in stock across all depots? Answer as JSON: {"qty": <number>}.`,
     oracle: "json",
@@ -224,6 +236,7 @@ const tasks = [
   },
   {
     id: "intent-lowstock-01",
+    surfaces: ["pages", "tools"],
     app: "warehouse",
     intent: `Which SKUs currently have fewer than ${LOW_THRESHOLD} total units in stock across all depots? Answer as JSON: {"skus": "<comma-separated SKUs, ascending>"}.`,
     oracle: "json",
@@ -231,6 +244,7 @@ const tasks = [
   },
   {
     id: "intent-ticket-01",
+    surfaces: ["pages", "tools"],
     app: "helpdesk",
     intent: `Assign helpdesk ticket ${ticketCandidate.ticketNo} to agent ${ticketAgent.name} (${ticketAgent.code}) and mark it resolved.`,
     oracle: "state",
@@ -238,12 +252,16 @@ const tasks = [
   },
   {
     id: "intent-doc-01",
+    surfaces: ["pages", "tools", "nlweb"],
     app: "vaultdocs",
     intent: `Search the document vault for the document about ${docPick.phrase} and report its document id as JSON: {"documentId": "<id>"}.`,
     oracle: "json",
     summary: `The id of the single vault document matching "${docPick.phrase}", derived by documentsMatching().`,
   },
 ];
+
+specs.push(...reads.specs);
+tasks.push(...reads.tasks);
 
 if (PRINT) {
   const spec = specs.find((s) => s.id === PRINT);
@@ -262,11 +280,11 @@ writeFileSync(join(OUT, "intent-tasks.json"), `${JSON.stringify(tasks, null, 2)}
 
 const md = `# Intent corpus (task 11)
 
-Six natural-language intent tasks against a fresh \`acme-v1\` workspace
+${tasks.length} natural-language intent tasks against a fresh \`acme-v1\` workspace
 (\`node tools/intent-corpus.mjs --seed ${SEED}\`). Every derived value comes
 from \`@benchme/scenarios\`' generator or \`answers.ts\` helpers — never typed
 by hand — so re-running the tool for a different seed regenerates matching
-specs and \`intent-tasks.json\` together. All six assume the SAME fresh
+specs and \`intent-tasks.json\` together. All of them assume the SAME fresh
 workspace (seed ${SEED}); none of them create their own workspace.
 
 Two REST-shape facts, true for every task below, are worth stating once:
@@ -403,6 +421,6 @@ matched more than one document, or zero, would make the task's answer
 ambiguous or unreachable; the tool refuses to emit the corpus if that ever
 happens for a given seed.
 `;
-writeFileSync(join(OUT, "intent-tasks.md"), md);
+writeFileSync(join(OUT, "intent-tasks.md"), md + reads.md);
 
 console.log(JSON.stringify({ seed: SEED, out: OUT, tasks: tasks.map((t) => t.id) }, null, 2));
