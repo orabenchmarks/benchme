@@ -132,14 +132,21 @@ LLM_SYSTEM = (
 
 
 def _first_json(text: str) -> dict | None:
-    start, end = text.find("{"), text.rfind("}")
-    if start < 0 or end <= start:
-        return None
-    try:
-        parsed = json.loads(text[start : end + 1])
-    except json.JSONDecodeError:
-        return None
-    return parsed if isinstance(parsed, dict) else None
+    """The FIRST complete JSON object in the reply. An LLM may wrap it in a code
+    fence or follow it with prose that contains braces of its own, so slicing
+    first-`{`-to-last-`}` would reject a perfectly good answer."""
+    decoder = json.JSONDecoder()
+    start = text.find("{")
+    while start >= 0:
+        try:
+            parsed, _ = decoder.raw_decode(text, start)
+        except json.JSONDecodeError:
+            start = text.find("{", start + 1)
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+        start = text.find("{", start + 1)
+    return None
 
 
 class LlmDecider:

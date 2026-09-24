@@ -36,6 +36,12 @@ def test_first_json_survives_prose_around_the_object():
     assert _first_json("no json here") is None
 
 
+def test_first_json_ignores_braces_in_trailing_prose():
+    # Haiku, live: a fenced answer, then prose quoting the final answer object.
+    reply = '```json\n{"operation": {"choice": "DONE", "confidence": 0.99}}\n```\nSo the answer is {"qty": 683}.'
+    assert _first_json(reply) == {"operation": {"choice": "DONE", "confidence": 0.99}}
+
+
 def test_nlweb_record_id_is_the_last_url_segment():
     assert _id({"url": "/w/ws_1/warehouse/customers/C-114"}) == "C-114"
     assert _id({"url": "/w/ws_1/vaultdocs/documents/doc-137/"}) == "doc-137"
