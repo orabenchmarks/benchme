@@ -200,6 +200,38 @@ either side at a proxy; route both through the same one when comparing
 latency. Its own tests: `node --test tools/decision-eval.test.mjs` (they
 assert every match item has exactly one fully-matching option).
 
+## Benchmark a decider inside an agent — three doors, one loop
+
+```bash
+cd tools/agent-eval && uv sync
+BU_CDP_URL=http://127.0.0.1:9222 JEV_API_KEY=… LLM_API_KEY=… \
+  uv run agent-eval --protocols browser,webmcp,nlweb --deciders jev,claude-haiku-4-5-20251001 --repeats 5
+```
+
+One agent loop, three ways into the same site, and a swappable DECIDER:
+
+| door | the decider picks | the writer (a small LLM) writes |
+| --- | --- | --- |
+| `browser` | an operation (CLICK / TYPE_TEXT / SELECT / …) and the element — [jev-ultrafast](https://github.com/browser-use/jev-ultrafast)'s own snapshot, element table, questions and guarded executor, pinned | the text to type |
+| `webmcp` | CALL_TOOL / DONE and which of the page's `navigator.modelContext` tools (called inside the page, in its session) | the tool's arguments |
+| `nlweb` | ASK / OPEN a result / DONE (the site's `/ask` ranker follows the arm via `X-Ask-Ranker`) | the query |
+
+Both deciders answer the identical state and typed questions (TypeSafe's
+`/v1/systemone` shape): `jev` natively, an Anthropic model as strict JSON.
+The writer is the same model on both sides, so a gap between arms is the
+decider's. Every run gets a fresh workspace and a signed-in session; the
+verdict is the verifier's (`/w/<id>/verify/v1/submit/<task>`). A task runs
+on a door only if its corpus entry lists that surface (`surfaces`:
+`pages` / `tools` / `nlweb`). Needs a Chromium with a remote-debugging port
+(`BU_CDP_URL`), `ASK_RANKER_OVERRIDE=1` on the deployment for the NLWeb
+arm, and the verifier's specs mounted. Tests (offline):
+`uv run --group dev pytest`.
+
+One deviation from pinned jev-ultrafast: element labels the DECIDER sees are
+capped at 120 characters (its snapshot names a `<select>` after all its
+options and repeats that in every option — one 39-option dropdown exceeded
+jev's input limit). The executor always acts on the original element.
+
 ## Develop
 
 ```bash
