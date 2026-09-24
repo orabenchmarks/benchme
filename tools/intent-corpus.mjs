@@ -236,7 +236,9 @@ const tasks = [
   },
   {
     id: "intent-lowstock-01",
-    surfaces: ["pages", "tools"],
+    // Not "pages": no page lists stock totals — the answer needs every one of
+    // the 120 product pages opened. Its tools answer it in one call (low_stock).
+    surfaces: ["tools"],
     app: "warehouse",
     intent: `Which SKUs currently have fewer than ${LOW_THRESHOLD} total units in stock across all depots? Answer as JSON: {"skus": "<comma-separated SKUs, ascending>"}.`,
     oracle: "json",

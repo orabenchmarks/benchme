@@ -35,7 +35,6 @@
   {
     "id": "intent-lowstock-01",
     "surfaces": [
-      "pages",
       "tools"
     ],
     "app": "warehouse",

@@ -81,7 +81,8 @@ export class PgTicketsRepo implements TicketsRepo {
     if (f.assignee) add("assignee_code = ?", f.assignee);
     if (f.priority) add("priority = ?", f.priority);
     if (f.requester) add("requester = ?", f.requester);
-    if (f.query) add("(lower(subject) LIKE ? OR lower(body) LIKE $" + (params.length + 1) + ")", `%${f.query.toLowerCase()}%`);
+    // A ticket number is what a person types to find a ticket — match it too.
+    if (f.query) add("(lower(subject) LIKE ? OR lower(body) LIKE $" + (params.length + 1) + " OR lower(ticket_no) LIKE $" + (params.length + 1) + ")", `%${f.query.toLowerCase()}%`);
     if (f.cursor) add("ticket_no > ?", f.cursor);
     const r = await this.pool.query<TRow>(`SELECT * FROM helpdesk.tickets WHERE ${where} ORDER BY ticket_no LIMIT $2`, params);
     const items = r.rows.slice(0, f.limit).map(toTicket);

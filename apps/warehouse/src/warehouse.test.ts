@@ -157,6 +157,24 @@ describe.skipIf(!DB)("warehouse (real Postgres)", () => {
     expect(created.json().totalCents).toBe(2 * rows.warehouse.products.find((p) => p.sku === src.sku)!.unitPriceCents);
   });
 
+  it("names every row's Complete button after its own transfer, so an agent can tell them apart", async () => {
+    const token = await signupAndToken(ws, "rows@example.test");
+    const src = rows.warehouse.stock.find((s) => s.qty > 5)!;
+    const to = rows.warehouse.locations.find((l) => l.code !== src.locationCode)!.code;
+    const made = await app.inject(scoped({ method: "POST", url: "/api/v1/transfers", headers: { authorization: `Bearer ${token}` }, payload: { sku: src.sku, from: src.locationCode, to, qty: 1 } }));
+    const html = (await app.inject(scoped({ method: "GET", url: "/transfers" }))).body;
+    expect(html).toContain(`aria-label="Complete ${made.json().transferNo}"`);
+    // no pending row renders an unnamed Complete button
+    expect(html.match(/<button(?![^>]*aria-label)[^>]*>Complete<\/button>/g)).toBeNull();
+  });
+
+  it("/ask finds a customer by its code", async () => {
+    const fresh = await createWorkspace(4242);
+    const customer = rows.warehouse.customers[7]!;
+    const res = await app.inject(scoped({ method: "GET", url: `/ask?query=${customer.code}&streaming=false` }, fresh));
+    expect(res.json().results[0].schema_object["@id"]).toBe(`/w/${fresh}/warehouse/customers/${customer.code}`);
+  });
+
   it("exposes the tools over MCP streamable HTTP, scoped to the workspace in the URL", async () => {
     const client = new Client({ name: "test", version: "0" });
     const transport = new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), {

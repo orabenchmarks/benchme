@@ -60,13 +60,13 @@ function locationItem(prefix: string, l: { code: string; name: string; city: str
 
 function customerItem(prefix: string, c: { code: string; name: string; tier: string; city: string }): AskItem {
   const url = `${prefix}/customers/${c.code}`;
-  const text = `${c.name} is a ${c.tier} tier customer based in ${c.city}.`;
+  const text = `${c.name} (${c.code}) is a ${c.tier} tier customer based in ${c.city}.`;
   return {
     id: url,
     url,
     name: c.name,
     text,
-    keywords: [...wordVariants(c.tier), "customer", "customers", c.city.toLowerCase()],
+    keywords: [c.code.toLowerCase(), ...wordVariants(c.tier), "customer", "customers", c.city.toLowerCase()],
     schema: organization({ id: url, url, name: c.name, description: text }),
   };
 }
