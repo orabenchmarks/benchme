@@ -51,7 +51,7 @@ def test_every_task_declares_its_surfaces_and_answer_keys():
     tasks = load_tasks()
     assert len(tasks) == 10
     for t in tasks:
-        assert set(t.surfaces) <= {"pages", "tools", "nlweb"} and "pages" in t.surfaces
+        assert set(t.surfaces) <= {"pages", "tools", "nlweb"} and "tools" in t.surfaces  # every task has a tool path
         assert (t.oracle == "json") == bool(t.answer_keys)
         if "nlweb" in t.surfaces:
             assert t.oracle == "json"  # NLWeb is retrieval only

@@ -17,7 +17,7 @@ from jev_ultrafast.questions import NEXT_ACTION, TARGET, TEXT_VALUE
 
 from ..deciders import Decision, DecisionError
 from ..text import TextError, TextHelper
-from .base import BLOCKED, BLOCKED_LABEL, DONE, DONE_LABEL, Outcome, Pose, Target
+from .base import BLOCKED, BLOCKED_LABEL, DONE, DONE_LABEL, Outcome, Pose, Target, ensure_session
 
 #: Label cap for what the DECIDER sees (the executor always acts on the
 #: original observed action). The one deviation from pinned jev-ultrafast: its
@@ -65,6 +65,7 @@ class BrowserSpace:
         if target.cookies:
             cdp("Storage.setCookies", cookies=target.cookies)
         self.browser = Browser(target.app_url)
+        self.setup_notes = ensure_session(self.browser, target)
         self.page = self.browser.observe(screenshot=False)
 
     def pose(self, goal: str, history: list[dict]) -> Pose:

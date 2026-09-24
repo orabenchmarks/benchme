@@ -23,7 +23,7 @@ from jev_ultrafast.browser import Browser
 
 from ..deciders import Decision, DecisionError
 from ..text import TextError, TextHelper
-from .base import BLOCKED, BLOCKED_LABEL, DONE, DONE_LABEL, Outcome, Pose, Target
+from .base import BLOCKED, BLOCKED_LABEL, DONE, DONE_LABEL, Outcome, Pose, Target, ensure_session
 
 MODEL_CONTEXT_SHIM = """(() => {
   const tools = new Map();
@@ -72,6 +72,7 @@ class WebMcpSpace:
             if self.browser.evaluate("location.href") != "about:blank" and self.browser.evaluate("document.readyState") == "complete":
                 break
             time.sleep(0.05)
+        self.setup_notes = ensure_session(self.browser, target)
         listed = self.browser.evaluate(LIST_TOOLS) or []
         self.tools = {t["name"]: t for t in listed}
         if not self.tools:

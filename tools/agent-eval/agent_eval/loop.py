@@ -40,6 +40,7 @@ class RunResult:
     wall_ms: int = 0
     answer: dict | None = None
     error: str | None = None
+    setup_notes: list = field(default_factory=list)
     details: list = field(default_factory=list)
     history: list = field(default_factory=list)
 
@@ -67,6 +68,7 @@ def run_task(
     started = time.perf_counter()
     try:
         space.open(target)
+        result.setup_notes = list(getattr(space, "setup_notes", []))
         started = time.perf_counter()  # the clock starts once the site is loaded, as in jev-ultrafast
         for _ in range(max_steps):
             if time.perf_counter() - started > max_seconds:
