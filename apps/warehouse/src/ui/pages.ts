@@ -53,7 +53,7 @@ export function orderForm(p: string, customers: CustomerRow[]): string {
 }
 
 export function transfersList(p: string, items: TransferRow[]): string {
-  const rows = items.map((t) => `<tr><td>${esc(t.transferNo)}</td><td>${esc(t.sku)}</td><td>${esc(t.fromCode)} → ${esc(t.toCode)}</td><td>${t.qty}</td><td>${esc(t.status)}</td><td>${t.status === "pending" ? `<form method="post" action="${p}/transfers/${esc(t.transferNo)}/complete" style="margin:0"><button style="margin:0;padding:.2em .6em">Complete</button></form>` : ""}</td></tr>`).join("");
+  const rows = items.map((t) => `<tr><td>${esc(t.transferNo)}</td><td>${esc(t.sku)}</td><td>${esc(t.fromCode)} → ${esc(t.toCode)}</td><td>${t.qty}</td><td>${esc(t.status)}</td><td>${t.status === "pending" ? `<form method="post" action="${p}/transfers/${esc(t.transferNo)}/complete" style="margin:0"><button aria-label="Complete ${esc(t.transferNo)}" style="margin:0;padding:.2em .6em">Complete</button></form>` : ""}</td></tr>`).join("");
   return `<h1>Transfers</h1><p><a href="${p}/transfers/new">New transfer</a></p><table><tr><th>No</th><th>SKU</th><th>Route</th><th>Qty</th><th>Status</th><th></th></tr>${rows}</table>`;
 }
 

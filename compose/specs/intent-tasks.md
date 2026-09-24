@@ -1,10 +1,10 @@
 # Intent corpus (task 11)
 
-Six natural-language intent tasks against a fresh `acme-v1` workspace
+10 natural-language intent tasks against a fresh `acme-v1` workspace
 (`node tools/intent-corpus.mjs --seed 4242`). Every derived value comes
 from `@benchme/scenarios`' generator or `answers.ts` helpers — never typed
 by hand — so re-running the tool for a different seed regenerates matching
-specs and `intent-tasks.json` together. All six assume the SAME fresh
+specs and `intent-tasks.json` together. All of them assume the SAME fresh
 workspace (seed 4242); none of them create their own workspace.
 
 Two REST-shape facts, true for every task below, are worth stating once:
@@ -140,3 +140,18 @@ see `pickUniqueDocument()` in `tools/intent-corpus.mjs`. A phrase that
 matched more than one document, or zero, would make the task's answer
 ambiguous or unreachable; the tool refuses to emit the corpus if that ever
 happens for a given seed.
+
+## Read tasks answerable on every surface (pages, WebMCP/MCP tools, NLWeb)
+
+These four exist so ONE task set can compare a site's three doors. Each
+answer is present in the app's pages, its tools, AND its NLWeb `/ask`
+index (schema.org items). intent-stock-01 and intent-lowstock-01 are not in
+this set: NLWeb's Product items carry price and availability, not per-depot
+quantities.
+
+- **intent-price-01** — ENC-1035 "Quenquen Renmar kit" is the only product with that name; `price` = unitPriceCents / 100 = **50.25** (±0.005, a number).
+- **intent-customer-01** — **C-114** is the only gold-tier customer based in Quillhaven (uniqueness checked over all 40 customers).
+- **intent-reporter-01** — ticket HD-5090 was reported by **C-111** (not HD-5001, which intent-ticket-01 changes).
+- **intent-doc-02** — `documentsMatching(rows, "helpdesk faq")` = [**doc-137**], a faq (a different kind than intent-doc-01's document).
+
+All derived for seed 4242.

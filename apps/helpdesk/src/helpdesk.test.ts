@@ -150,6 +150,15 @@ describe.skipIf(!DB)("helpdesk (real Postgres)", () => {
     expect(new Set(ids)).toEqual(new Set(expected));
   });
 
+  it("finds a ticket by its number — in the UI search and through /ask", async () => {
+    const fresh = await createWorkspace(4242);
+    const ticket = rows.helpdesk.tickets[90]!;
+    const page = (await app.inject(scoped({ method: "GET", url: `/tickets?query=${ticket.ticketNo}` }, fresh))).body;
+    expect(page).toContain(`/tickets/${ticket.ticketNo}"`);
+    const res = await app.inject(scoped({ method: "GET", url: `/ask?query=${ticket.ticketNo}&streaming=false` }, fresh));
+    expect(res.json().results[0].schema_object["@id"]).toBe(`/w/${fresh}/helpdesk/tickets/${ticket.ticketNo}`);
+  });
+
   it("the schema feed is deterministic for a seed and every line is JSON-LD", async () => {
     const fresh = await createWorkspace(4242);
     const a = (await app.inject(scoped({ method: "GET", url: "/schema/feed.jsonl" }, fresh))).body;

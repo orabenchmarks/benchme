@@ -35,8 +35,9 @@ function ticketItem(prefix: string, t: TicketRow, comments: CommentRow[], agentB
     id: url,
     url,
     name: t.subject,
-    text: t.body,
-    keywords: [...wordVariants(t.priority), ...wordVariants(t.status)],
+    // The ticket number leads the searchable text: it is how people ask for a ticket.
+    text: `Ticket ${t.ticketNo}. ${t.body}`,
+    keywords: [t.ticketNo.toLowerCase(), ...wordVariants(t.priority), ...wordVariants(t.status)],
     schema: question({
       id: url,
       url,
