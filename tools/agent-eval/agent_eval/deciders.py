@@ -79,6 +79,8 @@ def _validate(answers: dict, questions: dict) -> dict[str, dict]:
     out: dict[str, dict] = {}
     for qid, question in questions.items():
         answer = answers.get(qid)
+        if isinstance(answer, str):  # a bare option id is still an answer (format, not decision)
+            answer = {"choice": answer}
         if not isinstance(answer, dict):
             continue
         choice = answer.get("choice")
@@ -143,7 +145,7 @@ def _first_json(text: str) -> dict | None:
 class LlmDecider:
     """An Anthropic-compatible LLM answering the identical state and questions."""
 
-    def __init__(self, base_url: str, api_key: str, model: str, usd_per_mtok: tuple[float, float], max_tokens: int = 600):
+    def __init__(self, base_url: str, api_key: str, model: str, usd_per_mtok: tuple[float, float], max_tokens: int = 1500):
         self.name = model
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key

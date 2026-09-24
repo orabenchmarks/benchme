@@ -22,7 +22,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from .deciders import Decider, JevDecider, LlmDecider
-from .loop import run_task
+from .loop import RunResult, run_task
 from .report import render
 from .spaces.base import ActionSpace, Target
 from .spaces.browser import BrowserSpace
@@ -63,6 +63,7 @@ def main() -> None:
     parser.add_argument("--deciders", default="jev,claude-haiku-4-5-20251001")
     parser.add_argument("--tasks", default="", help="comma-separated task ids (default: all)")
     parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument("--first-repeat", type=int, default=0, help="shard repeats across processes")
     parser.add_argument("--seed", type=int, default=4242)
     parser.add_argument("--scenario", default="acme-v1")
     parser.add_argument("--max-steps", type=int, default=30)
@@ -81,17 +82,21 @@ def main() -> None:
     runs_path = out.with_suffix(".jsonl")
 
     with runs_path.open("a") as sink:
-        for repeat in range(args.repeats):
+        for repeat in range(args.first_repeat, args.first_repeat + args.repeats):
             for task in tasks:
                 for protocol in args.protocols.split(","):
                     for name, decider in deciders.items():
                         space = SPACES[protocol](name)
                         if space.surface not in task.surfaces:
                             continue
-                        workspace = mint(base, args.scenario, args.seed, os.environ.get("BENCHME_OPERATOR_KEY"))
-                        cookies = sign_in(base, workspace, task.app) if protocol != "nlweb" else []
-                        target = Target(base, workspace, task.app, cookies)
-                        result = run_task(space, decider, text, task, target, repeat, args.max_steps, args.max_seconds)
+                        try:
+                            workspace = mint(base, args.scenario, args.seed, os.environ.get("BENCHME_OPERATOR_KEY"))
+                            cookies = sign_in(base, workspace, task.app) if protocol != "nlweb" else []
+                        except Exception as err:  # noqa: BLE001 — setup failed: an ERROR row, never a crash
+                            result = RunResult(protocol, name, task.id, repeat, "", end="setup", error=f"{type(err).__name__}: {err}"[:300])
+                        else:
+                            target = Target(base, workspace, task.app, cookies)
+                            result = run_task(space, decider, text, task, target, repeat, args.max_steps, args.max_seconds)
                         sink.write(json.dumps(result.to_json()) + "\n")
                         sink.flush()
                         print(f"{protocol:8} {name:28} {task.id:20} r{repeat} {result.verdict:5} {result.end:11} "

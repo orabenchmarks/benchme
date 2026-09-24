@@ -30,7 +30,10 @@ def sign_in(base: str, workspace: str, app: str) -> list[dict]:
     root = f"{base}/w/{workspace}/{app}"
     password = secrets.token_urlsafe(12)
     with httpx.Client(timeout=30, follow_redirects=False) as client:
-        client.post(f"{root}/signup", data={"email": EMAIL, "password": password, "name": "Agent"}).raise_for_status()
+        signup = client.post(f"{root}/signup", data={"email": EMAIL, "password": password, "name": "Agent"})
+        if signup.status_code == 404:
+            return []  # a read-only app (the vault) has no accounts; nothing to sign in to
+        signup.raise_for_status()
         mail = client.get(f"{base}/w/{workspace}/mail/api/v1/messages").json()
         codes = [m for m in mail if m.get("to") == EMAIL and app in m.get("from", "")]
         match = re.search(r"\b(\d{6})\b", codes[-1]["body"]) if codes else None

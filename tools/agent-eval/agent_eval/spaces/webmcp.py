@@ -112,6 +112,9 @@ class WebMcpSpace:
             return Outcome("blocked", {"action": name, "kind": "call", "error": str(err)})
         calls = [{"latency_ms": written.latency_ms, "cost_usd": written.cost_usd}]
         args = written.value.get("arguments")
+        properties = set((tool["inputSchema"] or {}).get("properties") or {})
+        if not isinstance(args, dict) and properties and set(written.value) <= properties:
+            args = written.value  # the arguments without their wrapper — a format slip, not a different call
         if not isinstance(args, dict):
             return Outcome("blocked", {"action": name, "kind": "call", "error": "no arguments object"}, calls)
         result = self._call(name, args)
