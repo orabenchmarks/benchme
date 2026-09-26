@@ -22,6 +22,15 @@ describe("ranker config", () => {
     expect(() => buildRanker({ ASK_RANKER: "llm", LLM_API_KEY: "k" })).toThrow("invalid configuration: ASK_RANKER=llm requires LLM_BASE_URL");
   });
 
+  // compose passes an unset key as an EMPTY string (`${LLM_API_KEY:-}`): the
+  // documented `docker compose up` must boot lexical, and an llm arm whose keys
+  // are empty must still fail boot naming both.
+  it("reads compose's empty keys as unset", () => {
+    const compose = { LLM_BASE_URL: "", LLM_API_KEY: "", JEV_API_KEY: "" };
+    expect(buildRanker(compose).kind).toBe("lexical");
+    expect(() => buildRanker({ ...compose, ASK_RANKER: "llm" })).toThrow("invalid configuration: ASK_RANKER=llm requires LLM_BASE_URL and LLM_API_KEY");
+  });
+
   it("builds the selected ranker once its credentials are present", () => {
     expect(buildRanker({ ASK_RANKER: "jev", JEV_API_KEY: "k" }).kind).toBe("jev");
     expect(buildRanker({ ASK_RANKER: "llm", LLM_BASE_URL: "http://llm.test", LLM_API_KEY: "k" }).kind).toBe("llm");
