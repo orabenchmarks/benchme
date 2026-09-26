@@ -1,0 +1,13 @@
+{
+  "id": "intent-company-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "revenue": {
+        "value": 38902497,
+        "tolerance": 0.5
+      }
+    }
+  }
+}

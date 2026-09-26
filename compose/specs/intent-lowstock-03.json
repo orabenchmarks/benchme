@@ -1,0 +1,10 @@
+{
+  "id": "intent-lowstock-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "skus": "ADH-1118,FAS-1048"
+    }
+  }
+}

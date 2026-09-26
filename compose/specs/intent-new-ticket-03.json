@@ -1,0 +1,21 @@
+{
+  "id": "intent-new-ticket-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ticket-opened",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets?requester=C-124",
+        "where": {
+          "requester": "C-124",
+          "subject": "Delivery window change for next week's order"
+        },
+        "expect": {
+          "priority": "normal"
+        }
+      }
+    ]
+  }
+}

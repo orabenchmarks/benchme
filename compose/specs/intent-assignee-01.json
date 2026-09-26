@@ -1,0 +1,10 @@
+{
+  "id": "intent-assignee-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "assigneeCode": "AG-14"
+    }
+  }
+}

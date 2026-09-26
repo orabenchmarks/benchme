@@ -1,0 +1,10 @@
+{
+  "id": "intent-order-line-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "qty": 9
+    }
+  }
+}

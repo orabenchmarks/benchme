@@ -1,0 +1,18 @@
+{
+  "id": "intent-ticket-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ticket-assigned-and-resolved",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets/HD-5041",
+        "expect": {
+          "assigneeCode": "AG-11",
+          "status": "resolved"
+        }
+      }
+    ]
+  }
+}

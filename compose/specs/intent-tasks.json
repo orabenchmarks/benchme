@@ -112,5 +112,1705 @@
     "intent": "Find the vault document about helpdesk faq and report its document id as JSON: {\"documentId\": \"<id>\"}.",
     "oracle": "json",
     "summary": "The id of the single vault document matching \"helpdesk faq\", derived by documentsMatching()."
+  },
+  {
+    "id": "intent-order-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place a new order for customer Marnex Systems (C-121) for 5 units of the Lofalel Zynex assembly (SKU ADH-1054).",
+    "oracle": "state",
+    "summary": "C-121 ends up with one more open order than the seed gave it, carrying a line of 5 × ADH-1054."
+  },
+  {
+    "id": "intent-order-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place a new order for customer Nexzy Logistics (C-112) for 15 units of the Trunex Nexka assembly (SKU SEN-1060).",
+    "oracle": "state",
+    "summary": "C-112 ends up with one more open order than the seed gave it, carrying a line of 15 × SEN-1060."
+  },
+  {
+    "id": "intent-order-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place a new order for customer Silvitru Supply (C-110) for 60 units of the Siltrunex Thotru kit (SKU FLU-1111).",
+    "oracle": "state",
+    "summary": "C-110 ends up with one more open order than the seed gave it, carrying a line of 60 × FLU-1111."
+  },
+  {
+    "id": "intent-order-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place a new order for customer Nexomtru Supply (C-130) for 40 units of the Kalo Quendor kit (SKU FAS-1096).",
+    "oracle": "state",
+    "summary": "C-130 ends up with one more open order than the seed gave it, carrying a line of 40 × FAS-1096."
+  },
+  {
+    "id": "intent-order-06",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place a new order for customer Quenfalsil Industrial (C-124) for 60 units of the Quenmar Silmar unit (SKU OPT-1113).",
+    "oracle": "state",
+    "summary": "C-124 ends up with one more open order than the seed gave it, carrying a line of 60 × OPT-1113."
+  },
+  {
+    "id": "intent-order-multi-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place ONE new order for customer Quenka Works (C-137) with two lines: 5 units of the Kazyka Trufal assembly (SKU FAS-1080) and 45 units of the Baloba Omom assembly (SKU ENC-1115).",
+    "oracle": "state",
+    "summary": "Exactly one new open order for C-137, carrying 5 × FAS-1080 and 45 × ENC-1115."
+  },
+  {
+    "id": "intent-order-multi-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place ONE new order for customer Vitru Industrial (C-127) with two lines: 20 units of the Viba Truren pack (SKU FAS-1008) and 25 units of the Lofalel Zynex assembly (SKU ADH-1054).",
+    "oracle": "state",
+    "summary": "Exactly one new open order for C-127, carrying 20 × FAS-1008 and 25 × ADH-1054."
+  },
+  {
+    "id": "intent-order-multi-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place ONE new order for customer Silka Logistics (C-119) with two lines: 5 units of the Silzy Rentho pack (SKU FAS-1056) and 55 units of the Omomzy Renzy module (SKU FLU-1119).",
+    "oracle": "state",
+    "summary": "Exactly one new open order for C-119, carrying 5 × FAS-1056 and 55 × FLU-1119."
+  },
+  {
+    "id": "intent-order-multi-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place ONE new order for customer Omthonex Supply (C-131) with two lines: 25 units of the Siltrunex Thotru kit (SKU FLU-1111) and 55 units of the Thoom Nexsil assembly (SKU CAB-1002).",
+    "oracle": "state",
+    "summary": "Exactly one new open order for C-131, carrying 25 × FLU-1111 and 55 × CAB-1002."
+  },
+  {
+    "id": "intent-cancel-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Cancel order SO-20086 for Vivi Industrial (C-126).",
+    "oracle": "state",
+    "summary": "Order SO-20086 (open in the seed) has status cancelled."
+  },
+  {
+    "id": "intent-cancel-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Cancel order SO-20176 for Omnex Supply (C-102).",
+    "oracle": "state",
+    "summary": "Order SO-20176 (open in the seed) has status cancelled."
+  },
+  {
+    "id": "intent-cancel-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Cancel order SO-20014 for Omdor Works (C-103).",
+    "oracle": "state",
+    "summary": "Order SO-20014 (open in the seed) has status cancelled."
+  },
+  {
+    "id": "intent-cancel-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Cancel order SO-20185 for Trufal Works (C-109).",
+    "oracle": "state",
+    "summary": "Order SO-20185 (open in the seed) has status cancelled."
+  },
+  {
+    "id": "intent-cancel-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Cancel order SO-20065 for Quenquensil Logistics (C-133).",
+    "oracle": "state",
+    "summary": "Order SO-20065 (open in the seed) has status cancelled."
+  },
+  {
+    "id": "intent-transfer-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer 30 units of the Omba Omom pack (SKU ADH-1062) from depot QHV to depot BRM, and complete the transfer.",
+    "oracle": "state",
+    "summary": "A completed transfer of 30 units of ADH-1062 from QHV to BRM."
+  },
+  {
+    "id": "intent-transfer-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer 7 units of the Omvi Renzy kit (SKU ENC-1075) from depot QHV to depot VLM, and complete the transfer.",
+    "oracle": "state",
+    "summary": "A completed transfer of 7 units of ENC-1075 from QHV to VLM."
+  },
+  {
+    "id": "intent-transfer-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer 28 units of the Nexfalsil Elom pack (SKU CAB-1074) from depot BRM to depot QHV, and complete the transfer.",
+    "oracle": "state",
+    "summary": "A completed transfer of 28 units of CAB-1074 from BRM to QHV."
+  },
+  {
+    "id": "intent-transfer-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer 18 units of the Falren Baquen pack (SKU ENC-1091) from depot QHV to depot BRM, and complete the transfer.",
+    "oracle": "state",
+    "summary": "A completed transfer of 18 units of ENC-1091 from QHV to BRM."
+  },
+  {
+    "id": "intent-complete-transfer-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer TR-530 (14 units of the Marom Trulo pack, SKU TOO-1093, from depot BRM to depot QHV) is still pending. Complete it.",
+    "oracle": "state",
+    "summary": "Transfer TR-530 (pending in the seed) has status completed."
+  },
+  {
+    "id": "intent-complete-transfer-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer TR-559 (10 units of the Quenvimar Marsil unit, SKU SEN-1052, from depot BRM to depot VLM) is still pending. Complete it.",
+    "oracle": "state",
+    "summary": "Transfer TR-559 (pending in the seed) has status completed."
+  },
+  {
+    "id": "intent-complete-transfer-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer TR-503 (1 units of the Omsil Nexfal kit, SKU ADH-1014, from depot QHV to depot VLM) is still pending. Complete it.",
+    "oracle": "state",
+    "summary": "Transfer TR-503 (pending in the seed) has status completed."
+  },
+  {
+    "id": "intent-complete-transfer-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer TR-542 (11 units of the Trunex Nexka assembly, SKU SEN-1060, from depot OST to depot BRM) is still pending. Complete it.",
+    "oracle": "state",
+    "summary": "Transfer TR-542 (pending in the seed) has status completed."
+  },
+  {
+    "id": "intent-stock-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Falnexmar Kael assembly (SKU ENC-1107) are currently in stock across all depots? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Total stock of ENC-1107 across every depot, derived by stockOf()."
+  },
+  {
+    "id": "intent-stock-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Kafalba Thonex module (SKU CAB-1050) are currently in stock across all depots? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Total stock of CAB-1050 across every depot, derived by stockOf()."
+  },
+  {
+    "id": "intent-stock-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Quenel Omren module (SKU TOO-1085) are currently in stock across all depots? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Total stock of TOO-1085 across every depot, derived by stockOf()."
+  },
+  {
+    "id": "intent-stock-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Zyom Renom kit (SKU FAS-1000) are currently in stock across all depots? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Total stock of FAS-1000 across every depot, derived by stockOf()."
+  },
+  {
+    "id": "intent-stock-06",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Thoquenzy Fallo pack (SKU SEN-1092) are currently in stock across all depots? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Total stock of SEN-1092 across every depot, derived by stockOf()."
+  },
+  {
+    "id": "intent-depot-stock-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Omvi Renzy kit (SKU ENC-1075) are held at depot OST (Zyvi depot 2)? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Stock of ENC-1075 at OST alone, derived by stockOf(rows, sku, depot)."
+  },
+  {
+    "id": "intent-depot-stock-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Barensil Martho unit (SKU OPT-1001) are held at depot BRM (Nexello depot 4)? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Stock of OPT-1001 at BRM alone, derived by stockOf(rows, sku, depot)."
+  },
+  {
+    "id": "intent-depot-stock-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Loom Loquen kit (SKU OPT-1097) are held at depot OST (Zyvi depot 2)? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Stock of OPT-1097 at OST alone, derived by stockOf(rows, sku, depot)."
+  },
+  {
+    "id": "intent-depot-stock-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Loloom Falvi unit (SKU FAS-1040) are held at depot QHV (Thoomsil depot 3)? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Stock of FAS-1040 at QHV alone, derived by stockOf(rows, sku, depot)."
+  },
+  {
+    "id": "intent-depot-stock-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Baomka Quenom kit (SKU FLU-1071) are held at depot VLM (Kaquen depot 1)? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Stock of FLU-1071 at VLM alone, derived by stockOf(rows, sku, depot)."
+  },
+  {
+    "id": "intent-lowstock-02",
+    "surfaces": [
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which SKUs currently have fewer than 20 total units in stock across all depots? Answer as JSON: {\"skus\": \"<comma-separated SKUs, ascending>\"}.",
+    "oracle": "json",
+    "summary": "The low-stock SKU set at threshold 20, derived by lowStock()."
+  },
+  {
+    "id": "intent-lowstock-03",
+    "surfaces": [
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which SKUs currently have fewer than 8 total units in stock across all depots? Answer as JSON: {\"skus\": \"<comma-separated SKUs, ascending>\"}.",
+    "oracle": "json",
+    "summary": "The low-stock SKU set at threshold 8, derived by lowStock()."
+  },
+  {
+    "id": "intent-price-02",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What is the unit price of the Nextru Renzy assembly? Answer as JSON: {\"price\": <number, USD>}.",
+    "oracle": "json",
+    "summary": "The unit price of SEN-1036 (the only product named \"Nextru Renzy assembly\")."
+  },
+  {
+    "id": "intent-price-03",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What is the unit price of the Lolo Vivi pack? Answer as JSON: {\"price\": <number, USD>}.",
+    "oracle": "json",
+    "summary": "The unit price of ADH-1110 (the only product named \"Lolo Vivi pack\")."
+  },
+  {
+    "id": "intent-price-04",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What is the unit price of the Omquen Nextru kit? Answer as JSON: {\"price\": <number, USD>}.",
+    "oracle": "json",
+    "summary": "The unit price of FAS-1024 (the only product named \"Omquen Nextru kit\")."
+  },
+  {
+    "id": "intent-price-05",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What is the unit price of the Martruom Vivi unit? Answer as JSON: {\"price\": <number, USD>}.",
+    "oracle": "json",
+    "summary": "The unit price of SEN-1100 (the only product named \"Martruom Vivi unit\")."
+  },
+  {
+    "id": "intent-price-06",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What is the unit price of the Vizynex Renquen pack? Answer as JSON: {\"price\": <number, USD>}.",
+    "oracle": "json",
+    "summary": "The unit price of ENC-1059 (the only product named \"Vizynex Renquen pack\")."
+  },
+  {
+    "id": "intent-customer-02",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "Which of our platinum-tier customers is based in Velmora? Answer as JSON: {\"customerCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "C-137, the only platinum-tier customer in Velmora."
+  },
+  {
+    "id": "intent-customer-03",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "Which of our standard-tier customers is based in Velmora? Answer as JSON: {\"customerCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "C-107, the only standard-tier customer in Velmora."
+  },
+  {
+    "id": "intent-customer-04",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "Which of our platinum-tier customers is based in Karrow? Answer as JSON: {\"customerCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "C-115, the only platinum-tier customer in Karrow."
+  },
+  {
+    "id": "intent-tier-01",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What tier is our customer Quenfalsil Industrial? Answer as JSON: {\"tier\": \"<tier>\"}.",
+    "oracle": "json",
+    "summary": "The tier of C-124."
+  },
+  {
+    "id": "intent-tier-02",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What tier is our customer Omnex Supply? Answer as JSON: {\"tier\": \"<tier>\"}.",
+    "oracle": "json",
+    "summary": "The tier of C-102."
+  },
+  {
+    "id": "intent-tier-03",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What tier is our customer Trulo Supply? Answer as JSON: {\"tier\": \"<tier>\"}.",
+    "oracle": "json",
+    "summary": "The tier of C-132."
+  },
+  {
+    "id": "intent-tier-04",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What tier is our customer Kasilvi Systems? Answer as JSON: {\"tier\": \"<tier>\"}.",
+    "oracle": "json",
+    "summary": "The tier of C-138."
+  },
+  {
+    "id": "intent-open-orders-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many open orders does Badortho Works (C-101) currently have? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of C-101's orders with status open."
+  },
+  {
+    "id": "intent-open-orders-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many open orders does Silvitru Supply (C-110) currently have? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of C-110's orders with status open."
+  },
+  {
+    "id": "intent-open-orders-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many open orders does Vitru Industrial (C-127) currently have? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of C-127's orders with status open."
+  },
+  {
+    "id": "intent-open-orders-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many open orders does Thomarom Systems (C-115) currently have? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of C-115's orders with status open."
+  },
+  {
+    "id": "intent-order-status-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the status of order SO-20003? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of SO-20003."
+  },
+  {
+    "id": "intent-order-status-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the status of order SO-20040? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of SO-20040."
+  },
+  {
+    "id": "intent-order-status-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the status of order SO-20105? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of SO-20105."
+  },
+  {
+    "id": "intent-order-status-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the status of order SO-20167? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of SO-20167."
+  },
+  {
+    "id": "intent-order-total-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the total value of order SO-20296 in US dollars — every line's quantity times its unit price, summed? Answer as JSON: {\"total\": <number>}.",
+    "oracle": "json",
+    "summary": "The total of SO-20296 over its 3 lines, derived by orderTotalCents()."
+  },
+  {
+    "id": "intent-order-total-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the total value of order SO-20102 in US dollars — every line's quantity times its unit price, summed? Answer as JSON: {\"total\": <number>}.",
+    "oracle": "json",
+    "summary": "The total of SO-20102 over its 2 lines, derived by orderTotalCents()."
+  },
+  {
+    "id": "intent-order-total-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the total value of order SO-20061 in US dollars — every line's quantity times its unit price, summed? Answer as JSON: {\"total\": <number>}.",
+    "oracle": "json",
+    "summary": "The total of SO-20061 over its 2 lines, derived by orderTotalCents()."
+  },
+  {
+    "id": "intent-order-total-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the total value of order SO-20156 in US dollars — every line's quantity times its unit price, summed? Answer as JSON: {\"total\": <number>}.",
+    "oracle": "json",
+    "summary": "The total of SO-20156 over its 4 lines, derived by orderTotalCents()."
+  },
+  {
+    "id": "intent-order-line-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of SKU ENC-1075 does order SO-20060 contain? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "The quantity of ENC-1075 on SO-20060."
+  },
+  {
+    "id": "intent-order-line-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of SKU FAS-1064 does order SO-20093 contain? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "The quantity of FAS-1064 on SO-20093."
+  },
+  {
+    "id": "intent-order-line-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of SKU CAB-1034 does order SO-20118 contain? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "The quantity of CAB-1034 on SO-20118."
+  },
+  {
+    "id": "intent-transfer-destination-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which depot is transfer TR-532 headed to? Answer with the depot code as JSON: {\"toCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The destination depot of TR-532."
+  },
+  {
+    "id": "intent-transfer-destination-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which depot is transfer TR-556 headed to? Answer with the depot code as JSON: {\"toCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The destination depot of TR-556."
+  },
+  {
+    "id": "intent-transfer-destination-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which depot is transfer TR-516 headed to? Answer with the depot code as JSON: {\"toCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The destination depot of TR-516."
+  },
+  {
+    "id": "intent-top-depot-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which depot holds the most units of the Quenquen Renmar kit (SKU ENC-1035)? Answer with the depot code as JSON: {\"location\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The depot with the largest stock row for ENC-1035."
+  },
+  {
+    "id": "intent-top-depot-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which depot holds the most units of the Bavi Batru assembly (SKU FLU-1055)? Answer with the depot code as JSON: {\"location\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The depot with the largest stock row for FLU-1055."
+  },
+  {
+    "id": "intent-top-depot-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which depot holds the most units of the Kazyka Trufal assembly (SKU FAS-1080)? Answer with the depot code as JSON: {\"location\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The depot with the largest stock row for FAS-1080."
+  },
+  {
+    "id": "intent-priciest-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which product in the enclosures category has the highest unit price? Answer with its SKU as JSON: {\"sku\": \"<SKU>\"}.",
+    "oracle": "json",
+    "summary": "The priciest enclosures product."
+  },
+  {
+    "id": "intent-priciest-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which product in the adhesives category has the highest unit price? Answer with its SKU as JSON: {\"sku\": \"<SKU>\"}.",
+    "oracle": "json",
+    "summary": "The priciest adhesives product."
+  },
+  {
+    "id": "intent-priciest-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which product in the optics category has the highest unit price? Answer with its SKU as JSON: {\"sku\": \"<SKU>\"}.",
+    "oracle": "json",
+    "summary": "The priciest optics product."
+  },
+  {
+    "id": "intent-depot-city-01",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "In which city is depot QHV (Thoomsil depot 3)? Answer as JSON: {\"city\": \"<city>\"}.",
+    "oracle": "json",
+    "summary": "The city of depot QHV."
+  },
+  {
+    "id": "intent-depot-city-02",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "In which city is depot BRM (Nexello depot 4)? Answer as JSON: {\"city\": \"<city>\"}.",
+    "oracle": "json",
+    "summary": "The city of depot BRM."
+  },
+  {
+    "id": "intent-ticket-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Assign helpdesk ticket HD-5081 to agent Teodor Voss (AG-16) and mark it resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5081 assigned to AG-16 with status resolved."
+  },
+  {
+    "id": "intent-ticket-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Assign helpdesk ticket HD-5041 to agent Lior Kowalczyk (AG-11) and mark it resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5041 assigned to AG-11 with status resolved."
+  },
+  {
+    "id": "intent-ticket-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Assign helpdesk ticket HD-5040 to agent Teodor Voss (AG-13) and mark it resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5040 assigned to AG-13 with status resolved."
+  },
+  {
+    "id": "intent-ticket-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Assign helpdesk ticket HD-5015 to agent Teodor Voss (AG-16) and mark it resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5015 assigned to AG-16 with status resolved."
+  },
+  {
+    "id": "intent-priority-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Set the priority of helpdesk ticket HD-5144 (\"Transfer TR-510 still pending after two days\") to low.",
+    "oracle": "state",
+    "summary": "Ticket HD-5144 (normal in the seed) has priority low."
+  },
+  {
+    "id": "intent-priority-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Set the priority of helpdesk ticket HD-5089 (\"Pricing question for gold tier\") to low.",
+    "oracle": "state",
+    "summary": "Ticket HD-5089 (normal in the seed) has priority low."
+  },
+  {
+    "id": "intent-priority-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Set the priority of helpdesk ticket HD-5129 (\"Invoice for SO-20194 does not match the quote\") to urgent.",
+    "oracle": "state",
+    "summary": "Ticket HD-5129 (high in the seed) has priority urgent."
+  },
+  {
+    "id": "intent-priority-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Set the priority of helpdesk ticket HD-5138 (\"Request for a datasheet on FLU-1103\") to high.",
+    "oracle": "state",
+    "summary": "Ticket HD-5138 (low in the seed) has priority high."
+  },
+  {
+    "id": "intent-priority-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Set the priority of helpdesk ticket HD-5072 (\"Transfer TR-534 still pending after two days\") to low.",
+    "oracle": "state",
+    "summary": "Ticket HD-5072 (high in the seed) has priority low."
+  },
+  {
+    "id": "intent-note-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Add an internal note to helpdesk ticket HD-5074 that reads exactly: \"Escalated to logistics: the carrier has opened a damage claim.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5074 carries an internal note with that exact text."
+  },
+  {
+    "id": "intent-note-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Add an internal note to helpdesk ticket HD-5021 that reads exactly: \"Customer confirmed the replacement shipped; monitoring until delivery.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5021 carries an internal note with that exact text."
+  },
+  {
+    "id": "intent-note-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Add an internal note to helpdesk ticket HD-5053 that reads exactly: \"Escalated to logistics: the carrier has opened a damage claim.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5053 carries an internal note with that exact text."
+  },
+  {
+    "id": "intent-note-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Add an internal note to helpdesk ticket HD-5028 that reads exactly: \"Escalated to logistics: the carrier has opened a damage claim.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5028 carries an internal note with that exact text."
+  },
+  {
+    "id": "intent-reply-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reply to the customer on helpdesk ticket HD-5099 with exactly: \"Our logistics team is looking into this and we will update you by tomorrow.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5099 carries a public reply with that exact text."
+  },
+  {
+    "id": "intent-reply-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reply to the customer on helpdesk ticket HD-5087 with exactly: \"We have issued a credit note for the damaged items; it will appear on your next statement.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5087 carries a public reply with that exact text."
+  },
+  {
+    "id": "intent-reply-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reply to the customer on helpdesk ticket HD-5036 with exactly: \"Thanks for reporting this. A replacement is on its way and should arrive within three business days.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5036 carries a public reply with that exact text."
+  },
+  {
+    "id": "intent-new-ticket-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Open a new helpdesk ticket for customer Falren Works (C-136) with the subject \"Portal access for a new team member\" and low priority.",
+    "oracle": "state",
+    "summary": "A ticket requested by C-136 with that subject and priority low."
+  },
+  {
+    "id": "intent-new-ticket-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Open a new helpdesk ticket for customer Omom Works (C-122) with the subject \"Invoice shows the wrong billing address\" and low priority.",
+    "oracle": "state",
+    "summary": "A ticket requested by C-122 with that subject and priority low."
+  },
+  {
+    "id": "intent-new-ticket-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Open a new helpdesk ticket for customer Quenfalsil Industrial (C-124) with the subject \"Delivery window change for next week's order\" and normal priority.",
+    "oracle": "state",
+    "summary": "A ticket requested by C-124 with that subject and priority normal."
+  },
+  {
+    "id": "intent-new-ticket-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Open a new helpdesk ticket for customer Quenquensil Logistics (C-133) with the subject \"Portal access for a new team member\" and normal priority.",
+    "oracle": "state",
+    "summary": "A ticket requested by C-133 with that subject and priority normal."
+  },
+  {
+    "id": "intent-hold-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Put helpdesk ticket HD-5137 on hold: set its status to pending.",
+    "oracle": "state",
+    "summary": "Ticket HD-5137 (open in the seed) has status pending."
+  },
+  {
+    "id": "intent-hold-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Put helpdesk ticket HD-5126 on hold: set its status to pending.",
+    "oracle": "state",
+    "summary": "Ticket HD-5126 (open in the seed) has status pending."
+  },
+  {
+    "id": "intent-hold-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Put helpdesk ticket HD-5030 on hold: set its status to pending.",
+    "oracle": "state",
+    "summary": "Ticket HD-5030 (open in the seed) has status pending."
+  },
+  {
+    "id": "intent-reopen-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reopen helpdesk ticket HD-5006.",
+    "oracle": "state",
+    "summary": "Ticket HD-5006 (resolved in the seed) has status open."
+  },
+  {
+    "id": "intent-reopen-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reopen helpdesk ticket HD-5055.",
+    "oracle": "state",
+    "summary": "Ticket HD-5055 (resolved in the seed) has status open."
+  },
+  {
+    "id": "intent-reopen-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reopen helpdesk ticket HD-5149.",
+    "oracle": "state",
+    "summary": "Ticket HD-5149 (resolved in the seed) has status open."
+  },
+  {
+    "id": "intent-close-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Close helpdesk ticket HD-5100, which is already resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5100 (resolved in the seed) has status closed."
+  },
+  {
+    "id": "intent-close-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Close helpdesk ticket HD-5070, which is already resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5070 (resolved in the seed) has status closed."
+  },
+  {
+    "id": "intent-close-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Close helpdesk ticket HD-5140, which is already resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5140 (resolved in the seed) has status closed."
+  },
+  {
+    "id": "intent-reassign-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reassign helpdesk ticket HD-5093 from Teodor Voss to Quill Ferrante (AG-12).",
+    "oracle": "state",
+    "summary": "Ticket HD-5093 (assigned to AG-16 in the seed) is assigned to AG-12."
+  },
+  {
+    "id": "intent-reassign-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reassign helpdesk ticket HD-5082 from Danae Larrabee to Lior Kowalczyk (AG-11).",
+    "oracle": "state",
+    "summary": "Ticket HD-5082 (assigned to AG-14 in the seed) is assigned to AG-11."
+  },
+  {
+    "id": "intent-reassign-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reassign helpdesk ticket HD-5058 from Danae Larrabee to Quill Ferrante (AG-12).",
+    "oracle": "state",
+    "summary": "Ticket HD-5058 (assigned to AG-14 in the seed) is assigned to AG-12."
+  },
+  {
+    "id": "intent-reporter-02",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "helpdesk",
+    "intent": "Which customer reported helpdesk ticket HD-5065? Answer as JSON: {\"requester\": \"<customer code>\"}.",
+    "oracle": "json",
+    "summary": "The requester of HD-5065."
+  },
+  {
+    "id": "intent-reporter-03",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "helpdesk",
+    "intent": "Which customer reported helpdesk ticket HD-5085? Answer as JSON: {\"requester\": \"<customer code>\"}.",
+    "oracle": "json",
+    "summary": "The requester of HD-5085."
+  },
+  {
+    "id": "intent-reporter-04",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "helpdesk",
+    "intent": "Which customer reported helpdesk ticket HD-5115? Answer as JSON: {\"requester\": \"<customer code>\"}.",
+    "oracle": "json",
+    "summary": "The requester of HD-5115."
+  },
+  {
+    "id": "intent-ticket-priority-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "What is the priority of helpdesk ticket HD-5128? Answer as JSON: {\"priority\": \"<priority>\"}.",
+    "oracle": "json",
+    "summary": "The priority of HD-5128."
+  },
+  {
+    "id": "intent-ticket-priority-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "What is the priority of helpdesk ticket HD-5136? Answer as JSON: {\"priority\": \"<priority>\"}.",
+    "oracle": "json",
+    "summary": "The priority of HD-5136."
+  },
+  {
+    "id": "intent-ticket-priority-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "What is the priority of helpdesk ticket HD-5019? Answer as JSON: {\"priority\": \"<priority>\"}.",
+    "oracle": "json",
+    "summary": "The priority of HD-5019."
+  },
+  {
+    "id": "intent-ticket-status-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "What is the status of helpdesk ticket HD-5129? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of HD-5129."
+  },
+  {
+    "id": "intent-ticket-status-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "What is the status of helpdesk ticket HD-5091? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of HD-5091."
+  },
+  {
+    "id": "intent-ticket-status-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "What is the status of helpdesk ticket HD-5020? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of HD-5020."
+  },
+  {
+    "id": "intent-assignee-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Which agent is helpdesk ticket HD-5025 assigned to? Answer with the agent code as JSON: {\"assigneeCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The assignee of HD-5025."
+  },
+  {
+    "id": "intent-assignee-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Which agent is helpdesk ticket HD-5069 assigned to? Answer with the agent code as JSON: {\"assigneeCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The assignee of HD-5069."
+  },
+  {
+    "id": "intent-assignee-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Which agent is helpdesk ticket HD-5063 assigned to? Answer with the agent code as JSON: {\"assigneeCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The assignee of HD-5063."
+  },
+  {
+    "id": "intent-agent-team-01",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "helpdesk",
+    "intent": "Which team is support agent Lior Kowalczyk on? Answer as JSON: {\"team\": \"<team>\"}.",
+    "oracle": "json",
+    "summary": "The team of AG-11."
+  },
+  {
+    "id": "intent-agent-team-02",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "helpdesk",
+    "intent": "Which team is support agent Danae Larrabee on? Answer as JSON: {\"team\": \"<team>\"}.",
+    "oracle": "json",
+    "summary": "The team of AG-14."
+  },
+  {
+    "id": "intent-agent-team-03",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "helpdesk",
+    "intent": "Which team is support agent Quill Ferrante on? Answer as JSON: {\"team\": \"<team>\"}.",
+    "oracle": "json",
+    "summary": "The team of AG-12."
+  },
+  {
+    "id": "intent-agent-load-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many open or pending helpdesk tickets are currently assigned to Lior Kowalczyk (AG-11)? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of AG-11's tickets with status open or pending, derived by openTicketsFor()."
+  },
+  {
+    "id": "intent-agent-load-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many open or pending helpdesk tickets are currently assigned to Quill Ferrante (AG-12)? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of AG-12's tickets with status open or pending, derived by openTicketsFor()."
+  },
+  {
+    "id": "intent-agent-load-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many open or pending helpdesk tickets are currently assigned to Quill Sandoval (AG-10)? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of AG-10's tickets with status open or pending, derived by openTicketsFor()."
+  },
+  {
+    "id": "intent-sla-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Under our support SLA, within how many hours must a normal-priority ticket be resolved? Answer as JSON: {\"hours\": <number>}.",
+    "oracle": "json",
+    "summary": "The resolve target of the normal SLA policy."
+  },
+  {
+    "id": "intent-sla-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Under our support SLA, within how many hours must a high-priority ticket be resolved? Answer as JSON: {\"hours\": <number>}.",
+    "oracle": "json",
+    "summary": "The resolve target of the high SLA policy."
+  },
+  {
+    "id": "intent-comment-count-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many comments, internal notes included, does helpdesk ticket HD-5074 have? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of comments on HD-5074."
+  },
+  {
+    "id": "intent-comment-count-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many comments, internal notes included, does helpdesk ticket HD-5029 have? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of comments on HD-5029."
+  },
+  {
+    "id": "intent-requester-tickets-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many helpdesk tickets has customer Trumar Systems (C-107) reported? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of tickets requested by C-107."
+  },
+  {
+    "id": "intent-requester-tickets-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many helpdesk tickets has customer Omthonex Supply (C-131) reported? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of tickets requested by C-131."
+  },
+  {
+    "id": "intent-doc-03",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "vaultdocs",
+    "intent": "Find the vault document about operations memo 7: loka checklist and report its document id as JSON: {\"documentId\": \"<id>\"}.",
+    "oracle": "json",
+    "summary": "The id of the single vault document matching \"operations memo 7: loka checklist\", derived by documentsMatching()."
+  },
+  {
+    "id": "intent-doc-04",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "vaultdocs",
+    "intent": "Find the vault document about operations memo 5: thoomka rollout and report its document id as JSON: {\"documentId\": \"<id>\"}.",
+    "oracle": "json",
+    "summary": "The id of the single vault document matching \"operations memo 5: thoomka rollout\", derived by documentsMatching()."
+  },
+  {
+    "id": "intent-doc-05",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "vaultdocs",
+    "intent": "Find the vault document about account review: viomlo supply and report its document id as JSON: {\"documentId\": \"<id>\"}.",
+    "oracle": "json",
+    "summary": "The id of the single vault document matching \"account review: viomlo supply\", derived by documentsMatching()."
+  },
+  {
+    "id": "intent-doc-06",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "vaultdocs",
+    "intent": "Find the vault document about operations memo 2: rentruzy retrospective and report its document id as JSON: {\"documentId\": \"<id>\"}.",
+    "oracle": "json",
+    "summary": "The id of the single vault document matching \"operations memo 2: rentruzy retrospective\", derived by documentsMatching()."
+  },
+  {
+    "id": "intent-lead-time-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Marquenba Silren assembly (SKU OPT-1009), what is the standard supplier lead time in business days? Answer as JSON: {\"days\": <number>}.",
+    "oracle": "json",
+    "summary": "The lead time on OPT-1009's datasheet."
+  },
+  {
+    "id": "intent-lead-time-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Visilfal Bazy unit (SKU ENC-1099), what is the standard supplier lead time in business days? Answer as JSON: {\"days\": <number>}.",
+    "oracle": "json",
+    "summary": "The lead time on ENC-1099's datasheet."
+  },
+  {
+    "id": "intent-lead-time-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Zyom Renom kit (SKU FAS-1000), what is the standard supplier lead time in business days? Answer as JSON: {\"days\": <number>}.",
+    "oracle": "json",
+    "summary": "The lead time on FAS-1000's datasheet."
+  },
+  {
+    "id": "intent-lead-time-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Lofalel Zynex assembly (SKU ADH-1054), what is the standard supplier lead time in business days? Answer as JSON: {\"days\": <number>}.",
+    "oracle": "json",
+    "summary": "The lead time on ADH-1054's datasheet."
+  },
+  {
+    "id": "intent-moq-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Zyloka Kafal pack (SKU OPT-1081), what is its minimum order quantity? Answer as JSON: {\"moq\": <number>}.",
+    "oracle": "json",
+    "summary": "The minimum order quantity on OPT-1081's datasheet."
+  },
+  {
+    "id": "intent-moq-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Baelfal Marren pack (SKU CAB-1018), what is its minimum order quantity? Answer as JSON: {\"moq\": <number>}.",
+    "oracle": "json",
+    "summary": "The minimum order quantity on CAB-1018's datasheet."
+  },
+  {
+    "id": "intent-moq-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Zyom Renom kit (SKU FAS-1000), what is its minimum order quantity? Answer as JSON: {\"moq\": <number>}.",
+    "oracle": "json",
+    "summary": "The minimum order quantity on FAS-1000's datasheet."
+  },
+  {
+    "id": "intent-policy-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's customer tier discounts policy, what percentage off list price do gold customers receive? Answer as JSON: {\"percent\": <number>}.",
+    "oracle": "json",
+    "summary": "The gold figure in \"Customer tier discounts\"."
+  },
+  {
+    "id": "intent-policy-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's customer tier discounts policy, what percentage off list price do platinum customers receive? Answer as JSON: {\"percent\": <number>}.",
+    "oracle": "json",
+    "summary": "The platinum figure in \"Customer tier discounts\"."
+  },
+  {
+    "id": "intent-policy-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's returns and warranty policy, within how many days of delivery may customers return unused goods? Answer as JSON: {\"days\": <number>}.",
+    "oracle": "json",
+    "summary": "The returns figure in \"Returns and warranty policy\"."
+  },
+  {
+    "id": "intent-dispatch-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's depot operating hours policy, until what hour does Zyvi depot 2 (OST) dispatch goods? Give the hour on a 24-hour clock. Answer as JSON: {\"hour\": <number>}.",
+    "oracle": "json",
+    "summary": "The dispatch cut-off of OST."
+  },
+  {
+    "id": "intent-dispatch-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's depot operating hours policy, until what hour does Thoomsil depot 3 (QHV) dispatch goods? Give the hour on a 24-hour clock. Answer as JSON: {\"hour\": <number>}.",
+    "oracle": "json",
+    "summary": "The dispatch cut-off of QHV."
+  },
+  {
+    "id": "intent-review-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's account review notes for Trumar Systems, in how many months is their next review? Answer as JSON: {\"months\": <number>}.",
+    "oracle": "json",
+    "summary": "The review interval in \"Account review: Trumar Systems\"."
+  },
+  {
+    "id": "intent-review-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's account review notes for Viomlo Supply, in how many months is their next review? Answer as JSON: {\"months\": <number>}.",
+    "oracle": "json",
+    "summary": "The review interval in \"Account review: Viomlo Supply\"."
+  },
+  {
+    "id": "intent-results-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's final FY2025 results summary (not the superseded draft), how many employees did the company have? Answer as JSON: {\"employees\": <number>}.",
+    "oracle": "json",
+    "summary": "The final FY2025 employees figure."
+  },
+  {
+    "id": "intent-results-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's final FY2025 results summary (not the superseded draft), what was the company's FY2025 revenue in US dollars? Answer as JSON: {\"revenue\": <number>}.",
+    "oracle": "json",
+    "summary": "The final FY2025 revenue figure."
+  },
+  {
+    "id": "intent-company-01",
+    "surfaces": [
+      "pages"
+    ],
+    "app": "data",
+    "intent": "According to the company's public website, how many depots does the company operate? Answer as JSON: {\"depots\": <number>}.",
+    "oracle": "json",
+    "summary": "The company's depots, as its public site states it."
+  },
+  {
+    "id": "intent-company-02",
+    "surfaces": [
+      "pages"
+    ],
+    "app": "data",
+    "intent": "According to the company's public website, what was the company's total revenue for FY2025, in US dollars, according to its annual report? Answer as JSON: {\"revenue\": <number>}.",
+    "oracle": "json",
+    "summary": "The company's revenue, as its public site states it."
+  },
+  {
+    "id": "intent-company-03",
+    "surfaces": [
+      "pages"
+    ],
+    "app": "data",
+    "intent": "According to the company's public website, how many employees does the company have? Answer as JSON: {\"employees\": <number>}.",
+    "oracle": "json",
+    "summary": "The company's employees, as its public site states it."
+  },
+  {
+    "id": "intent-company-04",
+    "surfaces": [
+      "pages"
+    ],
+    "app": "data",
+    "intent": "According to the company's public website, in which city is the company headquartered? Answer as JSON: {\"city\": \"<text>\"}.",
+    "oracle": "json",
+    "summary": "The company's headquarters, as its public site states it."
+  },
+  {
+    "id": "intent-company-05",
+    "surfaces": [
+      "pages"
+    ],
+    "app": "data",
+    "intent": "According to the company's public website, in what year was the company founded? Answer as JSON: {\"year\": <number>}.",
+    "oracle": "json",
+    "summary": "The company's founded, as its public site states it."
   }
 ]

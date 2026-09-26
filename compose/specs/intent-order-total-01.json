@@ -1,0 +1,13 @@
+{
+  "id": "intent-order-total-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "total": {
+        "value": 7093.5,
+        "tolerance": 0.005
+      }
+    }
+  }
+}

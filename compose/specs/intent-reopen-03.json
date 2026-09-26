@@ -1,0 +1,17 @@
+{
+  "id": "intent-reopen-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ticket-open",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets/HD-5149",
+        "expect": {
+          "status": "open"
+        }
+      }
+    ]
+  }
+}

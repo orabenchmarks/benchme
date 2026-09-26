@@ -1,0 +1,28 @@
+{
+  "id": "intent-order-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "order-open-for-customer",
+        "app": "warehouse",
+        "path": "/api/v1/orders?customer=C-112&status=open",
+        "where": {
+          "customerCode": "C-112",
+          "status": "open"
+        },
+        "count": {
+          "min": 5
+        },
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "SEN-1060",
+            "qty": 15
+          }
+        }
+      }
+    ]
+  }
+}

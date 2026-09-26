@@ -41,7 +41,7 @@ export function deriveReads(rows, { seed, avoid }) {
     if (doc) break;
   }
   if (!doc) problems.push("no second uniquely-titled vault document for intent-doc-02");
-  if (problems.length) return { problems, specs: [], tasks: [], md: "" };
+  if (problems.length) return { problems, specs: [], tasks: [], md: "", claims: [], answers: {} };
 
   const price = priced.unitPriceCents / 100;
   const phrase = doc.title.toLowerCase();
@@ -101,5 +101,14 @@ quantities.
 
 All derived for seed ${seed}.
 `;
-  return { problems, specs, tasks, md };
+  const claims = [`price-read:${priced.sku}`, `customer-read:${customer.code}`, `ticket-read:${reported.ticketNo}`, `doc-read:${doc.id}`];
+  // Each answer read back from the LIVE apps the way the question asks it —
+  // for tools/intent-integrity.mjs, which submits it to the verifier.
+  const answers = {
+    "intent-price-01": async (api) => ({ price: (await api.list("warehouse", "/api/v1/products")).find((p) => p.name === priced.name).unitPriceCents / 100 }),
+    "intent-customer-01": async (api) => ({ customerCode: api.only((await api.list("warehouse", "/api/v1/customers")).filter((c) => c.tier === customer.tier && c.city === customer.city)).code }),
+    "intent-reporter-01": async (api) => ({ requester: (await api.get("helpdesk", `/api/v1/tickets/${reported.ticketNo}`)).requester }),
+    "intent-doc-02": async (api) => ({ documentId: await api.documentTitled(phrase) }),
+  };
+  return { problems, specs, tasks, md, claims, answers };
 }

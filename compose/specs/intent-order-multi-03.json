@@ -1,0 +1,49 @@
+{
+  "id": "intent-order-multi-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "order-first-line",
+        "app": "warehouse",
+        "path": "/api/v1/orders?customer=C-119&status=open",
+        "where": {
+          "customerCode": "C-119",
+          "status": "open"
+        },
+        "count": {
+          "min": 2,
+          "max": 2
+        },
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "FAS-1056",
+            "qty": 5
+          }
+        }
+      },
+      {
+        "name": "order-second-line",
+        "app": "warehouse",
+        "path": "/api/v1/orders?customer=C-119&status=open",
+        "where": {
+          "customerCode": "C-119",
+          "status": "open"
+        },
+        "count": {
+          "min": 2,
+          "max": 2
+        },
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "FLU-1119",
+            "qty": 55
+          }
+        }
+      }
+    ]
+  }
+}

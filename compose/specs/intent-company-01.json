@@ -1,0 +1,10 @@
+{
+  "id": "intent-company-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "depots": 4
+    }
+  }
+}

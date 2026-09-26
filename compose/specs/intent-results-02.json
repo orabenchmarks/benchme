@@ -1,0 +1,10 @@
+{
+  "id": "intent-results-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "revenue": 40126615
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "intent-transfer-04",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "transfer-completed",
+        "app": "warehouse",
+        "path": "/api/v1/transfers",
+        "where": {
+          "sku": "CAB-1074",
+          "fromCode": "BRM",
+          "toCode": "QHV"
+        },
+        "expect": {
+          "qty": 28,
+          "status": "completed"
+        }
+      }
+    ]
+  }
+}

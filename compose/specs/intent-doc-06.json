@@ -1,0 +1,10 @@
+{
+  "id": "intent-doc-06",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "documentId": "doc-130"
+    }
+  }
+}

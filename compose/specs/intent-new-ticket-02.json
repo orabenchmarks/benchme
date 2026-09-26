@@ -1,0 +1,21 @@
+{
+  "id": "intent-new-ticket-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ticket-opened",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets?requester=C-122",
+        "where": {
+          "requester": "C-122",
+          "subject": "Invoice shows the wrong billing address"
+        },
+        "expect": {
+          "priority": "low"
+        }
+      }
+    ]
+  }
+}

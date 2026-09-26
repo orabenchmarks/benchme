@@ -1,0 +1,10 @@
+{
+  "id": "intent-requester-tickets-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "count": 2
+    }
+  }
+}

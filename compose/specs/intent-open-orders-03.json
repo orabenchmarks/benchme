@@ -1,0 +1,10 @@
+{
+  "id": "intent-open-orders-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "count": 4
+    }
+  }
+}

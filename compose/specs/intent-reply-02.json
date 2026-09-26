@@ -1,0 +1,20 @@
+{
+  "id": "intent-reply-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "customer-reply",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets/HD-5087",
+        "expect": {
+          "comments": {
+            "body": "We have issued a credit note for the damaged items; it will appear on your next statement.",
+            "internal": false
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "intent-top-depot-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "location": "VLM"
+    }
+  }
+}

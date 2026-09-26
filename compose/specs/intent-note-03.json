@@ -1,0 +1,20 @@
+{
+  "id": "intent-note-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "internal-note",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets/HD-5053",
+        "expect": {
+          "comments": {
+            "body": "Escalated to logistics: the carrier has opened a damage claim.",
+            "internal": true
+          }
+        }
+      }
+    ]
+  }
+}

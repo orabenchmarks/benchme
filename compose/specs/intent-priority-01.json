@@ -1,0 +1,17 @@
+{
+  "id": "intent-priority-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ticket-priority",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets/HD-5144",
+        "expect": {
+          "priority": "low"
+        }
+      }
+    ]
+  }
+}

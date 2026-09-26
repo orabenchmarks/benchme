@@ -1,0 +1,23 @@
+{
+  "id": "intent-transfer-05",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "transfer-completed",
+        "app": "warehouse",
+        "path": "/api/v1/transfers",
+        "where": {
+          "sku": "ENC-1091",
+          "fromCode": "QHV",
+          "toCode": "BRM"
+        },
+        "expect": {
+          "qty": 18,
+          "status": "completed"
+        }
+      }
+    ]
+  }
+}

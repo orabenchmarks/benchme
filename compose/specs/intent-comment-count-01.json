@@ -1,0 +1,10 @@
+{
+  "id": "intent-comment-count-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "count": 3
+    }
+  }
+}

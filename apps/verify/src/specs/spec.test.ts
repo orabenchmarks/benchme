@@ -13,11 +13,12 @@ const SPECS_DIR = join(here, "..", "..", "..", "..", "compose", "specs");
 // Files in compose/specs that are NOT a TaskSpec: corpus tools may also drop
 // a public manifest there (e.g. intent-tasks.json, the [{id, app, intent,
 // oracle, summary}] array tools/intent-corpus.mjs emits for a benchmark
-// consumer to copy) alongside the <taskId>.json specs themselves. The
+// consumer to copy, and intent-corpus.json, the same rows with their answer
+// keys) alongside the <taskId>.json specs themselves. The
 // verifier's own FsSpecRegistry never parses these — it only ever reads one
 // <taskId>.json by exact id — so they're excluded here rather than forced
 // into taskSpecSchema's shape.
-const NOT_A_SPEC = new Set(["intent-tasks.json"]);
+const NOT_A_SPEC = new Set(["intent-tasks.json", "intent-corpus.json"]);
 
 describe("compose/specs", () => {
   const files = readdirSync(SPECS_DIR).filter((f) => f.endsWith(".json") && !NOT_A_SPEC.has(f));
@@ -70,6 +71,26 @@ describe("compose/specs/intent-tasks.json", () => {
           expect(t.intent.toLowerCase().includes(String(expected).toLowerCase())).toBe(false);
         }
       }
+    }
+  });
+});
+
+// The drift guard for the OTHER projection: intent-corpus.json is
+// intent-tasks.json's rows with each task's answer key beside them, for a
+// platform that grades the answers itself — so each row must be exactly the
+// public row plus the verifier's own spec, or that platform grades something
+// the verifier never would.
+describe("compose/specs/intent-corpus.json", () => {
+  const manifest = JSON.parse(readFileSync(join(SPECS_DIR, "intent-tasks.json"), "utf8"));
+  const corpus = JSON.parse(readFileSync(join(SPECS_DIR, "intent-corpus.json"), "utf8"));
+
+  it("is intent-tasks.json, row for row, with each task's own spec as its key", () => {
+    expect(corpus.map((r: { id: string }) => r.id)).toEqual(manifest.map((t: { id: string }) => t.id));
+    for (const [i, row] of corpus.entries()) {
+      const { key, ...publicRow } = row;
+      expect(publicRow).toEqual(manifest[i]);
+      const spec = taskSpecSchema.parse(JSON.parse(readFileSync(join(SPECS_DIR, `${row.id}.json`), "utf8")));
+      expect(key).toEqual({ blind: spec.blind, oracle: spec.oracle });
     }
   });
 });

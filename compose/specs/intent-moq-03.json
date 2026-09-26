@@ -1,0 +1,10 @@
+{
+  "id": "intent-moq-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "moq": 5
+    }
+  }
+}

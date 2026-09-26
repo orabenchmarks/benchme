@@ -1,0 +1,10 @@
+{
+  "id": "intent-ticket-status-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "status": "open"
+    }
+  }
+}

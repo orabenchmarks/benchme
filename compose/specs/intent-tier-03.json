@@ -1,0 +1,10 @@
+{
+  "id": "intent-tier-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "tier": "gold"
+    }
+  }
+}

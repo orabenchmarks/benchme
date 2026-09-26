@@ -1,0 +1,28 @@
+{
+  "id": "intent-order-05",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "order-open-for-customer",
+        "app": "warehouse",
+        "path": "/api/v1/orders?customer=C-130&status=open",
+        "where": {
+          "customerCode": "C-130",
+          "status": "open"
+        },
+        "count": {
+          "min": 5
+        },
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "FAS-1096",
+            "qty": 40
+          }
+        }
+      }
+    ]
+  }
+}

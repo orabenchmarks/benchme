@@ -1,0 +1,10 @@
+{
+  "id": "intent-customer-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "customerCode": "C-107"
+    }
+  }
+}

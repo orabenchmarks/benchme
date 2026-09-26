@@ -1,0 +1,10 @@
+{
+  "id": "intent-ticket-priority-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "priority": "low"
+    }
+  }
+}
