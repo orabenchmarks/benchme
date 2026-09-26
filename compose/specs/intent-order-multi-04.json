@@ -1,0 +1,49 @@
+{
+  "id": "intent-order-multi-04",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "order-first-line",
+        "app": "warehouse",
+        "path": "/api/v1/orders?customer=C-131&status=open",
+        "where": {
+          "customerCode": "C-131",
+          "status": "open"
+        },
+        "count": {
+          "min": 4,
+          "max": 4
+        },
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "FLU-1111",
+            "qty": 25
+          }
+        }
+      },
+      {
+        "name": "order-second-line",
+        "app": "warehouse",
+        "path": "/api/v1/orders?customer=C-131&status=open",
+        "where": {
+          "customerCode": "C-131",
+          "status": "open"
+        },
+        "count": {
+          "min": 4,
+          "max": 4
+        },
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "CAB-1002",
+            "qty": 55
+          }
+        }
+      }
+    ]
+  }
+}

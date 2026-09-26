@@ -1,0 +1,20 @@
+{
+  "id": "intent-note-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "internal-note",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets/HD-5021",
+        "expect": {
+          "comments": {
+            "body": "Customer confirmed the replacement shipped; monitoring until delivery.",
+            "internal": true
+          }
+        }
+      }
+    ]
+  }
+}

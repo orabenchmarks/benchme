@@ -1,0 +1,10 @@
+{
+  "id": "intent-company-05",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "year": 1997
+    }
+  }
+}

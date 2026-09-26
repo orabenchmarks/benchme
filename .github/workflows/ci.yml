@@ -26,5 +26,25 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # The intent corpus's answer keys ARE the generator's output — never hand-edited.
+      - run: node tools/intent-corpus.mjs --check
       # The compose stack is a supported way to run benchme: keep it parseable.
       - run: docker compose -f compose.yaml -f compose.build.yaml config -q
+
+  # Every intent task proven against THIS commit's apps (built from source,
+  # compose/specs mounted into the verifier): each state task fails on a fresh
+  # workspace and passes after its reference solution; each json task accepts
+  # the answer read back from the live apps and refuses a wrong one.
+  intent-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx tsc -b tsconfig.build.json
+      - run: docker compose -f compose.yaml -f compose.build.yaml up -d --build --wait
+        env: { RUNNER_KIND: none }
+      - run: node tools/intent-integrity.mjs --base http://localhost:8080
+      - if: failure()
+        run: docker compose logs --tail 200

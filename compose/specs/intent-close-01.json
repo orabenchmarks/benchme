@@ -1,0 +1,17 @@
+{
+  "id": "intent-close-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ticket-closed",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets/HD-5100",
+        "expect": {
+          "status": "closed"
+        }
+      }
+    ]
+  }
+}

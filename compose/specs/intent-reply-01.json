@@ -1,0 +1,20 @@
+{
+  "id": "intent-reply-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "customer-reply",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets/HD-5099",
+        "expect": {
+          "comments": {
+            "body": "Our logistics team is looking into this and we will update you by tomorrow.",
+            "internal": false
+          }
+        }
+      }
+    ]
+  }
+}

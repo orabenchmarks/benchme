@@ -1,0 +1,10 @@
+{
+  "id": "intent-priciest-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "sku": "ADH-1038"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "intent-price-05",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "price": {
+        "value": 129.5,
+        "tolerance": 0.005
+      }
+    }
+  }
+}

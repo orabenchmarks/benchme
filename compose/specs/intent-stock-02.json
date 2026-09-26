@@ -1,0 +1,10 @@
+{
+  "id": "intent-stock-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "qty": 263
+    }
+  }
+}

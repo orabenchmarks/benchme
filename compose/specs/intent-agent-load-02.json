@@ -1,0 +1,10 @@
+{
+  "id": "intent-agent-load-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "count": 5
+    }
+  }
+}

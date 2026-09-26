@@ -1,0 +1,28 @@
+{
+  "id": "intent-order-04",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "order-open-for-customer",
+        "app": "warehouse",
+        "path": "/api/v1/orders?customer=C-110&status=open",
+        "where": {
+          "customerCode": "C-110",
+          "status": "open"
+        },
+        "count": {
+          "min": 4
+        },
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "FLU-1111",
+            "qty": 60
+          }
+        }
+      }
+    ]
+  }
+}

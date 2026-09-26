@@ -1,0 +1,10 @@
+{
+  "id": "intent-policy-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "days": 14
+    }
+  }
+}

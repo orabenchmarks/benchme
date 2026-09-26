@@ -1,0 +1,17 @@
+{
+  "id": "intent-reassign-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ticket-reassigned",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets/HD-5058",
+        "expect": {
+          "assigneeCode": "AG-12"
+        }
+      }
+    ]
+  }
+}

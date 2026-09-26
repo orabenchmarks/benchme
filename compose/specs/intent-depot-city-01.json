@@ -1,0 +1,10 @@
+{
+  "id": "intent-depot-city-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "city": "Tessalind"
+    }
+  }
+}

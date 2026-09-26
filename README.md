@@ -31,7 +31,7 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | `apps/warehouse` | products, stock, orders, transfers: SSR UI, REST v1, a 14-tool MCP server, NLWeb `/ask`, WebMCP |
 | `apps/helpdesk` | tickets, comments, SLAs, assignment: SSR UI, REST v1, an 11-tool MCP server (with a destructive `delete_ticket`), NLWeb `/ask`, WebMCP |
 | `apps/vaultdocs` | ~40 seeded documents as MCP **resources** (`docs://<id>`), `search`/`get_document`/`list_documents` tools, two MCP **prompts**; full-text search UI + REST, NLWeb `/ask`, WebMCP |
-| `apps/verify` | the verifier: json / xlsx / docx / patch / **state** oracles (state reads the app's own REST API after the fact — end state is the evidence, the artifact is ignored), HMAC receipts, attempt log, isolated Kubernetes Job runner; the six intent tasks it ships with are described in [`compose/specs/intent-tasks.md`](compose/specs/intent-tasks.md) |
+| `apps/verify` | the verifier: json / xlsx / docx / patch / **state** oracles (state reads the app's own REST API after the fact — end state is the evidence, the artifact is ignored), HMAC receipts, attempt log, isolated Kubernetes Job runner; the intent corpus it ships with (generated tasks across the warehouse, helpdesk, vault and company site) is described in [`compose/specs/README.md`](compose/specs/README.md) |
 | `apps/mail` | per-workspace inbox with an internal delivery endpoint |
 | `apps/data` | the generated company site |
 | `charts/benchme` | the Helm chart: own postgres + redis, apps, migrate job, reaper, ingress |

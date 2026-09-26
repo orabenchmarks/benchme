@@ -1,0 +1,10 @@
+{
+  "id": "intent-sla-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "hours": 48
+    }
+  }
+}

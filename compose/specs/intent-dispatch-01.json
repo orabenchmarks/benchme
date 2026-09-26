@@ -1,0 +1,10 @@
+{
+  "id": "intent-dispatch-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "hour": 16
+    }
+  }
+}

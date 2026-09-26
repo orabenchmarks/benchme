@@ -1,0 +1,10 @@
+{
+  "id": "intent-policy-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "percent": 5
+    }
+  }
+}

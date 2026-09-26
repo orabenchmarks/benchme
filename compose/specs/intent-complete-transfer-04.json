@@ -1,0 +1,17 @@
+{
+  "id": "intent-complete-transfer-04",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "transfer-completed",
+        "app": "warehouse",
+        "path": "/api/v1/transfers/TR-542",
+        "expect": {
+          "status": "completed"
+        }
+      }
+    ]
+  }
+}

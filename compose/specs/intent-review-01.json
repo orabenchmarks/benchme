@@ -1,0 +1,10 @@
+{
+  "id": "intent-review-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "months": 3
+    }
+  }
+}

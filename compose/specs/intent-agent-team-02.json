@@ -1,0 +1,10 @@
+{
+  "id": "intent-agent-team-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "team": "tier-1"
+    }
+  }
+}

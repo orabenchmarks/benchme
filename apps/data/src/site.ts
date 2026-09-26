@@ -18,6 +18,9 @@ function page(company: string, title: string, body: string, nav: string, jsonLd:
 <body><header>${nav}</header><main>${body}</main><script type="application/ld+json">${JSON.stringify(jsonLd)}</script></body></html>`;
 }
 
+/** The seed the published site is built from (DATA_SEED overrides it at build time). Every workspace serves the same site, whatever its own seed. */
+export const DEFAULT_DATA_SEED = 20260908;
+
 /**
  * The fictional company's public site, generated from the scenario so every
  * figure on it is derivable from the seed. Static: the same for every workspace.

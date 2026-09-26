@@ -1,0 +1,10 @@
+{
+  "id": "intent-order-status-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "status": "shipped"
+    }
+  }
+}

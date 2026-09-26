@@ -1,0 +1,17 @@
+{
+  "id": "intent-cancel-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "order-cancelled",
+        "app": "warehouse",
+        "path": "/api/v1/orders/SO-20014",
+        "expect": {
+          "status": "cancelled"
+        }
+      }
+    ]
+  }
+}

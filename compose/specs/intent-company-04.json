@@ -1,0 +1,10 @@
+{
+  "id": "intent-company-04",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "city": "Velmora"
+    }
+  }
+}

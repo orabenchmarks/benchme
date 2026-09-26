@@ -1,0 +1,49 @@
+{
+  "id": "intent-order-multi-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "order-first-line",
+        "app": "warehouse",
+        "path": "/api/v1/orders?customer=C-127&status=open",
+        "where": {
+          "customerCode": "C-127",
+          "status": "open"
+        },
+        "count": {
+          "min": 5,
+          "max": 5
+        },
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "FAS-1008",
+            "qty": 20
+          }
+        }
+      },
+      {
+        "name": "order-second-line",
+        "app": "warehouse",
+        "path": "/api/v1/orders?customer=C-127&status=open",
+        "where": {
+          "customerCode": "C-127",
+          "status": "open"
+        },
+        "count": {
+          "min": 5,
+          "max": 5
+        },
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "ADH-1054",
+            "qty": 25
+          }
+        }
+      }
+    ]
+  }
+}

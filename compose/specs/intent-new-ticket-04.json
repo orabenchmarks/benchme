@@ -1,0 +1,21 @@
+{
+  "id": "intent-new-ticket-04",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ticket-opened",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets?requester=C-133",
+        "where": {
+          "requester": "C-133",
+          "subject": "Portal access for a new team member"
+        },
+        "expect": {
+          "priority": "normal"
+        }
+      }
+    ]
+  }
+}

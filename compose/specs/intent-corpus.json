@@ -1,0 +1,3981 @@
+[
+  {
+    "id": "intent-order-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place a new order for customer Vidorfal Industrial (C-108) for 40 units of the Marmar Marka kit (SKU ADH-1038).",
+    "oracle": "state",
+    "summary": "C-108 ends up with one more open order than the seed already gave it, and that order's line items actually contain 40 units of ADH-1038 (checked by customer, not a predicted order number, then verified on the fetched detail row).",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-open-for-customer",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-108&status=open",
+            "where": {
+              "customerCode": "C-108",
+              "status": "open"
+            },
+            "count": {
+              "min": 6
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "ADH-1038",
+                "qty": 40
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-transfer-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer 12 units of the Kalo Quendor kit (SKU FAS-1096) from depot VLM to depot OST, and complete the transfer.",
+    "oracle": "state",
+    "summary": "A completed transfer of 12 units of FAS-1096 from VLM to OST.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "transfer-completed",
+            "app": "warehouse",
+            "path": "/api/v1/transfers",
+            "where": {
+              "sku": "FAS-1096",
+              "fromCode": "VLM",
+              "toCode": "OST"
+            },
+            "expect": {
+              "qty": 12,
+              "status": "completed"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-stock-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Quentho Dordor pack (SKU ENC-1027) are currently in stock across all depots? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Total stock of ENC-1027 across every depot, derived by stockOf().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 683
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-lowstock-01",
+    "surfaces": [
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which SKUs currently have fewer than 10 total units in stock across all depots? Answer as JSON: {\"skus\": \"<comma-separated SKUs, ascending>\"}.",
+    "oracle": "json",
+    "summary": "The low-stock SKU set at threshold 10, derived by lowStock().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "skus": "ADH-1118,FAS-1048"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-ticket-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Assign helpdesk ticket HD-5001 to agent Teodor Voss (AG-13) and mark it resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5001 assigned to AG-13 with status resolved.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-assigned-and-resolved",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5001",
+            "expect": {
+              "assigneeCode": "AG-13",
+              "status": "resolved"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-doc-01",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "vaultdocs",
+    "intent": "Search the document vault for the document about returns and warranty policy and report its document id as JSON: {\"documentId\": \"<id>\"}.",
+    "oracle": "json",
+    "summary": "The id of the single vault document matching \"returns and warranty policy\", derived by documentsMatching().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "documentId": "doc-101"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-price-01",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What is the unit price of the Quenquen Renmar kit? Answer as JSON: {\"price\": <number, USD>}.",
+    "oracle": "json",
+    "summary": "The unit price of ENC-1035 (the only product named \"Quenquen Renmar kit\").",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "price": {
+            "value": 50.25,
+            "tolerance": 0.005
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-customer-01",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "Which of our gold-tier customers is based in Quillhaven? Answer as JSON: {\"customerCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "C-114, the only gold-tier customer in Quillhaven.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "customerCode": "C-114"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-reporter-01",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "helpdesk",
+    "intent": "Which customer reported helpdesk ticket HD-5090? Answer as JSON: {\"requester\": \"<customer code>\"}.",
+    "oracle": "json",
+    "summary": "The requester of HD-5090.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "requester": "C-111"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-doc-02",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "vaultdocs",
+    "intent": "Find the vault document about helpdesk faq and report its document id as JSON: {\"documentId\": \"<id>\"}.",
+    "oracle": "json",
+    "summary": "The id of the single vault document matching \"helpdesk faq\", derived by documentsMatching().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "documentId": "doc-137"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-order-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place a new order for customer Marnex Systems (C-121) for 5 units of the Lofalel Zynex assembly (SKU ADH-1054).",
+    "oracle": "state",
+    "summary": "C-121 ends up with one more open order than the seed gave it, carrying a line of 5 × ADH-1054.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-open-for-customer",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-121&status=open",
+            "where": {
+              "customerCode": "C-121",
+              "status": "open"
+            },
+            "count": {
+              "min": 3
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "ADH-1054",
+                "qty": 5
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-order-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place a new order for customer Nexzy Logistics (C-112) for 15 units of the Trunex Nexka assembly (SKU SEN-1060).",
+    "oracle": "state",
+    "summary": "C-112 ends up with one more open order than the seed gave it, carrying a line of 15 × SEN-1060.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-open-for-customer",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-112&status=open",
+            "where": {
+              "customerCode": "C-112",
+              "status": "open"
+            },
+            "count": {
+              "min": 5
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "SEN-1060",
+                "qty": 15
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-order-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place a new order for customer Silvitru Supply (C-110) for 60 units of the Siltrunex Thotru kit (SKU FLU-1111).",
+    "oracle": "state",
+    "summary": "C-110 ends up with one more open order than the seed gave it, carrying a line of 60 × FLU-1111.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-open-for-customer",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-110&status=open",
+            "where": {
+              "customerCode": "C-110",
+              "status": "open"
+            },
+            "count": {
+              "min": 4
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "FLU-1111",
+                "qty": 60
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-order-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place a new order for customer Nexomtru Supply (C-130) for 40 units of the Kalo Quendor kit (SKU FAS-1096).",
+    "oracle": "state",
+    "summary": "C-130 ends up with one more open order than the seed gave it, carrying a line of 40 × FAS-1096.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-open-for-customer",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-130&status=open",
+            "where": {
+              "customerCode": "C-130",
+              "status": "open"
+            },
+            "count": {
+              "min": 5
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "FAS-1096",
+                "qty": 40
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-order-06",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place a new order for customer Quenfalsil Industrial (C-124) for 60 units of the Quenmar Silmar unit (SKU OPT-1113).",
+    "oracle": "state",
+    "summary": "C-124 ends up with one more open order than the seed gave it, carrying a line of 60 × OPT-1113.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-open-for-customer",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-124&status=open",
+            "where": {
+              "customerCode": "C-124",
+              "status": "open"
+            },
+            "count": {
+              "min": 2
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "OPT-1113",
+                "qty": 60
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-order-multi-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place ONE new order for customer Quenka Works (C-137) with two lines: 5 units of the Kazyka Trufal assembly (SKU FAS-1080) and 45 units of the Baloba Omom assembly (SKU ENC-1115).",
+    "oracle": "state",
+    "summary": "Exactly one new open order for C-137, carrying 5 × FAS-1080 and 45 × ENC-1115.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-first-line",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-137&status=open",
+            "where": {
+              "customerCode": "C-137",
+              "status": "open"
+            },
+            "count": {
+              "min": 3,
+              "max": 3
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "FAS-1080",
+                "qty": 5
+              }
+            }
+          },
+          {
+            "name": "order-second-line",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-137&status=open",
+            "where": {
+              "customerCode": "C-137",
+              "status": "open"
+            },
+            "count": {
+              "min": 3,
+              "max": 3
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "ENC-1115",
+                "qty": 45
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-order-multi-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place ONE new order for customer Vitru Industrial (C-127) with two lines: 20 units of the Viba Truren pack (SKU FAS-1008) and 25 units of the Lofalel Zynex assembly (SKU ADH-1054).",
+    "oracle": "state",
+    "summary": "Exactly one new open order for C-127, carrying 20 × FAS-1008 and 25 × ADH-1054.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-first-line",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-127&status=open",
+            "where": {
+              "customerCode": "C-127",
+              "status": "open"
+            },
+            "count": {
+              "min": 5,
+              "max": 5
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "FAS-1008",
+                "qty": 20
+              }
+            }
+          },
+          {
+            "name": "order-second-line",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-127&status=open",
+            "where": {
+              "customerCode": "C-127",
+              "status": "open"
+            },
+            "count": {
+              "min": 5,
+              "max": 5
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "ADH-1054",
+                "qty": 25
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-order-multi-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place ONE new order for customer Silka Logistics (C-119) with two lines: 5 units of the Silzy Rentho pack (SKU FAS-1056) and 55 units of the Omomzy Renzy module (SKU FLU-1119).",
+    "oracle": "state",
+    "summary": "Exactly one new open order for C-119, carrying 5 × FAS-1056 and 55 × FLU-1119.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-first-line",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-119&status=open",
+            "where": {
+              "customerCode": "C-119",
+              "status": "open"
+            },
+            "count": {
+              "min": 2,
+              "max": 2
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "FAS-1056",
+                "qty": 5
+              }
+            }
+          },
+          {
+            "name": "order-second-line",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-119&status=open",
+            "where": {
+              "customerCode": "C-119",
+              "status": "open"
+            },
+            "count": {
+              "min": 2,
+              "max": 2
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "FLU-1119",
+                "qty": 55
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-order-multi-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Place ONE new order for customer Omthonex Supply (C-131) with two lines: 25 units of the Siltrunex Thotru kit (SKU FLU-1111) and 55 units of the Thoom Nexsil assembly (SKU CAB-1002).",
+    "oracle": "state",
+    "summary": "Exactly one new open order for C-131, carrying 25 × FLU-1111 and 55 × CAB-1002.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-first-line",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-131&status=open",
+            "where": {
+              "customerCode": "C-131",
+              "status": "open"
+            },
+            "count": {
+              "min": 4,
+              "max": 4
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "FLU-1111",
+                "qty": 25
+              }
+            }
+          },
+          {
+            "name": "order-second-line",
+            "app": "warehouse",
+            "path": "/api/v1/orders?customer=C-131&status=open",
+            "where": {
+              "customerCode": "C-131",
+              "status": "open"
+            },
+            "count": {
+              "min": 4,
+              "max": 4
+            },
+            "rowPath": "/api/v1/orders/{orderNo}",
+            "expect": {
+              "lines": {
+                "sku": "CAB-1002",
+                "qty": 55
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-cancel-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Cancel order SO-20086 for Vivi Industrial (C-126).",
+    "oracle": "state",
+    "summary": "Order SO-20086 (open in the seed) has status cancelled.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-cancelled",
+            "app": "warehouse",
+            "path": "/api/v1/orders/SO-20086",
+            "expect": {
+              "status": "cancelled"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-cancel-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Cancel order SO-20176 for Omnex Supply (C-102).",
+    "oracle": "state",
+    "summary": "Order SO-20176 (open in the seed) has status cancelled.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-cancelled",
+            "app": "warehouse",
+            "path": "/api/v1/orders/SO-20176",
+            "expect": {
+              "status": "cancelled"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-cancel-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Cancel order SO-20014 for Omdor Works (C-103).",
+    "oracle": "state",
+    "summary": "Order SO-20014 (open in the seed) has status cancelled.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-cancelled",
+            "app": "warehouse",
+            "path": "/api/v1/orders/SO-20014",
+            "expect": {
+              "status": "cancelled"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-cancel-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Cancel order SO-20185 for Trufal Works (C-109).",
+    "oracle": "state",
+    "summary": "Order SO-20185 (open in the seed) has status cancelled.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-cancelled",
+            "app": "warehouse",
+            "path": "/api/v1/orders/SO-20185",
+            "expect": {
+              "status": "cancelled"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-cancel-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Cancel order SO-20065 for Quenquensil Logistics (C-133).",
+    "oracle": "state",
+    "summary": "Order SO-20065 (open in the seed) has status cancelled.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "order-cancelled",
+            "app": "warehouse",
+            "path": "/api/v1/orders/SO-20065",
+            "expect": {
+              "status": "cancelled"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-transfer-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer 30 units of the Omba Omom pack (SKU ADH-1062) from depot QHV to depot BRM, and complete the transfer.",
+    "oracle": "state",
+    "summary": "A completed transfer of 30 units of ADH-1062 from QHV to BRM.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "transfer-completed",
+            "app": "warehouse",
+            "path": "/api/v1/transfers",
+            "where": {
+              "sku": "ADH-1062",
+              "fromCode": "QHV",
+              "toCode": "BRM"
+            },
+            "expect": {
+              "qty": 30,
+              "status": "completed"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-transfer-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer 7 units of the Omvi Renzy kit (SKU ENC-1075) from depot QHV to depot VLM, and complete the transfer.",
+    "oracle": "state",
+    "summary": "A completed transfer of 7 units of ENC-1075 from QHV to VLM.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "transfer-completed",
+            "app": "warehouse",
+            "path": "/api/v1/transfers",
+            "where": {
+              "sku": "ENC-1075",
+              "fromCode": "QHV",
+              "toCode": "VLM"
+            },
+            "expect": {
+              "qty": 7,
+              "status": "completed"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-transfer-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer 28 units of the Nexfalsil Elom pack (SKU CAB-1074) from depot BRM to depot QHV, and complete the transfer.",
+    "oracle": "state",
+    "summary": "A completed transfer of 28 units of CAB-1074 from BRM to QHV.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "transfer-completed",
+            "app": "warehouse",
+            "path": "/api/v1/transfers",
+            "where": {
+              "sku": "CAB-1074",
+              "fromCode": "BRM",
+              "toCode": "QHV"
+            },
+            "expect": {
+              "qty": 28,
+              "status": "completed"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-transfer-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer 18 units of the Falren Baquen pack (SKU ENC-1091) from depot QHV to depot BRM, and complete the transfer.",
+    "oracle": "state",
+    "summary": "A completed transfer of 18 units of ENC-1091 from QHV to BRM.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "transfer-completed",
+            "app": "warehouse",
+            "path": "/api/v1/transfers",
+            "where": {
+              "sku": "ENC-1091",
+              "fromCode": "QHV",
+              "toCode": "BRM"
+            },
+            "expect": {
+              "qty": 18,
+              "status": "completed"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-complete-transfer-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer TR-530 (14 units of the Marom Trulo pack, SKU TOO-1093, from depot BRM to depot QHV) is still pending. Complete it.",
+    "oracle": "state",
+    "summary": "Transfer TR-530 (pending in the seed) has status completed.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "transfer-completed",
+            "app": "warehouse",
+            "path": "/api/v1/transfers/TR-530",
+            "expect": {
+              "status": "completed"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-complete-transfer-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer TR-559 (10 units of the Quenvimar Marsil unit, SKU SEN-1052, from depot BRM to depot VLM) is still pending. Complete it.",
+    "oracle": "state",
+    "summary": "Transfer TR-559 (pending in the seed) has status completed.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "transfer-completed",
+            "app": "warehouse",
+            "path": "/api/v1/transfers/TR-559",
+            "expect": {
+              "status": "completed"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-complete-transfer-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer TR-503 (1 units of the Omsil Nexfal kit, SKU ADH-1014, from depot QHV to depot VLM) is still pending. Complete it.",
+    "oracle": "state",
+    "summary": "Transfer TR-503 (pending in the seed) has status completed.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "transfer-completed",
+            "app": "warehouse",
+            "path": "/api/v1/transfers/TR-503",
+            "expect": {
+              "status": "completed"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-complete-transfer-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Transfer TR-542 (11 units of the Trunex Nexka assembly, SKU SEN-1060, from depot OST to depot BRM) is still pending. Complete it.",
+    "oracle": "state",
+    "summary": "Transfer TR-542 (pending in the seed) has status completed.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "transfer-completed",
+            "app": "warehouse",
+            "path": "/api/v1/transfers/TR-542",
+            "expect": {
+              "status": "completed"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-stock-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Falnexmar Kael assembly (SKU ENC-1107) are currently in stock across all depots? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Total stock of ENC-1107 across every depot, derived by stockOf().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 263
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-stock-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Kafalba Thonex module (SKU CAB-1050) are currently in stock across all depots? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Total stock of CAB-1050 across every depot, derived by stockOf().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 907
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-stock-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Quenel Omren module (SKU TOO-1085) are currently in stock across all depots? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Total stock of TOO-1085 across every depot, derived by stockOf().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 508
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-stock-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Zyom Renom kit (SKU FAS-1000) are currently in stock across all depots? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Total stock of FAS-1000 across every depot, derived by stockOf().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 912
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-stock-06",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Thoquenzy Fallo pack (SKU SEN-1092) are currently in stock across all depots? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Total stock of SEN-1092 across every depot, derived by stockOf().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 714
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-depot-stock-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Omvi Renzy kit (SKU ENC-1075) are held at depot OST (Zyvi depot 2)? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Stock of ENC-1075 at OST alone, derived by stockOf(rows, sku, depot).",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 113
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-depot-stock-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Barensil Martho unit (SKU OPT-1001) are held at depot BRM (Nexello depot 4)? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Stock of OPT-1001 at BRM alone, derived by stockOf(rows, sku, depot).",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 76
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-depot-stock-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Loom Loquen kit (SKU OPT-1097) are held at depot OST (Zyvi depot 2)? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Stock of OPT-1097 at OST alone, derived by stockOf(rows, sku, depot).",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 371
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-depot-stock-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Loloom Falvi unit (SKU FAS-1040) are held at depot QHV (Thoomsil depot 3)? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Stock of FAS-1040 at QHV alone, derived by stockOf(rows, sku, depot).",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 89
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-depot-stock-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of the Baomka Quenom kit (SKU FLU-1071) are held at depot VLM (Kaquen depot 1)? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "Stock of FLU-1071 at VLM alone, derived by stockOf(rows, sku, depot).",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 439
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-lowstock-02",
+    "surfaces": [
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which SKUs currently have fewer than 20 total units in stock across all depots? Answer as JSON: {\"skus\": \"<comma-separated SKUs, ascending>\"}.",
+    "oracle": "json",
+    "summary": "The low-stock SKU set at threshold 20, derived by lowStock().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "skus": "ADH-1118,FAS-1048"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-lowstock-03",
+    "surfaces": [
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which SKUs currently have fewer than 8 total units in stock across all depots? Answer as JSON: {\"skus\": \"<comma-separated SKUs, ascending>\"}.",
+    "oracle": "json",
+    "summary": "The low-stock SKU set at threshold 8, derived by lowStock().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "skus": "ADH-1118,FAS-1048"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-price-02",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What is the unit price of the Nextru Renzy assembly? Answer as JSON: {\"price\": <number, USD>}.",
+    "oracle": "json",
+    "summary": "The unit price of SEN-1036 (the only product named \"Nextru Renzy assembly\").",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "price": {
+            "value": 94,
+            "tolerance": 0.005
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-price-03",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What is the unit price of the Lolo Vivi pack? Answer as JSON: {\"price\": <number, USD>}.",
+    "oracle": "json",
+    "summary": "The unit price of ADH-1110 (the only product named \"Lolo Vivi pack\").",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "price": {
+            "value": 23.5,
+            "tolerance": 0.005
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-price-04",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What is the unit price of the Omquen Nextru kit? Answer as JSON: {\"price\": <number, USD>}.",
+    "oracle": "json",
+    "summary": "The unit price of FAS-1024 (the only product named \"Omquen Nextru kit\").",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "price": {
+            "value": 29,
+            "tolerance": 0.005
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-price-05",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What is the unit price of the Martruom Vivi unit? Answer as JSON: {\"price\": <number, USD>}.",
+    "oracle": "json",
+    "summary": "The unit price of SEN-1100 (the only product named \"Martruom Vivi unit\").",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "price": {
+            "value": 129.5,
+            "tolerance": 0.005
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-price-06",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What is the unit price of the Vizynex Renquen pack? Answer as JSON: {\"price\": <number, USD>}.",
+    "oracle": "json",
+    "summary": "The unit price of ENC-1059 (the only product named \"Vizynex Renquen pack\").",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "price": {
+            "value": 148.25,
+            "tolerance": 0.005
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-customer-02",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "Which of our platinum-tier customers is based in Velmora? Answer as JSON: {\"customerCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "C-137, the only platinum-tier customer in Velmora.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "customerCode": "C-137"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-customer-03",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "Which of our standard-tier customers is based in Velmora? Answer as JSON: {\"customerCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "C-107, the only standard-tier customer in Velmora.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "customerCode": "C-107"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-customer-04",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "Which of our platinum-tier customers is based in Karrow? Answer as JSON: {\"customerCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "C-115, the only platinum-tier customer in Karrow.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "customerCode": "C-115"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-tier-01",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What tier is our customer Quenfalsil Industrial? Answer as JSON: {\"tier\": \"<tier>\"}.",
+    "oracle": "json",
+    "summary": "The tier of C-124.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "tier": "gold"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-tier-02",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What tier is our customer Omnex Supply? Answer as JSON: {\"tier\": \"<tier>\"}.",
+    "oracle": "json",
+    "summary": "The tier of C-102.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "tier": "gold"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-tier-03",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What tier is our customer Trulo Supply? Answer as JSON: {\"tier\": \"<tier>\"}.",
+    "oracle": "json",
+    "summary": "The tier of C-132.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "tier": "gold"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-tier-04",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "What tier is our customer Kasilvi Systems? Answer as JSON: {\"tier\": \"<tier>\"}.",
+    "oracle": "json",
+    "summary": "The tier of C-138.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "tier": "gold"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-open-orders-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many open orders does Badortho Works (C-101) currently have? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of C-101's orders with status open.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "count": 3
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-open-orders-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many open orders does Silvitru Supply (C-110) currently have? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of C-110's orders with status open.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "count": 3
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-open-orders-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many open orders does Vitru Industrial (C-127) currently have? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of C-127's orders with status open.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "count": 4
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-open-orders-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many open orders does Thomarom Systems (C-115) currently have? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of C-115's orders with status open.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "count": 2
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-order-status-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the status of order SO-20003? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of SO-20003.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "status": "shipped"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-order-status-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the status of order SO-20040? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of SO-20040.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "status": "shipped"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-order-status-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the status of order SO-20105? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of SO-20105.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "status": "shipped"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-order-status-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the status of order SO-20167? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of SO-20167.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "status": "cancelled"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-order-total-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the total value of order SO-20296 in US dollars — every line's quantity times its unit price, summed? Answer as JSON: {\"total\": <number>}.",
+    "oracle": "json",
+    "summary": "The total of SO-20296 over its 3 lines, derived by orderTotalCents().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "total": {
+            "value": 7093.5,
+            "tolerance": 0.005
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-order-total-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the total value of order SO-20102 in US dollars — every line's quantity times its unit price, summed? Answer as JSON: {\"total\": <number>}.",
+    "oracle": "json",
+    "summary": "The total of SO-20102 over its 2 lines, derived by orderTotalCents().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "total": {
+            "value": 8691.75,
+            "tolerance": 0.005
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-order-total-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the total value of order SO-20061 in US dollars — every line's quantity times its unit price, summed? Answer as JSON: {\"total\": <number>}.",
+    "oracle": "json",
+    "summary": "The total of SO-20061 over its 2 lines, derived by orderTotalCents().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "total": {
+            "value": 2794,
+            "tolerance": 0.005
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-order-total-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "What is the total value of order SO-20156 in US dollars — every line's quantity times its unit price, summed? Answer as JSON: {\"total\": <number>}.",
+    "oracle": "json",
+    "summary": "The total of SO-20156 over its 4 lines, derived by orderTotalCents().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "total": {
+            "value": 16555.25,
+            "tolerance": 0.005
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-order-line-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of SKU ENC-1075 does order SO-20060 contain? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "The quantity of ENC-1075 on SO-20060.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 9
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-order-line-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of SKU FAS-1064 does order SO-20093 contain? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "The quantity of FAS-1064 on SO-20093.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 23
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-order-line-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "How many units of SKU CAB-1034 does order SO-20118 contain? Answer as JSON: {\"qty\": <number>}.",
+    "oracle": "json",
+    "summary": "The quantity of CAB-1034 on SO-20118.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "qty": 12
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-transfer-destination-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which depot is transfer TR-532 headed to? Answer with the depot code as JSON: {\"toCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The destination depot of TR-532.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "toCode": "VLM"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-transfer-destination-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which depot is transfer TR-556 headed to? Answer with the depot code as JSON: {\"toCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The destination depot of TR-556.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "toCode": "QHV"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-transfer-destination-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which depot is transfer TR-516 headed to? Answer with the depot code as JSON: {\"toCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The destination depot of TR-516.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "toCode": "BRM"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-top-depot-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which depot holds the most units of the Quenquen Renmar kit (SKU ENC-1035)? Answer with the depot code as JSON: {\"location\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The depot with the largest stock row for ENC-1035.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "location": "VLM"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-top-depot-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which depot holds the most units of the Bavi Batru assembly (SKU FLU-1055)? Answer with the depot code as JSON: {\"location\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The depot with the largest stock row for FLU-1055.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "location": "QHV"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-top-depot-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which depot holds the most units of the Kazyka Trufal assembly (SKU FAS-1080)? Answer with the depot code as JSON: {\"location\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The depot with the largest stock row for FAS-1080.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "location": "VLM"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-priciest-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which product in the enclosures category has the highest unit price? Answer with its SKU as JSON: {\"sku\": \"<SKU>\"}.",
+    "oracle": "json",
+    "summary": "The priciest enclosures product.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "sku": "ENC-1043"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-priciest-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which product in the adhesives category has the highest unit price? Answer with its SKU as JSON: {\"sku\": \"<SKU>\"}.",
+    "oracle": "json",
+    "summary": "The priciest adhesives product.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "sku": "ADH-1038"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-priciest-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "warehouse",
+    "intent": "Which product in the optics category has the highest unit price? Answer with its SKU as JSON: {\"sku\": \"<SKU>\"}.",
+    "oracle": "json",
+    "summary": "The priciest optics product.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "sku": "OPT-1097"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-depot-city-01",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "In which city is depot QHV (Thoomsil depot 3)? Answer as JSON: {\"city\": \"<city>\"}.",
+    "oracle": "json",
+    "summary": "The city of depot QHV.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "city": "Tessalind"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-depot-city-02",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "warehouse",
+    "intent": "In which city is depot BRM (Nexello depot 4)? Answer as JSON: {\"city\": \"<city>\"}.",
+    "oracle": "json",
+    "summary": "The city of depot BRM.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "city": "Tessalind"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-ticket-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Assign helpdesk ticket HD-5081 to agent Teodor Voss (AG-16) and mark it resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5081 assigned to AG-16 with status resolved.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-assigned-and-resolved",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5081",
+            "expect": {
+              "assigneeCode": "AG-16",
+              "status": "resolved"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-ticket-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Assign helpdesk ticket HD-5041 to agent Lior Kowalczyk (AG-11) and mark it resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5041 assigned to AG-11 with status resolved.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-assigned-and-resolved",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5041",
+            "expect": {
+              "assigneeCode": "AG-11",
+              "status": "resolved"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-ticket-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Assign helpdesk ticket HD-5040 to agent Teodor Voss (AG-13) and mark it resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5040 assigned to AG-13 with status resolved.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-assigned-and-resolved",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5040",
+            "expect": {
+              "assigneeCode": "AG-13",
+              "status": "resolved"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-ticket-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Assign helpdesk ticket HD-5015 to agent Teodor Voss (AG-16) and mark it resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5015 assigned to AG-16 with status resolved.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-assigned-and-resolved",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5015",
+            "expect": {
+              "assigneeCode": "AG-16",
+              "status": "resolved"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-priority-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Set the priority of helpdesk ticket HD-5144 (\"Transfer TR-510 still pending after two days\") to low.",
+    "oracle": "state",
+    "summary": "Ticket HD-5144 (normal in the seed) has priority low.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-priority",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5144",
+            "expect": {
+              "priority": "low"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-priority-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Set the priority of helpdesk ticket HD-5089 (\"Pricing question for gold tier\") to low.",
+    "oracle": "state",
+    "summary": "Ticket HD-5089 (normal in the seed) has priority low.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-priority",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5089",
+            "expect": {
+              "priority": "low"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-priority-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Set the priority of helpdesk ticket HD-5129 (\"Invoice for SO-20194 does not match the quote\") to urgent.",
+    "oracle": "state",
+    "summary": "Ticket HD-5129 (high in the seed) has priority urgent.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-priority",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5129",
+            "expect": {
+              "priority": "urgent"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-priority-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Set the priority of helpdesk ticket HD-5138 (\"Request for a datasheet on FLU-1103\") to high.",
+    "oracle": "state",
+    "summary": "Ticket HD-5138 (low in the seed) has priority high.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-priority",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5138",
+            "expect": {
+              "priority": "high"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-priority-05",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Set the priority of helpdesk ticket HD-5072 (\"Transfer TR-534 still pending after two days\") to low.",
+    "oracle": "state",
+    "summary": "Ticket HD-5072 (high in the seed) has priority low.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-priority",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5072",
+            "expect": {
+              "priority": "low"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-note-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Add an internal note to helpdesk ticket HD-5074 that reads exactly: \"Escalated to logistics: the carrier has opened a damage claim.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5074 carries an internal note with that exact text.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "internal-note",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5074",
+            "expect": {
+              "comments": {
+                "body": "Escalated to logistics: the carrier has opened a damage claim.",
+                "internal": true
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-note-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Add an internal note to helpdesk ticket HD-5021 that reads exactly: \"Customer confirmed the replacement shipped; monitoring until delivery.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5021 carries an internal note with that exact text.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "internal-note",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5021",
+            "expect": {
+              "comments": {
+                "body": "Customer confirmed the replacement shipped; monitoring until delivery.",
+                "internal": true
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-note-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Add an internal note to helpdesk ticket HD-5053 that reads exactly: \"Escalated to logistics: the carrier has opened a damage claim.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5053 carries an internal note with that exact text.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "internal-note",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5053",
+            "expect": {
+              "comments": {
+                "body": "Escalated to logistics: the carrier has opened a damage claim.",
+                "internal": true
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-note-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Add an internal note to helpdesk ticket HD-5028 that reads exactly: \"Escalated to logistics: the carrier has opened a damage claim.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5028 carries an internal note with that exact text.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "internal-note",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5028",
+            "expect": {
+              "comments": {
+                "body": "Escalated to logistics: the carrier has opened a damage claim.",
+                "internal": true
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-reply-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reply to the customer on helpdesk ticket HD-5099 with exactly: \"Our logistics team is looking into this and we will update you by tomorrow.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5099 carries a public reply with that exact text.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "customer-reply",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5099",
+            "expect": {
+              "comments": {
+                "body": "Our logistics team is looking into this and we will update you by tomorrow.",
+                "internal": false
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-reply-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reply to the customer on helpdesk ticket HD-5087 with exactly: \"We have issued a credit note for the damaged items; it will appear on your next statement.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5087 carries a public reply with that exact text.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "customer-reply",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5087",
+            "expect": {
+              "comments": {
+                "body": "We have issued a credit note for the damaged items; it will appear on your next statement.",
+                "internal": false
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-reply-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reply to the customer on helpdesk ticket HD-5036 with exactly: \"Thanks for reporting this. A replacement is on its way and should arrive within three business days.\"",
+    "oracle": "state",
+    "summary": "Ticket HD-5036 carries a public reply with that exact text.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "customer-reply",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5036",
+            "expect": {
+              "comments": {
+                "body": "Thanks for reporting this. A replacement is on its way and should arrive within three business days.",
+                "internal": false
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-new-ticket-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Open a new helpdesk ticket for customer Falren Works (C-136) with the subject \"Portal access for a new team member\" and low priority.",
+    "oracle": "state",
+    "summary": "A ticket requested by C-136 with that subject and priority low.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-opened",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets?requester=C-136",
+            "where": {
+              "requester": "C-136",
+              "subject": "Portal access for a new team member"
+            },
+            "expect": {
+              "priority": "low"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-new-ticket-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Open a new helpdesk ticket for customer Omom Works (C-122) with the subject \"Invoice shows the wrong billing address\" and low priority.",
+    "oracle": "state",
+    "summary": "A ticket requested by C-122 with that subject and priority low.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-opened",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets?requester=C-122",
+            "where": {
+              "requester": "C-122",
+              "subject": "Invoice shows the wrong billing address"
+            },
+            "expect": {
+              "priority": "low"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-new-ticket-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Open a new helpdesk ticket for customer Quenfalsil Industrial (C-124) with the subject \"Delivery window change for next week's order\" and normal priority.",
+    "oracle": "state",
+    "summary": "A ticket requested by C-124 with that subject and priority normal.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-opened",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets?requester=C-124",
+            "where": {
+              "requester": "C-124",
+              "subject": "Delivery window change for next week's order"
+            },
+            "expect": {
+              "priority": "normal"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-new-ticket-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Open a new helpdesk ticket for customer Quenquensil Logistics (C-133) with the subject \"Portal access for a new team member\" and normal priority.",
+    "oracle": "state",
+    "summary": "A ticket requested by C-133 with that subject and priority normal.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-opened",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets?requester=C-133",
+            "where": {
+              "requester": "C-133",
+              "subject": "Portal access for a new team member"
+            },
+            "expect": {
+              "priority": "normal"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-hold-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Put helpdesk ticket HD-5137 on hold: set its status to pending.",
+    "oracle": "state",
+    "summary": "Ticket HD-5137 (open in the seed) has status pending.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-pending",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5137",
+            "expect": {
+              "status": "pending"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-hold-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Put helpdesk ticket HD-5126 on hold: set its status to pending.",
+    "oracle": "state",
+    "summary": "Ticket HD-5126 (open in the seed) has status pending.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-pending",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5126",
+            "expect": {
+              "status": "pending"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-hold-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Put helpdesk ticket HD-5030 on hold: set its status to pending.",
+    "oracle": "state",
+    "summary": "Ticket HD-5030 (open in the seed) has status pending.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-pending",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5030",
+            "expect": {
+              "status": "pending"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-reopen-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reopen helpdesk ticket HD-5006.",
+    "oracle": "state",
+    "summary": "Ticket HD-5006 (resolved in the seed) has status open.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-open",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5006",
+            "expect": {
+              "status": "open"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-reopen-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reopen helpdesk ticket HD-5055.",
+    "oracle": "state",
+    "summary": "Ticket HD-5055 (resolved in the seed) has status open.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-open",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5055",
+            "expect": {
+              "status": "open"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-reopen-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reopen helpdesk ticket HD-5149.",
+    "oracle": "state",
+    "summary": "Ticket HD-5149 (resolved in the seed) has status open.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-open",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5149",
+            "expect": {
+              "status": "open"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-close-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Close helpdesk ticket HD-5100, which is already resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5100 (resolved in the seed) has status closed.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-closed",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5100",
+            "expect": {
+              "status": "closed"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-close-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Close helpdesk ticket HD-5070, which is already resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5070 (resolved in the seed) has status closed.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-closed",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5070",
+            "expect": {
+              "status": "closed"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-close-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Close helpdesk ticket HD-5140, which is already resolved.",
+    "oracle": "state",
+    "summary": "Ticket HD-5140 (resolved in the seed) has status closed.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-closed",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5140",
+            "expect": {
+              "status": "closed"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-reassign-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reassign helpdesk ticket HD-5093 from Teodor Voss to Quill Ferrante (AG-12).",
+    "oracle": "state",
+    "summary": "Ticket HD-5093 (assigned to AG-16 in the seed) is assigned to AG-12.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-reassigned",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5093",
+            "expect": {
+              "assigneeCode": "AG-12"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-reassign-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reassign helpdesk ticket HD-5082 from Danae Larrabee to Lior Kowalczyk (AG-11).",
+    "oracle": "state",
+    "summary": "Ticket HD-5082 (assigned to AG-14 in the seed) is assigned to AG-11.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-reassigned",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5082",
+            "expect": {
+              "assigneeCode": "AG-11"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-reassign-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Reassign helpdesk ticket HD-5058 from Danae Larrabee to Quill Ferrante (AG-12).",
+    "oracle": "state",
+    "summary": "Ticket HD-5058 (assigned to AG-14 in the seed) is assigned to AG-12.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "ticket-reassigned",
+            "app": "helpdesk",
+            "path": "/api/v1/tickets/HD-5058",
+            "expect": {
+              "assigneeCode": "AG-12"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "intent-reporter-02",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "helpdesk",
+    "intent": "Which customer reported helpdesk ticket HD-5065? Answer as JSON: {\"requester\": \"<customer code>\"}.",
+    "oracle": "json",
+    "summary": "The requester of HD-5065.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "requester": "C-124"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-reporter-03",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "helpdesk",
+    "intent": "Which customer reported helpdesk ticket HD-5085? Answer as JSON: {\"requester\": \"<customer code>\"}.",
+    "oracle": "json",
+    "summary": "The requester of HD-5085.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "requester": "C-114"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-reporter-04",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "helpdesk",
+    "intent": "Which customer reported helpdesk ticket HD-5115? Answer as JSON: {\"requester\": \"<customer code>\"}.",
+    "oracle": "json",
+    "summary": "The requester of HD-5115.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "requester": "C-132"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-ticket-priority-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "What is the priority of helpdesk ticket HD-5128? Answer as JSON: {\"priority\": \"<priority>\"}.",
+    "oracle": "json",
+    "summary": "The priority of HD-5128.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "priority": "high"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-ticket-priority-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "What is the priority of helpdesk ticket HD-5136? Answer as JSON: {\"priority\": \"<priority>\"}.",
+    "oracle": "json",
+    "summary": "The priority of HD-5136.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "priority": "low"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-ticket-priority-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "What is the priority of helpdesk ticket HD-5019? Answer as JSON: {\"priority\": \"<priority>\"}.",
+    "oracle": "json",
+    "summary": "The priority of HD-5019.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "priority": "normal"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-ticket-status-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "What is the status of helpdesk ticket HD-5129? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of HD-5129.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "status": "open"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-ticket-status-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "What is the status of helpdesk ticket HD-5091? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of HD-5091.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "status": "open"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-ticket-status-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "What is the status of helpdesk ticket HD-5020? Answer as JSON: {\"status\": \"<status>\"}.",
+    "oracle": "json",
+    "summary": "The status of HD-5020.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "status": "open"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-assignee-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Which agent is helpdesk ticket HD-5025 assigned to? Answer with the agent code as JSON: {\"assigneeCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The assignee of HD-5025.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "assigneeCode": "AG-14"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-assignee-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Which agent is helpdesk ticket HD-5069 assigned to? Answer with the agent code as JSON: {\"assigneeCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The assignee of HD-5069.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "assigneeCode": "AG-16"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-assignee-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Which agent is helpdesk ticket HD-5063 assigned to? Answer with the agent code as JSON: {\"assigneeCode\": \"<code>\"}.",
+    "oracle": "json",
+    "summary": "The assignee of HD-5063.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "assigneeCode": "AG-15"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-agent-team-01",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "helpdesk",
+    "intent": "Which team is support agent Lior Kowalczyk on? Answer as JSON: {\"team\": \"<team>\"}.",
+    "oracle": "json",
+    "summary": "The team of AG-11.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "team": "tier-2"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-agent-team-02",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "helpdesk",
+    "intent": "Which team is support agent Danae Larrabee on? Answer as JSON: {\"team\": \"<team>\"}.",
+    "oracle": "json",
+    "summary": "The team of AG-14.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "team": "tier-1"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-agent-team-03",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "helpdesk",
+    "intent": "Which team is support agent Quill Ferrante on? Answer as JSON: {\"team\": \"<team>\"}.",
+    "oracle": "json",
+    "summary": "The team of AG-12.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "team": "billing"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-agent-load-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many open or pending helpdesk tickets are currently assigned to Lior Kowalczyk (AG-11)? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of AG-11's tickets with status open or pending, derived by openTicketsFor().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "count": 10
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-agent-load-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many open or pending helpdesk tickets are currently assigned to Quill Ferrante (AG-12)? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of AG-12's tickets with status open or pending, derived by openTicketsFor().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "count": 5
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-agent-load-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many open or pending helpdesk tickets are currently assigned to Quill Sandoval (AG-10)? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of AG-10's tickets with status open or pending, derived by openTicketsFor().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "count": 6
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-sla-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Under our support SLA, within how many hours must a normal-priority ticket be resolved? Answer as JSON: {\"hours\": <number>}.",
+    "oracle": "json",
+    "summary": "The resolve target of the normal SLA policy.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "hours": 120
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-sla-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "Under our support SLA, within how many hours must a high-priority ticket be resolved? Answer as JSON: {\"hours\": <number>}.",
+    "oracle": "json",
+    "summary": "The resolve target of the high SLA policy.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "hours": 48
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-comment-count-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many comments, internal notes included, does helpdesk ticket HD-5074 have? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of comments on HD-5074.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "count": 3
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-comment-count-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many comments, internal notes included, does helpdesk ticket HD-5029 have? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of comments on HD-5029.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "count": 4
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-requester-tickets-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many helpdesk tickets has customer Trumar Systems (C-107) reported? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of tickets requested by C-107.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "count": 3
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-requester-tickets-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "helpdesk",
+    "intent": "How many helpdesk tickets has customer Omthonex Supply (C-131) reported? Answer as JSON: {\"count\": <number>}.",
+    "oracle": "json",
+    "summary": "The number of tickets requested by C-131.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "count": 2
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-doc-03",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "vaultdocs",
+    "intent": "Find the vault document about operations memo 7: loka checklist and report its document id as JSON: {\"documentId\": \"<id>\"}.",
+    "oracle": "json",
+    "summary": "The id of the single vault document matching \"operations memo 7: loka checklist\", derived by documentsMatching().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "documentId": "doc-135"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-doc-04",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "vaultdocs",
+    "intent": "Find the vault document about operations memo 5: thoomka rollout and report its document id as JSON: {\"documentId\": \"<id>\"}.",
+    "oracle": "json",
+    "summary": "The id of the single vault document matching \"operations memo 5: thoomka rollout\", derived by documentsMatching().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "documentId": "doc-133"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-doc-05",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "vaultdocs",
+    "intent": "Find the vault document about account review: viomlo supply and report its document id as JSON: {\"documentId\": \"<id>\"}.",
+    "oracle": "json",
+    "summary": "The id of the single vault document matching \"account review: viomlo supply\", derived by documentsMatching().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "documentId": "doc-120"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-doc-06",
+    "surfaces": [
+      "pages",
+      "tools",
+      "nlweb"
+    ],
+    "app": "vaultdocs",
+    "intent": "Find the vault document about operations memo 2: rentruzy retrospective and report its document id as JSON: {\"documentId\": \"<id>\"}.",
+    "oracle": "json",
+    "summary": "The id of the single vault document matching \"operations memo 2: rentruzy retrospective\", derived by documentsMatching().",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "documentId": "doc-130"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-lead-time-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Marquenba Silren assembly (SKU OPT-1009), what is the standard supplier lead time in business days? Answer as JSON: {\"days\": <number>}.",
+    "oracle": "json",
+    "summary": "The lead time on OPT-1009's datasheet.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "days": 11
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-lead-time-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Visilfal Bazy unit (SKU ENC-1099), what is the standard supplier lead time in business days? Answer as JSON: {\"days\": <number>}.",
+    "oracle": "json",
+    "summary": "The lead time on ENC-1099's datasheet.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "days": 11
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-lead-time-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Zyom Renom kit (SKU FAS-1000), what is the standard supplier lead time in business days? Answer as JSON: {\"days\": <number>}.",
+    "oracle": "json",
+    "summary": "The lead time on FAS-1000's datasheet.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "days": 2
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-lead-time-04",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Lofalel Zynex assembly (SKU ADH-1054), what is the standard supplier lead time in business days? Answer as JSON: {\"days\": <number>}.",
+    "oracle": "json",
+    "summary": "The lead time on ADH-1054's datasheet.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "days": 6
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-moq-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Zyloka Kafal pack (SKU OPT-1081), what is its minimum order quantity? Answer as JSON: {\"moq\": <number>}.",
+    "oracle": "json",
+    "summary": "The minimum order quantity on OPT-1081's datasheet.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "moq": 25
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-moq-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Baelfal Marren pack (SKU CAB-1018), what is its minimum order quantity? Answer as JSON: {\"moq\": <number>}.",
+    "oracle": "json",
+    "summary": "The minimum order quantity on CAB-1018's datasheet.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "moq": 5
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-moq-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's datasheet for the Zyom Renom kit (SKU FAS-1000), what is its minimum order quantity? Answer as JSON: {\"moq\": <number>}.",
+    "oracle": "json",
+    "summary": "The minimum order quantity on FAS-1000's datasheet.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "moq": 5
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-policy-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's customer tier discounts policy, what percentage off list price do gold customers receive? Answer as JSON: {\"percent\": <number>}.",
+    "oracle": "json",
+    "summary": "The gold figure in \"Customer tier discounts\".",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "percent": 5
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-policy-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's customer tier discounts policy, what percentage off list price do platinum customers receive? Answer as JSON: {\"percent\": <number>}.",
+    "oracle": "json",
+    "summary": "The platinum figure in \"Customer tier discounts\".",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "percent": 9
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-policy-03",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's returns and warranty policy, within how many days of delivery may customers return unused goods? Answer as JSON: {\"days\": <number>}.",
+    "oracle": "json",
+    "summary": "The returns figure in \"Returns and warranty policy\".",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "days": 14
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-dispatch-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's depot operating hours policy, until what hour does Zyvi depot 2 (OST) dispatch goods? Give the hour on a 24-hour clock. Answer as JSON: {\"hour\": <number>}.",
+    "oracle": "json",
+    "summary": "The dispatch cut-off of OST.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "hour": 16
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-dispatch-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's depot operating hours policy, until what hour does Thoomsil depot 3 (QHV) dispatch goods? Give the hour on a 24-hour clock. Answer as JSON: {\"hour\": <number>}.",
+    "oracle": "json",
+    "summary": "The dispatch cut-off of QHV.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "hour": 19
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-review-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's account review notes for Trumar Systems, in how many months is their next review? Answer as JSON: {\"months\": <number>}.",
+    "oracle": "json",
+    "summary": "The review interval in \"Account review: Trumar Systems\".",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "months": 3
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-review-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's account review notes for Viomlo Supply, in how many months is their next review? Answer as JSON: {\"months\": <number>}.",
+    "oracle": "json",
+    "summary": "The review interval in \"Account review: Viomlo Supply\".",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "months": 2
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-results-01",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's final FY2025 results summary (not the superseded draft), how many employees did the company have? Answer as JSON: {\"employees\": <number>}.",
+    "oracle": "json",
+    "summary": "The final FY2025 employees figure.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "employees": 614
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-results-02",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "app": "vaultdocs",
+    "intent": "According to the vault's final FY2025 results summary (not the superseded draft), what was the company's FY2025 revenue in US dollars? Answer as JSON: {\"revenue\": <number>}.",
+    "oracle": "json",
+    "summary": "The final FY2025 revenue figure.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "revenue": 40126615
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-company-01",
+    "surfaces": [
+      "pages"
+    ],
+    "app": "data",
+    "intent": "According to the company's public website, how many depots does the company operate? Answer as JSON: {\"depots\": <number>}.",
+    "oracle": "json",
+    "summary": "The company's depots, as its public site states it.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "depots": 4
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-company-02",
+    "surfaces": [
+      "pages"
+    ],
+    "app": "data",
+    "intent": "According to the company's public website, what was the company's total revenue for FY2025, in US dollars, according to its annual report? Answer as JSON: {\"revenue\": <number>}.",
+    "oracle": "json",
+    "summary": "The company's revenue, as its public site states it.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "revenue": {
+            "value": 38902497,
+            "tolerance": 0.5
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-company-03",
+    "surfaces": [
+      "pages"
+    ],
+    "app": "data",
+    "intent": "According to the company's public website, how many employees does the company have? Answer as JSON: {\"employees\": <number>}.",
+    "oracle": "json",
+    "summary": "The company's employees, as its public site states it.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "employees": 856
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-company-04",
+    "surfaces": [
+      "pages"
+    ],
+    "app": "data",
+    "intent": "According to the company's public website, in which city is the company headquartered? Answer as JSON: {\"city\": \"<text>\"}.",
+    "oracle": "json",
+    "summary": "The company's headquarters, as its public site states it.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "city": "Velmora"
+        }
+      }
+    }
+  },
+  {
+    "id": "intent-company-05",
+    "surfaces": [
+      "pages"
+    ],
+    "app": "data",
+    "intent": "According to the company's public website, in what year was the company founded? Answer as JSON: {\"year\": <number>}.",
+    "oracle": "json",
+    "summary": "The company's founded, as its public site states it.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "year": 1997
+        }
+      }
+    }
+  }
+]

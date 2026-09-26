@@ -1,0 +1,28 @@
+{
+  "id": "intent-order-06",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "order-open-for-customer",
+        "app": "warehouse",
+        "path": "/api/v1/orders?customer=C-124&status=open",
+        "where": {
+          "customerCode": "C-124",
+          "status": "open"
+        },
+        "count": {
+          "min": 2
+        },
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "OPT-1113",
+            "qty": 60
+          }
+        }
+      }
+    ]
+  }
+}

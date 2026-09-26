@@ -1,0 +1,10 @@
+{
+  "id": "intent-transfer-destination-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "toCode": "VLM"
+    }
+  }
+}

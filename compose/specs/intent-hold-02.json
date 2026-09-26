@@ -1,0 +1,17 @@
+{
+  "id": "intent-hold-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ticket-pending",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets/HD-5126",
+        "expect": {
+          "status": "pending"
+        }
+      }
+    ]
+  }
+}

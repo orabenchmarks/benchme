@@ -1,0 +1,10 @@
+{
+  "id": "intent-lead-time-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "days": 2
+    }
+  }
+}

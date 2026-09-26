@@ -1,0 +1,10 @@
+{
+  "id": "intent-reporter-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "requester": "C-124"
+    }
+  }
+}

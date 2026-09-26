@@ -1,0 +1,23 @@
+{
+  "id": "intent-transfer-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "transfer-completed",
+        "app": "warehouse",
+        "path": "/api/v1/transfers",
+        "where": {
+          "sku": "ADH-1062",
+          "fromCode": "QHV",
+          "toCode": "BRM"
+        },
+        "expect": {
+          "qty": 30,
+          "status": "completed"
+        }
+      }
+    ]
+  }
+}

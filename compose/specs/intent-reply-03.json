@@ -1,0 +1,20 @@
+{
+  "id": "intent-reply-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "customer-reply",
+        "app": "helpdesk",
+        "path": "/api/v1/tickets/HD-5036",
+        "expect": {
+          "comments": {
+            "body": "Thanks for reporting this. A replacement is on its way and should arrive within three business days.",
+            "internal": false
+          }
+        }
+      }
+    ]
+  }
+}

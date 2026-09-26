@@ -1,0 +1,49 @@
+{
+  "id": "intent-order-multi-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "order-first-line",
+        "app": "warehouse",
+        "path": "/api/v1/orders?customer=C-137&status=open",
+        "where": {
+          "customerCode": "C-137",
+          "status": "open"
+        },
+        "count": {
+          "min": 3,
+          "max": 3
+        },
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "FAS-1080",
+            "qty": 5
+          }
+        }
+      },
+      {
+        "name": "order-second-line",
+        "app": "warehouse",
+        "path": "/api/v1/orders?customer=C-137&status=open",
+        "where": {
+          "customerCode": "C-137",
+          "status": "open"
+        },
+        "count": {
+          "min": 3,
+          "max": 3
+        },
+        "rowPath": "/api/v1/orders/{orderNo}",
+        "expect": {
+          "lines": {
+            "sku": "ENC-1115",
+            "qty": 45
+          }
+        }
+      }
+    ]
+  }
+}
