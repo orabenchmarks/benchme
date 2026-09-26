@@ -1,10 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildSite } from "./site.js";
+import { DEFAULT_DATA_SEED, buildSite } from "./site.js";
 
 /** Renders the site into dist/site at build time (baked into the image). */
-const seed = Number(process.env.DATA_SEED ?? 20260908);
+const seed = Number(process.env.DATA_SEED ?? DEFAULT_DATA_SEED);
 const out = join(dirname(fileURLToPath(import.meta.url)), "site");
 let n = 0;
 for (const f of buildSite(seed)) {
