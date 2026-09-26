@@ -83,42 +83,42 @@ services:
   # The chart's migrate Job: one app after another, in this order.
   migrate-gateway:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.6.0}
     command: ["node", "apps/gateway/dist/migrate.js"]
     depends_on:
       postgres:
         condition: service_healthy
   migrate-warehouse:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.6.0}
     command: ["node", "apps/warehouse/dist/migrate.js"]
     depends_on:
       migrate-gateway:
         condition: service_completed_successfully
   migrate-helpdesk:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.6.0}
     command: ["node", "apps/helpdesk/dist/migrate.js"]
     depends_on:
       migrate-warehouse:
         condition: service_completed_successfully
   migrate-vaultdocs:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.6.0}
     command: ["node", "apps/vaultdocs/dist/migrate.js"]
     depends_on:
       migrate-helpdesk:
         condition: service_completed_successfully
   migrate-mail:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.6.0}
     command: ["node", "apps/mail/dist/migrate.js"]
     depends_on:
       migrate-vaultdocs:
         condition: service_completed_successfully
   migrate-verify:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.6.0}
     command: ["node", "apps/verify/dist/migrate.js"]
     depends_on:
       migrate-mail:
@@ -126,7 +126,7 @@ services:
 
   gateway:
     <<: *app
-    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.6.0}
     ports:
       - "${BENCHME_PORT:-8080}:3000"
     depends_on:
@@ -153,37 +153,37 @@ services:
 
   warehouse:
     <<: *app
-    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.6.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
 
   helpdesk:
     <<: *app
-    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.6.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
 
   vaultdocs:
     <<: *app
-    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.6.0}
     environment: *common-env
 
   mail:
     <<: *app
-    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.6.0}
     environment: *common-env
 
   data:
     <<: *app
-    image: ghcr.io/orabenchmarks/data:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/data:${BENCHME_VERSION:-0.6.0}
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
 
   verify:
     <<: *app
-    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.6.0}
     # The Docker socket's group so the non-root verifier may use it:
     # Linux → `stat -c %g /var/run/docker.sock`; Docker Desktop → 0.
     group_add:
@@ -205,7 +205,7 @@ services:
 
   # The chart's reaper CronJob: expired workspaces are dropped every hour.
   reaper:
-    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.5.0}
+    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.6.0}
     restart: unless-stopped
     depends_on:
       migrate-verify:
