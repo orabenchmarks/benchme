@@ -94,3 +94,66 @@ describe("the emitted bridge script", () => {
     expect(fetchSpy.mock.calls[0]?.[0]).toBe("/w/abc/warehouse/mcp");
   });
 });
+
+/** A modelContext that records what got registered. */
+function spyContext(): { mc: { registerTool: (t: { name: string }) => void }; names: string[] } {
+  const names: string[] = [];
+  return { mc: { registerTool: (t) => names.push(t.name) }, names };
+}
+
+// Cloudflare's Kitesurf (2026-09-28) implements the WebMCP Community Group
+// draft's `document.modelContext`; Chromium's testing flag and agent shims use
+// `navigator.modelContext`. A page registered on navigator alone showed
+// Kitesurf agents "No WebMCP tools available".
+describe("the bridge on each WebMCP global", () => {
+  it("registers on document.modelContext when navigator has none (the CG draft, Kitesurf)", () => {
+    const doc = spyContext();
+    runInContext(body(), createContext({ document: { modelContext: doc.mc }, navigator: {}, window: {} }));
+    expect(doc.names).toEqual(["get_stock"]);
+  });
+
+  it("registers on both when the page has two distinct contexts", () => {
+    const doc = spyContext();
+    const nav = spyContext();
+    runInContext(body(), createContext({ document: { modelContext: doc.mc }, navigator: { modelContext: nav.mc }, window: {} }));
+    expect(doc.names).toEqual(["get_stock"]);
+    expect(nav.names).toEqual(["get_stock"]);
+  });
+
+  it("registers once when both names are the same object", () => {
+    const one = spyContext();
+    runInContext(body(), createContext({ document: { modelContext: one.mc }, navigator: { modelContext: one.mc }, window: {} }));
+    expect(one.names).toEqual(["get_stock"]);
+  });
+
+  it("a registry refusing one name loses only that tool, not the rest", () => {
+    const two = new ToolRegistry<unknown>()
+      .register({ name: "get_stock", description: "d", input: {}, handler: async () => 1 })
+      .register({ name: "list_orders", description: "d", input: {}, handler: async () => 1 });
+    const s = webmcpScript(two, "/p");
+    const names: string[] = [];
+    const mc = {
+      registerTool: (t: { name: string }) => {
+        if (t.name === "get_stock") throw new Error("InvalidStateError: duplicate name");
+        names.push(t.name);
+      },
+    };
+    const warn = vi.fn();
+    const script = s.slice(s.indexOf(">") + 1, s.lastIndexOf("</script>"));
+    expect(() => runInContext(script, createContext({ document: { modelContext: mc }, window: {}, console: { warn } }))).not.toThrow();
+    expect(names).toEqual(["list_orders"]);
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("a context that appears late gets its tools; the early one is not registered twice", () => {
+    const doc = spyContext();
+    const nav = spyContext();
+    const window: { __benchmeWebmcpRegister?: () => boolean } = {};
+    const ctx = createContext({ document: { modelContext: doc.mc }, window });
+    runInContext(body(), ctx);
+    ctx.navigator = { modelContext: nav.mc };
+    expect(window.__benchmeWebmcpRegister?.()).toBe(true);
+    expect(doc.names).toEqual(["get_stock"]);
+    expect(nav.names).toEqual(["get_stock"]);
+  });
+});
