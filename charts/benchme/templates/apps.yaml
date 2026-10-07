@@ -79,8 +79,12 @@ spec:
               value: {{ $root.Values.publicBaseUrl | quote }}
             - name: INTERNAL_BASE_URL
               value: {{ $internal | quote }}
+            # The store sites are one app (shops) serving each site under /s/<site>.
             - name: APP_TARGETS
-              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"vaultdocs\":\"http://%s-vaultdocs\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\",\"verify\":\"http://%s-verify\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
+              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"vaultdocs\":\"http://%s-vaultdocs\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\",\"verify\":\"http://%s-verify\",\"wrenfield\":\"http://%s-shops/s/wrenfield\",\"halden\":\"http://%s-shops/s/halden\",\"quillfeather\":\"http://%s-shops/s/quillfeather\",\"paylantern\":\"http://%s-shops/s/paylantern\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
+            # Routed like any app, but left out of a workspace's urls.
+            - name: UNLISTED_APPS
+              value: "paylantern"
             - name: SEEDED_APPS
               value: "warehouse,helpdesk,vaultdocs,mail,verify"
             - name: MCP_APPS
@@ -96,9 +100,40 @@ spec:
             - name: RATE_CREATE_PER_HOUR
               value: {{ $root.Values.workspaces.rateCreatePerHour | quote }}
             {{- end }}
-            {{- if or (eq $app "warehouse") (eq $app "helpdesk") }}
+            {{- if or (eq $app "warehouse") (eq $app "helpdesk") (eq $app "shops") }}
             - name: MAIL_URL
               value: http://{{ $root.Release.Name }}-mail
+            {{- end }}
+            {{- if eq $app "shops" }}
+            - name: SHOPS_PAYMENTS
+              value: {{ $root.Values.shops.payments | default "fake" | quote }}
+            # Optional: empty (or absent from an existingSecret) under payments=fake.
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "benchme.secretName" $root }}
+                  key: stripeSecretKey
+                  optional: true
+            - name: STRIPE_PUBLISHABLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "benchme.secretName" $root }}
+                  key: stripePublishableKey
+                  optional: true
+            - name: SHOPS_SUFFIX_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "benchme.secretName" $root }}
+                  key: shopsSuffixKey
+            - name: SHOPS_INTERNAL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "benchme.secretName" $root }}
+                  key: shopsInternalSecret
+            {{- if $root.Values.shops.existingScenariosConfigMap }}
+            - name: SHOPS_SCENARIOS_FILE
+              value: /scenarios/shops-scenarios.json
+            {{- end }}
             {{- end }}
             {{- if eq $app "verify" }}
             - name: RECEIPT_SECRET
@@ -149,6 +184,11 @@ spec:
               mountPath: /specs
               readOnly: true
             {{- end }}
+            {{- if and (eq $app "shops") $root.Values.shops.existingScenariosConfigMap }}
+            - name: scenarios
+              mountPath: /scenarios
+              readOnly: true
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
@@ -156,5 +196,10 @@ spec:
         - name: specs
           configMap:
             name: {{ $root.Values.verify.existingSpecsConfigMap | default (printf "%s-task-specs" $root.Release.Name) }}
+        {{- end }}
+        {{- if and (eq $app "shops") $root.Values.shops.existingScenariosConfigMap }}
+        - name: scenarios
+          configMap:
+            name: {{ $root.Values.shops.existingScenariosConfigMap }}
         {{- end }}
 {{- end }}

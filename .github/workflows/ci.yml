@@ -35,6 +35,11 @@ jobs:
   # compose/specs mounted into the verifier): each state task fails on a fresh
   # workspace and passes after its reference solution; each json task accepts
   # the answer read back from the live apps and refuses a wrong one.
+  # The stores the same way, on their public fixtures (compose's default
+  # scenario file, fake payments): each store takes a campaign code through
+  # urls.apps.<store>; each fixture fails fresh, its reference run checks out
+  # through the pages into its class, its wrong run into its own — order-number
+  # suffixes checked with compose's local suffix key.
   intent-integrity:
     runs-on: ubuntu-latest
     steps:
@@ -46,5 +51,6 @@ jobs:
       - run: docker compose -f compose.yaml -f compose.build.yaml up -d --build --wait
         env: { RUNNER_KIND: none }
       - run: node tools/intent-integrity.mjs --base http://localhost:8080
+      - run: node tools/checkout-integrity.mjs --base http://localhost:8080 --fixtures --suffix-key benchme-local-suffix-key-change-me
       - if: failure()
         run: docker compose logs --tail 200

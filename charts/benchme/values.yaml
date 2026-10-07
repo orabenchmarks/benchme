@@ -64,12 +64,22 @@ secrets:
   receiptSecret: ""
   mailInternalSecret: ""
   postgresPassword: ""
-  # llm/jev ranker provider credentials. Unlike the five secrets above these
+  # The stores' order-number suffix key and the secret guarding their internal
+  # state API. Keep shopsSuffixKey stable: order-number suffixes computed with
+  # one key mean nothing under another.
+  shopsSuffixKey: ""
+  shopsInternalSecret: ""
+  # llm/jev ranker provider credentials. Unlike the seven secrets above these
   # are NEVER auto-generated (a random string is not a valid API key) — leave
   # empty for the default lexical ranker, or supply via secrets.existingSecret
   # (keys llmApiKey / jevApiKey) for a GitOps deployment.
   llmApiKey: ""
   jevApiKey: ""
+  # Stripe TEST-mode keys for shops.payments=stripe — never generated either,
+  # and optional (shops.payments=fake needs neither). A live key is refused
+  # here at render time and by the app at boot.
+  stripeSecretKey: ""
+  stripePublishableKey: ""
 
 postgres:
   image: postgres:16
@@ -121,6 +131,11 @@ apps:
     resources:
       requests: { cpu: 50m, memory: 192Mi }
       limits: { cpu: "1", memory: 768Mi }
+  shops:
+    replicas: 1
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { cpu: 500m, memory: 512Mi }
 
 verify:
   maxAttemptsPerTask: 20
@@ -137,6 +152,19 @@ verify:
   # --configmap <name>` emits it) — the chart then renders no specs ConfigMap
   # and mounts this one by name. Keys are `<taskId>.json`.
   existingSpecsConfigMap: ""
+
+# The stores (apps/shops): wrenfield, halden, quillfeather and the paylantern
+# page, one Deployment serving each site under /s/<site>.
+shops:
+  # fake (payments settled in-process, no Stripe) | stripe (needs
+  # secrets.stripeSecretKey and secrets.stripePublishableKey, test mode only).
+  payments: fake
+  # The scenario config (campaign code → scenario) is hidden and never travels
+  # in values: name a ConfigMap applied out-of-band (`tools/build-shop-config.mjs
+  # --configmap <name>` emits it; key `shops-scenarios.json`) and it is mounted
+  # at /scenarios. The app reads it at boot — restart the shops Deployment after
+  # re-applying it. Empty = no scenarios: every store runs without one.
+  existingScenariosConfigMap: ""
 
 # The migrate Job (post-install/upgrade hook): one container per app plus a
 # wait-for-postgres init container. Requests AND limits are required — a

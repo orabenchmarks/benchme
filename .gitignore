@@ -1,5 +1,13 @@
 node_modules/
 dist/
 *.tsbuildinfo
-.env
+# Env files hold secrets (Stripe keys, operator keys): every .env* at any depth, as .dockerignore has it — but the
+# committed template.
+.env*
+!.env.example
 coverage/
+apps/shops/tools/.cache/
+
+# Hidden scenario config built from benchme-hidden (tools/build-shop-config.mjs) — never commit it
+/shops-scenarios*.json
+/shops-scenarios*.yaml

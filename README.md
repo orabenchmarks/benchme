@@ -34,8 +34,61 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | `apps/verify` | the verifier: json / xlsx / docx / patch / **state** oracles (state reads the app's own REST API after the fact — end state is the evidence, the artifact is ignored), HMAC receipts, attempt log, isolated Kubernetes Job runner; the intent corpus it ships with (generated tasks across the warehouse, helpdesk, vault and company site) is described in [`compose/specs/README.md`](compose/specs/README.md) |
 | `apps/mail` | per-workspace inbox with an internal delivery endpoint |
 | `apps/data` | the generated company site |
+| `packages/storefront` | the stores' pure logic: money, US sales tax by ZIP, cart, pricing, the scenario-file schema, outcome classes, order numbers |
+| `apps/shops` | three consumer stores and a payment page, served from one app (see [Stores](#stores)) |
 | `charts/benchme` | the Helm chart: own postgres + redis, apps, migrate job, reaper, ingress |
 | `docker/app.Dockerfile` | one multi-stage Dockerfile, `--build-arg APP=<app>` |
+
+## Stores
+
+Three fictional direct-to-consumer stores, **Wrenfield Flowers**
+(`wrenfield`), **Halden Audio** (`halden`) and **Quillfeather Coffee**
+(`quillfeather`), plus **PayLantern** (`paylantern`), a payment page that
+belongs to no store. One app, `apps/shops`, serves all four sites, each
+under `/s/<site>/`. The gateway reaches a site through a path in
+`APP_TARGETS` (`"halden":"http://shops:3000/s/halden"`), so `/w/<id>/halden/…`
+is proxied with the workspace signed in the header like any other app.
+`paylantern` is also in the gateway's `UNLISTED_APPS`: the gateway routes it
+but never lists it in a workspace's `urls`.
+
+```
+POST /api/workspaces        {"scenario":"shops-v1"}   → urls for wrenfield, halden, quillfeather
+/w/<id>/wrenfield/   /w/<id>/halden/   /w/<id>/quillfeather/
+/w/<id>/paylantern/          routed, never listed
+```
+
+`shops-v1` seeds nothing into the acme apps, because each store's catalogue
+lives in `apps/shops`, so minting one is cheap. Carts, checkouts and orders
+are workspace rows like any other. Every page is `noindex`, and every store
+footer says the store is fictional and orders are not fulfilled.
+
+| env | default | |
+| --- | --- | --- |
+| `SHOPS_PAYMENTS` | `fake` | `fake` settles payments in-process with no Stripe and no network (local runs, CI); `stripe` pays through Stripe test mode |
+| `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY` | — | required when `SHOPS_PAYMENTS=stripe`. **Test-mode keys only**: the app refuses to boot on a live key, and the chart refuses to render one passed in its values |
+| `SHOPS_SUFFIX_KEY` | — | the key order-number suffixes are derived from; keep it private and stable |
+| `SHOPS_INTERNAL_SECRET` | — | guards the stores' internal state API (read by the audit and integrity tools) |
+| `SHOPS_SCENARIOS_FILE` | — | the scenario file (below); unset means no scenarios |
+
+**The scenario file.** A campaign code in the URL a workspace opens a store
+with picks that store's scenario, until the workspace's first checkout on
+that store starts. The file that maps codes to scenarios is hidden. It is
+built from a private checkout and never committed. This repository ships
+only test fixtures, with codes prefixed `fixture-`, in
+`apps/shops/test-fixtures/shops-scenarios.json`. Without a file, no code
+matches and every store runs without a scenario. The app reads the file at
+boot.
+
+- **Compose** mounts `SHOPS_SCENARIOS_DIR` (default
+  `./apps/shops/test-fixtures`) read-only at `/scenarios` and reads
+  `shops-scenarios.json` from it.
+- **The chart** mounts the ConfigMap named in
+  `shops.existingScenariosConfigMap` (key `shops-scenarios.json`; see
+  [GitOps deployments](#gitops-deployments-argocd-and-friends)) and takes
+  `shops.payments` (default `fake`). It reads the keys from its Secret:
+  `shopsSuffixKey` and `shopsInternalSecret` are generated like the other
+  secrets, while `stripeSecretKey` and `stripePublishableKey` are never
+  generated and are optional.
 
 ## WebMCP
 
@@ -287,19 +340,21 @@ helm install benchme oci://ghcr.io/orabenchmarks/charts/benchme --version X.Y.Z 
 
 ### GitOps deployments (ArgoCD and friends)
 
-Two chart inputs cannot travel through `helm template`:
+Three chart inputs cannot travel through `helm template`:
 
-- **Secrets.** By default the chart generates its five secrets on first
+- **Secrets.** By default the chart generates its seven secrets on first
   install and keeps them with a `lookup` — a rendering that has no cluster
   (ArgoCD's repo-server) would mint new values on every sync and rotate the
   Postgres password. Provide a Secret yourself (an ExternalSecret from your
   secret manager, keys `gatewaySecret`, `operatorKey`, `receiptSecret`,
-  `mailInternalSecret`, `postgresPassword`) and name it in
-  `secrets.existingSecret`. Two more keys, `llmApiKey` and `jevApiKey` (the
-  provider credentials for the `llm`/`jev` rankers — see § Rankers), are read
-  as `optional: true`: omit them from your Secret entirely while running the
-  default `lexical` ranker, add them only for the deployments that select
-  `llm`/`jev`.
+  `mailInternalSecret`, `postgresPassword`, `shopsSuffixKey`,
+  `shopsInternalSecret`) and name it in `secrets.existingSecret`. Two more
+  keys, `llmApiKey` and `jevApiKey` (the provider credentials for the
+  `llm`/`jev` rankers — see § Rankers), are read as `optional: true`: omit
+  them from your Secret entirely while running the default `lexical` ranker,
+  add them only for the deployments that select `llm`/`jev`. The same goes
+  for `stripeSecretKey` and `stripePublishableKey` (Stripe test-mode keys,
+  needed only with `shops.payments=stripe`; see § Stores).
 - **Hidden task specs.** Never commit them. Build a ConfigMap from your
   hidden-tasks checkout and apply it out-of-band, then name it in
   `verify.existingSpecsConfigMap` (the chart renders no specs ConfigMap of its
@@ -309,4 +364,16 @@ Two chart inputs cannot travel through `helm template`:
   node tools/build-specs.mjs --hidden ../benchme-hidden \
     --configmap benchme-task-specs-hidden --namespace benchme --out specs-cm.yaml
   kubectl -n benchme apply -f specs-cm.yaml     # re-run after every hidden-tasks change
+  ```
+- **Hidden store scenarios.** Never commit them either. Build the stores'
+  scenario file as a ConfigMap (key `shops-scenarios.json`), apply it
+  out-of-band and name it in `shops.existingScenariosConfigMap`. The chart
+  mounts it at `/scenarios`. The app reads it at boot, so restart the
+  Deployment after every change:
+
+  ```bash
+  node tools/build-shop-config.mjs --hidden ../benchme-hidden \
+    --configmap benchme-shops-scenarios --namespace benchme --out shops-scenarios-cm.yaml
+  kubectl -n benchme apply -f shops-scenarios-cm.yaml
+  kubectl -n benchme rollout restart deployment/benchme-shops
   ```

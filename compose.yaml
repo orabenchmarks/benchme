@@ -46,8 +46,9 @@ x-app: &app
   restart: unless-stopped
   extra_hosts:
     - "host.docker.internal:host-gateway"
+  # The last migration of the chain below.
   depends_on:
-    migrate-verify:
+    migrate-shops:
       condition: service_completed_successfully
   healthcheck:
     test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -123,6 +124,13 @@ services:
     depends_on:
       migrate-mail:
         condition: service_completed_successfully
+  migrate-shops:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/shops:${BENCHME_VERSION:-0.6.1}
+    command: ["node", "apps/shops/dist/migrate.js"]
+    depends_on:
+      migrate-verify:
+        condition: service_completed_successfully
 
   gateway:
     <<: *app
@@ -130,7 +138,7 @@ services:
     ports:
       - "${BENCHME_PORT:-8080}:3000"
     depends_on:
-      migrate-verify:
+      migrate-shops:
         condition: service_completed_successfully
       redis:
         condition: service_started
@@ -141,7 +149,10 @@ services:
       RECEIPT_SECRET: ${RECEIPT_SECRET:-benchme-local-receipt-secret-change-me}
       PUBLIC_BASE_URL: ${BENCHME_PUBLIC_URL:-http://localhost:8080}
       INTERNAL_BASE_URL: http://gateway:3000
-      APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000","verify":"http://verify:3000"}'
+      # The store sites are one app (shops) serving each site under /s/<site>.
+      APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000","verify":"http://verify:3000","wrenfield":"http://shops:3000/s/wrenfield","halden":"http://shops:3000/s/halden","quillfeather":"http://shops:3000/s/quillfeather","paylantern":"http://shops:3000/s/paylantern"}'
+      # Routed like any app, but left out of a workspace's urls.
+      UNLISTED_APPS: paylantern
       SEEDED_APPS: warehouse,helpdesk,vaultdocs,mail,verify
       MCP_APPS: warehouse,helpdesk,vaultdocs
       ASK_APPS: warehouse,helpdesk,vaultdocs
@@ -181,6 +192,27 @@ services:
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
 
+  # The stores (README § Stores): wrenfield, halden, quillfeather and the
+  # paylantern page, all from one app under /s/<site>.
+  shops:
+    <<: *app
+    image: ghcr.io/orabenchmarks/shops:${BENCHME_VERSION:-0.6.1}
+    environment:
+      <<: *common-env
+      MAIL_URL: http://mail:3000
+      # fake (settled in-process, no Stripe) | stripe (both keys below, TEST
+      # mode only — the app refuses to boot on a live key).
+      SHOPS_PAYMENTS: ${SHOPS_PAYMENTS:-fake}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      SHOPS_SUFFIX_KEY: ${SHOPS_SUFFIX_KEY:-benchme-local-suffix-key-change-me}
+      SHOPS_INTERNAL_SECRET: ${SHOPS_INTERNAL_SECRET:-benchme-local-shops-secret-change-me}
+      # Campaign code → scenario. The default directory holds the public
+      # fixtures; point SHOPS_SCENARIOS_DIR at the hidden config's directory.
+      SHOPS_SCENARIOS_FILE: /scenarios/shops-scenarios.json
+    volumes:
+      - ${SHOPS_SCENARIOS_DIR:-./apps/shops/test-fixtures}:/scenarios:ro
+
   verify:
     <<: *app
     image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.6.1}
@@ -208,7 +240,7 @@ services:
     image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.6.1}
     restart: unless-stopped
     depends_on:
-      migrate-verify:
+      migrate-shops:
         condition: service_completed_successfully
     environment: *common-env
     command: ["sh", "-c", "while true; do node apps/gateway/dist/reap.js; sleep ${REAP_INTERVAL_SECONDS:-3600}; done"]
