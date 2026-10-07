@@ -1,0 +1,13 @@
+{
+  "name": "shops-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Real-browser checks of the benchme stores (not an npm workspace: run npm install here). Screenshots for design review and end-to-end checkouts against a running stack.",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "shot": "node screenshot.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}
