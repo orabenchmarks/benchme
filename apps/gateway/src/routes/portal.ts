@@ -18,7 +18,7 @@ export function registerPortal(app: FastifyInstance, d: PortalDeps): void {
       .map((s) => `<li><code>${s.key}</code> — ${s.description}</li>`)
       .join("");
     const apps = d.apps
-      .list()
+      .listed()
       .map((a) => `<li><code>${a.name}</code>${a.seeded ? " (per-workspace data)" : ""}${a.mcp ? " — MCP at <code>/mcp</code>" : ""}</li>`)
       .join("");
     return reply.type("text/html").send(
@@ -38,7 +38,7 @@ export function registerPortal(app: FastifyInstance, d: PortalDeps): void {
   });
 
   app.get("/registry", async (_req, reply) => {
-    const capable = d.apps.list().filter((a) => a.mcp || a.ask || a.webmcp);
+    const capable = d.apps.listed().filter((a) => a.mcp || a.ask || a.webmcp);
     const link = (has: boolean, path: string) => (has ? `<code>${d.publicBaseUrl}/w/&lt;workspaceId&gt;/${path}</code>` : "—");
     const rows = capable
       .map(

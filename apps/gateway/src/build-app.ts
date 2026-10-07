@@ -1,5 +1,5 @@
 import { PgWorkspaceRepo, createApp, type Pool, type ReceiptSigner } from "@benchme/core";
-import type { FastifyInstance } from "fastify";
+import { errorCodes, type FastifyInstance } from "fastify";
 import type { ScenarioRegistry } from "@benchme/scenarios";
 import { AppRegistry } from "./app-registry.js";
 import type { RateLimiter } from "./rate-limit.js";
@@ -54,8 +54,10 @@ export async function buildGateway(d: BuildDeps): Promise<{ app: FastifyInstance
   app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
     try {
       done(null, (body as string).length ? JSON.parse(body as string) : {});
-    } catch (err) {
-      done(err as Error);
+    } catch {
+      // Fastify's own 400, the answer a store gives itself for the same body. The bare
+      // SyntaxError carries no status, so the error handler would render it as a 500.
+      done(new errorCodes.FST_ERR_CTP_INVALID_JSON_BODY());
     }
   });
   app.addContentTypeParser("*", { parseAs: "buffer" }, (_req, body, done) => done(null, body));

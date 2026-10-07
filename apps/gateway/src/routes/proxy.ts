@@ -12,6 +12,39 @@ export type ProxyDeps = {
   publicBaseUrl: string;
 };
 
+/** The query exactly as the client sent it: "?…" byte for byte, or "" when the request-target has none. */
+function rawQuery(url: string | undefined): string {
+  const at = url?.indexOf("?") ?? -1;
+  return url !== undefined && at >= 0 ? url.slice(at) : "";
+}
+
+/**
+ * The path after "/w/<id>/<app>/" exactly as the client sent it, or null for a request-target that is not
+ * origin-form. The router hands the wildcard over decoded: forwarded as such, "%2F" would split a segment
+ * and "%25FF" would reach the app as the malformed escape "%FF".
+ */
+function rawRest(url: string | undefined): string | null {
+  if (!url?.startsWith("/")) return null;
+  const end = url.search(/[?#]/);
+  const path = end < 0 ? url : url.slice(0, end);
+  let at = 0;
+  for (let n = 0; n < 3; n++) {
+    at = path.indexOf("/", at + 1);
+    if (at < 0) return null;
+  }
+  return path.slice(at + 1);
+}
+
+/** Whether every percent-escape of `url` decodes as UTF-8, as reply-from requires of a URL it forwards to. */
+function decodable(url: string): boolean {
+  try {
+    decodeURIComponent(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * /w/:id/<app>/* → <app>/*, with the workspace bound as a signed header and the
  * stripped prefix forwarded so the app can render links and cookie paths.
@@ -39,9 +72,12 @@ export async function registerProxy(app: FastifyInstance, d: ProxyDeps): Promise
     if (!target) return reply.code(404).send({ error: "NOT_FOUND", message: `no such app "${appName}"` });
     if (!(await d.service.isServable(id))) return reply.code(404).send({ error: "NOT_FOUND", message: "workspace unknown or expired" });
 
-    const rest = req.params["*"] ?? "";
-    const qs = req.raw.url?.includes("?") ? req.raw.url.slice(req.raw.url.indexOf("?")) : "";
-    return reply.from(`${target.baseUrl}/${rest}${qs}`, {
+    const rest = rawRest(req.raw.url) ?? req.params["*"] ?? "";
+    const source = `${target.baseUrl}/${rest}${rawQuery(req.raw.url)}`;
+    // reply-from decodes the URL before forwarding it (its path-traversal check), and an escape that is not
+    // UTF-8 ("%FF", "%C3%28", a lone surrogate, a bare "%") throws there: the client's mistake, said as such.
+    if (!decodable(source)) return reply.code(400).send({ error: "BAD_URL", message: "the address has a malformed percent-escape" });
+    return reply.from(source, {
       rewriteRequestHeaders: (_r, headers) => ({
         ...headers,
         [WORKSPACE_HEADER]: id,
@@ -53,8 +89,12 @@ export async function registerProxy(app: FastifyInstance, d: ProxyDeps): Promise
     });
   });
 
-  // "/w/:id/<app>" (no trailing path) → the app root.
+  // "/w/:id/<app>" (no trailing path) → the app root, query kept byte for byte. Every prompt
+  // opens urls.apps.<store> (advertised without a trailing slash) with ?utm_campaign=<code>
+  // appended, and that code is what selects the run's scenario. The router hands the
+  // segments over decoded: they are encoded again so none can put a CR/LF into Location.
   app.all<{ Params: { id: string; app: string } }>("/w/:id/:app", async (req, reply) => {
-    return reply.redirect(`/w/${req.params.id}/${req.params.app}/`, 302);
+    const { id, app: appName } = req.params;
+    return reply.redirect(`/w/${encodeURIComponent(id)}/${encodeURIComponent(appName)}/${rawQuery(req.raw.url)}`, 302);
   });
 }

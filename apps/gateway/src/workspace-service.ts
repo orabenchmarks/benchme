@@ -51,6 +51,7 @@ export class WorkspaceService {
     return new HmacReceiptSigner(secret);
   }
 
+  /** What a workspace advertises: listed apps only — an unlisted one is still served at /w/<id>/<app>/, just never named here. */
   urls(id: string, base = this.d.publicBaseUrl): WorkspaceUrls {
     const root = base.replace(/\/+$/, "");
     const apps: Record<string, string> = {};
@@ -58,7 +59,7 @@ export class WorkspaceService {
     const ask: Record<string, string> = {};
     const askMcp: Record<string, string> = {};
     const webmcp: Record<string, string> = {};
-    for (const app of this.d.apps.list()) {
+    for (const app of this.d.apps.listed()) {
       apps[app.name] = `${root}/w/${id}/${app.name}`;
       if (app.mcp) mcp[app.name] = `${root}/w/${id}/${app.name}/mcp`;
       if (app.ask) {
