@@ -71,14 +71,14 @@ describe("FakePaymentGateway", () => {
   it("records each card that reaches the network as a charge, as Stripe does: success, decline, and 3-D Secure (challenge then charge)", async () => {
     const g = new FakePaymentGateway();
     const { id } = await g.createIntent(intentInput);
-    g.settle(id, "decline");
+    g.settle(id, "decline", "0002");
     const declined = await g.getIntent(id);
     expect(declined).toMatchObject({ status: "requires_payment_method", lastError: "Your card was declined.", lastErrorCode: "card_declined", attemptMethod: expect.stringMatching(/^pm_fake_/) });
     const [first] = await g.charges(id);
-    expect(first).toEqual({ id: declined.latestCharge, status: "failed", paymentMethod: declined.attemptMethod, threeDSecure: null, created: expect.any(Number) });
+    expect(first).toEqual({ id: declined.latestCharge, status: "failed", paymentMethod: declined.attemptMethod, threeDSecure: null, card: { last4: "0002" }, created: expect.any(Number) });
 
     // A 3-D Secure card: no charge until the shopper completes the bank's step, then one with the card that waited.
-    g.settle(id, "require_action");
+    g.settle(id, "require_action", "3184");
     const waiting = await g.getIntent(id);
     expect(waiting).toMatchObject({ status: "requires_action", lastError: null, lastErrorCode: null, latestCharge: first?.id });
     expect(waiting.attemptMethod).toMatch(/^pm_fake_/);
@@ -86,10 +86,14 @@ describe("FakePaymentGateway", () => {
     expect(await g.charges(id)).toHaveLength(1);
     g.settle(id, "succeed");
     const charges = await g.charges(id);
-    expect(charges.map((c) => [c.status, c.threeDSecure])).toEqual([
-      ["failed", null],
-      ["succeeded", { flow: "challenge", result: "authenticated" }],
+    expect(charges.map((c) => [c.status, c.threeDSecure, c.card])).toEqual([
+      ["failed", null, { last4: "0002" }],
+      ["succeeded", { flow: "challenge", result: "authenticated" }, { last4: "3184" }], // the card that waited, not a new one
     ]);
+    // A card settled without its number records none (null: what a store reads as "not a card").
+    const bare = (await g.createIntent(intentInput)).id;
+    g.settle(bare, "succeed");
+    expect((await g.charges(bare))[0]?.card).toBeNull();
     expect(charges[1]?.paymentMethod).toBe(waiting.attemptMethod);
     expect(await g.getIntent(id)).toMatchObject({ status: "succeeded", lastErrorCode: null, attemptMethod: null, latestCharge: charges[1]?.id });
   });

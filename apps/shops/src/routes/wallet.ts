@@ -29,6 +29,7 @@ export type WalletMatch = {
 const query = z.union([
   z.object({ workspace: z.string().max(64) }).strict(),
   z.object({ amountCents: z.coerce.number().int().positive().max(1_000_000), withinMinutes: z.coerce.number().int().positive().max(24 * 60).default(60) }).strict(),
+  z.object({ session: z.string().regex(/^cs_[a-z]+_[A-Za-z0-9]{1,255}$/) }).strict(),
 ]);
 
 /** The most open checkouts the amount search reads (a busy hour of a full study is well under it). */
@@ -58,6 +59,8 @@ async function matchOf(d: RouteDeps, ws: string, store: StoreId, token: string |
  *   ?amountCents=<n>&withinMinutes=<m>       the open checkouts started in the last m minutes, in workspaces that
  *                                            have no paid order at that store, that would charge exactly n now —
  *                                            one per workspace's store
+ *   ?session=<Checkout Session id>           the checkout a store created that hosted payment page for (Stripe's
+ *                                            checkout.stripe.com/c/pay/<id>, or fake mode's own): none, or one
  *
  * Each match: { workspace, store, checkout, payableCents, scenarioId, card } — card is what the store's scenario
  * calls for (success, 3ds or decline; success without a scenario).
@@ -66,7 +69,7 @@ export function registerWalletRoutes(scope: FastifyInstance, d: RouteDeps): void
   scope.get("/internal/wallet-matches", async (req, reply) => {
     if (!hasSecret(req, d.internalSecret)) return reply.code(401).send({ error: "UNAUTHORIZED", message: "the internal secret is required" });
     const q = query.safeParse(req.query);
-    if (!q.success) return reply.code(400).send({ error: "BAD_QUERY", message: "?workspace=<id> or ?amountCents=<cents>[&withinMinutes=<m>]" });
+    if (!q.success) return reply.code(400).send({ error: "BAD_QUERY", message: "?workspace=<id>, ?amountCents=<cents>[&withinMinutes=<m>] or ?session=<Checkout Session id>" });
     const stores = req.site === "paylantern" ? [...STORE_IDS] : [req.site as StoreId];
     reply.header("cache-control", "no-store");
 
@@ -81,6 +84,14 @@ export function registerWalletRoutes(scope: FastifyInstance, d: RouteDeps): void
       );
       const found = STORE_IDS.filter((s) => visited.rows.some((r) => r.store === s));
       return { matches: await Promise.all(found.map((s) => matchOf(d, ws, s, null))) };
+    }
+
+    if ("session" in q.data) {
+      const made = await d.pool.query<{ workspace_id: string; store: StoreId; checkout_token: string }>(
+        "SELECT workspace_id, store, checkout_token FROM shops.payments WHERE payment_ref = $1 AND kind = 'session' AND store = ANY($2)",
+        [q.data.session, stores],
+      );
+      return { matches: await Promise.all(made.rows.map((r) => matchOf(d, r.workspace_id, r.store, r.checkout_token))) };
     }
 
     const { amountCents, withinMinutes } = q.data;

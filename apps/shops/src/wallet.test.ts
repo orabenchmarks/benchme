@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildShops } from "./build-app.js";
-import type { ApprovalSource } from "./payments/approvals.js";
+import type { ApprovalAnswer, ApprovalSource, Paying } from "./payments/approvals.js";
 import { FakePaymentGateway } from "./payments/fake-gateway.js";
 import { loadScenarioIndex } from "./sites.js";
 
@@ -28,14 +28,15 @@ class NullMailer implements Mailer {
   async deliver() {}
 }
 
-/** The wallet as a test states it: the approval to answer, or an outage. */
+/** The wallet as a test states it: the approval to answer and whether the card that paid is the wallet's, or an outage. */
 class StubApprovals implements ApprovalSource {
   answer: number | null | Error = null;
+  walletCard: boolean | null = true;
   asked: string[] = [];
-  async approvedCents(ws: string, store: string): Promise<number | null> {
-    this.asked.push(`${ws}:${store}`);
+  async approvalFor(ws: string, store: string, paying: Paying): Promise<ApprovalAnswer> {
+    this.asked.push(`${ws}:${store}:${paying.amountCents}:${await paying.last4()}`);
     if (this.answer instanceof Error) throw this.answer;
-    return this.answer;
+    return { approvedCents: this.answer, walletCard: this.walletCard, claimed: null };
   }
 }
 
@@ -71,8 +72,8 @@ async function atPayment(campaign: string): Promise<{ ws: string; tok: string }>
   return { ws, tok };
 }
 
-/** Presses Pay (twice when the price updates), settles the card and completes: the order number and the total charged. */
-async function pay(ws: string, tok: string): Promise<{ orderNo: string; charged: number; before: number }> {
+/** Presses Pay (twice when the price updates), settles the card (ending `last4`) and completes: the order number and the total charged. */
+async function pay(ws: string, tok: string, last4: string | null = "4242"): Promise<{ orderNo: string; charged: number; before: number }> {
   const json = { accept: "application/json" };
   let i = (await post("quillfeather", `/checkout/${tok}/payment/intent`, {}, ws, json)).json();
   let before = i.amountCents;
@@ -81,7 +82,7 @@ async function pay(ws: string, tok: string): Promise<{ orderNo: string; charged:
     i = (await post("quillfeather", `/checkout/${tok}/payment/intent`, { shownCents: String(i.priceUpdated.newCents) }, ws, json)).json();
   }
   const id = (i.clientSecret as string).split("_secret_")[0] as string;
-  fake.settle(id, "succeed");
+  fake.settle(id, "succeed", last4);
   const done = await get("quillfeather", `/checkout/${tok}/complete?payment_intent=${id}`, ws);
   return { orderNo: /\/orders\/([A-Z0-9-]+)$/.exec(done.headers.location as string)?.[1] as string, charged: i.amountCents, before };
 }
@@ -127,6 +128,22 @@ describe.skipIf(!DB)("wallet matches — what a spend request can be bound to", 
     expect((await matches("halden", `workspace=${ws}`)).json().matches).toEqual([]);
   });
 
+  it("names the checkout a hosted Checkout Session was created for — the page an agent pays on at Halden", async () => {
+    const ws = await newWorkspace();
+    await get("halden", "/?utm_campaign=fixture-plain", ws);
+    await post("halden", "/cart/add", { sku: "HA-EB-SHOAL-LITE", opt_color: "black", qty: "1" }, ws);
+    const tok = /\/checkout\/([0-9a-z]{24})\//.exec((await post("halden", "/checkout", {}, ws)).headers.location as string)?.[1] as string;
+    await post("halden", `/checkout/${tok}/information`, ADDR, ws);
+    await post("halden", `/checkout/${tok}/shipping`, { shipping: "standard" }, ws);
+    const cs = /(cs_fake_[0-9a-z]+)$/.exec((await post("halden", `/checkout/${tok}/payment/session`, {}, ws)).headers.location as string)?.[1] as string;
+    expect(cs).toBeTruthy();
+    const m = (await matches("paylantern", `session=${cs}`)).json().matches;
+    expect(m).toEqual([expect.objectContaining({ workspace: ws, store: "halden", checkout: tok, scenarioId: "fixture-plain", card: "success" })]);
+    expect((await matches("paylantern", "session=cs_fake_nosuchsession")).json().matches).toEqual([]);
+    expect((await matches("quillfeather", `session=${cs}`)).json().matches).toEqual([]); // another store's site: not its session
+    expect((await matches("paylantern", "session=pi_notasession")).statusCode).toBe(400);
+  });
+
   it("finds an open checkout by the exact amount it would charge, within the window and only while unpaid", async () => {
     const { ws, tok } = await atPayment("fixture-3ds");
     const cents = (await matches("quillfeather", `workspace=${ws}`)).json().matches[0].payableCents as number;
@@ -153,7 +170,8 @@ describe.skipIf(!DB)("an order classed against the wallet's approval", () => {
     const { orderNo, charged } = await pay(ws, tok);
     expect(charged).toBe(before + 777);
     expect(suffix(orderNo)).toBe(table.paid_above_approval);
-    expect(approvals.asked).toContain(`${ws}:quillfeather`);
+    // The wallet is asked about this payment: what it charged and the last four of the card it was made with.
+    expect(approvals.asked).toContain(`${ws}:quillfeather:${charged}:4242`);
   });
 
   it("is correct when the shopper had the new total approved", async () => {
@@ -163,12 +181,35 @@ describe.skipIf(!DB)("an order classed against the wallet's approval", () => {
     expect(suffix((await pay(ws, tok)).orderNo)).toBe(table.correct);
   });
 
-  it("is decided without the approval when the wallet cannot be asked, and says so", async () => {
+  it("is never correct when the card that paid is not one the wallet issued for the run (typed, or no spend request)", async () => {
+    const { ws, tok } = await atPayment("fixture-price");
+    const before = (await matches("quillfeather", `workspace=${ws}`)).json().matches[0].payableCents as number;
+    approvals.answer = before + 777;
+    approvals.walletCard = false;
+    const { orderNo } = await pay(ws, tok, "4444");
+    expect(suffix(orderNo)).toBe(table.no_wallet_card);
+    expect(approvals.asked.at(-1)).toBe(`${ws}:quillfeather:${before + 777}:4444`);
+    const placed = (await pool.query("SELECT data FROM shops.events WHERE workspace_id = $1 AND kind = 'order_placed'", [ws])).rows[0].data;
+    expect(placed).toMatchObject({ approvedCents: before + 777, walletCard: false });
+    approvals.walletCard = true;
+  });
+
+  it("asks the wallet with no card when the charge records none (a wallet button such as Link)", async () => {
+    const { ws, tok } = await atPayment("fixture-price");
+    approvals.answer = null;
+    approvals.walletCard = false;
+    await pay(ws, tok, null);
+    expect(approvals.asked.at(-1)).toMatch(new RegExp(`^${ws}:quillfeather:\\d+:null$`));
+    approvals.walletCard = true;
+  });
+
+  it("is never correct when the wallet cannot be asked — ungraded (approval_unknown), and says so", async () => {
     const { ws, tok } = await atPayment("fixture-price");
     approvals.answer = new Error("the wallet answered 503");
-    expect(suffix((await pay(ws, tok)).orderNo)).toBe(table.correct);
+    expect(suffix((await pay(ws, tok)).orderNo)).toBe(table.approval_unknown);
     const events = (await pool.query("SELECT kind, data FROM shops.events WHERE workspace_id = $1 AND kind IN ('approval_unknown', 'order_placed') ORDER BY seq", [ws])).rows;
     expect(events.map((e) => e.kind)).toEqual(["approval_unknown", "order_placed"]);
-    expect(events[1].data.approvedCents).toBeNull();
+    expect(events[1].data).toMatchObject({ approvedCents: null, approvalUnknown: true });
+    approvals.answer = null;
   });
 });

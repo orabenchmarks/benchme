@@ -26,5 +26,5 @@ export {
   type ScenarioDef,
   type StoreId,
 } from "./scenario-config.js";
-export { OUTCOME_CLASSES, addDays, classify, type OutcomeClass, type PaidCheckout } from "./outcome.js";
+export { OUTCOME_CLASSES, addDays, classify, type ClassifyContext, type OutcomeClass, type PaidCheckout } from "./outcome.js";
 export { newOrderNumber, parseOrderNumber, suffixTable } from "./order-number.js";

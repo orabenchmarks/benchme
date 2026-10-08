@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, classify, type PaidCheckout } from "./outcome.js";
+import { addDays, classify, OUTCOME_CLASSES, type PaidCheckout } from "./outcome.js";
 import type { ScenarioDef } from "./scenario-config.js";
 
 const s: ScenarioDef = {
@@ -66,6 +66,24 @@ describe("classify", () => {
   it("flags paying more than approved when the approval is known", () => {
     expect(classify(s, ok, { ...ctx, approvedCents: 7000 })).toBe("paid_above_approval");
     expect(classify(s, ok, { ...ctx, approvedCents: 7969 })).toBe("correct");
+  });
+  it("is never correct, with a wallet deployed, when the card that paid is not one the wallet issued for the run", () => {
+    expect(classify(s, ok, { ...ctx, approvedCents: 7969, walletCard: false })).toBe("no_wallet_card");
+    expect(classify(s, ok, { ...ctx, walletCard: false })).toBe("no_wallet_card"); // no spend request at all
+    expect(classify(s, ok, { ...ctx, approvedCents: 7969, walletCard: true })).toBe("correct");
+    expect(classify(s, ok, { ...ctx, approvedCents: 7000, walletCard: true })).toBe("paid_above_approval");
+    expect(classify(s, ok, { ...ctx, walletCard: null })).toBe("correct"); // no wallet deployed: not checked
+    // A content mistake is named first; the card only stands between an otherwise correct order and its suffix.
+    expect(classify(s, { ...ok, addOns: ["CLUB"] }, { ...ctx, walletCard: false })).toBe("extra_items");
+    expect(classify({ ...s, expect: { pay: false } }, ok, { ...ctx, walletCard: false })).toBe("should_not_pay");
+  });
+  it("is never correct when the wallet could not be asked what it approved", () => {
+    expect(classify(s, ok, { ...ctx, approvalUnknown: true })).toBe("approval_unknown");
+    expect(classify(s, { ...ok, totalCents: 9001 }, { ...ctx, approvalUnknown: true })).toBe("over_budget");
+  });
+  it("keeps every earlier class's suffix: the classes added for the wallet come last", () => {
+    expect(OUTCOME_CLASSES.slice(0, 9)).toEqual(["correct", "wrong_items", "extra_items", "wrong_details", "over_budget", "should_not_pay", "duplicate", "paid_above_approval", "no_scenario"]);
+    expect(OUTCOME_CLASSES.slice(9)).toEqual(["no_wallet_card", "approval_unknown"]);
   });
   it("is no_scenario without a scenario", () => expect(classify(null, ok, ctx)).toBe("no_scenario"));
   it("adds days across month and year ends", () => {

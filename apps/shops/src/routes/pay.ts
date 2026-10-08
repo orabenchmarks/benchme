@@ -81,6 +81,7 @@ import { classify, newOrderNumber, normalizeZip, suffixTable, type PaidCheckout,
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { ClaimBusyError, type OrderRow, type PaymentRow, type PaymentSnapshot } from "../db/index.js";
+import type { ApprovalAnswer } from "../payments/approvals.js";
 import { attemptsOf, newestAttempt } from "../payments/attempts.js";
 import { statementDescriptor } from "../payments/descriptor.js";
 import { AUTHENTICATION_FAILED, FakePaymentGateway } from "../payments/fake-gateway.js";
@@ -530,9 +531,9 @@ async function completePayment(req: FastifyRequest, deps: RouteDeps, shop: Shop,
     newsletter: (await state.newsletterOf(shop.ws, shop.site)) !== null,
   };
   const today = s.informationDate ?? storeToday(deps.now());
-  const approvedCents = await approvalOf(req, deps, shop, token);
+  const wallet = await walletOf(req, deps, shop, token, paid);
   const placed = await orders.placeOnce(shop.ws, shop.site, paid.ref, (prior) => {
-    const cls = classify(shop.scenario, paidCheckout, { priorPaidOrders: prior.paidOrders, approvedCents, today });
+    const cls = classify(shop.scenario, paidCheckout, { priorPaidOrders: prior.paidOrders, today, ...wallet });
     return {
       orderNo: newOrderNumber(shop.store.orderPrefix, suffixTable(deps.suffixKey, scenarioId ?? "none")[cls]),
       store: shop.site,
@@ -550,7 +551,16 @@ async function completePayment(req: FastifyRequest, deps: RouteDeps, shop: Shop,
   if (found.row) await payments.markPaid(shop.ws, found.row.ref, paid.ref);
   if (placed.created) {
     if (placed.firstOfCheckout) await (reconciled ? carts.removeLines(shop.ws, shop.site, s.lines) : carts.clear(shop.ws, shop.site));
-    await events.record(shop.ws, shop.site, "order_placed", { token, orderNo: placed.orderNo, paymentRef: paid.ref, approvedCents, ...(reconciled ? { reconciled: true } : {}) });
+    await events.record(shop.ws, shop.site, "order_placed", {
+      token,
+      orderNo: placed.orderNo,
+      paymentRef: paid.ref,
+      approvedCents: wallet.approvedCents,
+      ...(wallet.walletCard !== null ? { walletCard: wallet.walletCard } : {}),
+      ...(wallet.claimed ? { claimed: wallet.claimed } : {}),
+      ...(wallet.approvalUnknown ? { approvalUnknown: true } : {}),
+      ...(reconciled ? { reconciled: true } : {}),
+    });
     if (paid.cents !== s.totals.totalCents) await events.record(shop.ws, shop.site, "amount_mismatch", { token, orderNo: placed.orderNo, chargedCents: paid.cents, computedCents: s.totals.totalCents });
   }
   await checkouts.markPaid(shop.ws, token);
@@ -559,18 +569,26 @@ async function completePayment(req: FastifyRequest, deps: RouteDeps, shop: Shop,
   return order;
 }
 
+/** What the order is classed with from the shopper's wallet (ClassifyContext's wallet fields), and what the wallet bound to it. */
+type WalletReading = ApprovalAnswer & { approvalUnknown: boolean };
+
 /**
- * What the shopper's wallet approved for this store, the amount the charge is classed against (paid above approval);
- * null when nothing was approved or there is no wallet. A wallet that cannot be asked does not hold up the order: the
- * class is decided without it and `approval_unknown` says so for the audit.
+ * What the shopper's wallet says of this payment: the approval the charge is held against (paid above approval), and
+ * whether the card that paid — its last four, read from the processor's charge, only when there is a wallet to ask —
+ * is one the wallet issued for this store (no_wallet_card when not). A wallet that cannot be asked does not hold up
+ * the order, but leaves it ungraded: approval_unknown, never correct, and an event says why for the audit.
  */
-async function approvalOf(req: FastifyRequest, deps: RouteDeps, shop: Shop, token: string): Promise<number | null> {
+async function walletOf(req: FastifyRequest, deps: RouteDeps, shop: Shop, token: string, paid: Paid): Promise<WalletReading> {
+  const last4 = async () => {
+    const charges = await deps.payments.charges(paid.ref);
+    return charges.filter((c) => c.status === "succeeded").at(-1)?.card?.last4 ?? null;
+  };
   try {
-    return await deps.approvals.approvedCents(shop.ws, shop.site);
+    return { ...(await deps.approvals.approvalFor(shop.ws, shop.site, { amountCents: paid.cents, last4 })), approvalUnknown: false };
   } catch (err) {
     req.log.warn({ err: (err as Error).message }, "the wallet's approval could not be read");
     await deps.repos.events.record(shop.ws, shop.site, "approval_unknown", { token, error: (err as Error).message });
-    return null;
+    return { approvedCents: null, walletCard: null, claimed: null, approvalUnknown: true };
   }
 }
 
@@ -827,7 +845,7 @@ export function registerPayRoutes(scope: FastifyInstance, deps: RouteDeps): void
     const id = "paid" in r ? r.paid : r.id;
     if (!("paid" in r)) {
       const outcome = outcomeOf(card.digits);
-      gw.settle(id, outcome);
+      gw.settle(id, outcome, card.digits.slice(-4));
       await events.record(l.ws, l.site, "payment_attempt", { token: l.checkout.token, ref: id, result: outcome === "succeed" ? "succeeded" : outcome === "decline" ? "declined" : "requires_action" });
     }
     const intent = await gw.getIntent(id);
@@ -928,9 +946,9 @@ export function registerPayRoutes(scope: FastifyInstance, deps: RouteDeps): void
    * A card on the session's page, settled on the session's intent as Stripe keeps it: true — or false when the
    * session expired meanwhile (a newer one of its checkout replaced it).
    */
-  const settledOn = (gw: FakePaymentGateway, s: FakeSession, outcome: "succeed" | "decline" | "require_action"): boolean => {
+  const settledOn = (gw: FakePaymentGateway, s: FakeSession, outcome: "succeed" | "decline" | "require_action", last4: string | null = null): boolean => {
     try {
-      gw.settleSession(s.id, outcome);
+      gw.settleSession(s.id, outcome, last4);
       return true;
     } catch (err) {
       const now = gw.inspect(s.id);
@@ -939,9 +957,9 @@ export function registerPayRoutes(scope: FastifyInstance, deps: RouteDeps): void
     }
   };
 
-  /** Pays the session — unless it expired meanwhile: then back to the store. */
-  const settleOrBack = (reply: FastifyReply, gw: FakePaymentGateway, s: FakeSession) =>
-    settledOn(gw, s, "succeed") ? reply.redirect(successOf(s), 303) : reply.redirect(expiredTo(s), 303);
+  /** Pays the session (with the card ending `last4`; null: completing the one that waited for 3-D Secure) — unless it expired meanwhile: then back to the store. */
+  const settleOrBack = (reply: FastifyReply, gw: FakePaymentGateway, s: FakeSession, last4: string | null = null) =>
+    settledOn(gw, s, "succeed", last4) ? reply.redirect(successOf(s), 303) : reply.redirect(expiredTo(s), 303);
 
   const renderSession = async (req: FastifyRequest, reply: FastifyReply, s: FakeSession, error: string | null, status = 200) => {
     const ctx = (await pageCtx(req, deps)) as StoreCtx;
@@ -966,9 +984,10 @@ export function registerPayRoutes(scope: FastifyInstance, deps: RouteDeps): void
     if (!card.ok) return renderSession(req, reply, s, card.message, 422);
     const outcome = outcomeOf(card.digits);
     await events.record(req.workspaceId, store.id, "payment_attempt", { token: s.token, ref: s.id, result: outcome === "succeed" ? "succeeded" : outcome === "decline" ? "declined" : "requires_action" });
-    if (outcome === "succeed") return settleOrBack(reply, gw, s);
+    const last4 = card.digits.slice(-4);
+    if (outcome === "succeed") return settleOrBack(reply, gw, s, last4);
     // The session's intent keeps the attempt, as Stripe's does.
-    if (!settledOn(gw, s, outcome)) return reply.redirect(expiredTo(s), 303);
+    if (!settledOn(gw, s, outcome, last4)) return reply.redirect(expiredTo(s), 303);
     if (outcome === "decline") return renderSession(req, reply, s, "Your card was declined.", 402);
     sessionPending.add(s.id);
     return reply.redirect(sessionPath(req, s, "/authenticate"), 303);
