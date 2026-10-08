@@ -1,0 +1,31 @@
+# Build contexts carry sources only: docker/app.Dockerfile installs (npm ci) and
+# compiles (tsc -b) everything inside the image. Nothing below may ride along
+# from a checkout — host-built binaries, dist/ of since-deleted sources, caches,
+# reports, secrets — or a COPY would bake it into an image as it is.
+
+# Version control and env files (secrets; no image reads .env.example either).
+.git
+**/.env*
+
+# Dependencies, installed in the image: root, workspaces, tools/shops-e2e alike.
+**/node_modules
+
+# Build outputs, rebuilt from the sources in the image.
+**/dist
+**/*.tsbuildinfo
+
+# Caches: apps/shops/tools/fetch-images.mjs downloads into this one.
+apps/shops/tools/.cache
+
+# Test reports (vitest coverage, Playwright).
+**/coverage
+**/playwright-report
+**/test-results
+**/blob-report
+
+# Hidden scenario config from tools/build-shop-config.mjs (default --out, as in
+# .gitignore): mounted at run time (SHOPS_SCENARIOS_FILE), never built in.
+/shops-scenarios*.json
+/shops-scenarios*.yaml
+
+**/.DS_Store

@@ -1,0 +1,62 @@
+/*
+ * The card form a payment step shows (with the verification dialog it opens) and the hosted card page
+ * with its verification step. Linked after checkout.css by the pages that show them, and by no other;
+ * coloured only through the brand's tokens, like the rest of the checkout.
+ */
+
+.page-hosted {
+  --co-side: color-mix(in srgb, var(--fg) 4%, var(--bg));
+  --co-line: color-mix(in srgb, var(--fg) 14%, var(--bg));
+  --co-input: color-mix(in srgb, var(--bg) 40%, #ffffff);
+  --co-input-line: color-mix(in srgb, var(--fg) 24%, var(--bg));
+  --co-accent-soft: color-mix(in srgb, var(--accent) 9%, var(--bg));
+  --co-radius-sm: min(var(--radius), 8px);
+}
+
+/* A short page still ends with its footer at the bottom of the window. */
+body.page-hosted { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+body.page-hosted > .site-main { flex: 1 0 auto; }
+
+.test-badge {
+  display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
+  background: color-mix(in srgb, #D97706 14%, var(--bg)); color: color-mix(in srgb, #92400E 88%, var(--fg));
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap;
+}
+
+/* ---------- the card form */
+.card-form__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.card-form__title { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; }
+.card-form__title .icon { width: 18px; height: 18px; color: var(--ink-2); }
+.card-form__fields { display: grid; gap: 14px; }
+
+/* ---------- the verification dialog over the payment step */
+.pay-dialog { position: fixed; inset: 0; z-index: 95; display: grid; place-items: center; padding: 16px; }
+.pay-dialog__backdrop { position: absolute; inset: 0; background: rgba(12, 12, 12, 0.55); }
+.pay-dialog__panel {
+  position: relative; display: grid; gap: 14px; width: 100%; max-width: 440px; padding: 28px 24px;
+  border: 1px solid var(--co-line); border-radius: calc(var(--co-radius-sm) * 1.5); background: var(--co-input);
+  box-shadow: 0 24px 60px -24px color-mix(in srgb, var(--fg) 35%, transparent);
+}
+.pay-dialog__panel p { margin: 0; }
+
+/* ---------- the hosted card page */
+.page-hosted .site-main { background: var(--co-side); }
+.hosted { display: grid; gap: 28px; padding-block: 28px 64px; max-width: 980px; }
+@media (min-width: 880px) { .hosted { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 64px; padding-block: 56px 96px; } }
+.hosted__order { display: grid; align-content: start; gap: 10px; min-width: 0; }
+.hosted__back { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2); font-size: 0.9rem; text-decoration: none; }
+.hosted__back .icon { width: 16px; height: 16px; }
+.hosted__merchant { margin: 14px 0 0; color: var(--ink-2); font-weight: 600; }
+.hosted__amount { margin: 0 0 12px; font-size: clamp(2rem, 5vw, 2.6rem); font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.hosted__lines { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; font-size: 0.92rem; }
+.hosted__line { display: flex; justify-content: space-between; gap: 16px; }
+.hosted__line > span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hosted__qty { color: var(--ink-2); }
+.hosted__total { display: flex; justify-content: space-between; gap: 16px; margin: 6px 0 0; padding-top: 12px; border-top: 1px solid var(--co-line); font-weight: 600; }
+.hosted__pay { display: grid; align-content: start; gap: 16px; min-width: 0; padding: 24px 20px; border: 1px solid var(--co-line); border-radius: calc(var(--co-radius-sm) * 1.5); background: var(--co-input); box-shadow: 0 18px 50px -28px color-mix(in srgb, var(--fg) 40%, transparent); }
+.hosted__pay-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.hosted__title { margin: 0; font-size: 1.2rem; font-weight: 600; }
+.hosted__email { margin: 0; padding: 12px 14px; border: 1px solid var(--co-line); border-radius: var(--co-radius-sm); background: var(--co-side); color: var(--ink-2); overflow-wrap: anywhere; }
+.card-form--hosted { display: grid; gap: 14px; }
+.hosted__secure { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; color: var(--ink-2); font-size: 0.82rem; text-align: center; }
+.hosted__secure .icon { width: 15px; height: 15px; }

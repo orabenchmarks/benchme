@@ -34,6 +34,8 @@ export const configSchema = z.object({
   ASK_APPS: z.string().default("").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
   /** Apps exposing their own WebMCP tools on their pages (subset of APP_TARGETS keys). */
   WEBMCP_APPS: z.string().default("").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
+  /** Apps routed but never advertised: absent from a workspace's urls, the portal, the registry and robots.txt (subset of APP_TARGETS keys). */
+  UNLISTED_APPS: z.string().default("").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
   /** Seed used for the shared-<scenario>-<seed> workspace advertised in /robots.txt. */
   SHARED_SEED: z.coerce.number().int().positive().default(20260908),
   WORKSPACE_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),

@@ -15,7 +15,7 @@
     "build": "tsc -b",
     "test": "vitest run"
   },
-  "description": "benchme seeded scenario generators (acme-v1) and the derived ground truths tasks are graded against",
+  "description": "benchme seeded scenario generators (acme-v1; shops-v1 for the consumer stores) and the derived ground truths tasks are graded against",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/orabenchmarks/benchme.git",

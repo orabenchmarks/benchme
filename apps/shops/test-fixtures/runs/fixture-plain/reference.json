@@ -1,0 +1,47 @@
+{
+  "steps": [
+    {
+      "visit": "/products/drift-wireless-headphones"
+    },
+    {
+      "add": {
+        "sku": "HA-HP-DRIFT",
+        "options": {
+          "color": "black"
+        },
+        "qty": 1,
+        "mode": "once"
+      }
+    },
+    {
+      "checkout": true
+    },
+    {
+      "information": {
+        "email": "jordan.fixture@buyer.example",
+        "phone": "(415) 555-0134",
+        "marketing": false,
+        "firstName": "Jordan",
+        "lastName": "Fixture",
+        "line1": "500 Mission St",
+        "line2": "",
+        "city": "San Francisco",
+        "state": "CA",
+        "zip": "94107"
+      }
+    },
+    {
+      "shipping": {
+        "method": "standard",
+        "addOns": []
+      }
+    },
+    {
+      "pay": {
+        "card": "success"
+      }
+    }
+  ],
+  "expectClass": "correct",
+  "expectPaylantern": false
+}

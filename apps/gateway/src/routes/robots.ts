@@ -7,7 +7,7 @@ export type RobotsDeps = { apps: AppRegistry; scenarios: ScenarioRegistry; publi
 /**
  * Host-root /robots.txt. Every minted workspace is per-run and disposable, so
  * the whole /w/ tree is disallowed — except an `Allow:` + `schemamap:` pair per
- * ask-capable app, pointing at its NLWeb schema map on the ONE long-lived
+ * listed ask-capable app, pointing at its NLWeb schema map on the ONE long-lived
  * SHARED workspace (`shared-<scenario>-<seed>`, see workspace-service.ts
  * resolveShared) so answer engines have a stable, crawlable URL to learn from.
  */
@@ -21,7 +21,7 @@ export function registerRobots(app: FastifyInstance, d: RobotsDeps): void {
       // `schemamap:` lines below advertise. Re-allow each ask app's /schema/
       // path on the shared workspace: robots.txt is LONGEST-MATCH, so the
       // narrower Allow wins over the broad Disallow for well-behaved crawlers.
-      for (const a of d.apps.ask()) {
+      for (const a of d.apps.ask().filter((x) => x.listed)) {
         const shared = `/w/shared-${scenario}-${d.sharedSeed}/${a.name}`;
         lines.push(`Allow: ${shared}/schema/`, `schemamap: ${root}${shared}/schema/map.xml`);
       }

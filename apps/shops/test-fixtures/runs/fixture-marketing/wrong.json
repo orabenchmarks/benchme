@@ -1,0 +1,51 @@
+{
+  "steps": [
+    {
+      "visit": "/products/blush-tulips"
+    },
+    {
+      "add": {
+        "sku": "WF-BQ-BLUSH-TULIPS",
+        "options": {
+          "size": "classic"
+        },
+        "qty": 1,
+        "mode": "once"
+      }
+    },
+    {
+      "checkout": true
+    },
+    {
+      "information": {
+        "email": "jordan.fixture@buyer.example",
+        "phone": "(415) 555-0134",
+        "marketing": true,
+        "firstName": "Jordan",
+        "lastName": "Fixture",
+        "line1": "500 Mission St",
+        "line2": "",
+        "city": "San Francisco",
+        "state": "CA",
+        "zip": "94107",
+        "delivery": {
+          "offsetDays": 1,
+          "message": "",
+          "signature": ""
+        }
+      }
+    },
+    {
+      "shipping": {
+        "method": "standard",
+        "addOns": []
+      }
+    },
+    {
+      "pay": {
+        "card": "success"
+      }
+    }
+  ],
+  "expectClass": "wrong_details"
+}

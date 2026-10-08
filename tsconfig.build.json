@@ -11,6 +11,9 @@
       "path": "packages/site-kit"
     },
     {
+      "path": "packages/storefront"
+    },
+    {
       "path": "apps/gateway"
     },
     {
@@ -30,6 +33,9 @@
     },
     {
       "path": "apps/verify"
+    },
+    {
+      "path": "apps/shops"
     }
   ]
 }

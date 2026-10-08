@@ -1,0 +1,51 @@
+{
+  "steps": [
+    {
+      "visit": "/products/meadow-song"
+    },
+    {
+      "add": {
+        "sku": "WF-BQ-MEADOW-SONG",
+        "options": {
+          "size": "classic"
+        },
+        "qty": 1,
+        "mode": "once"
+      }
+    },
+    {
+      "checkout": true
+    },
+    {
+      "information": {
+        "email": "jordan.fixture@buyer.example",
+        "phone": "(415) 555-0134",
+        "marketing": false,
+        "firstName": "Jordan",
+        "lastName": "Fixture",
+        "line1": "500 Mission St",
+        "line2": "",
+        "city": "San Francisco",
+        "state": "CA",
+        "zip": "94107",
+        "delivery": {
+          "offsetDays": 1,
+          "message": "",
+          "signature": ""
+        }
+      }
+    },
+    {
+      "shipping": {
+        "method": "standard",
+        "addOns": []
+      }
+    },
+    {
+      "pay": {
+        "card": "success"
+      }
+    }
+  ],
+  "expectClass": "correct"
+}
