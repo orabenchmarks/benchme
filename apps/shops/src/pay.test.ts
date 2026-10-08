@@ -1130,11 +1130,14 @@ describe.skipIf(!DB)("paying (real Postgres, fake payments)", () => {
       const { w, tok } = await atPayment("quillfeather", [HUILA], "fixture-price");
       const confirm = (form: Form = CARD) => post("quillfeather", `/checkout/${tok}/payment/fake-confirm`, form, w);
       const updated = `/w/${w}/quillfeather/checkout/${tok}/payment?updated=1`;
-      const [a, b] = await Promise.all([confirm(), confirm()]);
+      // Both presses carry the total their page showed, as fake-pay.js and the no-JavaScript form do: whichever
+      // reaches the store second — overlapping the first or just after it — still shows the old total.
+      const shownBefore = { ...CARD, shownCents: String(before()) };
+      const [a, b] = await Promise.all([confirm(shownBefore), confirm(shownBefore)]);
       expect([a.headers.location, b.headers.location]).toEqual([updated, updated]);
       expect((await repos.events.list(w)).filter((e) => e.kind === "price_updated")).toHaveLength(1);
       expect(await repos.orders.countPaid(w, "quillfeather")).toBe(0);
-      const paid = await confirm();
+      const paid = await confirm({ ...CARD, shownCents: String(before() + 777) });
       expect(paid.headers.location).toMatch(/\/complete\?payment_intent=pi_fake_[0-9a-z]+$/);
       const no = orderNoOf(await get("quillfeather", unprefixed(paid, w, "quillfeather"), w), w, "quillfeather");
       expect((await repos.orders.get(w, no))?.chargedCents).toBe(before() + 777);
