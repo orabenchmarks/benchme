@@ -1240,7 +1240,7 @@ export class Shopper {
       return null;
     }
     if (card !== (this.task.scenario.card ?? "success")) {
-      this.note(`typed the ${card} test card, which the saved card is not here (a card from elsewhere)`);
+      this.note(`typed the ${card} test card, which is not the saved card here (a card from elsewhere)`);
       return null;
     }
     if (this.variant?.twinCard) {
