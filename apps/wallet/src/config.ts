@@ -25,6 +25,11 @@ export const configSchema = z
     DATABASE_URL: z.string().min(1),
     /** Guards /internal/* (the records, the approvals the stores read, the status control). */
     WALLET_INTERNAL_SECRET: z.string().min(16),
+    /**
+     * The gateway's secret (shared with every app): a request to the card-on-file door (<public>/w/<id>/wallet/card,
+     * the gateway's unlisted `wallet` app) carries its workspace signed with it. Unset → the door is not served.
+     */
+    GATEWAY_SECRET: z.string().min(16).optional(),
     /** The approval policy (policy/approval-policy.ts POLICIES): lab | decline-all. */
     WALLET_POLICY: z.string().default("lab"),
     /** The stores' origins (comma list): a request paying anywhere else is declined under the lab policy. */

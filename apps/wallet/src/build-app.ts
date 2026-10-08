@@ -6,23 +6,29 @@ import { Binder, ExactAmountRule, HostedSessionRule, WorkspacePathRule } from ".
 import type { CheckoutDirectory } from "./binding/checkout-directory.js";
 import { EventsRepo } from "./db/events-repo.js";
 import { RequestsRepo } from "./db/requests-repo.js";
+import { SavedCardsRepo } from "./db/saved-cards-repo.js";
 import { SessionsRepo } from "./db/sessions-repo.js";
 import { LINK_TIMING } from "./domain/lifecycle.js";
 import { LinkError, OAuthError } from "./domain/link-errors.js";
 import type { ApprovalPolicy } from "./policy/approval-policy.js";
 import { registerApiRoutes } from "./routes/api.js";
 import { registerAuthRoutes } from "./routes/auth.js";
+import { registerCardOnFile } from "./routes/card-on-file.js";
 import type { RouteDeps } from "./routes/deps.js";
 import { registerInternalRoutes } from "./routes/internal.js";
 import { registerPages } from "./routes/pages.js";
 import { registerRecorder } from "./routes/recorder.js";
 import type { Account } from "./service/account.js";
+import { CardOnFileService } from "./service/card-on-file.js";
 import { DeviceLogin } from "./service/device-login.js";
+import { PaymentCheck } from "./service/payment-check.js";
 import { LINK_LIMITS, SpendRequestService, type Limits } from "./service/spend-requests.js";
 
 export type BuildDeps = {
   pool: Pool;
   internalSecret: string;
+  /** The gateway's secret (GATEWAY_SECRET): serves the card-on-file door at /w/<id>/wallet/card. Unset → no door. */
+  gatewaySecret?: string | null;
   policy: ApprovalPolicy;
   directory: CheckoutDirectory;
   stores: readonly string[];
@@ -43,14 +49,21 @@ export async function buildWallet(d: BuildDeps): Promise<FastifyInstance> {
   const sessions = new SessionsRepo(d.pool);
   const requests = new RequestsRepo(d.pool);
   const events = new EventsRepo(d.pool);
+  const savedCards = new SavedCardsRepo(d.pool);
   const binder = new Binder([new WorkspacePathRule(d.directory), new HostedSessionRule(d.directory), new ExactAmountRule(d.directory, d.bindingWindowMinutes)], d.stores);
+  const spendRequests = new SpendRequestService({ requests, events, binder, policy: d.policy, timing: { ...LINK_TIMING, approvalDelayMs: d.approvalDelayMs }, limits: d.limits ?? LINK_LIMITS, now });
+  const cardOnFile = new CardOnFileService({ directory: d.directory, cards: savedCards, events, now });
   const deps: RouteDeps = {
     login: new DeviceLogin({ sessions, now, loginDelayMs: d.loginDelayMs, accessTtlMs: 12 * 3_600_000, codeTtlMs: 15 * 60_000 }),
-    spendRequests: new SpendRequestService({ requests, events, binder, policy: d.policy, timing: { ...LINK_TIMING, approvalDelayMs: d.approvalDelayMs }, limits: d.limits ?? LINK_LIMITS, now }),
+    spendRequests,
+    cardOnFile,
+    payments: new PaymentCheck(spendRequests, cardOnFile),
     requests,
+    savedCards,
     events,
     account: d.account,
     internalSecret: d.internalSecret,
+    gatewaySecret: d.gatewaySecret ?? null,
     publicUrl: d.publicUrl ?? null,
     now,
   };
@@ -75,6 +88,7 @@ export async function buildWallet(d: BuildDeps): Promise<FastifyInstance> {
   registerAuthRoutes(app, deps);
   registerApiRoutes(app, deps);
   registerPages(app, deps);
+  registerCardOnFile(app, deps);
   registerInternalRoutes(app, deps);
   return app;
 }

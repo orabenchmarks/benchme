@@ -173,12 +173,14 @@ export class SpendRequestService {
    * the payment being classed (`paying`: its amount and the last four of the card that paid, null for a payment
    * made without a card), also whether that card is one the wallet issued for this store — `walletCard`; a card
    * typed from elsewhere, or a payment with no spend request at all, is not. A request that fell back when it was
-   * decided is bound here, to the first store paid with its card for exactly its amount (claimed_at_payment).
+   * decided is bound here, to the first store paid with its card for exactly its amount (claimed_at_payment) —
+   * unless `claim` is false: a payment made with a card the wallet gave the run some other way (the card-on-file
+   * door) is that card's, and never takes another run's request.
    */
-  async approvals(workspace: string, store: string, paying: Paying | null = null): Promise<Approvals> {
+  async approvals(workspace: string, store: string, paying: Paying | null = null, opts: { claim?: boolean } = {}): Promise<Approvals> {
     let rows = await Promise.all((await this.d.requests.bound(workspace, store)).map((r) => this.refresh(r)));
     let claimed: string | null = null;
-    if (paying?.last4 && !rows.some((r) => issued(r, paying.last4))) {
+    if (opts.claim !== false && paying?.last4 && !rows.some((r) => issued(r, paying.last4))) {
       const won = await this.claim(workspace, store, paying.amountCents, paying.last4);
       if (won) {
         claimed = won.id;

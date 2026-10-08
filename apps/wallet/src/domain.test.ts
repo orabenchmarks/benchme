@@ -5,6 +5,7 @@ import { parseMerchant } from "./binding/merchant.js";
 import { CARDS, issueCard } from "./domain/cards.js";
 import { allows, dueTransition, LINK_TIMING } from "./domain/lifecycle.js";
 import { LinkError } from "./domain/link-errors.js";
+import { chooseSavedCard, expiryText, groupedNumber, prefersJson, savedCardRecord, savedCardView } from "./domain/saved-card.js";
 import { parseCreate, parseUpdate } from "./domain/spend-request-input.js";
 import { DeclineAllPolicy, LabPolicy, policyFor } from "./policy/approval-policy.js";
 import { redact } from "./routes/recorder.js";
@@ -252,5 +253,65 @@ describe("records redaction", () => {
       device_code: "<redacted>",
       card: { number: "•••• 4242", cvc: "<redacted>", brand: "visa" },
     });
+  });
+});
+
+describe("the card-on-file door's choice of card", () => {
+  const m = (store: string, scenarioId: string | null, card: "success" | "3ds" | "decline"): CheckoutMatch => ({ workspace: WS, store, checkout: null, payableCents: null, scenarioId, card });
+
+  it("shows no card before the workspace has opened a store", () => {
+    expect(chooseSavedCard([])).toEqual({ kind: null, reason: "no_store" });
+  });
+  it("shows the card the opened store's scenario calls for — each kind", () => {
+    for (const kind of ["success", "3ds", "decline"] as const) {
+      expect(chooseSavedCard([m("quillfeather", "QF90", kind)])).toEqual({ kind, stores: [m("quillfeather", "QF90", kind)] });
+    }
+  });
+  it("lets the store opened with its campaign code outrank one the run wandered into without", () => {
+    const choice = chooseSavedCard([m("halden", null, "success"), m("quillfeather", "QF91", "decline")]);
+    expect(choice).toEqual({ kind: "decline", stores: [m("quillfeather", "QF91", "decline")] });
+  });
+  it("shows the success card for stores with no scenario at all, for each of them", () => {
+    expect(chooseSavedCard([m("halden", null, "success"), m("wrenfield", null, "success")])).toEqual({ kind: "success", stores: [m("halden", null, "success"), m("wrenfield", null, "success")] });
+  });
+  it("shows no card when the scenario stores call for different cards", () => {
+    expect(chooseSavedCard([m("halden", "HA90", "success"), m("quillfeather", "QF91", "decline")])).toEqual({ kind: null, reason: "ambiguous" });
+  });
+});
+
+describe("the card-on-file door's answer", () => {
+  const holder = { name: "Morgan Avery", line1: "500 Third St", city: "San Francisco", state: "CA", postalCode: "94107", country: "US" };
+  const card = issueCard("3ds", new Date("2026-10-08T00:00:00Z"));
+
+  it("answers JSON only to a client that asks for it at least as much as for HTML", () => {
+    expect(prefersJson("application/json")).toBe(true);
+    expect(prefersJson("application/json, text/plain, */*")).toBe(true);
+    expect(prefersJson("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")).toBe(false);
+    expect(prefersJson("*/*")).toBe(false);
+    expect(prefersJson(undefined)).toBe(false);
+    expect(prefersJson("text/html;q=0.5, application/json")).toBe(true);
+    expect(prefersJson("application/json;q=0.4, text/html")).toBe(false);
+    expect(prefersJson("application/json;q=0")).toBe(false);
+  });
+  it("shows what a card form asks for, billed to the holder — never the card's kind", () => {
+    const v = savedCardView(card, holder);
+    expect(v).toEqual({
+      brand: "visa",
+      number: CARDS["3ds"].number,
+      exp_month: card.expMonth,
+      exp_year: 2029,
+      cvc: card.cvc,
+      name: "Morgan Avery",
+      billing_address: { name: "Morgan Avery", line1: "500 Third St", city: "San Francisco", state: "CA", postal_code: "94107", country: "US" },
+    });
+    expect(JSON.stringify(v)).not.toMatch(/3ds|decline|success|kind/);
+  });
+  it("keeps only the kind, brand and last four in a record", () => {
+    expect(savedCardRecord(card)).toEqual({ kind: "3ds", brand: "visa", last4: "3184" });
+  });
+  it("writes the number in groups of four and the expiry as MM/YY", () => {
+    expect(groupedNumber("4000002760003184")).toBe("4000 0027 6000 3184");
+    expect(expiryText({ expMonth: 7, expYear: 2029 })).toBe("07/29");
+    expect(expiryText({ expMonth: 12, expYear: 2031 })).toBe("12/31");
   });
 });

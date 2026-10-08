@@ -1,10 +1,14 @@
+import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, isWorkspaceId, verifyWorkspaceHeader } from "@benchme/core";
 import type { FastifyRequest } from "fastify";
 import { timingSafeEqual } from "node:crypto";
 import type { EventsRepo } from "../db/events-repo.js";
 import type { RequestsRepo } from "../db/requests-repo.js";
+import type { SavedCardsRepo } from "../db/saved-cards-repo.js";
 import type { Session } from "../domain/types.js";
 import type { Account } from "../service/account.js";
+import type { CardOnFileService } from "../service/card-on-file.js";
 import type { DeviceLogin } from "../service/device-login.js";
+import type { PaymentCheck } from "../service/payment-check.js";
 import type { SpendRequestService } from "../service/spend-requests.js";
 
 declare module "fastify" {
@@ -18,10 +22,17 @@ declare module "fastify" {
 export type RouteDeps = {
   login: DeviceLogin;
   spendRequests: SpendRequestService;
+  /** The card-on-file door: the saved card a run that pays without Link reads. */
+  cardOnFile: CardOnFileService;
+  /** What a store reads when it classes a payment (spend requests and the door's card). */
+  payments: PaymentCheck;
   requests: RequestsRepo;
+  savedCards: SavedCardsRepo;
   events: EventsRepo;
   account: Account;
   internalSecret: string;
+  /** The gateway's secret, which signs the workspace of a /w/<id>/wallet/* request; null → no workspace door is served. */
+  gatewaySecret: string | null;
   /** The wallet's public base URL (approval and verification links); unset → read off the gateway's forwarded headers. */
   publicUrl: string | null;
   now: () => Date;
@@ -55,4 +66,14 @@ export function hasInternalSecret(req: FastifyRequest, secret: string): boolean 
 export function bearer(req: FastifyRequest): string | null {
   const m = /^Bearer\s+(\S+)\s*$/i.exec(first(req, "authorization") ?? "");
   return m ? (m[1] as string) : null;
+}
+
+/**
+ * The workspace a request came through the gateway for (/w/<id>/wallet/* → the gateway's signed header), or null
+ * when it carries none or a bad signature — a client never names its own workspace.
+ */
+export function signedWorkspace(req: FastifyRequest, gatewaySecret: string): string | null {
+  const id = first(req, WORKSPACE_HEADER);
+  const sig = first(req, WORKSPACE_SIG_HEADER);
+  return id && isWorkspaceId(id) && sig && verifyWorkspaceHeader(gatewaySecret, id, sig) ? id : null;
 }
