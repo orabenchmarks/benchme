@@ -161,9 +161,13 @@ spec:
             # The stores' origins (public, and in-cluster): a request paying anywhere else is declined.
             - name: WALLET_MERCHANT_ORIGINS
               value: {{ concat (list $root.Values.publicBaseUrl $internal) ($root.Values.wallet.extraMerchantOrigins | default list) | join "," | quote }}
-            # Hosted payment pages (Stripe Checkout): approved only for a request bound by the page's Checkout Session.
+            # Hosted payment pages (Stripe Checkout): approved for a request bound by the page's Checkout Session, or naming a store.
             - name: WALLET_HOSTED_CHECKOUT_ORIGINS
               value: {{ $root.Values.wallet.hostedCheckoutOrigins | default (list "https://checkout.stripe.com") | join "," | quote }}
+            - name: WALLET_LOOKALIKES
+              value: {{ $root.Values.wallet.lookalikes | default (list "paylantern") | join "," | quote }}
+            - name: WALLET_BINDING_RETRY_MS
+              value: {{ $root.Values.wallet.bindingRetryMs | default 60000 | quote }}
             - name: WALLET_PUBLIC_URL
               value: {{ printf "%s/wallet" (trimSuffix "/" $root.Values.publicBaseUrl) | quote }}
             # Where a request's checkout is looked up (the stores' internal API).

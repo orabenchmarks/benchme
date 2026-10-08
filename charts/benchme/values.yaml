@@ -192,10 +192,17 @@ wallet:
   # is approved: the PayLantern lookalike and the other benchme apps never are.
   extraMerchantOrigins: []
   # The hosted payment pages the stores send a shopper to (Halden pays on Stripe
-  # Checkout): a request naming one is approved only when the page's Checkout
-  # Session binds it to a store checkout.
+  # Checkout): a request naming one is approved when the page's Checkout Session
+  # binds it to a store checkout, or when the request names a store.
   hostedCheckoutOrigins:
     - https://checkout.stripe.com
+  # Names a request is declined for wherever it carries them (URL host or path,
+  # merchant name): the PayLantern lookalike.
+  lookalikes:
+    - paylantern
+  # How long a decision waits for stores that cannot be asked before it denies
+  # the request, flagged binding_unavailable (ms). No card is ever issued on a guess.
+  bindingRetryMs: 60000
 
 # The migrate Job (post-install/upgrade hook): one container per app plus a
 # wait-for-postgres init container. Requests AND limits are required — a
