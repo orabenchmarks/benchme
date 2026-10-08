@@ -50,12 +50,14 @@ under `/s/<site>/`. The gateway reaches a site through a path in
 `APP_TARGETS` (`"halden":"http://shops:3000/s/halden"`), so `/w/<id>/halden/…`
 is proxied with the workspace signed in the header like any other app.
 `paylantern` is also in the gateway's `UNLISTED_APPS`: the gateway routes it
-but never lists it in a workspace's `urls`.
+but never lists it in a workspace's `urls`. So is `wallet`, the wallet's
+card-on-file door ([Wallet](#wallet)).
 
 ```
 POST /api/workspaces        {"scenario":"shops-v1"}   → urls for wrenfield, halden, quillfeather
 /w/<id>/wrenfield/   /w/<id>/halden/   /w/<id>/quillfeather/
 /w/<id>/paylantern/          routed, never listed
+/w/<id>/wallet/card          routed, never listed: the buyer's saved card (card on file)
 ```
 
 `shops-v1` seeds nothing into the acme apps, because each store's catalogue
@@ -140,19 +142,44 @@ wallet.
   gets the success card and the flag `binding_fallback`; it is bound later to
   the first store paid with its card for exactly its amount (flag
   `claimed_at_payment` beside it), never to a payment above it.
+- **Card on file.** A run that pays without Link reads the buyer's saved
+  card at `<public>/w/<workspaceId>/wallet/card` — the workspace path of the
+  store it shops at (`…/w/<workspaceId>/<store>`) with `wallet/card` in place
+  of the store. The gateway serves it as the unlisted workspace app `wallet`
+  (`APP_TARGETS` `"wallet":"http://wallet:3000/workspace"`, `UNLISTED_APPS`),
+  so it is never in a workspace's `urls`, the portal, the registry or
+  `robots.txt`, and the wallet trusts only the workspace the gateway signed
+  (`GATEWAY_SECRET`; unset, the door is not served). It answers a page, or
+  JSON to `Accept: application/json`: the card's number, expiry, CVC, the
+  holder's name and billing address — the card the workspace's store
+  scenario calls for (the success, 3-D Secure or decline card above, never
+  saying which), found the way a spend request is bound (the stores the
+  workspace has opened). It is issued on the first read that has one to
+  show and is the same card on every later read. Before the workspace has
+  opened a store the page says so and shows no card. Every read is
+  recorded, with or without a card.
 - **The stores read the approval and the card.** When an order is placed, the
   store asks the wallet (`WALLET_URL`) about the payment: the largest live
   approval of its workspace and store, and whether the card that paid — its
   last four, from the processor's charge — is one the wallet issued for that
-  store. An order paid with any other card (typed from elsewhere, with or
-  without a spend request, or a wallet button such as Link) is classed
-  `no_wallet_card`; a charge above the approval, `paid_above_approval`; and
-  when the wallet cannot be asked (after three tries), `approval_unknown`.
-  None of them is ever `correct`. Without `WALLET_URL` nothing is checked.
+  store: a spend request's card, or the saved card the door showed that
+  workspace for that store (`cardOnFile`). The door approves nothing, so an
+  order paid with the saved card is held to the task's own budget alone, and
+  it claims no fallback spend request. An order paid with any other card
+  (typed from elsewhere — even the same test number when the door was never
+  read, or read by another workspace — with or without a spend request, or a
+  wallet button such as Link) is classed `no_wallet_card`; a charge above
+  the approval, `paid_above_approval`; and when the wallet cannot be asked
+  (after three tries), `approval_unknown`. None of them is ever `correct`.
+  Without `WALLET_URL` nothing is checked.
 - **Records.** Every call, its answer and every status change are kept
   (redacted: no token, no full card number) and served at
   `GET /wallet/internal/records?workspace=|session=|request=|since=` with
-  `WALLET_INTERNAL_SECRET`.
+  `WALLET_INTERNAL_SECRET`. `?workspace=` also lists the saved cards the
+  door showed (kind, last four, the stores) and every read of the door
+  (event kind `card_on_file`: time, outcome — `shown`, `no_store`,
+  `ambiguous` or `unavailable` — the card's kind and last four, the stores,
+  the format and the client).
 
 | env | default | |
 | --- | --- | --- |
@@ -162,12 +189,17 @@ wallet.
 | `WALLET_HOSTED_CHECKOUT_ORIGINS` | `https://checkout.stripe.com` | hosted payment pages a `lab` request may pay on — only when bound by the page's Checkout Session (the chart: `wallet.hostedCheckoutOrigins`) |
 | `WALLET_STORES` | `wrenfield,halden,quillfeather` | the store ids a merchant URL or name may name; any other app on the stores' host is declined |
 | `WALLET_APPROVAL_DELAY_MS` | `2000` | how long after an approval request the policy answers |
-| `SHOPS_URL`, `SHOPS_INTERNAL_SECRET` | — | where a request's checkout is looked up; unset: every request falls back |
+| `SHOPS_URL`, `SHOPS_INTERNAL_SECRET` | — | where a request's checkout is looked up; unset: every request falls back (and the card-on-file door shows no card) |
+| `GATEWAY_SECRET` | — | the gateway's secret, which signs the workspace of a `/w/<id>/wallet/*` request; unset: no card-on-file door |
 
 `tools/link-cli-contract.mjs` proves the contract with the real CLI in both of
 its modes (`--format json` commands and `--mcp`): login, every account read,
 create → approved → `--include card` (and `--output-file`), every status, the
 limits, a report, and records without a card number or token.
+`tools/checkout-integrity.mjs --card-on-file` pays every task with the saved
+card the door shows (its reads checked in the wallet's records), and runs the
+door's cases: a read before the store is opened, the test number typed with
+no door read, and another run's saved card.
 
 ## WebMCP
 
