@@ -2,7 +2,7 @@ import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspa
 import type { FastifyInstance } from "fastify";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { CheckoutDirectory, CheckoutMatch } from "./binding/checkout-directory.js";
 import { buildWallet, type BuildDeps } from "./build-app.js";
 import { CARDS } from "./domain/cards.js";
@@ -48,6 +48,16 @@ const opened = (store: string, scenarioId: string | null, card: CheckoutMatch["c
 
 let clock = new Date("2026-10-08T12:00:00.000Z");
 
+/**
+ * The clock two hours past every request the test database holds (it keeps earlier runs' requests, dated by this
+ * fixed clock): no earlier run's unbound card is in a test's binding window, where it could share an expiry with the
+ * test's own cards once the window's expiries are spent.
+ */
+async function pastEveryRequest(pool: Pool, now: Date): Promise<Date> {
+  const last = (await pool.query<{ t: Date | null }>("SELECT max(greatest(created_at, approved_at)) AS t FROM wallet.spend_requests")).rows[0]?.t ?? null;
+  return last && last.getTime() + 2 * 3_600_000 > now.getTime() ? new Date(last.getTime() + 2 * 3_600_000) : now;
+}
+
 describe.skipIf(!DB)("the card-on-file door", () => {
   let pool: Pool;
   let app: FastifyInstance;
@@ -73,6 +83,9 @@ describe.skipIf(!DB)("the card-on-file door", () => {
   afterAll(async () => {
     await app?.close();
     await pool?.end();
+  });
+  beforeEach(async () => {
+    clock = await pastEveryRequest(pool, clock);
   });
 
   const signed = (ws: string) => ({ [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(GATEWAY, ws), "x-forwarded-prefix": `/w/${ws}/wallet` });

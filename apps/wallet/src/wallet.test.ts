@@ -42,6 +42,16 @@ const directory: CheckoutDirectory = {
 };
 
 let clock = new Date("2026-10-08T12:00:00.000Z");
+
+/**
+ * The clock two hours past every request the test database holds (it keeps earlier runs' requests, dated by this
+ * fixed clock): no earlier run's unbound card is in a test's binding window, where it could share an expiry with the
+ * test's own cards once the window's expiries are spent.
+ */
+async function pastEveryRequest(pool: Pool, now: Date): Promise<Date> {
+  const last = (await pool.query<{ t: Date | null }>("SELECT max(greatest(created_at, approved_at)) AS t FROM wallet.spend_requests")).rows[0]?.t ?? null;
+  return last && last.getTime() + 2 * 3_600_000 > now.getTime() ? new Date(last.getTime() + 2 * 3_600_000) : now;
+}
 const tick = (ms: number) => {
   clock = new Date(clock.getTime() + ms);
 };
@@ -88,8 +98,9 @@ describe.skipIf(!DB)("wallet — link-cli's HTTP contract", () => {
   const retrieve = (token: string, id: string, include = "") => call({ method: "GET", url: `/api/spend_requests/${id}${include ? `?include=${include}` : ""}`, token });
   const internal = (o: InjectOptions) => call({ ...o, headers: { "x-benchme-internal-secret": SECRET } });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     tick(2 * 3_600_000); // a fresh hour: the creation limit never carries over between tests
+    clock = await pastEveryRequest(pool, clock);
   });
 
   it("logs a device in with the device grant, its verification page on the wallet's public URL", async () => {
