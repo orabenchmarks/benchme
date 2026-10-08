@@ -156,10 +156,12 @@ services:
       RECEIPT_SECRET: ${RECEIPT_SECRET:-benchme-local-receipt-secret-change-me}
       PUBLIC_BASE_URL: ${BENCHME_PUBLIC_URL:-http://localhost:8080}
       INTERNAL_BASE_URL: http://gateway:3000
-      # The store sites are one app (shops) serving each site under /s/<site>.
-      APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000","verify":"http://verify:3000","wrenfield":"http://shops:3000/s/wrenfield","halden":"http://shops:3000/s/halden","quillfeather":"http://shops:3000/s/quillfeather","paylantern":"http://shops:3000/s/paylantern"}'
-      # Routed like any app, but left out of a workspace's urls.
-      UNLISTED_APPS: paylantern
+      # The store sites are one app (shops) serving each site under /s/<site>. wallet: the wallet's
+      # workspace-scoped door (/w/<id>/wallet/card → wallet:3000/workspace/card, the saved card of a run that
+      # pays without Link) — the same service the root /wallet/* reaches, which forwards no workspace.
+      APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000","verify":"http://verify:3000","wrenfield":"http://shops:3000/s/wrenfield","halden":"http://shops:3000/s/halden","quillfeather":"http://shops:3000/s/quillfeather","paylantern":"http://shops:3000/s/paylantern","wallet":"http://wallet:3000/workspace"}'
+      # Routed like any app, but left out of a workspace's urls (and the portal, the registry, robots.txt).
+      UNLISTED_APPS: paylantern,wallet
       # Served at the root, outside any workspace: /wallet/* (link-cli's LINK_API_BASE_URL = <public>/wallet/api).
       SERVICE_TARGETS: '{"wallet":"http://wallet:3000"}'
       SEEDED_APPS: warehouse,helpdesk,vaultdocs,mail,verify
@@ -234,6 +236,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: postgres://benchme:${POSTGRES_PASSWORD:-benchme-local-postgres}@postgres:5432/benchme
       WALLET_INTERNAL_SECRET: ${WALLET_INTERNAL_SECRET:-benchme-local-wallet-secret-change-me}
+      # The gateway's secret: the card-on-file door (/w/<id>/wallet/card) trusts the workspace it signs.
+      GATEWAY_SECRET: ${GATEWAY_SECRET:-benchme-local-gateway-secret-change-me}
       # lab (approve requests paying the stores, with the card the bound scenario
       # calls for) | decline-all (the Field study: every request declined).
       WALLET_POLICY: ${WALLET_POLICY:-lab}
