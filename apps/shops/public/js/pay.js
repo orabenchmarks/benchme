@@ -280,8 +280,9 @@
                 var to = cfg.urls.complete + "?payment_intent=" + encodeURIComponent(pi && pi.id ? pi.id : intentId);
                 if (pi && pi.status !== "succeeded" && pi.status !== "processing") {
                   // Authorized, or not through yet: the store takes it (or declines the card — shown here, as a
-                  // decline is) and records the attempt; otherwise the completion page says what is needed.
-                  setBusy(true, "Checking your payment…");
+                  // decline is) and records the attempt; otherwise the completion page says what is needed. The
+                  // button keeps the label it had while the card was confirmed: an issuer's answer shows no step
+                  // of its own.
                   return report(pi.id || intentId).then(function (r) {
                     var j = (r && r.json) || {};
                     if (j.redirect) { go(j.redirect); return; }

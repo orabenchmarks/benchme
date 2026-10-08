@@ -408,19 +408,40 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     for (const body of [home, registry, workspacePage]) expect(body).not.toMatch(/\/wallet\b|<code>wallet<\/code>/);
   });
 
-  it("serves a host-root robots.txt that allows every path — the stores' included — and lists a schemamap per listed ask-capable app", async () => {
+  it("serves a host-root robots.txt that allows every path to everyone but the model-training crawlers, and lists a schemamap per listed ask-capable app", async () => {
     const res = await gateway.inject("/robots.txt");
     expect(res.statusCode).toBe(200);
     expect(res.headers["content-type"]).toContain("text/plain");
-    expect(res.body).toContain("User-agent: *\nAllow: /\n");
-    // Nothing on the host is disallowed: an agent honouring robots.txt meets no directive against a store's checkout.
-    expect(res.body).not.toMatch(/^Disallow:/m);
+    // Everyone else — an agent honouring robots.txt on a shopper's behalf included — meets no directive at all.
+    expect(res.body).toContain("\nUser-agent: *\nAllow: /\n");
+    const groups = res.body.split(/\n\n+/);
+    const star = groups.find((g) => g.startsWith("User-agent: *")) as string;
+    expect(star).not.toMatch(/^Disallow:/m);
+    // The crawlers that gather pages for training or an index keep off the per-run tree (they honour Disallow, not
+    // noindex), all but the shared workspace's schema maps the schemamap lines advertise.
+    const training = groups[0] as string;
+    for (const bot of ["GPTBot", "ClaudeBot", "CCBot", "Google-Extended", "Applebot-Extended", "PerplexityBot", "Bytespider", "meta-externalagent"]) expect(training).toContain(`User-agent: ${bot}\n`);
+    expect(training).toContain("Disallow: /w/\n");
+    expect(training).toContain("Allow: /w/shared-acme-v1-20260908/warehouse/schema/");
+    expect(training).not.toContain("User-agent: *");
     expect(res.body).toContain("schemamap: http://benchme.test/w/shared-acme-v1-20260908/warehouse/schema/map.xml");
     // data is webmcp-only, not ask-capable — no schemamap line for it.
     expect(res.body).not.toContain("/data/schema/map.xml");
     // paylantern is ask-capable but unlisted — never advertised to crawlers; nor is the wallet door.
     expect(res.body).not.toContain("paylantern");
     expect(res.body).not.toContain("wallet");
+  });
+
+  it("keeps every per-run page of every app out of search indexes (X-Robots-Tag), the shared workspace's pages indexable as before", async () => {
+    const minted = (await gateway.inject({ method: "POST", url: "/api/workspaces", headers: OPERATOR, payload: { scenario: "shops-v1" } })).json();
+    for (const app of ["warehouse", "data", "halden", "paylantern", "wallet"]) {
+      const res = await gateway.inject(`/w/${minted.id}/${app}/any/page`);
+      expect(res.statusCode, app).toBe(200);
+      expect(res.headers["x-robots-tag"], app).toBe("noindex, nofollow");
+    }
+    const shared = await gateway.inject(`/w/shared-acme-v1-20260908/warehouse/schema/map.xml`);
+    expect(shared.statusCode).toBe(200);
+    expect(shared.headers["x-robots-tag"]).toBeUndefined();
   });
 });
 

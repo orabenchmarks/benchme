@@ -45,9 +45,15 @@ function decodable(url: string): boolean {
   }
 }
 
+/** What every per-run page answers with, whatever app serves it: no search index, no link followed (robots.ts). */
+export const PER_RUN_ROBOTS = "noindex, nofollow";
+
 /**
  * /w/:id/<app>/* → <app>/*, with the workspace bound as a signed header and the
- * stripped prefix forwarded so the app can render links and cookie paths.
+ * stripped prefix forwarded so the app can render links and cookie paths. A minted
+ * (per-run) workspace's responses carry `X-Robots-Tag: noindex, nofollow` — every
+ * app's, not only those that set their own; the shared workspace's are left as the
+ * app answers them (its schema maps are meant to be found).
  */
 export async function registerProxy(app: FastifyInstance, d: ProxyDeps): Promise<void> {
   await app.register(replyFrom);
@@ -77,7 +83,9 @@ export async function registerProxy(app: FastifyInstance, d: ProxyDeps): Promise
     // reply-from decodes the URL before forwarding it (its path-traversal check), and an escape that is not
     // UTF-8 ("%FF", "%C3%28", a lone surrogate, a bare "%") throws there: the client's mistake, said as such.
     if (!decodable(source)) return reply.code(400).send({ error: "BAD_URL", message: "the address has a malformed percent-escape" });
+    const perRun = !req.params.id.startsWith("shared-");
     return reply.from(source, {
+      ...(perRun ? { rewriteHeaders: (headers: Record<string, unknown>) => ({ ...headers, "x-robots-tag": PER_RUN_ROBOTS }) } : {}),
       rewriteRequestHeaders: (_r, headers) => ({
         ...headers,
         [WORKSPACE_HEADER]: id,
