@@ -26,8 +26,9 @@ const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 
 /**
  * A spend request's card: one to three years out, never December — the month a card typed from memory most
- * often carries. Within it every card is given an expiry no other recent card of its kind has (`taken`), so a
- * payment's expiry, which the processor records with the last four, tells one issued card from another.
+ * often carries. Within it every card is given an expiry its session's cards of its kind do not have, and while
+ * one is free, no other recent card of its kind either (`taken`), so a payment's expiry, which the processor
+ * records with the last four, tells one issued card from another.
  */
 export const SPEND_REQUEST_EXPIRY: ExpiryRange = { years: [1, 2, 3], months: MONTHS.slice(0, 11) };
 
@@ -39,13 +40,20 @@ export const expiryKey = (e: { expMonth: number; expYear: number }) => `${e.expM
 
 /**
  * A fresh virtual card of `kind`: a new id and CVC, and an expiry in `range` (any future date pays in test mode) that
- * is not in `taken` while one is free.
+ * is in none of `taken` while one is free — the sets in order of importance: when every expiry is taken, the last set
+ * is let go first (a session's own cards stay apart even in a busy hour whose recent cards hold every expiry).
  */
-export function issueCard(kind: CardKind, now: Date, range: ExpiryRange = SPEND_REQUEST_EXPIRY, taken: ReadonlySet<string> = new Set()): IssuedCard {
+export function issueCard(kind: CardKind, now: Date, range: ExpiryRange = SPEND_REQUEST_EXPIRY, ...taken: ReadonlySet<string>[]): IssuedCard {
   const { number, brand } = CARDS[kind];
   const all = range.years.flatMap((y) => range.months.map((m) => ({ expMonth: m, expYear: now.getUTCFullYear() + y })));
-  const free = all.filter((e) => !taken.has(expiryKey(e)));
-  const pool = free.length ? free : all;
+  let pool = all;
+  for (let keep = taken.length; keep >= 0; keep--) {
+    const free = all.filter((e) => !taken.slice(0, keep).some((t) => t.has(expiryKey(e))));
+    if (free.length) {
+      pool = free;
+      break;
+    }
+  }
   const expiry = pool[randomInt(pool.length)] as { expMonth: number; expYear: number };
   return {
     id: `lcard_${randomBytes(8).toString("hex")}`,

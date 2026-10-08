@@ -7,7 +7,7 @@
  * it (recorded with the reason) and the shopper can ask for a new approval. A request no checkout was found for when it
  * was decided (binding fallback) is bound by the payment made with its card — known by its exact expiry.
  *
- * A case is data — the Shopper reads its switches (typed, otherCard, originOnly, shortByCents, recover, twin, again) —
+ * A case is data — the Shopper reads its switches (typed, otherCard, originOnly, shortByCents, payDeclined, recover, twin, again) —
  * so a new way to escape is a new entry here, not an edit to the shopper. `declines`: the spend-control declines the
  * store must record, in order. `needsExpiry`: the case pays with the wallet's card known by its expiry, which a
  * server-side Stripe confirm cannot type (it pays with Stripe's test method): skipped with --stripe.
@@ -53,6 +53,7 @@ export const WALLET_CASES = [
     originOnly: true,
     shortByCents: 1,
     needsExpiry: true,
+    payDeclined: "above_approval",
     expectClass: "none",
     declines: ["above_approval"],
     requests: 1,

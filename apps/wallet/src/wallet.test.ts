@@ -445,8 +445,9 @@ describe.skipIf(!DB)("wallet — link-cli's HTTP contract", () => {
     // What the next card of the session must avoid: both — the session's own, approved long ago or not.
     const session = (await internal({ method: "GET", url: `/internal/records?request=${small.id}` })).json().requests[0].session;
     const taken = await new RequestsRepo(pool).expiriesInUse(session, "success", new Date(clock.getTime() + 86_400_000));
-    expect([...taken].sort()).toEqual([`${a.exp_month}/${a.exp_year}`, `${b.exp_month}/${b.exp_year}`].sort());
-    expect(await new RequestsRepo(pool).expiriesInUse(session, "3ds", new Date(0))).not.toContain(`${a.exp_month}/${a.exp_year}`);
+    expect([...taken.session].sort()).toEqual([`${a.exp_month}/${a.exp_year}`, `${b.exp_month}/${b.exp_year}`].sort());
+    expect([...taken.recent].sort()).toEqual([...taken.session].sort()); // nothing else approved after `since`
+    expect((await new RequestsRepo(pool).expiriesInUse(session, "3ds", new Date(0))).session.size).toBe(0);
     // The small approval's card for the full total: declined — the big approval's expiry is not the card that paid.
     expect((await charge(ws, "wrenfield", "pi_lc_small", 7_000, a)).json()).toMatchObject({ decision: "decline", reason: "above_approval", matchedIssuance: { request: small.id } });
     // An expiry no card has (typed wrong): the workspace's own cards by their last four — the approval that covers it.
@@ -470,6 +471,37 @@ describe.skipIf(!DB)("wallet — link-cli's HTTP contract", () => {
     // A pays its total with it: claimed and used.
     expect((await charge(a, "quillfeather", "pi_lc_a2", 3_456, card)).json()).toMatchObject({ decision: "accept", walletCard: true, claimed: fell.id, approvedCents: 3_456 });
     expect(await rec()).toMatchObject({ binding: { rule: "payment", workspace: a, store: "quillfeather" }, flags: ["binding_fallback", "claimed_at_payment"], usedBy: "pi_lc_a2" });
+  });
+
+  it("never charges a run's payment to another run's unbound card that shares the paying card's expiry", async () => {
+    const [a, x, y] = [newWorkspaceId(), newWorkspaceId(), newWorkspaceId()];
+    matches.push({ workspace: a, store: "wrenfield", checkout: "wa", payableCents: 5_555, scenarioId: "WF81", card: "success" });
+    for (const ws of [x, y]) matches.push({ workspace: ws, store: "wrenfield", checkout: `${ws}-w`, payableCents: 2_222, scenarioId: "WF82", card: "success" });
+    // Another run's request falls back (two checkouts of its total), for less than A's total.
+    const other = await login();
+    const foreign = (await create(other.access, { amount: 2_222, merchant_url: ORIGIN, merchant_name: "Wrenfield Flowers" })).json();
+    // Run A has its own card, bound to its workspace.
+    const { access } = await login();
+    const own = (await create(access, { amount: 5_555, merchant_name: "Wrenfield Flowers", merchant_url: `${ORIGIN}/w/${a}/wrenfield` })).json();
+    tick(2000);
+    const foreignCard = (await retrieve(other.access, foreign.id, "card")).json().card;
+    await retrieve(access, own.id);
+    // A pays with an expiry that is the other run's card's (a test method's fixed expiry, a typo): A's own card, accepted.
+    expect((await charge(a, "wrenfield", "pi_lc_own", 5_555, foreignCard)).json()).toMatchObject({ decision: "accept", matchedIssuance: { request: own.id }, expiryMatched: false, claimed: null });
+    expect((await internal({ method: "GET", url: `/internal/records?request=${foreign.id}` })).json().requests[0]).toMatchObject({ binding: { rule: "fallback" }, usedBy: null });
+  });
+
+  it("takes a run's own unbound card — its login bound another request to the workspace — by its exact expiry", async () => {
+    const [a, t1, t2] = [newWorkspaceId(), newWorkspaceId(), newWorkspaceId()];
+    matches.push({ workspace: a, store: "halden", checkout: "ha", payableCents: 6_060, scenarioId: "HA82", card: "success" });
+    for (const ws of [t1, t2]) matches.push({ workspace: ws, store: "halden", checkout: `${ws}-h`, payableCents: 1_234, scenarioId: "HA83", card: "success" });
+    const { access } = await login();
+    const bound = (await create(access, { amount: 6_060, merchant_url: `${ORIGIN}/w/${a}/halden` })).json();
+    const loose = (await create(access, { amount: 1_234, merchant_url: ORIGIN })).json(); // falls back: two checkouts of its total
+    tick(2000);
+    await retrieve(access, bound.id);
+    const card = (await retrieve(access, loose.id, "card")).json().card;
+    expect((await charge(a, "halden", "pi_lc_mine", 1_234, card)).json()).toMatchObject({ decision: "accept", matchedIssuance: { request: loose.id }, claimed: loose.id, expiryMatched: true });
   });
 
   it("records the use of a card the store took without asking (the wallet unreachable then), and holds the charge to its approval", async () => {

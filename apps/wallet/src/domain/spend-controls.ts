@@ -16,6 +16,8 @@ export type Sources = {
   bound: readonly SpendRequestRow[];
   /** The unbound approvals the payment may claim (any amount; the caller filtered their store and window). */
   claimable: readonly SpendRequestRow[];
+  /** The sessions (link-cli logins) of the requests bound to the workspace: an unbound approval of one is the run's own. */
+  ownSessions?: ReadonlySet<string>;
 };
 
 /**
@@ -32,19 +34,24 @@ export type Matched =
 /**
  * The paying card among what the wallet issued. The saved card and a spend request's card share their number when the
  * scenario's card is the same, never their expiry (cards.ts: the door's is four years out, a spend request's one to
- * three), so the expiry decides: the issuance with exactly that expiry — the run's own (bound) cards before an unbound
- * approval that shares it. With none (an expiry typed wrong — test mode
- * takes any future date): the workspace's own cards by their last four; an unbound approval needs the exact expiry,
- * so a card typed from elsewhere never takes another run's. With no expiry read at all (a store that sends none): the
- * workspace's own, else an unbound approval for exactly the amount, as before expiries were read.
+ * three), so the expiry decides — the run's own cards first, then another run's:
+ *   1. exactly that expiry among the run's own: the door's card, a request bound to the workspace's store, an unbound
+ *      approval from a session that has a request bound to the workspace;
+ *   2. any expiry (one typed wrong — test mode takes any future date): the run's own by their last four — the door's
+ *      card or a bound request's (both: ambiguous);
+ *   3. exactly that expiry among the other unbound approvals: the run's own unbound card, when its session bound nothing
+ *      to the workspace — or another run's that shares the expiry by chance, which a run holding a card of its own
+ *      ending so never takes (2 came first);
+ *   4. no expiry read at all (a store that sends none): an unbound approval for exactly the amount, as before expiries
+ *      were read.
  */
 export function matchCard(card: PaidCard, amountCents: number, s: Sources): Matched {
   const known = card.expMonth !== null && card.expYear !== null;
   const same = (c: IssuedCard | null) => known && c !== null && c.expMonth === card.expMonth && c.expYear === card.expYear;
+  const ours = (r: SpendRequestRow) => s.ownSessions?.has(r.sessionId) === true;
   if (known) {
     if (s.door.some(same)) return { path: "card_on_file", expiryMatched: true };
-    // The run's own card before an unbound approval that shares its expiry by chance (another run's, perhaps).
-    for (const pool of [s.bound, s.claimable]) {
+    for (const pool of [s.bound, s.claimable.filter(ours)]) {
       const exact = pool.filter((r) => same(r.card));
       if (exact.length) return { path: "spend_request", candidates: exact, expiryMatched: true };
     }
@@ -53,7 +60,10 @@ export function matchCard(card: PaidCard, amountCents: number, s: Sources): Matc
   if (s.door.length && s.bound.length) return { path: "ambiguous" };
   if (s.door.length) return { path: "card_on_file", expiryMatched };
   if (s.bound.length) return { path: "spend_request", candidates: [...s.bound], expiryMatched };
-  if (!known) {
+  if (known) {
+    const exact = s.claimable.filter((r) => !ours(r) && same(r.card));
+    if (exact.length) return { path: "spend_request", candidates: exact, expiryMatched: true };
+  } else {
     const legacy = s.claimable.filter((r) => r.amount === amountCents);
     if (legacy.length) return { path: "spend_request", candidates: legacy, expiryMatched: null };
   }

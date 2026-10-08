@@ -220,10 +220,13 @@ export class SpendRequestService {
     await this.d.events.record({ session: r.sessionId, request: r.id, kind: "status", data: { from: r.status, to: r.status, by: `payment:decline:${reason}`, payment, amountCents } });
   }
 
-  /** A card for the request: an expiry no card of its kind the session holds, or recently issued to any session, has (cards.ts). */
+  /**
+   * A card for the request: an expiry no card of its kind the session holds has — and, while one is free, none recently
+   * issued to any session either (cards.ts).
+   */
   private async newCard(row: SpendRequestRow, kind: CardKind, now: Date): Promise<IssuedCard> {
     const taken = await this.d.requests.expiriesInUse(row.sessionId, kind, new Date(now.getTime() - this.d.claimWindowMs));
-    return issueCard(kind, now, SPEND_REQUEST_EXPIRY, taken);
+    return issueCard(kind, now, SPEND_REQUEST_EXPIRY, taken.session, taken.recent);
   }
 
   private async expire(row: SpendRequestRow, reason: string): Promise<SpendRequestRow> {

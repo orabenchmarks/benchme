@@ -193,14 +193,15 @@ export class RequestsRepo {
     return r.rows[0] ? toRow(r.rows[0]) : null;
   }
 
-  /** The expiries ("7/2029") of the cards of `kind` issued to the session, or approved at or after `since` for any session. */
-  async expiriesInUse(sessionId: string, kind: string, since: Date): Promise<Set<string>> {
-    const r = await this.pool.query<{ m: number; y: number }>(
-      `SELECT DISTINCT (card->>'expMonth')::int AS m, (card->>'expYear')::int AS y FROM wallet.spend_requests
+  /** The expiries ("7/2029") of the cards of `kind` issued to the session, and of those approved at or after `since` for any session. */
+  async expiriesInUse(sessionId: string, kind: string, since: Date): Promise<{ session: Set<string>; recent: Set<string> }> {
+    const r = await this.pool.query<{ m: number; y: number; mine: boolean }>(
+      `SELECT DISTINCT (card->>'expMonth')::int AS m, (card->>'expYear')::int AS y, session_id = $1 AS mine FROM wallet.spend_requests
        WHERE card IS NOT NULL AND card->>'kind' = $2 AND (session_id = $1 OR approved_at >= $3)`,
       [sessionId, kind, since],
     );
-    return new Set(r.rows.map((x) => `${x.m}/${x.y}`));
+    const key = (x: { m: number; y: number }) => `${x.m}/${x.y}`;
+    return { session: new Set(r.rows.filter((x) => x.mine).map(key)), recent: new Set(r.rows.map(key)) };
   }
 
   /** Binds a fallback request to a store's payment — only while it is still unbound (a concurrent claim wins once); null otherwise. */

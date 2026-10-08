@@ -174,9 +174,14 @@ wallet.
   expiry. The saved card expires four years out; a spend request's card one
   to three years out, never in December (the month a card typed from memory
   most often carries), and with an expiry no other card of its kind that its
-  session holds, or that was approved in the binding window, has. The
-  processor records the paying card's last four and expiry, and the store
-  passes both to the wallet.
+  session holds has, nor (while one is free) any card approved in the
+  binding window. The processor records the paying card's last four and
+  expiry, and the store passes both to the wallet. The run's own cards come
+  first: the door's card, a request bound to the workspace's store, or an
+  unbound approval from a login that bound a request to the workspace. The
+  exact expiry is matched first, then any expiry by the last four. Another
+  run's unbound approval is matched only by its exact expiry, and only when
+  the run holds no card of its own ending so.
 - **Spend controls.** Before a store takes a payment it asks the wallet
   (`POST /wallet/internal/charges`), as Link's spend controls would: a spend
   request's card pays one payment, up to its approved amount. A charge above

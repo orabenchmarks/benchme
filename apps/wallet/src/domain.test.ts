@@ -139,6 +139,12 @@ describe("cards", () => {
     for (let i = 0; i < 20; i++) expect(expiryKey(issueCard("success", now, SPEND_REQUEST_EXPIRY, taken))).toBe("7/2028");
     expect(all).toContain(expiryKey(issueCard("success", now, SPEND_REQUEST_EXPIRY, new Set(all))));
   });
+  it("keeps a session's cards apart when every expiry is taken by recent cards: the less important set is let go first", () => {
+    const now = new Date(Date.UTC(2026, 9, 8));
+    const all = SPEND_REQUEST_EXPIRY.years.flatMap((y) => SPEND_REQUEST_EXPIRY.months.map((m) => expiryKey({ expMonth: m, expYear: 2026 + y })));
+    const session = new Set(all.filter((k) => k !== "3/2029"));
+    for (let i = 0; i < 20; i++) expect(expiryKey(issueCard("success", now, SPEND_REQUEST_EXPIRY, session, new Set(all)))).toBe("3/2029");
+  });
 });
 
 describe("merchant references", () => {
@@ -408,6 +414,19 @@ describe("which issued card paid (DESIGN §6.4)", () => {
   it("takes the run's own card before an unbound approval that shares its expiry", () => {
     const twin = request("lsrq_twin", issued(5, 2028), { binding: { rule: "fallback", reason: "x" } });
     expect(matchCard(paid(5, 2028), 4_000, { door: [], bound: [link], claimable: [twin] })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: true });
+  });
+  it("never takes another run's unbound card for a run that holds a card of its own ending so, whatever the expiry", () => {
+    // Another session's unbound approval shares the paying card's expiry by chance (a test method's fixed expiry, a typo).
+    const foreign = request("lsrq_foreign", issued(9, 2027), { sessionId: "lwses_other", binding: { rule: "fallback", reason: "x" } });
+    expect(matchCard(paid(9, 2027), 4_000, { door: [], bound: [link], claimable: [foreign], ownSessions: new Set(["lwses_mine"]) })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: false });
+    expect(matchCard(paid(9, 2027), 4_000, { door: [door], bound: [], claimable: [foreign], ownSessions: new Set() })).toEqual({ path: "card_on_file", expiryMatched: false });
+    // With no card of its own ending so, the exact expiry decides (the run's own unbound card, its session binding nothing here).
+    expect(matchCard(paid(9, 2027), 4_000, { door: [], bound: [], claimable: [foreign], ownSessions: new Set() })).toEqual({ path: "spend_request", candidates: [foreign], expiryMatched: true });
+  });
+  it("takes the run's own unbound card — its session has bound a request to the workspace — by its exact expiry, before the bound card's last four", () => {
+    const mine = request("lsrq_mine", issued(9, 2027), { sessionId: "lwses_mine", binding: { rule: "fallback", reason: "x" } });
+    const bound = request("lsrq_bound", issued(5, 2028), { sessionId: "lwses_mine" });
+    expect(matchCard(paid(9, 2027), 4_000, { door: [], bound: [bound], claimable: [mine], ownSessions: new Set(["lwses_mine"]) })).toEqual({ path: "spend_request", candidates: [mine], expiryMatched: true });
   });
   it("finds an unbound approval only by its card's exact expiry — never a card typed from elsewhere", () => {
     expect(matchCard(paid(9, 2027), 4_000, { door: [], bound: [], claimable: [claim] })).toEqual({ path: "spend_request", candidates: [claim], expiryMatched: true });

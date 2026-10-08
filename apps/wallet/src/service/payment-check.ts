@@ -90,6 +90,7 @@ export class PaymentCheck {
       door: await this.cardOnFile.shownFor(c.workspace, c.store, last4),
       bound: rows.filter(ofCard),
       claimable: await this.spendRequests.claimable(c.store, last4),
+      ownSessions: new Set((await this.spendRequests.boundTo(c.workspace, null)).map((r) => r.sessionId)),
     });
     if (m.path === "card_on_file") return { ...base, expiryMatched: m.expiryMatched, decision: "accept", approvedCents: null, walletCard: true, cardOnFile: true, matchedIssuance: { kind: "card_on_file" } };
     if (m.path === "ambiguous") return { ...base, decision: "accept", approvedCents: null, walletCard: true, cardOnFile: null, matchedIssuance: { kind: "ambiguous" } };

@@ -13,13 +13,14 @@ describe("issuing a spend request's card", () => {
   const all = SPEND_REQUEST_EXPIRY.years.flatMap((y) => SPEND_REQUEST_EXPIRY.months.map((m) => expiryKey({ expMonth: m, expYear: 2026 + y })));
   const pending = { id: "lsrq_0", sessionId: "lwses_1", status: "pending_approval", amount: 2_000, merchantUrl: "https://benchme.example/", merchantName: "Quillfeather Coffee", approvalRequestedAt: now, createdAt: now } as SpendRequestRow;
 
-  function service(taken: Set<string>) {
+  function service(taken: Set<string>, session: Set<string> = new Set()) {
     const asked: { session: string; kind: string; since: Date }[] = [];
+    const mine = session;
     let patched: Partial<SpendRequestRow> | null = null;
     const requests = {
-      expiriesInUse: async (session: string, kind: string, since: Date) => {
-        asked.push({ session, kind, since });
-        return taken;
+      expiriesInUse: async (s: string, kind: string, since: Date) => {
+        asked.push({ session: s, kind, since });
+        return { session: mine, recent: taken };
       },
       change: async (_id: string, _from: unknown, patch: Partial<SpendRequestRow>) => {
         patched = patch;
@@ -50,5 +51,12 @@ describe("issuing a spend request's card", () => {
     expect(card && expiryKey(card)).toBe(free);
     // Asked about this session's cards of this kind, and every session's approved within the binding window.
     expect(asked).toEqual([{ session: "lwses_1", kind: "success", since: new Date(now.getTime() - 60 * 60_000) }]);
+  });
+
+  it("keeps the card apart from the session's own cards first: with every expiry recently taken, the one the session lacks", async () => {
+    const { svc, patched } = service(new Set(all), new Set(all.filter((k) => k !== "2/2027")));
+    await svc.decide(pending);
+    const card = patched()?.card;
+    expect(card && expiryKey(card)).toBe("2/2027");
   });
 });

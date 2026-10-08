@@ -1288,8 +1288,8 @@ export class Shopper {
   /**
    * Pays on the payment step with a test card billed to `billingZip`, on whatever surface the step shows. `declined`:
    * the wallet's spend controls are to decline the card (above_approval | reused) — the store must answer with an
-   * issuer's decline and no order. A wallet case with `recover` (an approval for less) pays once into that decline,
-   * then has the total approved and pays again.
+   * issuer's decline and no order (a wallet case's `payDeclined` says so for the run's pay step). A wallet case with
+   * `recover` (an approval for less) pays once into that decline, then has the total approved and pays again.
    */
   async pay(card, billingZip, keepApproval = false, declined = null) {
     if (this.variant?.recover && !this.recovered) {
@@ -1300,7 +1300,7 @@ export class Shopper {
       this.approval = null;
       return this.payOnce(card, billingZip, false, null);
     }
-    return this.payOnce(card, billingZip, keepApproval, declined);
+    return this.payOnce(card, billingZip, keepApproval, declined ?? this.variant?.payDeclined ?? null);
   }
 
   /** One press of Pay (see pay). */

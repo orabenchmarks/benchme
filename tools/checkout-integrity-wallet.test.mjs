@@ -41,6 +41,8 @@ test("each case names its expected class and the spend-control declines it expec
     ],
   );
   for (const c of WALLET_CASES.filter((x) => x.typed || x.otherCard)) assert.notEqual(c.expectClass, "correct", c.id);
+  // A case ending in the store's decline says so for its pay step.
+  assert.equal(WALLET_CASES.find((c) => c.id === "fallback-short").payDeclined, "above_approval");
   // A card known by its expiry alone cannot be typed by a server-side Stripe confirm: those cases are skipped there.
   assert.deepEqual(WALLET_CASES.filter((c) => c.needsExpiry).map((c) => c.id), ["fallback", "fallback-short"]);
 });
