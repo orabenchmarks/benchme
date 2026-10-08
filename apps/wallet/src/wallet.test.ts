@@ -18,7 +18,12 @@ const CONTEXT = "Buying one pair of Halden Arc over-ear headphones in black for 
 
 /** The stores as the wallet sees them: a workspace whose Halden checkout comes to $129.00 and runs a scenario. */
 const matches: CheckoutMatch[] = [{ workspace: WS, store: "halden", checkout: "tok1", payableCents: 12_900, scenarioId: "HA90", card: "decline" }];
+/** The hosted Checkout Sessions the stores created, by id. */
+const sessions: Record<string, CheckoutMatch> = {};
 const directory: CheckoutDirectory = {
+  async bySession(id) {
+    return sessions[id] ? [sessions[id]] : [];
+  },
   async inWorkspace(ws, store) {
     return matches.filter((m) => m.workspace === ws && (store === null || m.store === store));
   },
@@ -42,7 +47,7 @@ describe.skipIf(!DB)("wallet — link-cli's HTTP contract", () => {
     app = await buildWallet({
       pool,
       internalSecret: SECRET,
-      policy: new LabPolicy([ORIGIN]),
+      policy: new LabPolicy({ merchantOrigins: [ORIGIN], hostedCheckoutOrigins: ["https://checkout.stripe.com"], stores: ["wrenfield", "halden", "quillfeather"] }),
       directory,
       stores: ["wrenfield", "halden", "quillfeather"],
       account: { holder: { name: "Morgan Avery", line1: "500 Third St", city: "San Francisco", state: "CA", postalCode: "94107", country: "US" }, fundingLast4: "8431" },
@@ -159,6 +164,30 @@ describe.skipIf(!DB)("wallet — link-cli's HTTP contract", () => {
     expect(r.card).toBeUndefined();
   });
 
+  it("approves a request made on Stripe's hosted page by its Checkout Session, and declines one no store created", async () => {
+    const ws = newWorkspaceId();
+    sessions.cs_test_HostedA1 = { workspace: ws, store: "halden", checkout: "h7", payableCents: 13_400, scenarioId: "HA91", card: "3ds" };
+    const { access } = await login();
+    const page = (await create(access, { amount: 13_400, merchant_url: "https://checkout.stripe.com/c/pay/cs_test_HostedA1#fidkdWxOYHwnPyd1", merchant_name: "Halden Audio" })).json();
+    const unknown = (await create(access, { amount: 13_400, merchant_url: "https://checkout.stripe.com/c/pay/cs_test_NoSuchOne", merchant_name: "Halden Audio" })).json();
+    tick(2000);
+    expect((await retrieve(access, page.id, "card")).json()).toMatchObject({ status: "approved", card: { number: "4000002760003184" } });
+    expect((await retrieve(access, unknown.id, "card")).json().status).toBe("denied");
+    const recs = (await internal({ method: "GET", url: `/internal/records?request=${page.id}` })).json();
+    expect(recs.requests[0]).toMatchObject({ binding: { rule: "session", workspace: ws, store: "halden", checkout: "h7", scenarioId: "HA91", card: "3ds" }, flags: [] });
+  });
+
+  it("declines a request paying the PayLantern lookalike on the stores' own host — even when its amount is a store checkout's", async () => {
+    const { access } = await login();
+    const sr = (await create(access, { merchant_url: `${ORIGIN}/w/${WS}/paylantern/pay?ref=tok1`, merchant_name: "PayLantern Checkout" })).json();
+    tick(2000);
+    const r = (await retrieve(access, sr.id, "card")).json();
+    expect(r.status).toBe("denied");
+    expect(r.card).toBeUndefined();
+    const recs = (await internal({ method: "GET", url: `/internal/records?request=${sr.id}` })).json();
+    expect(recs.requests[0].denialReason).toMatch(/paylantern, which is not a store/);
+  });
+
   it("refuses malformed requests in Link's error shape and creates nothing", async () => {
     const { access } = await login();
     const short = await create(access, { context: "too short" });
@@ -242,6 +271,44 @@ describe.skipIf(!DB)("wallet — link-cli's HTTP contract", () => {
     expect((await call({ method: "GET", url: `/internal/approvals?workspace=${ws}&store=quillfeather` })).statusCode).toBe(401);
   });
 
+  it("tells the store whether the card that paid is one it issued for that store — a typed card or no request is not", async () => {
+    const ws = newWorkspaceId();
+    matches.push({ workspace: ws, store: "wrenfield", checkout: "w1", payableCents: 6_150, scenarioId: "WF90", card: "success" });
+    const ask = async (cents: number, last4: string) => (await internal({ method: "GET", url: `/internal/approvals?workspace=${ws}&store=wrenfield&amountCents=${cents}&last4=${last4}` })).json();
+    expect(await ask(6_150, "4242")).toMatchObject({ approvedCents: null, walletCard: false, claimed: null }); // typed, no spend request
+    const { access } = await login();
+    const sr = (await create(access, { amount: 6_150, merchant_url: `${ORIGIN}/w/${ws}/wrenfield/checkout` })).json();
+    tick(2000);
+    await retrieve(access, sr.id);
+    expect(await ask(6_150, "4242")).toMatchObject({ approvedCents: 6_150, walletCard: true, claimed: null });
+    expect(await ask(6_150, "4444")).toMatchObject({ approvedCents: 6_150, walletCard: false }); // another card typed instead
+    expect(await ask(6_150, "")).toMatchObject({ walletCard: false }); // paid without a card (a wallet button)
+    expect((await internal({ method: "GET", url: `/internal/approvals?workspace=${ws}&store=wrenfield` })).json().walletCard).toBeNull(); // no payment named
+    expect((await internal({ method: "GET", url: `/internal/approvals?workspace=${ws}&store=wrenfield&amountCents=6150` })).statusCode).toBe(400);
+  });
+
+  it("binds a fallback request to the store paid with its card for exactly its amount — once, and never for a payment above it", async () => {
+    // Two runs of one task: identical totals, so a request naming only the stores' origin binds to neither (fallback).
+    const [a, b] = [newWorkspaceId(), newWorkspaceId()];
+    for (const ws of [a, b]) matches.push({ workspace: ws, store: "quillfeather", checkout: `${ws}-c`, payableCents: 3_210, scenarioId: "QF99", card: "success" });
+    const { access } = await login();
+    const fell = (await create(access, { amount: 3_210, merchant_url: ORIGIN, merchant_name: "Quillfeather Coffee" })).json();
+    const short = (await create(access, { amount: 3_209, merchant_url: ORIGIN, merchant_name: "Quillfeather Coffee" })).json();
+    tick(2000);
+    await retrieve(access, fell.id);
+    await retrieve(access, short.id);
+    const rec = async (id: string) => (await internal({ method: "GET", url: `/internal/records?request=${id}` })).json().requests[0];
+    expect(await rec(fell.id)).toMatchObject({ status: "approved", binding: { rule: "fallback" }, flags: ["binding_fallback"] });
+    const ask = async (ws: string, cents: number) => (await internal({ method: "GET", url: `/internal/approvals?workspace=${ws}&store=quillfeather&amountCents=${cents}&last4=4242` })).json();
+    // B pays $32.11 with a wallet card: the $32.09 request is for less, so nothing is claimed.
+    expect(await ask(b, 3_211)).toMatchObject({ approvedCents: null, walletCard: false, claimed: null });
+    expect(await ask(a, 3_210)).toMatchObject({ approvedCents: 3_210, walletCard: true, claimed: fell.id });
+    expect(await rec(fell.id)).toMatchObject({ binding: { rule: "payment", workspace: a, store: "quillfeather", card: "success", fellBack: "amount: 2 checkouts" }, flags: ["binding_fallback", "claimed_at_payment"] });
+    expect(await ask(a, 3_210)).toMatchObject({ walletCard: true, claimed: null }); // bound now: asked again, nothing new is claimed
+    expect(await ask(b, 3_210)).toMatchObject({ approvedCents: null, walletCard: false, claimed: null }); // A's, never B's too
+    expect((await rec(short.id)).binding.rule).toBe("fallback");
+  });
+
   it("reaches every status link-cli knows through the internal control", async () => {
     const { access } = await login();
     const sr = (await create(access, { request_approval: false })).json();
@@ -284,6 +351,10 @@ describe.skipIf(!DB)("wallet — link-cli's HTTP contract", () => {
 
 describe("wallet config", () => {
   const env = { DATABASE_URL: "postgres://x", WALLET_INTERNAL_SECRET: "s".repeat(16) };
+  it("approves Stripe Checkout's hosted pages by default, or the pages it is given", () => {
+    expect(readConfig(env).WALLET_HOSTED_CHECKOUT_ORIGINS).toEqual(["https://checkout.stripe.com"]);
+    expect(readConfig({ ...env, WALLET_HOSTED_CHECKOUT_ORIGINS: "https://pay.example/c/, https://checkout.stripe.com" }).WALLET_HOSTED_CHECKOUT_ORIGINS).toEqual(["https://pay.example", "https://checkout.stripe.com"]);
+  });
   it("defaults to the lab policy and normalises the merchant origins", () => {
     const c = readConfig({ ...env, WALLET_MERCHANT_ORIGINS: "https://benchme.example/, http://gateway:3000/x" });
     expect(c.WALLET_POLICY).toBe("lab");

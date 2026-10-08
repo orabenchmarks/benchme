@@ -29,6 +29,11 @@ export const configSchema = z
     WALLET_POLICY: z.string().default("lab"),
     /** The stores' origins (comma list): a request paying anywhere else is declined under the lab policy. */
     WALLET_MERCHANT_ORIGINS: origins.default(""),
+    /**
+     * The hosted payment pages the stores send a shopper to (comma list): a request naming one is approved only when
+     * its Checkout Session binds it to a store checkout.
+     */
+    WALLET_HOSTED_CHECKOUT_ORIGINS: origins.default("https://checkout.stripe.com"),
     /** The wallet's public URL (…/wallet); unset → derived from the gateway's forwarded headers. */
     WALLET_PUBLIC_URL: z.string().url().optional(),
     /** The shops app (in-cluster) and its internal secret: where a request's checkout is looked up. Unset → every request falls back. */

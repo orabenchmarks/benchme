@@ -10,7 +10,7 @@ export type BindInput = { amount: number; merchantUrl: string | null; merchantNa
  * to this request (no workspace path to go by), else the checkouts it found.
  */
 export interface BindingRule {
-  readonly name: "workspace" | "amount";
+  readonly name: "workspace" | "session" | "amount";
   candidates(input: BindInput, ref: MerchantRef): Promise<CheckoutMatch[] | null>;
 }
 
@@ -20,6 +20,19 @@ export class WorkspacePathRule implements BindingRule {
   constructor(private readonly dir: CheckoutDirectory) {}
   async candidates(_input: BindInput, ref: MerchantRef): Promise<CheckoutMatch[] | null> {
     return ref.workspace ? this.dir.inWorkspace(ref.workspace, ref.store) : null;
+  }
+}
+
+/**
+ * Rule 1b: the Checkout Session of Stripe's hosted payment page, when merchant_url is that page
+ * (checkout.stripe.com/c/pay/cs_test_…): the store that created the session names its workspace and checkout.
+ * Halden pays there, so an agent that names the page it pays on is bound as surely as by a workspace path.
+ */
+export class HostedSessionRule implements BindingRule {
+  readonly name = "session" as const;
+  constructor(private readonly dir: CheckoutDirectory) {}
+  async candidates(_input: BindInput, ref: MerchantRef): Promise<CheckoutMatch[] | null> {
+    return ref.session ? this.dir.bySession(ref.session) : null;
   }
 }
 

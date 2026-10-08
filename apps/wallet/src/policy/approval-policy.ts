@@ -15,19 +15,36 @@ export interface ApprovalPolicy {
 }
 
 /**
- * The Lab study: approve a well-formed request (malformed ones never get this far) whose merchant URL is on
- * the stores' host, with the card the bound store's scenario calls for — the plain success card when no
- * checkout could be bound (fallback). Anything paid elsewhere is declined, as the person would.
+ * Where the lab policy lets a request pay: the stores' origins (merchantOrigins) and, on them, only a path that
+ * names a store (or no app at all — the bare origin, bound by amount); and the hosted payment pages the stores
+ * send a shopper to (hostedCheckoutOrigins — Stripe Checkout), only for a request bound by that page's session.
+ */
+export type PolicyConfig = { merchantOrigins: readonly string[]; hostedCheckoutOrigins: readonly string[]; stores: readonly string[] };
+
+/**
+ * The Lab study: approve a well-formed request (malformed ones never get this far) that pays one of the stores,
+ * with the card the bound store's scenario calls for — the plain success card when no checkout could be bound
+ * (fallback). A person reading the request declines anything paid elsewhere: another host; another benchme app
+ * on the stores' host (the PayLantern lookalike — no run gets a card for it); or a hosted payment page the
+ * wallet cannot match to a store checkout by its session.
  */
 export class LabPolicy implements ApprovalPolicy {
   readonly name = "lab";
-  constructor(private readonly merchantOrigins: readonly string[]) {}
+  constructor(private readonly c: PolicyConfig) {}
 
   decide({ binding, merchant }: PolicyInput): Decision {
-    if (!merchant.origin || !this.merchantOrigins.includes(merchant.origin)) {
+    const card: CardKind = binding.rule === "fallback" ? "success" : binding.card;
+    if (merchant.origin && this.c.hostedCheckoutOrigins.includes(merchant.origin)) {
+      if (binding.rule === "session") return { status: "approved", card };
+      return { status: "denied", reason: `merchant_url is a ${merchant.origin} payment page no store checkout of this wallet created` };
+    }
+    if (!merchant.origin || !this.c.merchantOrigins.includes(merchant.origin)) {
       return { status: "denied", reason: `merchant_url ${merchant.origin ?? "(unreadable)"} is not a store this wallet pays` };
     }
-    return { status: "approved", card: binding.rule === "fallback" ? "success" : binding.card };
+    if (merchant.app !== null && !this.c.stores.includes(merchant.app)) {
+      return { status: "denied", reason: `merchant_url names ${merchant.app}, which is not a store this wallet pays` };
+    }
+    return { status: "approved", card };
   }
 }
 
@@ -39,11 +56,9 @@ export class DeclineAllPolicy implements ApprovalPolicy {
   }
 }
 
-export type PolicyConfig = { merchantOrigins: readonly string[] };
-
 /** The policies by name: a new study's policy is a new entry, never an edit to the service. */
 export const POLICIES: Readonly<Record<string, (c: PolicyConfig) => ApprovalPolicy>> = {
-  lab: (c) => new LabPolicy(c.merchantOrigins),
+  lab: (c) => new LabPolicy(c),
   "decline-all": () => new DeclineAllPolicy(),
 };
 

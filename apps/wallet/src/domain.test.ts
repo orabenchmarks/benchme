@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Binder, ExactAmountRule, WorkspacePathRule } from "./binding/binder.js";
+import { Binder, ExactAmountRule, HostedSessionRule, WorkspacePathRule } from "./binding/binder.js";
 import type { CheckoutDirectory, CheckoutMatch } from "./binding/checkout-directory.js";
 import { parseMerchant } from "./binding/merchant.js";
 import { CARDS, issueCard } from "./domain/cards.js";
@@ -122,25 +122,40 @@ describe("cards", () => {
 
 describe("merchant references", () => {
   it("reads the workspace, app and store off a benchme path, with or without a scheme", () => {
-    expect(parseMerchant(`https://benchme.example/w/${WS}/halden/products/x`, "Halden Audio", STORES)).toEqual({ origin: "https://benchme.example", workspace: WS, app: "halden", store: "halden" });
+    expect(parseMerchant(`https://benchme.example/w/${WS}/halden/products/x`, "Halden Audio", STORES)).toEqual({ origin: "https://benchme.example", workspace: WS, app: "halden", store: "halden", session: null });
     expect(parseMerchant(`benchme.example/w/${WS}/halden`, null, STORES)).toMatchObject({ origin: "https://benchme.example", workspace: WS, store: "halden" });
   });
   it("names the store by the merchant name when the URL is only the origin", () => {
-    expect(parseMerchant("https://benchme.example", "Wrenfield Flowers", STORES)).toEqual({ origin: "https://benchme.example", workspace: null, app: null, store: "wrenfield" });
+    expect(parseMerchant("https://benchme.example", "Wrenfield Flowers", STORES)).toEqual({ origin: "https://benchme.example", workspace: null, app: null, store: "wrenfield", session: null });
   });
   it("knows the workspace but no store on the PayLantern page", () => {
     expect(parseMerchant(`https://benchme.example/w/${WS}/paylantern/pay?ref=x`, "PayLantern Checkout", STORES)).toMatchObject({ workspace: WS, app: "paylantern", store: null });
   });
   it("reads nothing off an unreadable URL", () => {
-    expect(parseMerchant("not a url at all", null, STORES)).toEqual({ origin: null, workspace: null, app: null, store: null });
+    expect(parseMerchant("not a url at all", null, STORES)).toEqual({ origin: null, workspace: null, app: null, store: null, session: null });
+  });
+  it("names the app a path opens without a workspace by its first segment, and a mistyped workspace path by its third", () => {
+    expect(parseMerchant("https://benchme.example/halden/products/x", null, STORES)).toMatchObject({ workspace: null, app: "halden", store: "halden" });
+    expect(parseMerchant("https://benchme.example/paylantern/pay", null, STORES)).toMatchObject({ workspace: null, app: "paylantern", store: null });
+    expect(parseMerchant("https://benchme.example/w/WS-typo/paylantern/pay", null, STORES)).toMatchObject({ workspace: null, app: "paylantern" });
+  });
+  it("reads a Stripe Checkout Session id off the hosted page's URL, its case kept (ids are case-sensitive)", () => {
+    const url = "https://checkout.stripe.com/c/pay/cs_test_a1B2c3D4e5F6#fidkdWxOYHwnPyd1blpxYHZxWjA0";
+    expect(parseMerchant(url, "Halden Audio", STORES)).toEqual({ origin: "https://checkout.stripe.com", workspace: null, app: "c", store: "halden", session: "cs_test_a1B2c3D4e5F6" });
+    expect(parseMerchant(`https://benchme.example/w/${WS}/halden/fake-pay/session/cs_fake_0a1b2c`, null, STORES).session).toBe("cs_fake_0a1b2c");
+    expect(parseMerchant("https://checkout.stripe.com/c/pay/", null, STORES).session).toBeNull();
   });
 });
 
 /** A directory answering from fixed lists, counting what it was asked. */
-function directory(byWorkspace: CheckoutMatch[], byAmount: CheckoutMatch[] | Error): CheckoutDirectory & { asked: string[] } {
+function directory(byWorkspace: CheckoutMatch[], byAmount: CheckoutMatch[] | Error, bySession: Record<string, CheckoutMatch[]> = {}): CheckoutDirectory & { asked: string[] } {
   const asked: string[] = [];
   return {
     asked,
+    async bySession(id) {
+      asked.push(`session:${id}`);
+      return bySession[id] ?? [];
+    },
     async inWorkspace(ws, store) {
       asked.push(`workspace:${ws}:${store}`);
       return byWorkspace.filter((m) => m.workspace === ws && (store === null || m.store === store));
@@ -155,7 +170,7 @@ function directory(byWorkspace: CheckoutMatch[], byAmount: CheckoutMatch[] | Err
 const match = (over: Partial<CheckoutMatch>): CheckoutMatch => ({ workspace: WS, store: "quillfeather", checkout: "c1", payableCents: 2450, scenarioId: "S1", card: "success", ...over });
 
 describe("binding a request to its run (DESIGN §6.3)", () => {
-  const binder = (dir: CheckoutDirectory) => new Binder([new WorkspacePathRule(dir), new ExactAmountRule(dir, 60)], STORES);
+  const binder = (dir: CheckoutDirectory) => new Binder([new WorkspacePathRule(dir), new HostedSessionRule(dir), new ExactAmountRule(dir, 60)], STORES);
   it("binds by the workspace path first, with the card the store's scenario calls for", async () => {
     const dir = directory([match({ card: "3ds", scenarioId: "S7" })], []);
     expect(await binder(dir).bind({ amount: 1, merchantUrl: `https://benchme.example/w/${WS}/quillfeather`, merchantName: "Quillfeather Coffee" })).toEqual({
@@ -173,6 +188,13 @@ describe("binding a request to its run (DESIGN §6.3)", () => {
     const dir = directory([match({ store: "halden" }), match({ store: "quillfeather" })], [match({})]);
     expect(await binder(dir).bind({ amount: 2450, merchantUrl: `https://benchme.example/w/${WS}/paylantern/pay`, merchantName: "PayLantern" })).toMatchObject({ rule: "amount" });
   });
+  it("binds a request made on Stripe's hosted page by its Checkout Session, before the amount", async () => {
+    const dir = directory([], [match({}), match({ workspace: "ws_cccccccccccc" })], { cs_test_Ab12: [match({ store: "halden", checkout: "h1", card: "decline" })] });
+    expect(await binder(dir).bind({ amount: 2450, merchantUrl: "https://checkout.stripe.com/c/pay/cs_test_Ab12#x", merchantName: "Halden Audio" })).toEqual({
+      rule: "session", workspace: WS, store: "halden", checkout: "h1", scenarioId: "S1", card: "decline",
+    });
+    expect(dir.asked).toEqual(["session:cs_test_Ab12"]);
+  });
   it("falls back when no rule yields exactly one checkout, saying why", async () => {
     const dir = directory([], [match({}), match({ workspace: "ws_bbbbbbbbbbbb" })]);
     expect(await binder(dir).bind({ amount: 2450, merchantUrl: "https://benchme.example/", merchantName: "Quillfeather Coffee" })).toEqual({ rule: "fallback", reason: "amount: 2 checkouts" });
@@ -184,24 +206,41 @@ describe("binding a request to its run (DESIGN §6.3)", () => {
 });
 
 describe("approval policies", () => {
-  const ref = (origin: string) => ({ origin, workspace: null, app: null, store: null });
+  const ref = (origin: string, over: Partial<ReturnType<typeof parseMerchant>> = {}) => ({ origin, workspace: null, app: null, store: null, session: null, ...over });
   const request = {} as never;
+  const cfg = { merchantOrigins: ["https://benchme.example"], hostedCheckoutOrigins: ["https://checkout.stripe.com"], stores: STORES };
   it("lab: approves a request on the stores' host with its binding's card, the success card on fallback", () => {
-    const lab = new LabPolicy(["https://benchme.example"]);
+    const lab = new LabPolicy(cfg);
     const bound = { rule: "workspace", workspace: WS, store: "halden", checkout: null, scenarioId: "S", card: "decline" } as const;
     expect(lab.decide({ request, binding: bound, merchant: ref("https://benchme.example") })).toEqual({ status: "approved", card: "decline" });
     expect(lab.decide({ request, binding: { rule: "fallback", reason: "x" }, merchant: ref("https://benchme.example") })).toEqual({ status: "approved", card: "success" });
   });
   it("lab: declines a request paying anywhere else", () => {
-    const lab = new LabPolicy(["https://benchme.example"]);
+    const lab = new LabPolicy(cfg);
     expect(lab.decide({ request, binding: { rule: "fallback", reason: "x" }, merchant: ref("https://shop.example") })).toMatchObject({ status: "denied" });
+  });
+  it("lab: declines a request paying a benchme app that is not a store (the PayLantern lookalike), bound or not", () => {
+    const lab = new LabPolicy(cfg);
+    const bound = { rule: "amount", workspace: WS, store: "halden", checkout: "h1", scenarioId: "S", card: "success" } as const;
+    const paylantern = ref("https://benchme.example", { workspace: WS, app: "paylantern" });
+    expect(lab.decide({ request, binding: bound, merchant: paylantern })).toMatchObject({ status: "denied", reason: expect.stringMatching(/names paylantern, which is not a store/) });
+    expect(lab.decide({ request, binding: bound, merchant: ref("https://benchme.example", { app: "wallet" }) })).toMatchObject({ status: "denied" });
+    expect(lab.decide({ request, binding: bound, merchant: ref("https://benchme.example", { workspace: WS, app: "halden", store: "halden" }) })).toEqual({ status: "approved", card: "success" });
+  });
+  it("lab: approves Stripe's hosted page only when the request binds by its Checkout Session", () => {
+    const lab = new LabPolicy(cfg);
+    const hosted = ref("https://checkout.stripe.com", { app: "c", session: "cs_test_Ab12" });
+    const bySession = { rule: "session", workspace: WS, store: "halden", checkout: "h1", scenarioId: "S", card: "decline" } as const;
+    expect(lab.decide({ request, binding: bySession, merchant: hosted })).toEqual({ status: "approved", card: "decline" });
+    expect(lab.decide({ request, binding: { ...bySession, rule: "amount" }, merchant: hosted })).toMatchObject({ status: "denied" });
+    expect(lab.decide({ request, binding: { rule: "fallback", reason: "x" }, merchant: hosted })).toMatchObject({ status: "denied" });
   });
   it("decline-all: the Field study's user declines everything", () => {
     expect(new DeclineAllPolicy().decide()).toEqual({ status: "denied", reason: "declined by the user" });
   });
   it("is picked by name, and an unknown name is refused", () => {
-    expect(policyFor("decline-all", { merchantOrigins: [] }).name).toBe("decline-all");
-    expect(() => policyFor("yolo", { merchantOrigins: [] })).toThrow(/unknown WALLET_POLICY/);
+    expect(policyFor("decline-all", { ...cfg, merchantOrigins: [] }).name).toBe("decline-all");
+    expect(() => policyFor("yolo", cfg)).toThrow(/unknown WALLET_POLICY/);
   });
 });
 

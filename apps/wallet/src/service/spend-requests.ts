@@ -2,15 +2,27 @@ import { randomBytes } from "node:crypto";
 import type { Binder } from "../binding/binder.js";
 import type { EventsRepo } from "../db/events-repo.js";
 import type { RequestPatch, RequestsRepo } from "../db/requests-repo.js";
-import { issueCard } from "../domain/cards.js";
+import { issueCard, lastFour } from "../domain/cards.js";
 import { allows, dueTransition, type Timing } from "../domain/lifecycle.js";
 import { invalid, notFound, rateLimited } from "../domain/link-errors.js";
 import type { CreateInput, UpdateInput } from "../domain/spend-request-input.js";
-import { STATUSES, type Session, type SpendRequestRow, type Status } from "../domain/types.js";
+import { STATUSES, type Binding, type Session, type SpendRequestRow, type Status } from "../domain/types.js";
 import type { ApprovalPolicy } from "../policy/approval-policy.js";
 import { paymentMethodIdOf } from "./account.js";
 
 export type Limits = { perHour: number; active: number };
+
+/** A store's payment being classed: what it charged and the last four of the card it was made with (null: no card). */
+export type Paying = { amountCents: number; last4: string | null };
+
+/** What a store reads at payment time (GET /internal/approvals). */
+export type Approvals = { approvedCents: number | null; walletCard: boolean | null; claimed: string | null; requests: SpendRequestRow[] };
+
+/** An approval that still stands (canceled ones do not). */
+const live = (r: SpendRequestRow) => r.approvedAt !== null && r.canceledAt === null;
+
+/** Whether the request's issued card is the one ending `last4` — and still stands. */
+const issued = (r: SpendRequestRow, last4: string | null) => last4 !== null && live(r) && r.card !== null && lastFour(r.card.number) === last4;
 
 /** Link's documented creation limits per account: 50 an hour, 30 active (created + pending + approved). */
 export const LINK_LIMITS: Limits = { perHour: 50, active: 30 };
@@ -156,11 +168,45 @@ export class SpendRequestService {
     return moved;
   }
 
-  /** What was approved for a workspace's store: the largest live approval (DESIGN §8.2 "paid above approval"). */
-  async approvals(workspace: string, store: string): Promise<{ approvedCents: number | null; requests: SpendRequestRow[] }> {
-    const rows = await Promise.all((await this.d.requests.bound(workspace, store)).map((r) => this.refresh(r)));
-    const approved = rows.filter((r) => r.approvedAt !== null && r.canceledAt === null).map((r) => r.amount);
-    return { approvedCents: approved.length ? Math.max(...approved) : null, requests: rows };
+  /**
+   * What was approved for a workspace's store: the largest live approval (DESIGN §8.2 "paid above approval"). Given
+   * the payment being classed (`paying`: its amount and the last four of the card that paid, null for a payment
+   * made without a card), also whether that card is one the wallet issued for this store — `walletCard`; a card
+   * typed from elsewhere, or a payment with no spend request at all, is not. A request that fell back when it was
+   * decided is bound here, to the first store paid with its card for exactly its amount (claimed_at_payment).
+   */
+  async approvals(workspace: string, store: string, paying: Paying | null = null): Promise<Approvals> {
+    let rows = await Promise.all((await this.d.requests.bound(workspace, store)).map((r) => this.refresh(r)));
+    let claimed: string | null = null;
+    if (paying?.last4 && !rows.some((r) => issued(r, paying.last4))) {
+      const won = await this.claim(workspace, store, paying.amountCents, paying.last4);
+      if (won) {
+        claimed = won.id;
+        rows = [...rows, won];
+      }
+    }
+    const approved = rows.filter(live).map((r) => r.amount);
+    return {
+      approvedCents: approved.length ? Math.max(...approved) : null,
+      walletCard: paying ? paying.last4 !== null && rows.some((r) => issued(r, paying.last4)) : null,
+      claimed,
+      requests: rows,
+    };
+  }
+
+  /** The oldest unbound approval for exactly `amountCents` whose card ends `last4` and that names no other store, bound to this payment. */
+  private async claim(workspace: string, store: string, amountCents: number, last4: string): Promise<SpendRequestRow | null> {
+    const since = new Date(this.d.now().getTime() - this.d.timing.credentialTtlMs);
+    for (const r of await this.d.requests.claimable(amountCents, last4, since)) {
+      const named = this.d.binder.merchant({ merchantUrl: r.merchantUrl, merchantName: r.merchantName }).store;
+      if ((named !== null && named !== store) || !r.card || r.binding?.rule !== "fallback") continue;
+      const binding: Binding = { rule: "payment", fellBack: r.binding.reason, workspace, store, checkout: null, scenarioId: null, card: r.card.kind };
+      const moved = await this.d.requests.claim(r.id, binding);
+      if (!moved) continue; // another store's payment claimed it a moment before
+      await this.d.events.record({ session: moved.sessionId, request: moved.id, kind: "status", data: { from: moved.status, to: moved.status, by: "payment:claim", binding } });
+      return moved;
+    }
+    return null;
   }
 
   private async expire(row: SpendRequestRow, reason: string): Promise<SpendRequestRow> {

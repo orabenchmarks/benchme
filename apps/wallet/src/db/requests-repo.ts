@@ -161,6 +161,31 @@ export class RequestsRepo {
     return r.rows.map(toRow);
   }
 
+  /**
+   * Approved requests no checkout was found for when they were decided (binding fallback), not canceled, approved at
+   * or after `since`, for exactly `amount` cents with an issued card ending `last4`: what a store's payment may
+   * claim (DESIGN §6.3). Oldest approval first.
+   */
+  async claimable(amount: number, last4: string, since: Date): Promise<SpendRequestRow[]> {
+    const r = await this.pool.query<Row>(
+      `SELECT * FROM wallet.spend_requests
+       WHERE binding->>'rule' = 'fallback' AND approved_at IS NOT NULL AND approved_at >= $3 AND canceled_at IS NULL
+         AND amount = $1 AND right(card->>'number', 4) = $2
+       ORDER BY approved_at, id`,
+      [amount, last4, since],
+    );
+    return r.rows.map(toRow);
+  }
+
+  /** Binds a fallback request to a store's payment — only while it is still unbound (a concurrent claim wins once); null otherwise. */
+  async claim(id: string, binding: Binding): Promise<SpendRequestRow | null> {
+    const r = await this.pool.query<Row>(
+      `UPDATE wallet.spend_requests SET binding = $2, updated_at = now() WHERE id = $1 AND binding->>'rule' = 'fallback' RETURNING *`,
+      [id, JSON.stringify(binding)],
+    );
+    return r.rows[0] ? toRow(r.rows[0]) : null;
+  }
+
   /** Every request created at or after `since`, oldest first (at most `limit`). */
   async since(since: Date, limit: number): Promise<SpendRequestRow[]> {
     const r = await this.pool.query<Row>("SELECT * FROM wallet.spend_requests WHERE created_at >= $1 ORDER BY created_at, id LIMIT $2", [since, limit]);

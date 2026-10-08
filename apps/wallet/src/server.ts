@@ -13,7 +13,7 @@ const pool = createPool(cfg.DATABASE_URL);
 const app = await buildWallet({
   pool,
   internalSecret: cfg.WALLET_INTERNAL_SECRET,
-  policy: policyFor(cfg.WALLET_POLICY, { merchantOrigins: cfg.WALLET_MERCHANT_ORIGINS }),
+  policy: policyFor(cfg.WALLET_POLICY, { merchantOrigins: cfg.WALLET_MERCHANT_ORIGINS, hostedCheckoutOrigins: cfg.WALLET_HOSTED_CHECKOUT_ORIGINS, stores: cfg.WALLET_STORES }),
   directory: directoryFor(cfg),
   stores: cfg.WALLET_STORES,
   account: {
@@ -34,7 +34,7 @@ const app = await buildWallet({
   logLevel: cfg.LOG_LEVEL,
 });
 app.log.info(
-  { policy: cfg.WALLET_POLICY, merchantOrigins: cfg.WALLET_MERCHANT_ORIGINS, shops: cfg.SHOPS_URL ?? null, approvalDelayMs: cfg.WALLET_APPROVAL_DELAY_MS },
+  { policy: cfg.WALLET_POLICY, merchantOrigins: cfg.WALLET_MERCHANT_ORIGINS, hostedCheckoutOrigins: cfg.WALLET_HOSTED_CHECKOUT_ORIGINS, shops: cfg.SHOPS_URL ?? null, approvalDelayMs: cfg.WALLET_APPROVAL_DELAY_MS },
   cfg.SHOPS_URL ? "wallet: binding requests to the stores' checkouts" : "wallet: no SHOPS_URL — every request falls back to the plain success card",
 );
 

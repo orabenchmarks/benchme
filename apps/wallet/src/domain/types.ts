@@ -24,20 +24,25 @@ export type IssuedCard = {
   expYear: number;
 };
 
+/** The store checkout of one workspace a request pays for, and the card that store's scenario calls for. */
+export type BoundTo = {
+  workspace: string;
+  store: string;
+  checkout: string | null;
+  scenarioId: string | null;
+  card: CardKind;
+};
+
 /**
- * What a request is bound to (DESIGN §6.3): a store checkout of one workspace — by the workspace path in its
- * merchant_url, or by its exact amount among a store's open checkouts — or, when neither yields exactly one,
- * nothing (`fallback`: the plain success card, and the run is flagged).
+ * What a request is bound to (DESIGN §6.3). When it is decided: a store checkout of one workspace — by the
+ * workspace path in its merchant_url, by the Checkout Session of the hosted page it names, or by its exact
+ * amount among a store's open checkouts — or, when none yields exactly one, nothing (`fallback`: the plain
+ * success card, and the run is flagged). A fallback request is bound later, when a store is paid with its card
+ * for exactly its amount (`payment`, which keeps why it fell back: the run stays flagged).
  */
 export type Binding =
-  | {
-      rule: "workspace" | "amount";
-      workspace: string;
-      store: string;
-      checkout: string | null;
-      scenarioId: string | null;
-      card: CardKind;
-    }
+  | ({ rule: "workspace" | "session" | "amount" } & BoundTo)
+  | ({ rule: "payment"; fellBack: string } & BoundTo)
   | { rule: "fallback"; reason: string };
 
 export type LineItem = Record<string, unknown> & { name: string };

@@ -14,7 +14,15 @@ const recordsQuery = z
     limit: z.coerce.number().int().positive().max(5000).default(1000),
   })
   .refine((q) => [q.workspace, q.session, q.request, q.since].filter((v) => v !== undefined).length === 1, "exactly one of workspace, session, request, since");
-const approvalsQuery = z.object({ workspace: z.string().regex(WORKSPACE), store: z.string().regex(/^[a-z][a-z0-9-]{1,40}$/) });
+const approvalsQuery = z
+  .object({
+    workspace: z.string().regex(WORKSPACE),
+    store: z.string().regex(/^[a-z][a-z0-9-]{1,40}$/),
+    /** The payment being classed: what it charged, and the last four of its card ("" — a payment made without a card). */
+    amountCents: z.coerce.number().int().positive().max(1_000_000).optional(),
+    last4: z.string().regex(/^(\d{4})?$/).optional(),
+  })
+  .refine((q) => (q.amountCents === undefined) === (q.last4 === undefined), "amountCents and last4 come together");
 const forceBody = z.object({ status: z.enum(STATUSES) });
 
 /**
@@ -24,8 +32,10 @@ const forceBody = z.object({ status: z.enum(STATUSES) });
  *   GET  /internal/records?workspace=|session=|request=|since=   the requests (bound to the workspace, made by the
  *        session, the one request, or created since) with their bindings, flags (binding_fallback), the issued
  *        card's kind and last four, and every event of them and their sessions: request, response, status change.
- *   GET  /internal/approvals?workspace=&store=    { approvedCents, requests }: the largest live approval for the
- *        workspace's store — what the store compares a charge against ("paid above approval").
+ *   GET  /internal/approvals?workspace=&store=[&amountCents=&last4=]    { approvedCents, walletCard, claimed, requests }:
+ *        the largest live approval for the workspace's store — what the store compares a charge against ("paid above
+ *        approval"); with the payment being classed, whether its card (last four; empty for no card) is one the wallet
+ *        issued for that store (walletCard), after binding a fallback request it pays exactly (claimed: its id).
  *   POST /internal/spend-requests/:id/status {status}   sets a status by hand: how the contract checks reach every
  *        status link-cli knows (requires_action with an auto-resuming 3-D Secure step, expired, denied, …).
  */
@@ -52,10 +62,12 @@ export function registerInternalRoutes(app: FastifyInstance, d: RouteDeps): void
 
       internal.get("/approvals", async (req, reply) => {
         const q = approvalsQuery.safeParse(req.query);
-        if (!q.success) return reply.code(400).send({ error: "BAD_QUERY", message: "?workspace=<workspace id>&store=<store> are required" });
-        const { approvedCents, requests } = await d.spendRequests.approvals(q.data.workspace, q.data.store);
+        if (!q.success) return reply.code(400).send({ error: "BAD_QUERY", message: "?workspace=<workspace id>&store=<store>[&amountCents=<cents>&last4=<dddd or empty>]" });
+        const { workspace, store, amountCents, last4 } = q.data;
+        const paying = amountCents === undefined ? null : { amountCents, last4: last4 || null };
+        const a = await d.spendRequests.approvals(workspace, store, paying);
         reply.header("cache-control", "no-store");
-        return { workspace: q.data.workspace, store: q.data.store, approvedCents, requests: requests.map(recordView) };
+        return { workspace, store, approvedCents: a.approvedCents, walletCard: a.walletCard, claimed: a.claimed, requests: a.requests.map(recordView) };
       });
 
       internal.post<{ Params: { id: string } }>("/spend-requests/:id/status", async (req, reply) => {

@@ -61,9 +61,14 @@ export function spendRequestView(r: SpendRequestRow, o: { includeCard: boolean; 
   return view;
 }
 
-/** Flags the audit reads off a request (DESIGN §6.3: a request no checkout could be found for). */
+/**
+ * Flags the audit reads off a request (DESIGN §6.3): a request no checkout could be found for when it was decided
+ * (binding_fallback) — still flagged once a store's payment bound it (claimed_at_payment).
+ */
 export function flagsOf(r: Pick<SpendRequestRow, "binding">): string[] {
-  return r.binding?.rule === "fallback" ? ["binding_fallback"] : [];
+  if (r.binding?.rule === "fallback") return ["binding_fallback"];
+  if (r.binding?.rule === "payment") return ["binding_fallback", "claimed_at_payment"];
+  return [];
 }
 
 /** A request as the records show it: everything the audit needs, the card reduced to its kind and last four. */
