@@ -10,8 +10,11 @@
  * Payment Element's frame, the hosted page on checkout.stripe.com, Stripe's 3D Secure test page. Each test
  * attaches run.json (its workspace, cards and orders) for stripe-ledger.mjs, which looks the payments up in Stripe.
  *
+ * With WALLET=1 every card comes from the stack's wallet stand-in through the real @stripe/link-cli (lib/link-wallet.ts):
+ * approved for what the run pays, or — a run that keeps its approval — for less.
+ *
  * Environment: HIDDEN_DIR, BASE_URL, OPERATOR_KEY, SUFFIX_KEY; optional ONLY=ID,ID, RUN=wrong, ENTRY=slash,
- * STRIPE=1, OUT_DIR, WORKERS (README.md). Nothing a task holds is written into this repository: the tasks are
+ * STRIPE=1, WALLET=1 (WALLET_CLI), OUT_DIR, WORKERS (README.md). Nothing a task holds is written into this repository: the tasks are
  * read at run time, and every output goes to OUT_DIR.
  */
 import { expect, test } from "@playwright/test";
@@ -20,6 +23,7 @@ import { join } from "node:path";
 import { STORES } from "./lib/benchme.js";
 import { OUT_DIR, readEnv } from "./lib/env.js";
 import { loadTasks, type Run, type Task } from "./lib/hidden.js";
+import { LinkWallet } from "./lib/link-wallet.js";
 import { describeStep, Shopper } from "./lib/shopper.js";
 import { runRecord } from "./lib/stripe.js";
 import { mintWorkspace, type Workspace } from "./lib/workspace.js";
@@ -37,8 +41,10 @@ const shotOf = (id: string) => join(SHOTS, `${id}${env.run === "wrong" ? "-wrong
 /** The run to take and the class its order must have ("none": no order may exist). */
 function planOf(task: Task): { run: Run; cls: string } {
   if (env.run === "reference") return { run: task.reference, cls: task.reference.expectClass };
-  // A mistake that only the wallet can see (paying more than was approved) is graded by the store alone like the reference.
-  return { run: task.wrong, cls: task.wrong.deferred ? task.reference.expectClass : task.wrong.expectClass };
+  // A mistake that only the wallet can see (paying more than was approved) is graded by the store alone like the
+  // reference — unless WALLET=1, where the store reads the approval the run kept.
+  const walletOnly = task.wrong.deferred !== undefined || (!env.wallet && task.wrong.steps.some((st) => "pay" in st && st.pay.keepApproval === true));
+  return { run: task.wrong, cls: walletOnly ? task.reference.expectClass : task.wrong.expectClass };
 }
 
 test.describe.configure({ mode: "parallel" });
@@ -57,7 +63,7 @@ test.afterEach(async ({ page }, info) => {
 for (const task of tasks) {
   const { run, cls } = planOf(task);
   const s = task.scenario;
-  test(`${task.id} ${s.store} ${s.tier}${env.run === "wrong" ? " (wrong run)" : ""}${env.stripe ? " [Stripe]" : ""}`, async ({ page }, info) => {
+  test(`${task.id} ${s.store} ${s.tier}${env.run === "wrong" ? " (wrong run)" : ""}${env.stripe ? " [Stripe]" : ""}${env.wallet ? " [wallet]" : ""}`, async ({ page }, info) => {
     const store = STORES[s.store];
     if (!store) throw new Error(`no catalogue for ${s.store}`);
     const log: string[] = [];
@@ -78,12 +84,13 @@ for (const task of tasks) {
     });
     let ws: Workspace | null = null;
     let shopper: Shopper | null = null;
+    const wallet = env.wallet ? new LinkWallet({ walletUrl: `${env.baseUrl}/wallet`, cli: env.walletCli, log: (line) => log.push(line) }) : null;
     try {
       ws = await mintWorkspace(env.baseUrl, env.operatorKey);
       const storeUrl = ws.apps[s.store];
       if (!storeUrl) throw new Error(`workspace ${ws.id} lists no ${s.store} in urls.apps (${Object.keys(ws.apps).join(", ")})`);
       log.push(`workspace ${ws.id}`);
-      const sh = new Shopper(page, { scenario: s, store, storeUrl, stripe: env.stripe, log: (line) => log.push(line) });
+      const sh = new Shopper(page, { scenario: s, store, storeUrl, stripe: env.stripe, wallet, log: (line) => log.push(line) });
       shopper = sh;
       // As the prompt says: urls.apps.<store>, as the gateway gave it, with ?utm_campaign=<code> appended
       // (ENTRY=slash: with exactly one "/" before the "?").
@@ -98,6 +105,7 @@ for (const task of tasks) {
       expect(broken, "the store's pages threw an error or answered 5xx").toEqual([]);
       expect(sh.problems, "the store's payment surfaces offer only what the store takes").toEqual([]);
     } finally {
+      wallet?.close();
       log.push(...broken, ...(shopper?.problems ?? []).map((p) => `store problem: ${p}`));
       await info.attach("shopper.log", { body: log.join("\n"), contentType: "text/plain" });
       // For stripe-ledger.mjs (it reads results.json): where this run's payments are, never a card number or a key.

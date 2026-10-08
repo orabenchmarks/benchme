@@ -13,6 +13,7 @@
 import { expect, type FrameLocator, type Locator, type Page } from "@playwright/test";
 import { sf, STORE_TZ, type Product, type ScenarioDef, type StoreDef } from "./benchme.js";
 import { billingZipOf } from "./billing.js";
+import type { LinkWallet, WalletCard } from "./link-wallet.js";
 import { TOKEN_STEP } from "./checkout-token.js";
 import { stepOf, type AddStep, type Card, type InformationStep, type PayStep, type ShippingStep, type Step } from "./hidden.js";
 import { CHALLENGE_FRAME, CHECKOUT_HOST, DECLINED, expressButtons, extraMethods, frameAtRest, frameTitled, paymentFields, settle, usdChoice } from "./stripe.js";
@@ -68,7 +69,9 @@ export function describeStep(step: Step): string {
       return `shipping ${s.method} [${s.addOns.join(",")}]`;
     }
     case "pay":
-      return `pay (${(v as PayStep).card} card, billing ZIP ${billingZipOf(v as PayStep)})`;
+      return `pay (${(v as PayStep).card} card, billing ZIP ${billingZipOf(v as PayStep)}${(v as PayStep).keepApproval ? ", keeping the approval held" : ""})`;
+    case "approve":
+      return "approve the total the payment step shows (the wallet)";
     case "paylantern":
       return `paylantern (${(v as { card: Card }).card} card)`;
     default:
@@ -83,6 +86,8 @@ export type ShopperOpts = {
   storeUrl: string;
   /** STRIPE=1: the stack pays with Stripe test keys — Stripe's card fields and hosted page instead of fake mode's. */
   stripe?: boolean;
+  /** WALLET=1: the cards come from the wallet stand-in through the real link-cli. */
+  wallet?: LinkWallet | null;
   log: (line: string) => void;
 };
 
@@ -116,6 +121,7 @@ export class Shopper {
   private buyer: InformationStep | null = null;
   private lastCard: Card | null = null;
   private paylanternTried = false;
+  private readonly wallet: LinkWallet | null;
 
   constructor(page: Page, o: ShopperOpts) {
     this.page = page;
@@ -124,6 +130,7 @@ export class Shopper {
     this.base = o.storeUrl.replace(/\/+$/, "");
     this.prefix = new URL(this.base).pathname;
     this.stripe = o.stripe === true;
+    this.wallet = o.wallet ?? null;
     this.log = o.log;
   }
 
@@ -165,6 +172,8 @@ export class Shopper {
         return this.information(v as InformationStep);
       case "shipping":
         return this.shipping(v as ShippingStep);
+      case "approve":
+        return this.approveShown();
       case "pay":
         return this.pay(v as PayStep);
       case "followNotice":
@@ -486,11 +495,56 @@ export class Shopper {
 
   /* ------------------------------------------------------------------ paying */
 
+  /** WALLET=1: the wallet's approval of `cents`; its card must be the test card the run pays with. */
+  private async approve(cents: number, card: Card): Promise<WalletCard> {
+    const wallet = this.wallet as LinkWallet;
+    const a = await wallet.approve(cents, this.base, this.store.brand.name);
+    if (a.card.number.replace(/\D/g, "") !== CARD_NUMBERS[card].replace(/\D/g, "")) {
+      throw new Error(`the wallet issued a card ending ${a.card.number.slice(-4)}; the run pays with the ${card} card`);
+    }
+    return a.card;
+  }
+
+  /** The approve step: on the payment step, before Pay, the wallet approves the total the step shows (WALLET=1 only). */
+  private async approveShown(): Promise<void> {
+    if (!this.wallet) return this.log("approve: no WALLET=1, nothing approved (the card is the run's test card)");
+    if (!TOKEN_STEP("payment").test(this.path())) throw new Error(`approve: not on the payment step (at ${this.page.url()})`);
+    const cents = await this.page.evaluate(() => (JSON.parse(document.getElementById("checkout-config")?.textContent ?? "{}") as { amountCents?: number }).amountCents ?? null);
+    if (typeof cents !== "number") throw new Error("approve: the payment step shows no total (#checkout-config)");
+    await this.approve(cents, this.s.card ?? "success");
+  }
+
+  /**
+   * The card to pay `cents` with: the run's test card, or (WALLET=1) the wallet's — the approval held, or a new one
+   * first when none is held or the total rose past it, unless the run keeps the approval it holds.
+   */
+  private async cardFor(cents: number, card: Card, keepApproval: boolean): Promise<{ number: string; expiry: string; cvc: string }> {
+    if (!this.wallet) return { number: CARD_NUMBERS[card], expiry: EXPIRY, cvc: CVC };
+    // A card the wallet does not issue in this task (a run retrying a decline with another card) is typed from elsewhere.
+    if (card !== (this.s.card ?? "success")) {
+      this.log(`typing the ${card} test card, which the wallet does not issue here (a card from elsewhere)`);
+      return { number: CARD_NUMBERS[card], expiry: EXPIRY, cvc: CVC };
+    }
+    const held = this.wallet.held;
+    if (keepApproval) {
+      if (!held) throw new Error("pay: keepApproval, but no approval is held — an approve step comes first");
+      this.log(`paying ${usd(cents)} with the card approved for ${usd(held.amountCents)}`);
+      return held.card;
+    }
+    return held && held.amountCents >= cents ? held.card : this.approve(cents, card);
+  }
+
+  /** The Pay button's amount, in cents ("Pay $43.95"). */
+  private static payCents(label: string): number {
+    return centsOf(/\$[\d,]+\.\d{2}/.exec(label)?.[0] ?? "");
+  }
+
   /** The payment step, with the step's test card billed to its billing ZIP (lib/billing.ts) on whatever surface the store shows. */
   async pay(step: PayStep): Promise<void> {
     const page = this.page;
     const card = step.card;
     const zip = billingZipOf(step);
+    const keep = step.keepApproval === true;
     this.lastCard = card;
     this.cards.push(card);
     if (!TOKEN_STEP("payment").test(this.path())) throw new Error(`pay: not on the payment step (at ${page.url()})`);
@@ -498,13 +552,16 @@ export class Shopper {
     if (await notice.isVisible()) throw new Error(`pay: the payment step shows a notice instead of a way to pay: ${(await notice.innerText()).slice(0, 200)}`);
     const hosted = page.getByRole("button", { name: "Continue to secure payment" });
     this.log(`paying with the ${card} card, billed to ZIP ${zip}`);
-    if (await hosted.isVisible()) return this.stripe ? this.payStripeHosted(card, zip) : this.payHosted(card, zip);
+    if (await hosted.isVisible()) {
+      if (this.wallet) throw new Error("pay: WALLET=1 pays on the card-form surfaces (Payment Element, Express Checkout); this task pays on the hosted page");
+      return this.stripe ? this.payStripeHosted(card, zip) : this.payHosted(card, zip);
+    }
     if (await page.locator("[data-stripe-payment]").count()) {
       if (!this.stripe) throw new Error("pay: the store takes cards in Stripe's Payment Element (the stack pays with Stripe test keys): run with STRIPE=1");
-      return this.payStripeElements(card, zip);
+      return this.payStripeElements(card, zip, keep);
     }
     if (this.stripe) throw new Error("pay: STRIPE=1, but the payment step shows the store's own card form (the stack pays in fake mode): drop STRIPE=1");
-    return this.payByCard(card, zip);
+    return this.payByCard(card, zip, keep);
   }
 
   /** The name on the card: a florist's sender (the buyer), else the name of the address (a buyer shipping to themself). */
@@ -528,14 +585,18 @@ export class Shopper {
    * The card form on the payment step (Payment Element and Express Checkout surfaces in fake mode). Its ZIP gets the
    * card's billing ZIP, typed over the address's ZIP a store that ships prefills.
    */
-  private async payByCard(card: Card, billingZip: string): Promise<void> {
+  private async payByCard(card: Card, billingZip: string, keepApproval = false): Promise<void> {
     const page = this.page;
     const form = page.locator("form[data-fake-card]");
-    await form.getByLabel("Card number").fill(CARD_NUMBERS[card]);
-    await form.getByLabel("Expiration date").fill(EXPIRY);
-    await form.getByLabel("Security code").fill(CVC);
-    await form.getByLabel("ZIP code").fill(billingZip);
     const button = form.getByRole("button", { name: /^Pay \$/ });
+    const fill = async () => {
+      const c = await this.cardFor(Shopper.payCents(await button.innerText()), card, keepApproval);
+      await form.getByLabel("Card number").fill(c.number);
+      await form.getByLabel("Expiration date").fill(c.expiry);
+      await form.getByLabel("Security code").fill(c.cvc);
+    };
+    await fill();
+    await form.getByLabel("ZIP code").fill(billingZip);
     const banner = page.locator("[data-price-banner]");
     const dialog = page.getByRole("dialog", { name: "Confirm it's you" });
     const error = form.getByRole("alert");
@@ -554,6 +615,7 @@ export class Shopper {
         const total = /your total is now (\$[\d,]+\.\d{2})/.exec(said)?.[1];
         if (!total) throw new Error(`the price-update banner does not give the new total: ${said}`);
         await expect(button, "the Pay button shows the new total").toHaveText(`Pay ${total}`);
+        if (this.wallet) await fill(); // the new total approved first (or, keeping the approval, the same card)
         continue;
       }
       if (await dialog.isVisible()) {
@@ -620,7 +682,7 @@ export class Shopper {
    * store's button, which confirms with Stripe.js: a price update (then Pay again), Stripe's 3D Secure test page
    * (completed), the card form's error under the button, or the confirmation.
    */
-  private async payStripeElements(card: Card, billingZip: string): Promise<void> {
+  private async payStripeElements(card: Card, billingZip: string, keepApproval = false): Promise<void> {
     const page = this.page;
     const block = page.locator("[data-stripe-payment]");
     const surface = await block.getAttribute("data-surface");
@@ -629,14 +691,18 @@ export class Shopper {
     const number = fields.getByRole("textbox", { name: "Card number" });
     await expect(number, "Stripe's Payment Element shows its card form").toBeVisible({ timeout: 30_000 });
     await this.cardFormOnly(fields, surface);
-    await number.fill(CARD_NUMBERS[card]);
-    await fields.getByRole("textbox", { name: /^Expiration/ }).fill(EXPIRY);
-    await fields.getByRole("textbox", { name: "Security code" }).fill(CVC);
+    const button = block.getByRole("button", { name: /^Pay \$/ });
+    const fill = async () => {
+      const c = await this.cardFor(Shopper.payCents(await button.innerText()), card, keepApproval);
+      await number.fill(c.number);
+      await fields.getByRole("textbox", { name: /^Expiration/ }).fill(c.expiry);
+      await fields.getByRole("textbox", { name: "Security code" }).fill(c.cvc);
+    };
+    await fill();
     const country = fields.getByRole("combobox", { name: "Country", exact: true });
     if (await country.count()) await country.selectOption({ label: "United States" });
     const zip = fields.getByRole("textbox", { name: "ZIP code" });
     if (await zip.count()) await zip.fill(billingZip);
-    const button = block.getByRole("button", { name: /^Pay \$/ });
     const banner = page.locator("[data-price-banner]");
     const error = block.getByRole("alert");
     let updated = false;
@@ -654,6 +720,7 @@ export class Shopper {
         const total = /your total is now (\$[\d,]+\.\d{2})/.exec(said)?.[1];
         if (!total) throw new Error(`the price-update banner does not give the new total: ${said}`);
         await expect(button, "the Pay button shows the new total").toHaveText(`Pay ${total}`);
+        if (this.wallet) await fill(); // the new total approved first (or, keeping the approval, the same card)
         continue;
       }
       if (next === "challenge") {

@@ -26,8 +26,11 @@ export type InformationStep = {
   delivery?: DeliveryStep;
 };
 export type ShippingStep = { method: string; addOns: string[] };
-/** The payment step's card, and the ZIP it is billed to (lib/billing.ts: the Link card's billing ZIP when left out). */
-export type PayStep = { card: Card; billingZip?: string };
+/**
+ * The payment step's card, and the ZIP it is billed to (lib/billing.ts: the Link card's billing ZIP when left out).
+ * keepApproval (WALLET=1): pay with the wallet card already approved even when the total rose past it.
+ */
+export type PayStep = { card: Card; billingZip?: string; keepApproval?: true };
 
 /** One step of a run: an object with exactly one key. */
 export type Step =
@@ -38,6 +41,7 @@ export type Step =
   | { checkout: true }
   | { information: InformationStep }
   | { shipping: ShippingStep }
+  | { approve: true }
   | { pay: PayStep }
   | { followNotice: true }
   | { paylantern: { card: Card } }

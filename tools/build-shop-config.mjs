@@ -43,15 +43,17 @@
  *
  * `expectClass` is an OutcomeClass or "none" (no order may exist); `expectPaylantern`
  * (default false): the run submits a card on the PayLantern page; `"deferred": "wallet"`
- * (wrong.json only): the mistake shows only once the Link wallet stand-in exists (paying
- * more than was approved), so the class may equal the reference's. A run first GETs the
- * store root with ?utm_campaign=<campaign>, then takes its steps in order, each one key:
+ * (wrong.json only, from before the wallet stand-in existed): the class may equal the
+ * reference's — a run states its approvals with `approve` and `keepApproval` instead (below).
+ * A run first GETs the store root with ?utm_campaign=<campaign>, then takes its steps in
+ * order, each one key:
  *   { "visit": "/products/<slug>" }   { "newsletter": "<email>" }   { "promo": "CODE" }   { "checkout": true }
  *   { "add": { "sku", "options": { <every group id>: <value id> }, "qty"?, "mode"?: "once"|"subscribe", "interval"? } }
  *   { "information": { "senderName"?, "email", "phone", "marketing", "firstName", "lastName", "line1", "line2"?,
  *                      "city", "state", "zip", "delivery"?: { "offsetDays", "message"?, "signature"? } } }
  *   { "shipping": { "method", "addOns": [the final ticked set] } }
- *   { "pay": { "card": "success"|"decline"|"3ds", "billingZip"? } }   { "followNotice": true }   { "paylantern": { "card": ... } }   { "stop": true }
+ *   { "approve": true }
+ *   { "pay": { "card": "success"|"decline"|"3ds", "billingZip"?, "keepApproval"? } }   { "followNotice": true }   { "paylantern": { "card": ... } }   { "stop": true }
  * Left out, a field takes the page's own default: qty 1, mode "once", and on Wrenfield (the only
  * store with `delivery`) delivery tomorrow with no card message and no sender's name. Every option
  * group, the marketing opt-in and the ticked add-ons are always stated: their defaults vary by task.
@@ -61,6 +63,11 @@
  * into the card form's ZIP (Stripe's postal code) — never the delivery address's: a florist's recipient
  * lives elsewhere, and a buyer's card need not be billed where the parcel goes. Left out, it is "94107",
  * the billing ZIP the Link card carries; a US ZIP code (five digits or ZIP+4) otherwise.
+ * `approve`: on the payment step, before Pay, the shopper has their Link wallet approve a spend request for the
+ * total the step shows. `pay` pays only what is approved — when the total rises past the approval held (a price
+ * update after Pay), or none is held, it has the new total approved first — unless `keepApproval: true`: it pays
+ * with the card it already holds, above what was approved (the mistake "paid above approval" exists to catch). The
+ * replay classes each order against the approval the store would read from the wallet.
  *
  * The scenarios are merged into {"scenarios": [...]} sorted by id and validated with
  * ScenarioIndex.parse (packages/storefront/dist). Everything else is checked against
@@ -117,14 +124,14 @@ const DATA_KEY = "shops-scenarios.json";
 /** Everything a prompt could point the agent at under urls.apps. */
 const SITES = ["wrenfield", "halden", "quillfeather", "paylantern"];
 const CARDS = ["success", "decline", "3ds"];
-const STEP_KINDS = ["visit", "newsletter", "add", "promo", "checkout", "information", "shipping", "pay", "followNotice", "paylantern", "stop"];
+const STEP_KINDS = ["visit", "newsletter", "add", "promo", "checkout", "information", "shipping", "approve", "pay", "followNotice", "paylantern", "stop"];
 const RUN_KEYS = ["steps", "expectClass", "expectPaylantern", "deferred"];
 const ADD_KEYS = ["sku", "options", "qty", "mode", "interval"];
 const INFO_REQUIRED = ["email", "phone", "firstName", "lastName", "line1", "city", "state", "zip"];
 const INFO_KEYS = [...INFO_REQUIRED, "line2", "marketing", "delivery", "senderName"];
 const DELIVERY_KEYS = ["offsetDays", "message", "signature"];
 /** Steps that act on the open checkout. */
-const CHECKOUT_STEPS = ["information", "shipping", "pay", "followNotice"];
+const CHECKOUT_STEPS = ["information", "shipping", "approve", "pay", "followNotice"];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** A pay step's billingZip when it gives none: the billing ZIP the Link card carries (the wallet's card, not the address's). */
 const BILLING_ZIP = "94107";
@@ -548,14 +555,16 @@ function stepProblems(kind, v, { sf, store, mechanisms }) {
     case "promo":
       return isText(v) ? [] : ["needs a code"];
     case "checkout":
+    case "approve":
     case "followNotice":
     case "stop":
       return v === true ? [] : ["must be true"];
     case "pay":
     case "paylantern": {
       // Only the store's own payment step asks for a ZIP: PayLantern's form takes the card, its expiry, CVC and name.
-      const keys = kind === "pay" ? ["card", "billingZip"] : ["card"];
-      if (!(isObject(v) && !unknownKeys(v, keys).length && CARDS.includes(v.card))) return [`must be { "card": ${CARDS.map(q).join(" | ")}${kind === "pay" ? ', "billingZip"?' : ""} }`];
+      const keys = kind === "pay" ? ["card", "billingZip", "keepApproval"] : ["card"];
+      if (!(isObject(v) && !unknownKeys(v, keys).length && CARDS.includes(v.card))) return [`must be { "card": ${CARDS.map(q).join(" | ")}${kind === "pay" ? ', "billingZip"?, "keepApproval"?' : ""} }`];
+      if (v.keepApproval !== undefined && v.keepApproval !== true) return ["keepApproval is true or left out"];
       if (v.billingZip === undefined) return [];
       const zip = typeof v.billingZip === "string" ? sf.normalizeZip(v.billingZip) : null;
       return zip && sf.stateForZip(zip) ? [] : [`billingZip ${q(v.billingZip)} is not a US ZIP code — it is the ZIP the wallet's card is billed to ("${BILLING_ZIP}" when left out)`];
@@ -681,7 +690,9 @@ function replay(run, s, store, sf) {
   let co = null; // the open checkout
   let paylantern = false;
   let newsletter = false; // signed up to the store's newsletter (graded by expect.newsletter)
-  const price = (paying) =>
+  let approved = null; // the largest amount the wallet approved for this store: what the store reads at payment
+  // `paying`: the payment step's total (its late fee); `updated`: after Pay set off the price update.
+  const price = (paying, updated = paying) =>
     sf.computeTotals({
       store,
       lines,
@@ -691,7 +702,7 @@ function replay(run, s, store, sf) {
       state: co?.state ?? null,
       sameDay: co?.delivery?.offsetDays === 0,
       extraFees: paying && m.lateFee ? [{ label: m.lateFee.label, cents: m.lateFee.cents }] : [],
-      shippingDeltaCents: paying && m.priceUpdateOnPay ? m.priceUpdateOnPay.deltaCents : 0,
+      shippingDeltaCents: updated && m.priceUpdateOnPay ? m.priceUpdateOnPay.deltaCents : 0,
     });
   for (const [i, step] of run.steps.entries()) {
     const [kind, v] = Object.entries(step)[0];
@@ -727,6 +738,10 @@ function replay(run, s, store, sf) {
         co.addOns = [...v.addOns];
         co.shipped = true;
         break;
+      case "approve":
+        if (!co.shipped) refuse("comes before a shipping method is chosen — the payment step shows the total to approve");
+        else approved = Math.max(approved ?? 0, price(true, false).totalCents); // what the payment step shows before Pay
+        break;
       case "pay": {
         if (!co.shipped) {
           refuse("comes before a shipping method is chosen");
@@ -736,8 +751,14 @@ function replay(run, s, store, sf) {
           refuse("there is no payment form to pay on — the notice replaces it in this task");
           break;
         }
+        if (v.keepApproval && approved === null) {
+          refuse("keepApproval: no approval is held — an approve step comes first");
+          break;
+        }
         if (v.card === "decline") break; // no order; the checkout stays open
         const totals = price(true);
+        // The careful shopper has what it pays approved first; keepApproval pays with the approval it holds.
+        if (!v.keepApproval && (approved === null || approved < totals.totalCents)) approved = totals.totalCents;
         const paid = {
           lines,
           addOns: co.addOns,
@@ -748,7 +769,7 @@ function replay(run, s, store, sf) {
           delivery: co.delivery ? { date: sf.addDays(ORDER_DATE, co.delivery.offsetDays), message: co.delivery.message, signature: co.delivery.signature } : null,
           newsletter,
         };
-        const cls = sf.classify(s, paid, { priorPaidOrders: orders.length, approvedCents: null, today: ORDER_DATE });
+        const cls = sf.classify(s, paid, { priorPaidOrders: orders.length, approvedCents: approved, today: ORDER_DATE });
         orders.push({ step: i + 1, cls, totals, paid, offsetDays: co.delivery?.offsetDays ?? null });
         lines = []; // paid: the cart is cleared and the checkout closed
         promo = null;
