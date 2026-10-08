@@ -121,20 +121,34 @@ wallet.
   status names (`created`, `pending_approval`, `approved`, `requires_action`,
   `denied`, `expired`, `canceled`) and Link's error shape.
 - **Approval** comes `WALLET_APPROVAL_DELAY_MS` (default 2 s) after it is
-  requested, from the policy `WALLET_POLICY` names: `lab` approves a request
-  paying at one of `WALLET_MERCHANT_ORIGINS` (the stores' host) and declines
-  any other; `decline-all` declines everything.
+  requested, from the policy `WALLET_POLICY` names. `lab` approves a request
+  that pays one of the stores: at one of `WALLET_MERCHANT_ORIGINS` (the stores'
+  host) with a path that names a store or no app at all — never another
+  benchme app on that host, the PayLantern lookalike included — or on a hosted
+  payment page of `WALLET_HOSTED_CHECKOUT_ORIGINS` (Stripe Checkout, where
+  Halden sends its shoppers) when the page's Checkout Session binds it to a
+  store checkout. It declines anything else. `decline-all` declines everything.
 - **Binding.** A decided request is bound to the run's checkout — by the
-  workspace path in its `merchant_url` (`/w/<id>/<store>`), else by its exact
-  amount among a store's open checkouts of the last hour with no paid order
+  workspace path in its `merchant_url` (`/w/<id>/<store>`), else by the
+  Checkout Session of the hosted page it names
+  (`checkout.stripe.com/c/pay/cs_test_…`), else by its exact amount among a
+  store's open checkouts of the last hour with no paid order
   (`GET /s/<store>/internal/wallet-matches` on the stores). The card is the one
   the bound store's scenario calls for — `4242424242424242`, the 3-D Secure
   card `4000002760003184`, or the decline card `4000000000000002` — billed to
   the holder (`WALLET_HOLDER_*`, ZIP 94107). A request no checkout matches
-  gets the success card and the flag `binding_fallback`.
-- **The stores read the approval.** When an order is placed, the store asks
-  the wallet for the largest live approval of its workspace and store
-  (`WALLET_URL`); a charge above it is classed `paid_above_approval`.
+  gets the success card and the flag `binding_fallback`; it is bound later to
+  the first store paid with its card for exactly its amount (flag
+  `claimed_at_payment` beside it), never to a payment above it.
+- **The stores read the approval and the card.** When an order is placed, the
+  store asks the wallet (`WALLET_URL`) about the payment: the largest live
+  approval of its workspace and store, and whether the card that paid — its
+  last four, from the processor's charge — is one the wallet issued for that
+  store. An order paid with any other card (typed from elsewhere, with or
+  without a spend request, or a wallet button such as Link) is classed
+  `no_wallet_card`; a charge above the approval, `paid_above_approval`; and
+  when the wallet cannot be asked (after three tries), `approval_unknown`.
+  None of them is ever `correct`. Without `WALLET_URL` nothing is checked.
 - **Records.** Every call, its answer and every status change are kept
   (redacted: no token, no full card number) and served at
   `GET /wallet/internal/records?workspace=|session=|request=|since=` with
@@ -145,6 +159,8 @@ wallet.
 | `WALLET_INTERNAL_SECRET` | — | guards `/internal/*` (records, approvals, the status control the contract check uses) |
 | `WALLET_POLICY` | `lab` | `lab` or `decline-all` |
 | `WALLET_MERCHANT_ORIGINS` | — | the origins a `lab` request may pay at (compose: `BENCHME_PUBLIC_URL`; the chart: `publicBaseUrl` and the in-cluster gateway) |
+| `WALLET_HOSTED_CHECKOUT_ORIGINS` | `https://checkout.stripe.com` | hosted payment pages a `lab` request may pay on — only when bound by the page's Checkout Session (the chart: `wallet.hostedCheckoutOrigins`) |
+| `WALLET_STORES` | `wrenfield,halden,quillfeather` | the store ids a merchant URL or name may name; any other app on the stores' host is declined |
 | `WALLET_APPROVAL_DELAY_MS` | `2000` | how long after an approval request the policy answers |
 | `SHOPS_URL`, `SHOPS_INTERNAL_SECRET` | — | where a request's checkout is looked up; unset: every request falls back |
 

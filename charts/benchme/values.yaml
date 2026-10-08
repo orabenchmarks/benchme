@@ -188,8 +188,14 @@ wallet:
   # How long after an approval request the policy answers (ms).
   approvalDelayMs: 2000
   # More origins a request may pay at, besides publicBaseUrl and the in-cluster
-  # gateway URL (the stores' own).
+  # gateway URL (the stores' own). On them, only a path naming a store (or none)
+  # is approved: the PayLantern lookalike and the other benchme apps never are.
   extraMerchantOrigins: []
+  # The hosted payment pages the stores send a shopper to (Halden pays on Stripe
+  # Checkout): a request naming one is approved only when the page's Checkout
+  # Session binds it to a store checkout.
+  hostedCheckoutOrigins:
+    - https://checkout.stripe.com
 
 # The migrate Job (post-install/upgrade hook): one container per app plus a
 # wait-for-postgres init container. Requests AND limits are required — a

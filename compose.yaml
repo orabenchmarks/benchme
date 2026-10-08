@@ -239,6 +239,8 @@ services:
       WALLET_POLICY: ${WALLET_POLICY:-lab}
       # The stores' origin: a request paying anywhere else is declined.
       WALLET_MERCHANT_ORIGINS: ${BENCHME_PUBLIC_URL:-http://localhost:8080}
+      # Hosted payment pages (Halden pays on Stripe Checkout): approved only when bound by the page's Checkout Session.
+      WALLET_HOSTED_CHECKOUT_ORIGINS: https://checkout.stripe.com
       WALLET_APPROVAL_DELAY_MS: ${WALLET_APPROVAL_DELAY_MS:-2000}
       # Where a request's checkout is looked up (the stores' internal API).
       SHOPS_URL: http://shops:3000
