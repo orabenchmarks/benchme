@@ -26,6 +26,21 @@ export const configSchema = z.object({
       return z.NEVER;
     }
   }),
+  /**
+   * JSON: services fronted at the gateway's ROOT, outside any workspace — { "wallet": "http://wallet:3000" } serves
+   * /wallet/* — for a tool a run is configured with before it has a workspace. No workspace header is forwarded.
+   */
+  SERVICE_TARGETS: z
+    .string()
+    .default("{}")
+    .transform((s, ctx) => {
+      try {
+        return appTargets.parse(JSON.parse(s));
+      } catch (e) {
+        ctx.addIssue({ code: "custom", message: `SERVICE_TARGETS must be a JSON object of name → url (${(e as Error).message})` });
+        return z.NEVER;
+      }
+    }),
   /** Apps that receive a seed call on workspace creation (subset of APP_TARGETS keys). */
   SEEDED_APPS: z.string().default("warehouse,mail").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
   /** Apps exposing an MCP server (subset of APP_TARGETS keys). */

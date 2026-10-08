@@ -66,7 +66,7 @@ const copyIntent = (i: StoredIntent): Intent => ({
   attemptMethod: i.attemptMethod,
   latestCharge: i.latestCharge,
 });
-const copyCharge = (c: Charge): Charge => ({ ...c, threeDSecure: c.threeDSecure ? { ...c.threeDSecure } : null });
+const copyCharge = (c: Charge): Charge => ({ ...c, threeDSecure: c.threeDSecure ? { ...c.threeDSecure } : null, card: c.card ? { ...c.card } : null });
 
 function checkAmount(cents: number): void {
   if (!Number.isInteger(cents)) throw new Error(`amount must be a whole number of cents, got ${cents}`);
@@ -88,6 +88,8 @@ export class FakePaymentGateway implements PaymentGateway {
   readonly publishableKey = "pk_test_fake";
   private readonly intents = new Map<string, StoredIntent>();
   private readonly sessions = new Map<string, StoredSession>();
+  /** The last four of each card (payment method) a settle was given: what its charge records. */
+  private readonly cardLast4 = new Map<string, string>();
   private readonly sessionUrl: (id: string) => string;
 
   constructor(opts: FakeGatewayOptions = {}) {
@@ -155,9 +157,10 @@ export class FakePaymentGateway implements PaymentGateway {
    * later "succeed" completes it, "fail_authentication" fails it). A succeeded or canceled
    * intent cannot be confirmed again: refused, as Stripe refuses it, so a double-submitted
    * card form never un-pays an order. Each settle but the second step of 3-D Secure is a
-   * new card (payment method); a card that reaches the network leaves a charge.
+   * new card (payment method); a card that reaches the network leaves a charge, with the
+   * card's `last4` when the caller gives it (the card form's number; null: none recorded).
    */
-  settle(id: string, outcome: FakeOutcome): void {
+  settle(id: string, outcome: FakeOutcome, last4: string | null = null): void {
     const intent = this.intent(id);
     if (intent.status === "succeeded" || intent.status === "canceled") throw new Error(`This PaymentIntent's status is ${intent.status}, which means it can't be confirmed.`);
     const waiting = intent.status === "requires_action" ? intent.attemptMethod : null;
@@ -167,16 +170,21 @@ export class FakePaymentGateway implements PaymentGateway {
       return;
     }
     if (outcome === "require_action") {
-      Object.assign(intent, { status: "requires_action", lastError: null, lastErrorCode: null, attemptMethod: newId("pm_fake") });
+      const method = newId("pm_fake");
+      if (last4) this.cardLast4.set(method, last4);
+      Object.assign(intent, { status: "requires_action", lastError: null, lastErrorCode: null, attemptMethod: method });
       return;
     }
     // "succeed" after 3-D Secure completes the card that waited; anything else is a new card.
     const card = outcome === "succeed" && waiting ? waiting : newId("pm_fake");
+    if (card !== waiting && last4) this.cardLast4.set(card, last4);
+    const recorded = this.cardLast4.get(card);
     const charge: Charge = {
       id: newId("ch_fake"),
       status: outcome === "succeed" ? "succeeded" : "failed",
       paymentMethod: card,
       threeDSecure: outcome === "succeed" && waiting ? { flow: "challenge", result: "authenticated" } : null,
+      card: recorded ? { last4: recorded } : null,
       created: Math.floor(Date.now() / 1000),
     };
     intent.charges.push(charge);
@@ -190,13 +198,13 @@ export class FakePaymentGateway implements PaymentGateway {
    * first and carrying the session's metadata (as Stripe Checkout makes one); a card that pays pays the session.
    * Paying a paid session again keeps the one payment. An expired session is refused, as Stripe refuses it.
    */
-  settleSession(id: string, outcome: FakeOutcome = "succeed"): void {
+  settleSession(id: string, outcome: FakeOutcome = "succeed", last4: string | null = null): void {
     const s = this.session(id);
     if (s.paid) return;
     if (s.expired) throw new Error(`Checkout Session ${id} has expired and can no longer be paid.`);
     const pi = s.paymentIntentId ?? this.newIntent(s.amountCents, s.metadata, ["card"], s.email, s.statementDescriptor).id;
     s.paymentIntentId = pi;
-    this.settle(pi, outcome);
+    this.settle(pi, outcome, last4);
     if (this.intent(pi).status === "succeeded") s.paid = true;
   }
 

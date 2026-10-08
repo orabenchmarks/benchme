@@ -36,6 +36,11 @@ export type Charge = {
   paymentMethod: string | null;
   /** 3-D Secure on it in the processor's words (flow "challenge" | "frictionless", result "authenticated" | "failed" | …), or null without. */
   threeDSecure: { flow: string | null; result: string | null } | null;
+  /**
+   * The card it was made with as the processor recorded it — its last four digits, all a store ever reads of a card
+   * (whether the shopper's wallet issued it) — or null for a payment made without a card (a wallet button such as Link).
+   */
+  card: { last4: string } | null;
   /** When it was made (Unix seconds). */
   created: number;
 };

@@ -40,16 +40,28 @@ export type Env = {
    * Payment Element and the hosted surface is checkout.stripe.com; otherwise the stack's fake payments.
    */
   stripe: boolean;
+  /**
+   * WALLET=1: every card comes from the stack's wallet stand-in through the real @stripe/link-cli (lib/link-wallet.ts),
+   * approved for what the run pays — or, with keepApproval, for less. WALLET_CLI: the command (default
+   * `npx --yes @stripe/link-cli@<LINK_CLI_VERSION>`).
+   */
+  wallet: boolean;
+  walletCli: string[];
 };
 
 const REQUIRED = ["HIDDEN_DIR", "BASE_URL", "OPERATOR_KEY", "SUFFIX_KEY"] as const;
 
-/** STRIPE's value as on or off: 1/true on, 0/false/empty/unset off; anything else is refused. */
-export function stripeOf(v: string | undefined): boolean {
+/** An on/off variable: 1/true on, 0/false/empty/unset off; anything else is refused, naming it. */
+export function flagOf(name: string, v: string | undefined, on: string): boolean {
   const s = (v ?? "").trim().toLowerCase();
   if (s === "1" || s === "true") return true;
   if (s === "" || s === "0" || s === "false") return false;
-  throw new Error(`STRIPE must be 1 or 0 (on: the stack pays with Stripe test keys), not ${JSON.stringify(v)}`);
+  throw new Error(`${name} must be 1 or 0 (on: ${on}), not ${JSON.stringify(v)}`);
+}
+
+/** STRIPE's value as on or off. */
+export function stripeOf(v: string | undefined): boolean {
+  return flagOf("STRIPE", v, "the stack pays with Stripe test keys");
 }
 
 /** STRIPE=1, read once for the Playwright config (its timeouts); readEnv refuses a value that is neither. */
@@ -92,5 +104,7 @@ export function readEnv(e: NodeJS.ProcessEnv = process.env): Env {
     run,
     entry,
     stripe: stripeOf(e.STRIPE),
+    wallet: flagOf("WALLET", e.WALLET, "cards come from the wallet stand-in through link-cli"),
+    walletCli: (e.WALLET_CLI?.trim() || "npx --yes @stripe/link-cli@0.26.0").split(/\s+/),
   };
 }

@@ -1,4 +1,4 @@
-import { HmacReceiptSigner, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, verifyWorkspaceHeader, type Pool } from "@benchme/core";
+import { HmacReceiptSigner, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, signWorkspaceHeader, verifyWorkspaceHeader, type Pool } from "@benchme/core";
 import { scenarios } from "@benchme/scenarios";
 import Fastify, { errorCodes, type FastifyInstance } from "fastify";
 import { request as httpRequest } from "node:http";
@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppRegistry } from "./app-registry.js";
 import { buildGateway } from "./build-app.js";
 import { readConfig } from "./config.js";
+import { checkServiceNames } from "./routes/services.js";
 import { MemoryRateLimiter } from "./rate-limit.js";
 import { HttpWorkspaceSeeder, type WorkspaceSeeder } from "./seeder.js";
 import type { WorkspaceService } from "./workspace-service.js";
@@ -74,6 +75,8 @@ function rawFetch(port: number, path: string): Promise<{ status: number; body: s
 }
 
 const OPERATOR = { "x-benchme-operator-key": "operator-key-for-tests" };
+/** A correctly signed workspace header, as a client could only forge with the gateway's secret. */
+const signWorkspaceHeaderForTest = (id: string) => signWorkspaceHeader(SECRET, id);
 
 let pool: Pool;
 let stub: Awaited<ReturnType<typeof stubApp>>;
@@ -97,14 +100,16 @@ beforeAll(async () => {
   // halden: a target with a PATH base, the way one process serves several
   // sites under /s/<site>. paylantern: UNLISTED though every capability is
   // flagged — proves urls(), the portal, the registry and robots.txt leave it
-  // out on the listing alone, while the proxy still routes to it.
+  // out on the listing alone, while the proxy still routes to it. wallet: an
+  // unlisted app that shares its name with a root service (the wallet's
+  // card-on-file door, /w/<id>/wallet/card, beside the root /wallet/*).
   const apps = new AppRegistry(
-    { warehouse: stub.url, data: stub.url, halden: `${stub.url}/s/halden`, paylantern: `${stub.url}/s/paylantern` },
+    { warehouse: stub.url, data: stub.url, halden: `${stub.url}/s/halden`, paylantern: `${stub.url}/s/paylantern`, wallet: `${stub.url}/workspace` },
     ["warehouse"],
     ["warehouse", "paylantern"],
     ["warehouse", "paylantern"],
     ["data", "paylantern"],
-    ["paylantern"],
+    ["paylantern", "wallet"],
   );
   limiter = new MemoryRateLimiter(2, 3600);
   const seeder: WorkspaceSeeder = new HttpWorkspaceSeeder(apps.seeded(), SECRET);
@@ -122,6 +127,8 @@ beforeAll(async () => {
     defaultTtlSeconds: 3600,
     maxTtlSeconds: 7200,
     sharedSeed: 20260908,
+    // A root service, outside any workspace (the wallet stand-in link-cli is pointed at).
+    services: { wallet: stub.url },
     logLevel: "silent",
   }));
 });
@@ -309,6 +316,38 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     expect(unlisted.json()).toMatchObject({ path: "/s/paylantern/pay?ref=r1", workspace: id, prefix: `/w/${id}/paylantern` });
   });
 
+  it("serves an unlisted workspace app that shares its name with a root service: /w/<id>/wallet/* signed, /wallet/* never", async () => {
+    const minted = await gateway.inject({ method: "POST", url: "/api/workspaces", headers: { "x-benchme-operator-key": "operator-key-for-tests" }, payload: { scenario: "shops-v1" } });
+    const { id, urls } = minted.json() as { id: string; urls: { apps: Record<string, string>; mcp: Record<string, string> } };
+    expect(Object.keys(urls.apps)).not.toContain("wallet");
+    expect(JSON.stringify(urls)).not.toContain("/wallet");
+    const doorRes = await gateway.inject({ url: `/w/${id}/wallet/card`, headers: { accept: "application/json" } });
+    expect(doorRes.statusCode).toBe(200);
+    expect(doorRes.json()).toMatchObject({ path: "/workspace/card", workspace: id, prefix: `/w/${id}/wallet`, forwardedHost: "benchme.test" });
+    expect(verifyWorkspaceHeader(SECRET, id, doorRes.json().sig)).toBe(true);
+    // The root service reaches the same backend path with no workspace at all: the wallet refuses it there.
+    const root = (await gateway.inject({ url: "/wallet/workspace/card", headers: { [WORKSPACE_HEADER]: id, [WORKSPACE_SIG_HEADER]: signWorkspaceHeaderForTest(id) } })).json();
+    expect(root).toMatchObject({ path: "/workspace/card", prefix: "/wallet" });
+    expect(root.workspace).toBeUndefined();
+    expect(root.sig).toBeUndefined();
+  });
+
+  it("serves a root service at /<name>/*: path and query as sent, the public host and its prefix forwarded, never a workspace header", async () => {
+    const res = await gateway.inject({ method: "GET", url: "/wallet/api/spend_requests/lsrq_1?include=card", headers: { [WORKSPACE_HEADER]: "ws_000000000000", [WORKSPACE_SIG_HEADER]: "forged" } });
+    expect(res.statusCode).toBe(200);
+    const echo = res.json();
+    expect(echo).toMatchObject({ path: "/api/spend_requests/lsrq_1?include=card", prefix: "/wallet", forwardedHost: "benchme.test", forwardedProto: "http" });
+    expect(echo.workspace).toBeUndefined();
+    expect(echo.sig).toBeUndefined();
+    const form = await gateway.inject({ method: "POST", url: "/wallet/auth/device/token", payload: "grant_type=refresh_token&refresh_token=x", headers: { "content-type": "application/x-www-form-urlencoded" } });
+    expect(form.json()).toMatchObject({ path: "/auth/device/token", contentType: "application/x-www-form-urlencoded", body: { grant_type: "refresh_token", refresh_token: "x" } });
+    const json = await gateway.inject({ method: "POST", url: "/wallet/api/spend_requests", payload: { amount: 2450 } });
+    expect(json.json().body).toEqual({ amount: 2450 });
+    const bare = await gateway.inject({ method: "GET", url: "/wallet?x=1" });
+    expect([bare.statusCode, bare.headers.location]).toEqual([302, "/wallet/?x=1"]);
+    expect((await gateway.inject({ method: "GET", url: "/nowallet/api" })).statusCode).toBe(404);
+  });
+
   it("finalizes once and issues a logged, verifiable receipt", async () => {
     const created = (await gateway.inject({ method: "POST", url: "/api/workspaces", headers: { "x-benchme-operator-key": "operator-key-for-tests" }, payload: { scenario: "acme-v1" } })).json();
     const fin = await gateway.inject({ method: "POST", url: `/api/workspaces/${created.id}/finalize` });
@@ -364,8 +403,9 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     const workspacePage = (await gateway.inject(`/w/${created.id}`)).body;
     expect(workspacePage).toContain(created.id);
     expect(workspacePage).toContain(`/w/${created.id}/halden/`);
-    // paylantern carries every capability flag, yet no page names it.
+    // paylantern carries every capability flag, yet no page names it; nor the unlisted wallet door.
     for (const body of [home, registry, workspacePage]) expect(body).not.toContain("paylantern");
+    for (const body of [home, registry, workspacePage]) expect(body).not.toMatch(/\/wallet\b|<code>wallet<\/code>/);
   });
 
   it("serves a host-root robots.txt that disallows /w/ and lists a schemamap per listed ask-capable app", async () => {
@@ -378,8 +418,9 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     expect(res.body).toContain("Allow: /w/shared-acme-v1-20260908/warehouse/schema/\nschemamap: http://benchme.test/w/shared-acme-v1-20260908/warehouse/schema/map.xml");
     // data is webmcp-only, not ask-capable — no schemamap line for it.
     expect(res.body).not.toContain("/data/schema/map.xml");
-    // paylantern is ask-capable but unlisted — never advertised to crawlers.
+    // paylantern is ask-capable but unlisted — never advertised to crawlers; nor is the wallet door.
     expect(res.body).not.toContain("paylantern");
+    expect(res.body).not.toContain("wallet");
   });
 });
 
@@ -407,6 +448,16 @@ describe("app registry and config (no database)", () => {
 
   it("accepts an APP_TARGETS url that carries a path", () => {
     expect(readConfig(env).APP_TARGETS).toEqual({ halden: "http://shops:3000/s/halden" });
+  });
+
+  it("reads SERVICE_TARGETS as a JSON map, none by default, and refuses a name the gateway answers itself", () => {
+    const base = { DATABASE_URL: "postgres://x", REDIS_URL: "redis://x", GATEWAY_SECRET: "g".repeat(16), OPERATOR_KEY: "o".repeat(16), RECEIPT_SECRET: "r".repeat(16), PUBLIC_BASE_URL: "http://benchme.test", APP_TARGETS: "{}", SEEDED_APPS: "", MCP_APPS: "" };
+    expect(readConfig(base).SERVICE_TARGETS).toEqual({});
+    expect(readConfig({ ...base, SERVICE_TARGETS: '{"wallet":"http://wallet:3000"}' }).SERVICE_TARGETS).toEqual({ wallet: "http://wallet:3000" });
+    expect(() => readConfig({ ...base, SERVICE_TARGETS: "nope" })).toThrow(/SERVICE_TARGETS/);
+    expect(() => checkServiceNames({ api: "http://x" })).toThrow(/answers itself/);
+    expect(() => checkServiceNames({ w: "http://x" })).toThrow(/answers itself/);
+    expect(() => checkServiceNames({ "Wallet/x": "http://x" })).toThrow(/path segment/);
   });
 
   it("reads UNLISTED_APPS as a trimmed comma list, empty when unset or blank", () => {

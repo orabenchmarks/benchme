@@ -49,6 +49,7 @@ function toCharge(ch: Stripe.Charge): Charge {
     status: ch.status === "succeeded" ? "succeeded" : ch.status === "failed" ? "failed" : "pending",
     paymentMethod: ch.payment_method ?? null,
     threeDSecure: tds ? { flow: tds.authentication_flow ?? null, result: tds.result ?? null } : null,
+    card: ch.payment_method_details?.card?.last4 ? { last4: ch.payment_method_details.card.last4 } : null,
     created: ch.created,
   };
 }

@@ -38,11 +38,14 @@
       }
     },
     {
+      "approve": true
+    },
+    {
       "pay": {
-        "card": "success"
+        "card": "success",
+        "keepApproval": true
       }
     }
   ],
-  "expectClass": "paid_above_approval",
-  "deferred": "wallet"
+  "expectClass": "paid_above_approval"
 }

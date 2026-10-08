@@ -79,12 +79,17 @@ spec:
               value: {{ $root.Values.publicBaseUrl | quote }}
             - name: INTERNAL_BASE_URL
               value: {{ $internal | quote }}
-            # The store sites are one app (shops) serving each site under /s/<site>.
+            # The store sites are one app (shops) serving each site under /s/<site>. wallet: the wallet's
+            # workspace-scoped door (/w/<id>/wallet/card → <wallet>/workspace/card, the saved card of a run that
+            # pays without Link) — the same service the root /wallet/* reaches, which forwards no workspace.
             - name: APP_TARGETS
-              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"vaultdocs\":\"http://%s-vaultdocs\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\",\"verify\":\"http://%s-verify\",\"wrenfield\":\"http://%s-shops/s/wrenfield\",\"halden\":\"http://%s-shops/s/halden\",\"quillfeather\":\"http://%s-shops/s/quillfeather\",\"paylantern\":\"http://%s-shops/s/paylantern\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
-            # Routed like any app, but left out of a workspace's urls.
+              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"vaultdocs\":\"http://%s-vaultdocs\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\",\"verify\":\"http://%s-verify\",\"wrenfield\":\"http://%s-shops/s/wrenfield\",\"halden\":\"http://%s-shops/s/halden\",\"quillfeather\":\"http://%s-shops/s/quillfeather\",\"paylantern\":\"http://%s-shops/s/paylantern\",\"wallet\":\"http://%s-wallet/workspace\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
+            # Routed like any app, but left out of a workspace's urls (and the portal, the registry, robots.txt).
             - name: UNLISTED_APPS
-              value: "paylantern"
+              value: "paylantern,wallet"
+            # Served at the root, outside any workspace: /wallet/* (link-cli's LINK_API_BASE_URL = <public>/wallet/api).
+            - name: SERVICE_TARGETS
+              value: {{ printf "{\"wallet\":\"http://%s-wallet\"}" $root.Release.Name | quote }}
             - name: SEEDED_APPS
               value: "warehouse,helpdesk,vaultdocs,mail,verify"
             - name: MCP_APPS
@@ -111,15 +116,23 @@ spec:
             - name: STRIPE_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "benchme.secretName" $root }}
+                  name: {{ $root.Values.shops.stripeExistingSecret | default (include "benchme.secretName" $root) }}
                   key: stripeSecretKey
                   optional: true
             - name: STRIPE_PUBLISHABLE_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "benchme.secretName" $root }}
+                  name: {{ $root.Values.shops.stripeExistingSecret | default (include "benchme.secretName" $root) }}
                   key: stripePublishableKey
                   optional: true
+            # An order's charge is checked against what the wallet approved (paid above approval).
+            - name: WALLET_URL
+              value: http://{{ $root.Release.Name }}-wallet
+            - name: WALLET_INTERNAL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "benchme.secretName" $root }}
+                  key: walletInternalSecret
             - name: SHOPS_SUFFIX_KEY
               valueFrom:
                 secretKeyRef:
@@ -134,6 +147,33 @@ spec:
             - name: SHOPS_SCENARIOS_FILE
               value: /scenarios/shops-scenarios.json
             {{- end }}
+            {{- end }}
+            {{- if eq $app "wallet" }}
+            - name: WALLET_INTERNAL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "benchme.secretName" $root }}
+                  key: walletInternalSecret
+            - name: WALLET_POLICY
+              value: {{ $root.Values.wallet.policy | default "lab" | quote }}
+            - name: WALLET_APPROVAL_DELAY_MS
+              value: {{ $root.Values.wallet.approvalDelayMs | quote }}
+            # The stores' origins (public, and in-cluster): a request paying anywhere else is declined.
+            - name: WALLET_MERCHANT_ORIGINS
+              value: {{ concat (list $root.Values.publicBaseUrl $internal) ($root.Values.wallet.extraMerchantOrigins | default list) | join "," | quote }}
+            # Hosted payment pages (Stripe Checkout): approved only for a request bound by the page's Checkout Session.
+            - name: WALLET_HOSTED_CHECKOUT_ORIGINS
+              value: {{ $root.Values.wallet.hostedCheckoutOrigins | default (list "https://checkout.stripe.com") | join "," | quote }}
+            - name: WALLET_PUBLIC_URL
+              value: {{ printf "%s/wallet" (trimSuffix "/" $root.Values.publicBaseUrl) | quote }}
+            # Where a request's checkout is looked up (the stores' internal API).
+            - name: SHOPS_URL
+              value: http://{{ $root.Release.Name }}-shops
+            - name: SHOPS_INTERNAL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "benchme.secretName" $root }}
+                  key: shopsInternalSecret
             {{- end }}
             {{- if eq $app "verify" }}
             - name: RECEIPT_SECRET

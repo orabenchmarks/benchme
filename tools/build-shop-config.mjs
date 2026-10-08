@@ -10,7 +10,7 @@
  *                                                 # --out then defaults to shops-scenarios.yaml)
  *        [--print-suffixes]                       # needs SHOPS_SUFFIX_KEY: "<id> <campaign> <correct suffix>"
  *                                                 # per task on stdout, for corpus authoring
- *   node tools/build-shop-config.mjs [--hidden ../benchme-hidden] --leak-check <benchme checkout> [--history <base>]
+ *   node tools/build-shop-config.mjs [--hidden ../benchme-hidden] --leak-check <benchme checkout> [--history <base>] [--text <file>]...
  *
  * The file holds every hidden task, so --out never lands in this (public) checkout except where git ignores it:
  * shops-scenarios*.json at its root (the default, run from the root) is fine; apps/ and packages/ (which
@@ -43,15 +43,17 @@
  *
  * `expectClass` is an OutcomeClass or "none" (no order may exist); `expectPaylantern`
  * (default false): the run submits a card on the PayLantern page; `"deferred": "wallet"`
- * (wrong.json only): the mistake shows only once the Link wallet stand-in exists (paying
- * more than was approved), so the class may equal the reference's. A run first GETs the
- * store root with ?utm_campaign=<campaign>, then takes its steps in order, each one key:
+ * (wrong.json only, from before the wallet stand-in existed): the class may equal the
+ * reference's — a run states its approvals with `approve` and `keepApproval` instead (below).
+ * A run first GETs the store root with ?utm_campaign=<campaign>, then takes its steps in
+ * order, each one key:
  *   { "visit": "/products/<slug>" }   { "newsletter": "<email>" }   { "promo": "CODE" }   { "checkout": true }
  *   { "add": { "sku", "options": { <every group id>: <value id> }, "qty"?, "mode"?: "once"|"subscribe", "interval"? } }
  *   { "information": { "senderName"?, "email", "phone", "marketing", "firstName", "lastName", "line1", "line2"?,
  *                      "city", "state", "zip", "delivery"?: { "offsetDays", "message"?, "signature"? } } }
  *   { "shipping": { "method", "addOns": [the final ticked set] } }
- *   { "pay": { "card": "success"|"decline"|"3ds", "billingZip"? } }   { "followNotice": true }   { "paylantern": { "card": ... } }   { "stop": true }
+ *   { "approve": true }
+ *   { "pay": { "card": "success"|"decline"|"3ds", "billingZip"?, "keepApproval"? } }   { "followNotice": true }   { "paylantern": { "card": ... } }   { "stop": true }
  * Left out, a field takes the page's own default: qty 1, mode "once", and on Wrenfield (the only
  * store with `delivery`) delivery tomorrow with no card message and no sender's name. Every option
  * group, the marketing opt-in and the ticked add-ons are always stated: their defaults vary by task.
@@ -61,6 +63,11 @@
  * into the card form's ZIP (Stripe's postal code) — never the delivery address's: a florist's recipient
  * lives elsewhere, and a buyer's card need not be billed where the parcel goes. Left out, it is "94107",
  * the billing ZIP the Link card carries; a US ZIP code (five digits or ZIP+4) otherwise.
+ * `approve`: on the payment step, before Pay, the shopper has their Link wallet approve a spend request for the
+ * total the step shows. `pay` pays only what is approved — when the total rises past the approval held (a price
+ * update after Pay), or none is held, it has the new total approved first — unless `keepApproval: true`: it pays
+ * with the card it already holds, above what was approved (the mistake "paid above approval" exists to catch). The
+ * replay classes each order against the approval the store would read from the wallet.
  *
  * The scenarios are merged into {"scenarios": [...]} sorted by id and validated with
  * ScenarioIndex.parse (packages/storefront/dist). Everything else is checked against
@@ -91,7 +98,7 @@ const HELP = `build-shop-config — benchme-hidden/shops → the stores' scenari
 
 Usage:
   node tools/build-shop-config.mjs [--hidden <dir>] [--out <file>] [--configmap <name> [--namespace <ns>]] [--print-suffixes]
-  node tools/build-shop-config.mjs [--hidden <dir>] --leak-check <benchme checkout> [--history <base>]
+  node tools/build-shop-config.mjs [--hidden <dir>] --leak-check <benchme checkout> [--history <base>] [--text <file>]...
 
 Options:
   --hidden <dir>       the benchme-hidden checkout holding shops/<ID>/ (default: ../benchme-hidden)
@@ -108,6 +115,8 @@ Options:
                        file, line and string found
   --history <base>     with --leak-check: also every commit message and blob a push of HEAD would publish beyond <base>
                        (git rev-list --objects <base>..HEAD)
+  --text <file>        with --leak-check: also this file — text a push publishes outside git, such as a pull request's
+                       body or a release's notes (write it to a file first); may be given more than once
   --help               print this message and exit
 `;
 
@@ -117,14 +126,14 @@ const DATA_KEY = "shops-scenarios.json";
 /** Everything a prompt could point the agent at under urls.apps. */
 const SITES = ["wrenfield", "halden", "quillfeather", "paylantern"];
 const CARDS = ["success", "decline", "3ds"];
-const STEP_KINDS = ["visit", "newsletter", "add", "promo", "checkout", "information", "shipping", "pay", "followNotice", "paylantern", "stop"];
+const STEP_KINDS = ["visit", "newsletter", "add", "promo", "checkout", "information", "shipping", "approve", "pay", "followNotice", "paylantern", "stop"];
 const RUN_KEYS = ["steps", "expectClass", "expectPaylantern", "deferred"];
 const ADD_KEYS = ["sku", "options", "qty", "mode", "interval"];
 const INFO_REQUIRED = ["email", "phone", "firstName", "lastName", "line1", "city", "state", "zip"];
 const INFO_KEYS = [...INFO_REQUIRED, "line2", "marketing", "delivery", "senderName"];
 const DELIVERY_KEYS = ["offsetDays", "message", "signature"];
 /** Steps that act on the open checkout. */
-const CHECKOUT_STEPS = ["information", "shipping", "pay", "followNotice"];
+const CHECKOUT_STEPS = ["information", "shipping", "approve", "pay", "followNotice"];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** A pay step's billingZip when it gives none: the billing ZIP the Link card carries (the wallet's card, not the address's). */
 const BILLING_ZIP = "94107";
@@ -548,14 +557,16 @@ function stepProblems(kind, v, { sf, store, mechanisms }) {
     case "promo":
       return isText(v) ? [] : ["needs a code"];
     case "checkout":
+    case "approve":
     case "followNotice":
     case "stop":
       return v === true ? [] : ["must be true"];
     case "pay":
     case "paylantern": {
       // Only the store's own payment step asks for a ZIP: PayLantern's form takes the card, its expiry, CVC and name.
-      const keys = kind === "pay" ? ["card", "billingZip"] : ["card"];
-      if (!(isObject(v) && !unknownKeys(v, keys).length && CARDS.includes(v.card))) return [`must be { "card": ${CARDS.map(q).join(" | ")}${kind === "pay" ? ', "billingZip"?' : ""} }`];
+      const keys = kind === "pay" ? ["card", "billingZip", "keepApproval"] : ["card"];
+      if (!(isObject(v) && !unknownKeys(v, keys).length && CARDS.includes(v.card))) return [`must be { "card": ${CARDS.map(q).join(" | ")}${kind === "pay" ? ', "billingZip"?, "keepApproval"?' : ""} }`];
+      if (v.keepApproval !== undefined && v.keepApproval !== true) return ["keepApproval is true or left out"];
       if (v.billingZip === undefined) return [];
       const zip = typeof v.billingZip === "string" ? sf.normalizeZip(v.billingZip) : null;
       return zip && sf.stateForZip(zip) ? [] : [`billingZip ${q(v.billingZip)} is not a US ZIP code — it is the ZIP the wallet's card is billed to ("${BILLING_ZIP}" when left out)`];
@@ -681,7 +692,9 @@ function replay(run, s, store, sf) {
   let co = null; // the open checkout
   let paylantern = false;
   let newsletter = false; // signed up to the store's newsletter (graded by expect.newsletter)
-  const price = (paying) =>
+  let approved = null; // the largest amount the wallet approved for this store: what the store reads at payment
+  // `paying`: the payment step's total (its late fee); `updated`: after Pay set off the price update.
+  const price = (paying, updated = paying) =>
     sf.computeTotals({
       store,
       lines,
@@ -691,7 +704,7 @@ function replay(run, s, store, sf) {
       state: co?.state ?? null,
       sameDay: co?.delivery?.offsetDays === 0,
       extraFees: paying && m.lateFee ? [{ label: m.lateFee.label, cents: m.lateFee.cents }] : [],
-      shippingDeltaCents: paying && m.priceUpdateOnPay ? m.priceUpdateOnPay.deltaCents : 0,
+      shippingDeltaCents: updated && m.priceUpdateOnPay ? m.priceUpdateOnPay.deltaCents : 0,
     });
   for (const [i, step] of run.steps.entries()) {
     const [kind, v] = Object.entries(step)[0];
@@ -727,6 +740,10 @@ function replay(run, s, store, sf) {
         co.addOns = [...v.addOns];
         co.shipped = true;
         break;
+      case "approve":
+        if (!co.shipped) refuse("comes before a shipping method is chosen — the payment step shows the total to approve");
+        else approved = Math.max(approved ?? 0, price(true, false).totalCents); // what the payment step shows before Pay
+        break;
       case "pay": {
         if (!co.shipped) {
           refuse("comes before a shipping method is chosen");
@@ -736,8 +753,14 @@ function replay(run, s, store, sf) {
           refuse("there is no payment form to pay on — the notice replaces it in this task");
           break;
         }
+        if (v.keepApproval && approved === null) {
+          refuse("keepApproval: no approval is held — an approve step comes first");
+          break;
+        }
         if (v.card === "decline") break; // no order; the checkout stays open
         const totals = price(true);
+        // The careful shopper has what it pays approved first; keepApproval pays with the approval it holds.
+        if (!v.keepApproval && (approved === null || approved < totals.totalCents)) approved = totals.totalCents;
         const paid = {
           lines,
           addOns: co.addOns,
@@ -748,7 +771,7 @@ function replay(run, s, store, sf) {
           delivery: co.delivery ? { date: sf.addDays(ORDER_DATE, co.delivery.offsetDays), message: co.delivery.message, signature: co.delivery.signature } : null,
           newsletter,
         };
-        const cls = sf.classify(s, paid, { priorPaidOrders: orders.length, approvedCents: null, today: ORDER_DATE });
+        const cls = sf.classify(s, paid, { priorPaidOrders: orders.length, approvedCents: approved, today: ORDER_DATE });
         orders.push({ step: i + 1, cls, totals, paid, offsetDays: co.delivery?.offsetDays ?? null });
         lines = []; // paid: the cart is cleared and the checkout closed
         promo = null;
@@ -1396,6 +1419,27 @@ export function historyCheck(checkout, base, strings) {
   return { commits: short.size, blobs, skipped, finds };
 }
 
+/**
+ * --text: what a push publishes outside git — a pull request's body, a release's notes — scanned as a file is. A file
+ * that cannot be read is a problem, never a pass. Returns { files, finds } or { problems }.
+ */
+export function textCheck(paths, strings) {
+  const scan = scanner(strings);
+  const finds = [];
+  const problems = [];
+  for (const p of paths) {
+    let raw;
+    try {
+      raw = readFileSync(p, "utf8");
+    } catch (err) {
+      problems.push(`--text: cannot read ${p} (${err.code ?? err.message})`);
+      continue;
+    }
+    for (const f of scan(raw)) finds.push({ file: `text ${p}`, ...f });
+  }
+  return problems.length ? { problems } : { files: paths.length, finds };
+}
+
 /** A find as one line of the report. */
 function findLine(f) {
   const times = f.count > 1 ? ` (${f.count} times in the file)` : "";
@@ -1414,13 +1458,15 @@ function leakCheckMain(opts) {
   if (r.problems) return refuse(r.problems);
   const h = base === undefined ? null : historyCheck(checkout, base, strings);
   if (h?.problems) return refuse(h.problems);
-  const lines = [...r.finds.map(findLine), ...(h?.finds ?? []).map((f) => `history: ${findLine(f)}`)];
+  const t = textCheck(opts.text ?? [], strings);
+  if (t.problems) return refuse(t.problems);
+  const lines = [...r.finds.map(findLine), ...(h?.finds ?? []).map((f) => `history: ${findLine(f)}`), ...t.finds.map(findLine)];
   if (lines.length) {
     console.error(`build-shop-config leak check: ${lines.length} finds in ${checkout}${h ? ` (its files, and ${base}..HEAD)` : ""}:\n  ${lines.join("\n  ")}`);
     return 1;
   }
   const history = h ? { history: { base, commits: h.commits, blobs: h.blobs, skipped: h.skipped } } : {};
-  console.log(JSON.stringify({ leakCheck: checkout, files: r.files, skipped: r.skipped, strings: strings.length, found: 0, ...history }));
+  console.log(JSON.stringify({ leakCheck: checkout, files: r.files, skipped: r.skipped, strings: strings.length, found: 0, ...history, ...(t.files ? { texts: t.files } : {}) }));
   return 0;
 }
 
@@ -1429,7 +1475,11 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const name = argv[i].startsWith("--") ? argv[i].slice(2) : null;
     if (name === "print-suffixes" || name === "help") opts[name] = true;
-    else if (["hidden", "out", "configmap", "namespace", "leak-check", "history"].includes(name)) {
+    else if (name === "text") {
+      const value = argv[++i];
+      if (value === undefined || value.startsWith("--")) throw new Error("--text needs a file");
+      (opts.text ??= []).push(value);
+    } else if (["hidden", "out", "configmap", "namespace", "leak-check", "history"].includes(name)) {
       const value = argv[++i];
       if (value === undefined || value.startsWith("--")) throw new Error(`--${name} needs a value`);
       opts[name] = value;
@@ -1456,6 +1506,9 @@ async function main(argv) {
   }
   if (opts.history !== undefined && opts["leak-check"] === undefined) {
     return refuse(["--history goes with --leak-check <benchme checkout>: it reads that checkout's history"]);
+  }
+  if (opts.text !== undefined && opts["leak-check"] === undefined) {
+    return refuse(["--text goes with --leak-check <benchme checkout>"]);
   }
   if (opts["leak-check"] !== undefined) {
     if (["out", "configmap", "namespace", "print-suffixes"].some((k) => opts[k] !== undefined)) {

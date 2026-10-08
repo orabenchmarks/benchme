@@ -51,6 +51,12 @@ jobs:
       - run: docker compose -f compose.yaml -f compose.build.yaml up -d --build --wait
         env: { RUNNER_KIND: none }
       - run: node tools/intent-integrity.mjs --base http://localhost:8080
-      - run: node tools/checkout-integrity.mjs --base http://localhost:8080 --fixtures --suffix-key benchme-local-suffix-key-change-me
+      # Cards from the wallet stand-in, as agents get theirs: the fixture that pays above its approval runs too.
+      - run: node tools/checkout-integrity.mjs --base http://localhost:8080 --fixtures --wallet --suffix-key benchme-local-suffix-key-change-me
+      # No Link: every card is the saved card the wallet's card-on-file door shows the run, each read recorded.
+      - run: node tools/checkout-integrity.mjs --base http://localhost:8080 --fixtures --card-on-file --suffix-key benchme-local-suffix-key-change-me
+      # The real @stripe/link-cli (npm, unmodified) against the wallet, in its CLI and MCP modes.
+      - run: node tools/link-cli-contract.mjs --base http://localhost:8080
+        env: { WALLET_INTERNAL_SECRET: benchme-local-wallet-secret-change-me, OPERATOR_KEY: benchme-local-operator-key-change-me }
       - if: failure()
         run: docker compose logs --tail 200

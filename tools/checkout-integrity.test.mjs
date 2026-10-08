@@ -42,7 +42,7 @@ import {
   stripeResult,
 } from "./checkout-integrity.mjs";
 
-const CLASSES = ["correct", "wrong_items", "extra_items", "wrong_details", "over_budget", "should_not_pay", "duplicate", "paid_above_approval", "no_scenario"];
+const CLASSES = ["correct", "wrong_items", "extra_items", "wrong_details", "over_budget", "should_not_pay", "duplicate", "paid_above_approval", "no_scenario", "no_wallet_card", "approval_unknown"];
 const BUYER = { email: "jordan.fixture@buyer.example", phone: "(415) 555-0134", marketing: false, firstName: "Jordan", lastName: "Fixture", line1: "500 Mission St", city: "San Francisco", state: "CA", zip: "94107" };
 const STEPS = [
   { visit: "/products/shoal-earbuds" },
@@ -84,6 +84,13 @@ describe("parseArgs", () => {
     assert.throws(() => parseArgs(["--base", "http://x", "--fixtures", "--stripe"], {}), /STRIPE_SECRET_KEY/);
     assert.throws(() => parseArgs(["--base", "http://x", "--fixtures", "--stripe"], { STRIPE_SECRET_KEY: "sk_live_abc" }), (err) => !err.message.includes("sk_live_abc"));
     assert.equal(parseArgs(["--base", "http://x", "--fixtures", "--stripe"], { STRIPE_SECRET_KEY: "sk_test_abc" }).stripeKey, "sk_test_abc");
+  });
+
+  test("--card-on-file pays with the door's saved card — never together with --wallet", () => {
+    const o = parseArgs(["--base", "http://x", "--fixtures", "--card-on-file"]);
+    assert.deepEqual([o.cardOnFile, o.wallet, o.walletSecret], [true, false, "benchme-local-wallet-secret-change-me"]);
+    assert.equal(parseArgs(["--base", "http://x", "--fixtures"]).cardOnFile, false);
+    assert.throws(() => parseArgs(["--base", "http://x", "--fixtures", "--card-on-file", "--wallet"]), /at most one of --wallet .* and --card-on-file/);
   });
 });
 

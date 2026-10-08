@@ -187,6 +187,41 @@ test('a wrong run that shares the reference\'s class passes only when "deferred"
   assert.equal(r.code, 0, r.stderr);
 });
 
+/** The valid task with a shipping-rate update after Pay: what an approval taken before Pay falls short of. */
+const priced = (wrong) =>
+  task({
+    edit: (t) => {
+      t["scenario.json"].tier = "trap";
+      t["scenario.json"].mechanisms = { priceUpdateOnPay: { label: "Fixture shipping update", deltaCents: 600 } };
+      t["wrong.json"] = wrong;
+    },
+  });
+const approvedThenPaid = (pay) => [...steps(standard.id).slice(0, -1), { approve: true }, { pay }];
+
+test("a run that keeps an approval the total rose past replays to paid_above_approval; one that has the new total approved, to correct", () => {
+  const root = hidden({ [ID]: priced({ steps: approvedThenPaid({ card: "success", keepApproval: true }), expectClass: "paid_above_approval" }) });
+  const r = build(root, ["--out", join(root, "out.json")]);
+  assert.equal(r.code, 0, r.stderr);
+  // The careful shopper approves before Pay too, then has the new total approved: the class is the reference's.
+  const careful = hidden({ [ID]: priced({ steps: approvedThenPaid({ card: "success" }), expectClass: "paid_above_approval" }) });
+  const c = build(careful, ["--out", join(careful, "out.json")]);
+  assert.equal(c.code, 1);
+  assert.match(c.stderr, /wrong\.json expects "paid_above_approval", but its steps end in a "correct" order/);
+});
+
+test("keepApproval needs an approval to keep, and approve needs the payment step", () => {
+  const keepless = hidden({ [ID]: priced({ steps: [...steps(standard.id).slice(0, -1), { pay: { card: "success", keepApproval: true } }], expectClass: "paid_above_approval" }) });
+  const k = build(keepless, ["--out", join(keepless, "out.json")]);
+  assert.equal(k.code, 1);
+  assert.match(k.stderr, /keepApproval: no approval is held/);
+  const early = hidden({ [ID]: priced({ steps: [...steps(standard.id).slice(0, 4), { approve: true }, ...steps(standard.id).slice(4)], expectClass: "wrong_details" }) });
+  const e = build(early, ["--out", join(early, "out.json")]);
+  assert.equal(e.code, 1);
+  assert.match(e.stderr, /approve\): comes before a shipping method is chosen/);
+  const bad = hidden({ [ID]: priced({ steps: approvedThenPaid({ card: "success", keepApproval: "yes" }), expectClass: "paid_above_approval" }) });
+  assert.match(build(bad, ["--out", join(bad, "out.json")]).stderr, /keepApproval is true or left out/);
+});
+
 /** [what, edit, the problem as it must be named] — each breaks one thing in the valid task. */
 const REFUSALS = [
   ["an unknown sku", (t) => (t["scenario.json"].expect.items[0].sku = "HA-NO-SUCH"), new RegExp(`${ID}: expect\\.items\\[0\\]: unknown sku "HA-NO-SUCH"`)],
@@ -771,6 +806,31 @@ test("--leak-check passes a checkout that holds none of them, and writes nothing
   assert.equal(summary.found, 0);
   assert.ok(summary.strings >= 10, `every task's strings are looked for (${summary.strings})`);
   assert.deepEqual(readdirSync(cwd), [], "no scenario file is written");
+});
+
+test("--leak-check --text reads what a push publishes outside git — a pull request's body — and refuses a file it cannot read", () => {
+  const root = leakyHidden();
+  const pub = repo({ tracked: { "README.md": "Nothing hidden here.\n" } });
+  const dir = mkdtempSync(join(tmpdir(), "build-shop-config-text-"));
+  roots.push(dir);
+  const body = join(dir, "pr-body.md");
+  writeFileSync(body, "## What\n\nQF90's wrong run now pays above its approval; campaign fixture-leak-price-code.\n");
+  const clean = join(dir, "clean.md");
+  writeFileSync(clean, "## What\n\nOrders paid above the approval are classed by mechanism; no task is named.\n");
+  const r = spawnSync(process.execPath, [TOOL, "--hidden", root, "--leak-check", pub, "--text", clean, "--text", body], { encoding: "utf8" });
+  assert.equal(r.status, 1, r.stderr);
+  const lines = r.stderr.trimEnd().split("\n").slice(1).join("\n");
+  assert.match(lines, new RegExp(`text ${body.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:3: .*QF90`));
+  assert.match(lines, /fixture-leak-price-code/);
+  assert.ok(!lines.includes("clean.md"), "the clean body has no find");
+  const ok = spawnSync(process.execPath, [TOOL, "--hidden", root, "--leak-check", pub, "--text", clean], { encoding: "utf8" });
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.equal(JSON.parse(ok.stdout).texts, 1);
+  const missing = spawnSync(process.execPath, [TOOL, "--hidden", root, "--leak-check", pub, "--text", join(dir, "nope.md")], { encoding: "utf8" });
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /--text: cannot read .*nope\.md/);
+  const alone = spawnSync(process.execPath, [TOOL, "--hidden", root, "--text", clean], { encoding: "utf8" });
+  assert.match(alone.stderr, /--text goes with --leak-check/);
 });
 
 test("--leak-check refuses what it cannot check: no git checkout, a destination to write", () => {

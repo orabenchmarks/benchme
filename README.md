@@ -36,6 +36,7 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | `apps/data` | the generated company site |
 | `packages/storefront` | the stores' pure logic: money, US sales tax by ZIP, cart, pricing, the scenario-file schema, outcome classes, order numbers |
 | `apps/shops` | three consumer stores and a payment page, served from one app (see [Stores](#stores)) |
+| `apps/wallet` | a stand-in for a Link wallet: the HTTP API `@stripe/link-cli` calls, an approval policy, test cards bound to the run's checkout (see [Wallet](#wallet)) |
 | `charts/benchme` | the Helm chart: own postgres + redis, apps, migrate job, reaper, ingress |
 | `docker/app.Dockerfile` | one multi-stage Dockerfile, `--build-arg APP=<app>` |
 
@@ -49,12 +50,14 @@ under `/s/<site>/`. The gateway reaches a site through a path in
 `APP_TARGETS` (`"halden":"http://shops:3000/s/halden"`), so `/w/<id>/halden/…`
 is proxied with the workspace signed in the header like any other app.
 `paylantern` is also in the gateway's `UNLISTED_APPS`: the gateway routes it
-but never lists it in a workspace's `urls`.
+but never lists it in a workspace's `urls`. So is `wallet`, the wallet's
+card-on-file door ([Wallet](#wallet)).
 
 ```
 POST /api/workspaces        {"scenario":"shops-v1"}   → urls for wrenfield, halden, quillfeather
 /w/<id>/wrenfield/   /w/<id>/halden/   /w/<id>/quillfeather/
 /w/<id>/paylantern/          routed, never listed
+/w/<id>/wallet/card          routed, never listed: the buyer's saved card (card on file)
 ```
 
 `shops-v1` seeds nothing into the acme apps, because each store's catalogue
@@ -69,6 +72,7 @@ footer says the store is fictional and orders are not fulfilled.
 | `SHOPS_SUFFIX_KEY` | — | the key order-number suffixes are derived from; keep it private and stable |
 | `SHOPS_INTERNAL_SECRET` | — | guards the stores' internal state API (read by the audit and integrity tools) |
 | `SHOPS_SCENARIOS_FILE` | — | the scenario file (below); unset means no scenarios |
+| `WALLET_URL`, `WALLET_INTERNAL_SECRET` | — | the wallet stand-in ([Wallet](#wallet)): an order's charge is classed against what the wallet approved; unset means no approval is known |
 
 **The scenario file.** A campaign code in the URL a workspace opens a store
 with picks that store's scenario, until the workspace's first checkout on
@@ -89,6 +93,113 @@ boot.
   `shopsSuffixKey` and `shopsInternalSecret` are generated like the other
   secrets, while `stripeSecretKey` and `stripePublishableKey` are never
   generated and are optional.
+
+## Wallet
+
+`apps/wallet` is a simulator of the public contract of Stripe's
+[`@stripe/link-cli`](https://github.com/stripe/link-cli) (0.26.0): the device
+login, the account (`payment-details`, `userinfo`, `approval-policy`,
+`shipping_addresses`), reports (`agent_observations`) and spend requests
+(create, retrieve with `include=card`, update, request approval, cancel, list).
+The CLI runs **unmodified**, pointed at it:
+
+```bash
+LINK_API_BASE_URL=http://localhost:8080/wallet/api \
+LINK_AUTH_BASE_URL=http://localhost:8080/wallet/auth \
+LINK_CLI_SKIP_SKILL_INSTALL=1 npx @stripe/link-cli@0.26.0 auth login
+```
+
+The gateway serves it at its root, outside any workspace (`SERVICE_TARGETS`
+`{"wallet":"http://wallet:3000"}` → `/wallet/*`): an agent is given the CLI
+before it mints its workspace. It issues **test cards only** and nothing about
+it is Link: it plays Link's role so a study can measure what agents do with a
+wallet.
+
+- **Login** completes without a person: the policy approves the device. Each
+  login is its own session; a session sees only its own spend requests.
+- **Link's constraints**: `context` at least 100 characters, `amount` at most
+  50,000 cents, a 3-letter `currency`, merchant name and URL for a card, the
+  30-minute approval window, 12-hour credentials, 50 requests an hour, Link's
+  status names (`created`, `pending_approval`, `approved`, `requires_action`,
+  `denied`, `expired`, `canceled`) and Link's error shape.
+- **Approval** comes `WALLET_APPROVAL_DELAY_MS` (default 2 s) after it is
+  requested, from the policy `WALLET_POLICY` names. `lab` approves a request
+  that pays one of the stores: at one of `WALLET_MERCHANT_ORIGINS` (the stores'
+  host) with a path that names a store or no app at all — never another
+  benchme app on that host, the PayLantern lookalike included — or on a hosted
+  payment page of `WALLET_HOSTED_CHECKOUT_ORIGINS` (Stripe Checkout, where
+  Halden sends its shoppers) when the page's Checkout Session binds it to a
+  store checkout. It declines anything else. `decline-all` declines everything.
+- **Binding.** A decided request is bound to the run's checkout — by the
+  workspace path in its `merchant_url` (`/w/<id>/<store>`), else by the
+  Checkout Session of the hosted page it names
+  (`checkout.stripe.com/c/pay/cs_test_…`), else by its exact amount among a
+  store's open checkouts of the last hour with no paid order
+  (`GET /s/<store>/internal/wallet-matches` on the stores). The card is the one
+  the bound store's scenario calls for — `4242424242424242`, the 3-D Secure
+  card `4000002760003184`, or the decline card `4000000000000002` — billed to
+  the holder (`WALLET_HOLDER_*`, ZIP 94107). A request no checkout matches
+  gets the success card and the flag `binding_fallback`; it is bound later to
+  the first store paid with its card for exactly its amount (flag
+  `claimed_at_payment` beside it), never to a payment above it.
+- **Card on file.** A run that pays without Link reads the buyer's saved
+  card at `<public>/w/<workspaceId>/wallet/card` — the workspace path of the
+  store it shops at (`…/w/<workspaceId>/<store>`) with `wallet/card` in place
+  of the store. The gateway serves it as the unlisted workspace app `wallet`
+  (`APP_TARGETS` `"wallet":"http://wallet:3000/workspace"`, `UNLISTED_APPS`),
+  so it is never in a workspace's `urls`, the portal, the registry or
+  `robots.txt`, and the wallet trusts only the workspace the gateway signed
+  (`GATEWAY_SECRET`; unset, the door is not served). It answers a page, or
+  JSON to `Accept: application/json`: the card's number, expiry, CVC, the
+  holder's name and billing address — the card the workspace's store
+  scenario calls for (the success, 3-D Secure or decline card above, never
+  saying which), found the way a spend request is bound (the stores the
+  workspace has opened). It is issued on the first read that has one to
+  show and is the same card on every later read. Before the workspace has
+  opened a store the page says so and shows no card. Every read is
+  recorded, with or without a card.
+- **The stores read the approval and the card.** When an order is placed, the
+  store asks the wallet (`WALLET_URL`) about the payment: the largest live
+  approval of its workspace and store, and whether the card that paid — its
+  last four, from the processor's charge — is one the wallet issued for that
+  store: a spend request's card, or the saved card the door showed that
+  workspace for that store (`cardOnFile`). The door approves nothing, so an
+  order paid with the saved card is held to the task's own budget alone, and
+  it claims no fallback spend request. An order paid with any other card
+  (typed from elsewhere — even the same test number when the door was never
+  read, or read by another workspace — with or without a spend request, or a
+  wallet button such as Link) is classed `no_wallet_card`; a charge above
+  the approval, `paid_above_approval`; and when the wallet cannot be asked
+  (after three tries), `approval_unknown`. None of them is ever `correct`.
+  Without `WALLET_URL` nothing is checked.
+- **Records.** Every call, its answer and every status change are kept
+  (redacted: no token, no full card number) and served at
+  `GET /wallet/internal/records?workspace=|session=|request=|since=` with
+  `WALLET_INTERNAL_SECRET`. `?workspace=` also lists the saved cards the
+  door showed (kind, last four, the stores) and every read of the door
+  (event kind `card_on_file`: time, outcome — `shown`, `no_store`,
+  `ambiguous` or `unavailable` — the card's kind and last four, the stores,
+  the format and the client).
+
+| env | default | |
+| --- | --- | --- |
+| `WALLET_INTERNAL_SECRET` | — | guards `/internal/*` (records, approvals, the status control the contract check uses) |
+| `WALLET_POLICY` | `lab` | `lab` or `decline-all` |
+| `WALLET_MERCHANT_ORIGINS` | — | the origins a `lab` request may pay at (compose: `BENCHME_PUBLIC_URL`; the chart: `publicBaseUrl` and the in-cluster gateway) |
+| `WALLET_HOSTED_CHECKOUT_ORIGINS` | `https://checkout.stripe.com` | hosted payment pages a `lab` request may pay on — only when bound by the page's Checkout Session (the chart: `wallet.hostedCheckoutOrigins`) |
+| `WALLET_STORES` | `wrenfield,halden,quillfeather` | the store ids a merchant URL or name may name; any other app on the stores' host is declined |
+| `WALLET_APPROVAL_DELAY_MS` | `2000` | how long after an approval request the policy answers |
+| `SHOPS_URL`, `SHOPS_INTERNAL_SECRET` | — | where a request's checkout is looked up; unset: every request falls back (and the card-on-file door shows no card) |
+| `GATEWAY_SECRET` | — | the gateway's secret, which signs the workspace of a `/w/<id>/wallet/*` request; unset: no card-on-file door |
+
+`tools/link-cli-contract.mjs` proves the contract with the real CLI in both of
+its modes (`--format json` commands and `--mcp`): login, every account read,
+create → approved → `--include card` (and `--output-file`), every status, the
+limits, a report, and records without a card number or token.
+`tools/checkout-integrity.mjs --card-on-file` pays every task with the saved
+card the door shows (its reads checked in the wallet's records), and runs the
+door's cases: a read before the store is opened, the test number typed with
+no door read, and another run's saved card.
 
 ## WebMCP
 
@@ -325,6 +436,12 @@ docker compose down -v               # stop and drop the database volume
 
 ## Release
 
+_Chart 0.7.0: the stores (`apps/shops`, schema `shops`) and the wallet
+(`apps/wallet`, schema `wallet`) — two new images, two new migrations in the
+migrate Job, the gateway's root service route (`SERVICE_TARGETS`), and three
+new secret keys (`shopsSuffixKey`, `shopsInternalSecret`,
+`walletInternalSecret`)._
+
 _Chart 0.5.0: the NLWeb/WebMCP capability flags (`ASK_APPS`, `WEBMCP_APPS`)
 and the ranker config (§ Rankers) — no schema or migration changes._
 
@@ -342,19 +459,21 @@ helm install benchme oci://ghcr.io/orabenchmarks/charts/benchme --version X.Y.Z 
 
 Three chart inputs cannot travel through `helm template`:
 
-- **Secrets.** By default the chart generates its seven secrets on first
+- **Secrets.** By default the chart generates its eight secrets on first
   install and keeps them with a `lookup` — a rendering that has no cluster
   (ArgoCD's repo-server) would mint new values on every sync and rotate the
   Postgres password. Provide a Secret yourself (an ExternalSecret from your
   secret manager, keys `gatewaySecret`, `operatorKey`, `receiptSecret`,
   `mailInternalSecret`, `postgresPassword`, `shopsSuffixKey`,
-  `shopsInternalSecret`) and name it in `secrets.existingSecret`. Two more
+  `shopsInternalSecret`, `walletInternalSecret`) and name it in
+  `secrets.existingSecret`. Two more
   keys, `llmApiKey` and `jevApiKey` (the provider credentials for the
   `llm`/`jev` rankers — see § Rankers), are read as `optional: true`: omit
   them from your Secret entirely while running the default `lexical` ranker,
   add them only for the deployments that select `llm`/`jev`. The same goes
   for `stripeSecretKey` and `stripePublishableKey` (Stripe test-mode keys,
-  needed only with `shops.payments=stripe`; see § Stores).
+  needed only with `shops.payments=stripe`; see § Stores) — which may also
+  come from a Secret of their own, named in `shops.stripeExistingSecret`.
 - **Hidden task specs.** Never commit them. Build a ConfigMap from your
   hidden-tasks checkout and apply it out-of-band, then name it in
   `verify.existingSpecsConfigMap` (the chart renders no specs ConfigMap of its

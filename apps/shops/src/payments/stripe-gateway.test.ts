@@ -226,7 +226,7 @@ describe("StripePaymentGateway (offline)", () => {
       created,
       status: "succeeded",
       payment_method: `pm_${id}`,
-      payment_method_details: { type: "card", card: { brand: "visa", three_d_secure: null } },
+      payment_method_details: { type: "card", card: { brand: "visa", last4: "0002", three_d_secure: null } },
       ...o,
     });
     const { gateway, calls } = offline((call) =>
@@ -238,8 +238,8 @@ describe("StripePaymentGateway (offline)", () => {
               url: "/v1/charges",
               // Stripe lists the newest first.
               data: [
-                charge("c3", 300, { payment_method_details: { type: "card", card: { three_d_secure: { authentication_flow: "challenge", result: "authenticated", version: "2.2.0" } } } }),
-                charge("c2", 200, { status: "pending" }),
+                charge("c3", 300, { payment_method_details: { type: "card", card: { last4: "3184", three_d_secure: { authentication_flow: "challenge", result: "authenticated", version: "2.2.0" } } } }),
+                charge("c2", 200, { status: "pending", payment_method_details: { type: "link", link: { country: "US" } } }),
                 charge("c1", 100, { status: "failed", failure_code: "card_declined" }),
               ],
             },
@@ -247,9 +247,9 @@ describe("StripePaymentGateway (offline)", () => {
         : { status: 404, body: { error: { type: "invalid_request_error", code: "resource_missing", message: "No such payment_intent: 'pi_nope'" } } },
     );
     expect(await gateway.charges("pi_123")).toEqual([
-      { id: "c1", status: "failed", paymentMethod: "pm_c1", threeDSecure: null, created: 100 },
-      { id: "c2", status: "pending", paymentMethod: "pm_c2", threeDSecure: null, created: 200 },
-      { id: "c3", status: "succeeded", paymentMethod: "pm_c3", threeDSecure: { flow: "challenge", result: "authenticated" }, created: 300 },
+      { id: "c1", status: "failed", paymentMethod: "pm_c1", threeDSecure: null, card: { last4: "0002" }, created: 100 },
+      { id: "c2", status: "pending", paymentMethod: "pm_c2", threeDSecure: null, card: null, created: 200 }, // Link: no card
+      { id: "c3", status: "succeeded", paymentMethod: "pm_c3", threeDSecure: { flow: "challenge", result: "authenticated" }, card: { last4: "3184" }, created: 300 },
     ]);
     expect([calls[0]!.method, calls[0]!.path, calls[0]!.params.get("payment_intent"), calls[0]!.params.get("limit")]).toEqual(["GET", "/v1/charges", "pi_123", "100"]);
   });
@@ -316,7 +316,7 @@ describe.skipIf(!KEY.startsWith("sk_test_"))("StripePaymentGateway (Stripe test 
     const paid = await g.getIntent(id);
     expect(paid).toMatchObject({ id, status: "succeeded", amountCents: 100, metadata: contractMeta, lastError: null, lastErrorCode: null, attemptMethod: null });
     const charges = await g.charges(id);
-    expect(charges).toEqual([{ id: paid.latestCharge, status: "succeeded", paymentMethod: expect.stringMatching(/^pm_/), threeDSecure: null, created: expect.any(Number) }]);
+    expect(charges).toEqual([{ id: paid.latestCharge, status: "succeeded", paymentMethod: expect.stringMatching(/^pm_/), threeDSecure: null, card: { last4: "4242" }, created: expect.any(Number) }]); // the card's last four, as the store reads it to ask the wallet
     expect((await stripe.paymentIntents.retrieve(id)).statement_descriptor_suffix).toBe("HALDEN AUDIO");
   });
 

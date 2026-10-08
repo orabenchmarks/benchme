@@ -2,6 +2,7 @@ import { HttpMailer } from "@benchme/site-kit";
 import { buildShops } from "./build-app.js";
 import { readConfig, type Config } from "./config.js";
 import { shopsPool } from "./db/pool.js";
+import { HttpApprovalSource, NoApprovals } from "./payments/approvals.js";
 import { FakePaymentGateway } from "./payments/fake-gateway.js";
 import type { PaymentGateway } from "./payments/gateway.js";
 import { StripePaymentGateway } from "./payments/stripe-gateway.js";
@@ -30,10 +31,12 @@ const app = await buildShops({
   mailer: new HttpMailer(cfg.MAIL_URL, cfg.MAIL_INTERNAL_SECRET, "orders@shops.example"),
   // Each store's confirmation comes from the store itself.
   mailerFor: (site) => new HttpMailer(cfg.MAIL_URL, cfg.MAIL_INTERNAL_SECRET, `orders@${site}.example`),
+  approvals: cfg.WALLET_URL ? new HttpApprovalSource(cfg.WALLET_URL, cfg.WALLET_INTERNAL_SECRET ?? "") : new NoApprovals(),
   logLevel: cfg.LOG_LEVEL,
 });
 if (cfg.SHOPS_SCENARIOS_FILE) app.log.info({ file: cfg.SHOPS_SCENARIOS_FILE, scenarios: scenarios.list().length }, "scenarios loaded from SHOPS_SCENARIOS_FILE");
 else app.log.info("no SHOPS_SCENARIOS_FILE: no scenarios, every workspace runs no_scenario");
+app.log.info({ wallet: cfg.WALLET_URL ?? null }, cfg.WALLET_URL ? "approvals: read from the wallet" : "no WALLET_URL: no approval is known, none is checked");
 app.log.info({ payments: payments.mode }, payments.mode === "stripe" ? "payments: Stripe test mode" : "payments: in-process fake");
 
 const shutdown = async () => {

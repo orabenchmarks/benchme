@@ -26,6 +26,12 @@ const fields = z.object({
   /** Test-mode keys only (sk_test_… / pk_test_…); required when SHOPS_PAYMENTS=stripe. */
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  /**
+   * The wallet stand-in (apps/wallet, in-cluster) and its internal secret: where an order's charge is checked against
+   * what the shopper's wallet approved ("paid above approval"). Unset: no approval is known and none is checked.
+   */
+  WALLET_URL: z.string().url().optional(),
+  WALLET_INTERNAL_SECRET: z.string().min(16).optional(),
   /** The hidden scenario file built from benchme-hidden. Unset: no scenarios, every workspace runs no_scenario. */
   SHOPS_SCENARIOS_FILE: z.string().optional(),
   /** Connections of the service's Postgres pool. */
@@ -60,6 +66,7 @@ export const configSchema = fields.superRefine((c, ctx) => {
   for (const [key, value] of Object.entries(c)) {
     if (typeof value === "string" && LIVE_KEY.test(value)) ctx.addIssue({ code: "custom", path: [key], message: LIVE_REFUSED });
   }
+  if (c.WALLET_URL && !c.WALLET_INTERNAL_SECRET) ctx.addIssue({ code: "custom", path: ["WALLET_INTERNAL_SECRET"], message: "required with WALLET_URL" });
   if (c.SHOPS_PAYMENTS === "stripe") {
     requireTestKey(ctx, "STRIPE_SECRET_KEY", c.STRIPE_SECRET_KEY, "sk_test_");
     requireTestKey(ctx, "STRIPE_PUBLISHABLE_KEY", c.STRIPE_PUBLISHABLE_KEY, "pk_test_");
