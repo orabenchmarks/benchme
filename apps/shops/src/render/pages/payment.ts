@@ -153,7 +153,8 @@ function noticeBlock(n: NonNullable<PaymentView["notice"]>): string {
 /**
  * What pay.js (and in fake mode the card form's script) needs, as JSON on the page (no secrets: the client
  * secret comes from the intent call). Each mode gets its own endpoints only: fake mode its card form's confirm
- * and 3D Secure step, Stripe mode the report of a failed or challenged confirmation and the billing details
+ * and 3D Secure step, Stripe mode the report of a confirmation that failed, was challenged or was authorized (the
+ * store takes it there, or declines the card), the capture method the intent is made with, and the billing details
  * Elements start from — a Stripe-mode page names nothing of fake mode, and loads none of its script.
  */
 function config(ctx: StoreCtx, v: PaymentView): object {
@@ -168,6 +169,8 @@ function config(ctx: StoreCtx, v: PaymentView): object {
       ? {
           publishableKey: v.publishableKey,
           methods: v.surface === "express-checkout" ? ["card", "link"] : ["card"],
+          // As the intent is made (routes/pay.ts): confirmed payments are authorized, then taken by the store.
+          captureMethod: "manual",
           appearance: stripeAppearance(ctx.brand, ctx.skin.fontFallbacks.body),
           fonts: ctx.brand.fonts.href ? [{ cssSrc: ctx.brand.fonts.href }] : [],
           billing: billingDefaults(v.store, v.checkout),

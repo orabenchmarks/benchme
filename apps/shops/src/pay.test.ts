@@ -260,6 +260,8 @@ beforeAll(async () => {
     getSession: (id) => stripeFake.getSession(id),
     expireSession: (id) => stripeFake.expireSession(id),
     charges: (id) => stripeFake.charges(id),
+    capture: (id) => stripeFake.capture(id),
+    cancel: (id) => stripeFake.cancel(id),
   };
   stripeApp = await buildShops({ ...base, payments: stripeLike });
   racyApp = await buildShops({ ...base, payments: racy });
@@ -276,7 +278,8 @@ afterAll(async () => {
 describe("reading a card form (fake mode)", () => {
   const card = { number: "4242 4242 4242 4242", cvc: "123", zip: "94107" };
   it("takes MM/YY written the usual ways, and refuses what is not one", () => {
-    for (const expiry of ["12/34", "12 / 34", "1/2034", "1234", "12 34"]) expect(readCard({ ...card, expiry }, MORNING), expiry).toEqual({ ok: true, digits: "4242424242424242" });
+    for (const expiry of ["12/34", "12 / 34", "12/2034", "1234", "12 34"]) expect(readCard({ ...card, expiry }, MORNING), expiry).toEqual({ ok: true, digits: "4242424242424242", month: 12, year: 2034 });
+    expect(readCard({ ...card, expiry: "1/2034" }, MORNING)).toEqual({ ok: true, digits: "4242424242424242", month: 1, year: 2034 });
     for (const expiry of ["", "12/", "12/3", "12//34", "ab/cd"]) expect(readCard({ ...card, expiry }, MORNING), expiry).toMatchObject({ ok: false });
   });
 
@@ -356,6 +359,8 @@ describe.skipIf(!DB)("paying (real Postgres, fake payments)", () => {
         amountCents: want.totalCents,
         metadata: { workspace: w, store: "halden", scenario: "fixture-pe", checkout: tok },
         statementDescriptor: "HALDEN AUDIO",
+        // Authorized on confirmation, taken by the store (routes/authorization.ts).
+        captureMethod: "manual",
       });
       fake.settle(i.id, "succeed");
       const no = orderNoOf(await complete("halden", w, tok, `payment_intent=${i.id}`), w, "halden");
@@ -608,6 +613,7 @@ describe.skipIf(!DB)("paying (real Postgres, fake payments)", () => {
         successUrl: `http://localhost/w/${w}/halden/checkout/${tok}/complete?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `http://localhost/w/${w}/halden/checkout/${tok}/payment`,
         metadata: { workspace: w, store: "halden", scenario: "fixture-co", checkout: tok },
+        captureMethod: "manual",
       });
       if (s.kind !== "session") throw new Error("not a session");
       expect(s.lines.map((l) => l.name)).toEqual(["Shoal Lite Earbuds (Black)", "Shipping — Standard shipping", "Sales tax"]);
@@ -646,9 +652,12 @@ describe.skipIf(!DB)("paying (real Postgres, fake payments)", () => {
       const done = await post("halden", `/fake-pay/session/${cs}/authenticate`, { result: "complete" }, w);
       expect(done.statusCode).toBe(303);
       expect(done.headers.location).toBe(`http://localhost/w/${w}/halden/checkout/${tok}/complete?session_id=${cs}`);
-      expect((await fake.getSession(cs)).paid).toBe(true);
+      // Completed on the page with its payment authorized: the store takes it at its success URL.
+      expect(await fake.getSession(cs)).toMatchObject({ paid: false, intent: { status: "requires_capture" } });
+      expect((await get("halden", `/fake-pay/session/${cs}`, w)).headers.location).toBe(`http://localhost/w/${w}/halden/checkout/${tok}/complete?session_id=${cs}`);
       const no = orderNoOf(await complete("halden", w, tok, `session_id=${cs}`), w, "halden");
       expect(no.startsWith("HA-")).toBe(true);
+      expect((await fake.getSession(cs)).paid).toBe(true);
     });
   });
 
@@ -1070,7 +1079,8 @@ describe.skipIf(!DB)("paying (real Postgres, fake payments)", () => {
       const json = await postJson("quillfeather", `/checkout/${f.tok}/payment/fake-confirm`, CARD, e.w);
       expect(json.statusCode).toBe(409);
       expect(json.json()).toEqual(recoveredJson(e.w, "quillfeather", (await repos.orders.list(e.w))[0]?.orderNo as string));
-      expect((await repos.events.list(e.w)).filter((x) => x.kind === "payment_attempt")).toEqual([]);
+      // The form took no card of its own: the one attempt is the payment that went through unseen, taken by the store.
+      expect((await repos.events.list(e.w)).filter((x) => x.kind === "payment_attempt").map((x) => x.data)).toEqual([expect.objectContaining({ token: e.tok, ref: ie.id, result: "succeeded" })]);
       // The hosted surface's button: the form, and a script.
       const g = await atPayment("halden", [SHOAL_LITE], "fixture-co");
       const cs = await sessionOf("halden", g.w, g.tok);
@@ -1489,9 +1499,11 @@ describe.skipIf(!DB)("paying (real Postgres, fake payments)", () => {
       await post("quillfeather", `/checkout/${tok}/payment/fake-confirm`, { number: "4242424242424242", expiry: "12/34", cvc: "123", zip: "94107" }, w);
       const i = (await repos.payments.currentIntent(w, tok))?.ref as string;
       orderNoOf(await complete("quillfeather", w, tok, `payment_intent=${i}`), w, "quillfeather");
+      const [, paid] = await fake.charges(i);
       expect(await attemptsIn(w)).toEqual([
         { token: tok, ref: i, result: "declined" },
-        { token: tok, ref: i, result: "succeeded" },
+        // The card that paid, logged when the store took the authorized payment — once, by its charge.
+        { token: tok, ref: i, result: "succeeded", attempt: paid?.id },
       ]);
     });
   });

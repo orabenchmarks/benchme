@@ -13,7 +13,8 @@ export const LINK_CLI_VERSION = "0.26.0";
 
 /** A card as the card form takes it. */
 export type WalletCard = { number: string; expiry: string; cvc: string; brand: string; billingPostalCode: string | null };
-export type Approval = { id: string; amountCents: number; card: WalletCard };
+/** An approved spend request and its card; `used` once its card has paid an order (a Link card pays one payment). */
+export type Approval = { id: string; amountCents: number; card: WalletCard; used?: boolean };
 
 type CliCard = { number: string; cvc: string; exp_month: number; exp_year: number; brand: string; billing_address?: { postal_code?: string } };
 

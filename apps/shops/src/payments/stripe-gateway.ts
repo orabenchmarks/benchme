@@ -1,8 +1,8 @@
 import Stripe from "stripe";
 import { PaymentNotFoundError, type Charge, type Intent, type IntentInput, type IntentStatus, type PaymentGateway, type Session, type SessionInput } from "./gateway.js";
 
-/** Statuses passed through as they are; anything else (requires_capture, a future status) is never "paid". */
-const KNOWN: ReadonlySet<string> = new Set<IntentStatus>(["requires_payment_method", "requires_confirmation", "requires_action", "processing", "succeeded", "canceled"]);
+/** Statuses passed through as they are; anything else (a future status) is never "paid". */
+const KNOWN: ReadonlySet<string> = new Set<IntentStatus>(["requires_payment_method", "requires_confirmation", "requires_action", "requires_capture", "processing", "succeeded", "canceled"]);
 const toStatus = (s: string): IntentStatus => (KNOWN.has(s) ? (s as IntentStatus) : "processing");
 
 /**
@@ -43,13 +43,15 @@ function toIntent(pi: Stripe.PaymentIntent): Intent {
 }
 
 function toCharge(ch: Stripe.Charge): Charge {
-  const tds = ch.payment_method_details?.card?.three_d_secure;
+  const card = ch.payment_method_details?.card;
+  const tds = card?.three_d_secure;
   return {
     id: ch.id,
     status: ch.status === "succeeded" ? "succeeded" : ch.status === "failed" ? "failed" : "pending",
+    captured: ch.captured === true,
     paymentMethod: ch.payment_method ?? null,
     threeDSecure: tds ? { flow: tds.authentication_flow ?? null, result: tds.result ?? null } : null,
-    card: ch.payment_method_details?.card?.last4 ? { last4: ch.payment_method_details.card.last4 } : null,
+    card: card?.last4 ? { last4: card.last4, expMonth: card.exp_month ?? null, expYear: card.exp_year ?? null } : null,
     created: ch.created,
   };
 }
@@ -96,6 +98,7 @@ export class StripePaymentGateway implements PaymentGateway {
       amount: i.amountCents,
       currency: "usd",
       allowed_payment_method_types: i.methods,
+      capture_method: i.captureMethod ?? "automatic",
       receipt_email: i.email,
       statement_descriptor_suffix: i.statementDescriptor,
       metadata: i.metadata,
@@ -133,7 +136,7 @@ export class StripePaymentGateway implements PaymentGateway {
       cancel_url: s.cancelUrl,
       // On the session for the store, and on its PaymentIntent so Stripe's payment records carry the run too.
       metadata: s.metadata,
-      payment_intent_data: { metadata: s.metadata, receipt_email: s.email, statement_descriptor_suffix: s.statementDescriptor },
+      payment_intent_data: { metadata: s.metadata, receipt_email: s.email, statement_descriptor_suffix: s.statementDescriptor, capture_method: s.captureMethod ?? "automatic" },
     });
     if (!cs.url) throw new Error(`Stripe returned checkout session ${cs.id} without a URL`);
     return { id: cs.id, url: cs.url };
@@ -153,14 +156,41 @@ export class StripePaymentGateway implements PaymentGateway {
     }
   }
 
-  /** With its PaymentIntent expanded: the attempts made on the page, in the same call. */
+  /**
+   * Takes an authorized payment. Stripe refuses one already taken or released: it is read back and answered as it
+   * stands (another reading of the same payment took it a moment before).
+   */
+  async capture(intentId: string): Promise<Intent> {
+    try {
+      return toIntent(await orNotFound(intentId, this.stripe.paymentIntents.capture(intentId)));
+    } catch (err) {
+      if (!(err instanceof Stripe.errors.StripeInvalidRequestError)) throw err;
+      return this.getIntent(intentId);
+    }
+  }
+
+  /** Releases an authorized payment; one Stripe will not cancel (taken, or canceled already) is read back as it stands. */
+  async cancel(intentId: string): Promise<Intent> {
+    try {
+      return toIntent(await orNotFound(intentId, this.stripe.paymentIntents.cancel(intentId)));
+    } catch (err) {
+      if (!(err instanceof Stripe.errors.StripeInvalidRequestError)) throw err;
+      return this.getIntent(intentId);
+    }
+  }
+
+  /**
+   * With its PaymentIntent expanded: the attempts made on the page, in the same call. Paid once its payment is taken —
+   * a manual-capture session completes with its payment only authorized (payment_status "unpaid", the intent
+   * requires_capture) until the store captures it.
+   */
   async getSession(id: string): Promise<Session> {
     const cs = await orNotFound(id, this.stripe.checkout.sessions.retrieve(id, { expand: ["payment_intent"] }));
     const pi = cs.payment_intent;
     return {
       id: cs.id,
       url: cs.url ?? "",
-      paid: cs.payment_status === "paid",
+      paid: cs.payment_status === "paid" || (cs.payment_status === "unpaid" && typeof pi === "object" && pi !== null && pi.status === "succeeded"),
       amountCents: cs.amount_total ?? 0,
       paymentIntentId: idOf(pi),
       metadata: { ...(cs.metadata ?? {}) },

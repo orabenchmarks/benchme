@@ -1,7 +1,7 @@
 import type { CheckoutDirectory, CheckoutMatch } from "../binding/checkout-directory.js";
 import type { EventsRepo } from "../db/events-repo.js";
 import type { SavedCardsRepo } from "../db/saved-cards-repo.js";
-import { issueCard, lastFour } from "../domain/cards.js";
+import { issueCard, lastFour, SAVED_CARD_EXPIRY } from "../domain/cards.js";
 import { chooseSavedCard, type DoorOutcome } from "../domain/saved-card.js";
 import type { IssuedCard } from "../domain/types.js";
 
@@ -42,13 +42,13 @@ export class CardOnFileService {
     }
     const { kind } = choice;
     const stores = choice.stores.map(shown);
-    const card = await this.d.cards.issue(workspace, kind, () => issueCard(kind, this.d.now()), stores);
+    const card = await this.d.cards.issue(workspace, kind, () => issueCard(kind, this.d.now(), SAVED_CARD_EXPIRY), stores);
     await this.record(workspace, how, { outcome: "shown", card: kind, last4: lastFour(card.number), stores });
     return { outcome: "shown", card };
   }
 
-  /** Whether the door showed this workspace a card ending `last4` for `store` — a payment with it is the wallet's. */
-  shownFor(workspace: string, store: string, last4: string): Promise<boolean> {
+  /** The saved cards ending `last4` the door showed this workspace for `store` — a payment with one is the wallet's. */
+  shownFor(workspace: string, store: string, last4: string): Promise<IssuedCard[]> {
     return this.d.cards.shownFor(workspace, store, last4);
   }
 

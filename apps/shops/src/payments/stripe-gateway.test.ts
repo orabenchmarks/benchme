@@ -60,6 +60,7 @@ describe("StripePaymentGateway (offline)", () => {
       currency: "usd",
       "allowed_payment_method_types[0]": "card",
       "allowed_payment_method_types[1]": "link",
+      capture_method: "automatic",
       receipt_email: "buyer@example.com",
       statement_descriptor_suffix: "HALDEN AUDIO",
       "metadata[workspace]": meta.workspace,
@@ -67,6 +68,9 @@ describe("StripePaymentGateway (offline)", () => {
       "metadata[scenario]": meta.scenario,
       "metadata[checkout_token]": meta.checkout_token,
     });
+    // The stores confirm with manual capture: an authorized payment waits for them to take it.
+    await gateway.createIntent({ amountCents: 6499, metadata: meta, methods: ["card"], email: "buyer@example.com", statementDescriptor: "HALDEN AUDIO", captureMethod: "manual" });
+    expect(calls[1]!.params.get("capture_method")).toBe("manual");
   });
 
   it("calls Stripe with a short timeout and at most one network retry, whatever the caller asks for", async () => {
@@ -131,9 +135,9 @@ describe("StripePaymentGateway (offline)", () => {
 
     body = { id: "pi_123", object: "payment_intent", amount: 6499, status: "succeeded", metadata: meta, payment_method: "pm_9", latest_charge: "ch_2", last_payment_error: null };
     expect(await gateway.getIntent("pi_123")).toMatchObject({ status: "succeeded", lastError: null, attemptMethod: null, latestCharge: "ch_2" });
-    // Never treated as paid: an uncaptured authorisation, or a status this code does not know.
+    // An uncaptured authorisation is what it is — the store takes it, or releases it; a status this code does not know is never paid.
     body = { ...body, status: "requires_capture" };
-    expect((await gateway.getIntent("pi_123")).status).toBe("processing");
+    expect((await gateway.getIntent("pi_123")).status).toBe("requires_capture");
     body = { ...body, status: "some_future_status" };
     expect((await gateway.getIntent("pi_123")).status).toBe("processing");
   });
@@ -181,7 +185,10 @@ describe("StripePaymentGateway (offline)", () => {
       "payment_intent_data[metadata][checkout_token]": meta.checkout_token,
       "payment_intent_data[receipt_email]": "buyer@example.com",
       "payment_intent_data[statement_descriptor_suffix]": "HALDEN AUDIO",
+      "payment_intent_data[capture_method]": "automatic",
     });
+    await gateway.createSession({ lines: [{ name: "Fixture item — Large", unitCents: 19900, qty: 1 }], email: "b@example.com", successUrl: "https://gw.test/s", cancelUrl: "https://gw.test/c", metadata: meta, statementDescriptor: "HALDEN AUDIO", captureMethod: "manual" });
+    expect(calls[1]!.params.get("payment_intent_data[capture_method]")).toBe("manual");
   });
 
   it("reads a session as paid only when Stripe says so, with its payment intent (expanded: the attempts made on the page)", async () => {
@@ -217,6 +224,29 @@ describe("StripePaymentGateway (offline)", () => {
     expect(await gateway.getSession("cs_test_1")).toMatchObject({ paymentIntentId: "pi_9", intent: { status: "succeeded", latestCharge: "ch_8" } });
     body = { ...body, payment_status: "no_payment_required" };
     expect((await gateway.getSession("cs_test_1")).paid).toBe(false);
+    // Manual capture: completed with its payment authorized (unpaid, the intent requires_capture) — paid once taken.
+    body = { ...body, payment_status: "unpaid", payment_intent: { ...declined, status: "requires_capture", latest_charge: "ch_8", last_payment_error: null } };
+    expect(await gateway.getSession("cs_test_1")).toMatchObject({ paid: false, intent: { status: "requires_capture" } });
+    body = { ...body, payment_intent: { ...declined, status: "succeeded", latest_charge: "ch_8", last_payment_error: null } };
+    expect((await gateway.getSession("cs_test_1")).paid).toBe(true);
+  });
+
+  it("takes an authorized payment (capture) or releases it (cancel); one Stripe refuses is read back as it stands", async () => {
+    let refuse = false;
+    const pi = (status: string) => ({ id: "pi_7", object: "payment_intent", amount: 4500, status, metadata: meta, payment_method: null, latest_charge: "ch_7", last_payment_error: null });
+    const { gateway, calls } = offline((call) => {
+      if (call.method === "POST" && refuse) return { status: 400, body: { error: { type: "invalid_request_error", code: "payment_intent_unexpected_state", message: "This PaymentIntent could not be captured." } } };
+      if (call.path === "/v1/payment_intents/pi_7/capture") return { body: pi("succeeded") };
+      if (call.path === "/v1/payment_intents/pi_7/cancel") return { body: pi("canceled") };
+      return { body: pi("succeeded") };
+    });
+    expect((await gateway.capture("pi_7")).status).toBe("succeeded");
+    expect((await gateway.cancel("pi_7")).status).toBe("canceled");
+    expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual(["POST /v1/payment_intents/pi_7/capture", "POST /v1/payment_intents/pi_7/cancel"]);
+    refuse = true;
+    expect((await gateway.capture("pi_7")).status).toBe("succeeded");
+    expect((await gateway.cancel("pi_7")).status).toBe("succeeded"); // taken a moment before: it stands
+    expect(calls.slice(2).map((c) => `${c.method} ${c.path}`)).toEqual(["POST /v1/payment_intents/pi_7/capture", "GET /v1/payment_intents/pi_7", "POST /v1/payment_intents/pi_7/cancel", "GET /v1/payment_intents/pi_7"]);
   });
 
   it("lists an intent's charges oldest first: status, the card, and 3-D Secure as Stripe recorded it", async () => {
@@ -226,7 +256,8 @@ describe("StripePaymentGateway (offline)", () => {
       created,
       status: "succeeded",
       payment_method: `pm_${id}`,
-      payment_method_details: { type: "card", card: { brand: "visa", last4: "0002", three_d_secure: null } },
+      captured: o.status === undefined,
+      payment_method_details: { type: "card", card: { brand: "visa", last4: "0002", exp_month: 7, exp_year: 2029, three_d_secure: null } },
       ...o,
     });
     const { gateway, calls } = offline((call) =>
@@ -238,7 +269,7 @@ describe("StripePaymentGateway (offline)", () => {
               url: "/v1/charges",
               // Stripe lists the newest first.
               data: [
-                charge("c3", 300, { payment_method_details: { type: "card", card: { last4: "3184", three_d_secure: { authentication_flow: "challenge", result: "authenticated", version: "2.2.0" } } } }),
+                charge("c3", 300, { payment_method_details: { type: "card", card: { last4: "3184", exp_month: 11, exp_year: 2028, three_d_secure: { authentication_flow: "challenge", result: "authenticated", version: "2.2.0" } } } }),
                 charge("c2", 200, { status: "pending", payment_method_details: { type: "link", link: { country: "US" } } }),
                 charge("c1", 100, { status: "failed", failure_code: "card_declined" }),
               ],
@@ -247,9 +278,9 @@ describe("StripePaymentGateway (offline)", () => {
         : { status: 404, body: { error: { type: "invalid_request_error", code: "resource_missing", message: "No such payment_intent: 'pi_nope'" } } },
     );
     expect(await gateway.charges("pi_123")).toEqual([
-      { id: "c1", status: "failed", paymentMethod: "pm_c1", threeDSecure: null, card: { last4: "0002" }, created: 100 },
-      { id: "c2", status: "pending", paymentMethod: "pm_c2", threeDSecure: null, card: null, created: 200 }, // Link: no card
-      { id: "c3", status: "succeeded", paymentMethod: "pm_c3", threeDSecure: { flow: "challenge", result: "authenticated" }, card: { last4: "3184" }, created: 300 },
+      { id: "c1", status: "failed", captured: false, paymentMethod: "pm_c1", threeDSecure: null, card: { last4: "0002", expMonth: 7, expYear: 2029 }, created: 100 },
+      { id: "c2", status: "pending", captured: false, paymentMethod: "pm_c2", threeDSecure: null, card: null, created: 200 }, // Link: no card
+      { id: "c3", status: "succeeded", captured: true, paymentMethod: "pm_c3", threeDSecure: { flow: "challenge", result: "authenticated" }, card: { last4: "3184", expMonth: 11, expYear: 2028 }, created: 300 },
     ]);
     expect([calls[0]!.method, calls[0]!.path, calls[0]!.params.get("payment_intent"), calls[0]!.params.get("limit")]).toEqual(["GET", "/v1/charges", "pi_123", "100"]);
   });

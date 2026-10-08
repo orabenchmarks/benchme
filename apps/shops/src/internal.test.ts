@@ -107,6 +107,8 @@ beforeAll(async () => {
     getSession: (id) => stripeFake.getSession(id),
     expireSession: (id) => stripeFake.expireSession(id),
     charges: (id) => stripeFake.charges(id),
+    capture: (id) => stripeFake.capture(id),
+    cancel: (id) => stripeFake.cancel(id),
   };
   stripeApp = await buildShops({ ...base, payments: stripeLike });
 });
@@ -153,7 +155,8 @@ describe.skipIf(!DB)("the internal state API (real Postgres)", () => {
     expect(orderNo.endsWith(suffixTable(KEY, "fixture-pe").correct)).toBe(true);
     // What the processor charged, beside what the store priced.
     expect(s.orders[0].chargedCents).toBe(s.orders[0].totals.totalCents);
-    expect(s.events.map((e: { kind: string }) => e.kind)).toEqual(["checkout_started", "order_placed"]);
+    // The card that paid, logged when the store took the authorized payment (fake mode's words), then the order.
+    expect(s.events.map((e: { kind: string }) => e.kind)).toEqual(["checkout_started", "payment_attempt", "order_placed"]);
     expect(s.paylantern).toEqual([]);
     // Nothing of another store or workspace.
     expect((await state("quillfeather", w)).json()).toMatchObject({ store: "quillfeather", campaign: null, scenarioId: null, locked: false, checkouts: [], orders: [], events: [] });
@@ -195,6 +198,7 @@ describe.skipIf(!DB)("the internal state API (real Postgres)", () => {
     expect(s.checkouts).toEqual([expect.objectContaining({ token: tok, status: "paid", paymentRef: id })]);
     expect(s.events.map((e: { kind: string; data: { reconciled?: boolean } }) => [e.kind, e.data.reconciled ?? null])).toEqual([
       ["checkout_started", null],
+      ["payment_attempt", null],
       ["order_placed", true],
     ]);
     expect(s.payments).toEqual([
@@ -214,7 +218,7 @@ describe.skipIf(!DB)("the internal state API (real Postgres)", () => {
     // Read again: the same order, nothing recorded twice.
     const again = (await state("halden", w)).json();
     expect(again.orders).toEqual(s.orders);
-    expect(again.events).toHaveLength(2);
+    expect(again.events).toHaveLength(3);
     // Another store's state lists none of it; PayLantern's lists every store's payments.
     expect((await state("quillfeather", w)).json().payments).toEqual([]);
     expect((await state("paylantern", w)).json().payments.map((p: { ref: string; store: string }) => [p.ref, p.store])).toEqual([[id, "halden"]]);

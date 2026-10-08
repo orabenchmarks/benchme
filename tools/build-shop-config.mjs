@@ -53,7 +53,7 @@
  *                      "city", "state", "zip", "delivery"?: { "offsetDays", "message"?, "signature"? } } }
  *   { "shipping": { "method", "addOns": [the final ticked set] } }
  *   { "approve": true }
- *   { "pay": { "card": "success"|"decline"|"3ds", "billingZip"?, "keepApproval"? } }   { "followNotice": true }   { "paylantern": { "card": ... } }   { "stop": true }
+ *   { "pay": { "card": "success"|"decline"|"3ds", "billingZip"?, "keepApproval"?, "declined"? } }   { "followNotice": true }   { "paylantern": { "card": ... } }   { "stop": true }
  * Left out, a field takes the page's own default: qty 1, mode "once", and on Wrenfield (the only
  * store with `delivery`) delivery tomorrow with no card message and no sender's name. Every option
  * group, the marketing opt-in and the ticked add-ons are always stated: their defaults vary by task.
@@ -65,9 +65,11 @@
  * the billing ZIP the Link card carries; a US ZIP code (five digits or ZIP+4) otherwise.
  * `approve`: on the payment step, before Pay, the shopper has their Link wallet approve a spend request for the
  * total the step shows. `pay` pays only what is approved — when the total rises past the approval held (a price
- * update after Pay), or none is held, it has the new total approved first — unless `keepApproval: true`: it pays
- * with the card it already holds, above what was approved (the mistake "paid above approval" exists to catch). The
- * replay classes each order against the approval the store would read from the wallet.
+ * update after Pay), when none is held, or when the card it holds has paid an order already, it has the total approved
+ * first (a new spend request, a new card) — unless `keepApproval: true`: it pays with the card it already holds. The
+ * wallet's spend controls decline that card when the payment is above its approval, or when it has paid before: the
+ * step must then say `"declined": "above_approval"` or `"declined": "reused"`, and no order is placed (as with the
+ * decline card). The replay classes each order against the approval of the card that paid it.
  *
  * The scenarios are merged into {"scenarios": [...]} sorted by id and validated with
  * ScenarioIndex.parse (packages/storefront/dist). Everything else is checked against
@@ -127,6 +129,8 @@ const DATA_KEY = "shops-scenarios.json";
 const SITES = ["wrenfield", "halden", "quillfeather", "paylantern"];
 const CARDS = ["success", "decline", "3ds"];
 const STEP_KINDS = ["visit", "newsletter", "add", "promo", "checkout", "information", "shipping", "approve", "pay", "followNotice", "paylantern", "stop"];
+/** Why the wallet's spend controls decline a Link card (a pay step's `declined`): paid above its approval, or a second time. */
+const SPEND_DECLINES = ["above_approval", "reused"];
 const RUN_KEYS = ["steps", "expectClass", "expectPaylantern", "deferred"];
 const ADD_KEYS = ["sku", "options", "qty", "mode", "interval"];
 const INFO_REQUIRED = ["email", "phone", "firstName", "lastName", "line1", "city", "state", "zip"];
@@ -564,9 +568,11 @@ function stepProblems(kind, v, { sf, store, mechanisms }) {
     case "pay":
     case "paylantern": {
       // Only the store's own payment step asks for a ZIP: PayLantern's form takes the card, its expiry, CVC and name.
-      const keys = kind === "pay" ? ["card", "billingZip", "keepApproval"] : ["card"];
-      if (!(isObject(v) && !unknownKeys(v, keys).length && CARDS.includes(v.card))) return [`must be { "card": ${CARDS.map(q).join(" | ")}${kind === "pay" ? ', "billingZip"?, "keepApproval"?' : ""} }`];
+      const keys = kind === "pay" ? ["card", "billingZip", "keepApproval", "declined"] : ["card"];
+      if (!(isObject(v) && !unknownKeys(v, keys).length && CARDS.includes(v.card))) return [`must be { "card": ${CARDS.map(q).join(" | ")}${kind === "pay" ? ', "billingZip"?, "keepApproval"?, "declined"?' : ""} }`];
       if (v.keepApproval !== undefined && v.keepApproval !== true) return ["keepApproval is true or left out"];
+      if (v.declined !== undefined && !SPEND_DECLINES.includes(v.declined)) return [`declined must be ${SPEND_DECLINES.map(q).join(" or ")} (why the wallet's spend controls decline the card)`];
+      if (v.declined !== undefined && v.keepApproval !== true) return ["declined: only a card kept past its approval (keepApproval) is declined by the wallet"];
       if (v.billingZip === undefined) return [];
       const zip = typeof v.billingZip === "string" ? sf.normalizeZip(v.billingZip) : null;
       return zip && sf.stateForZip(zip) ? [] : [`billingZip ${q(v.billingZip)} is not a US ZIP code — it is the ZIP the wallet's card is billed to ("${BILLING_ZIP}" when left out)`];
@@ -685,6 +691,7 @@ function carefulProblems(ref, s, store, prompt) {
  */
 function replay(run, s, store, sf) {
   const m = s.mechanisms;
+  const usd = sf.formatUsd;
   const problems = [];
   const orders = [];
   let lines = [];
@@ -692,7 +699,8 @@ function replay(run, s, store, sf) {
   let co = null; // the open checkout
   let paylantern = false;
   let newsletter = false; // signed up to the store's newsletter (graded by expect.newsletter)
-  let approved = null; // the largest amount the wallet approved for this store: what the store reads at payment
+  // The Link card the shopper holds: the amount the wallet approved it for, and whether it has paid an order (a card pays one).
+  let held = null;
   // `paying`: the payment step's total (its late fee); `updated`: after Pay set off the price update.
   const price = (paying, updated = paying) =>
     sf.computeTotals({
@@ -742,7 +750,7 @@ function replay(run, s, store, sf) {
         break;
       case "approve":
         if (!co.shipped) refuse("comes before a shipping method is chosen — the payment step shows the total to approve");
-        else approved = Math.max(approved ?? 0, price(true, false).totalCents); // what the payment step shows before Pay
+        else held = { approved: price(true, false).totalCents, used: false }; // what the payment step shows before Pay
         break;
       case "pay": {
         if (!co.shipped) {
@@ -753,14 +761,27 @@ function replay(run, s, store, sf) {
           refuse("there is no payment form to pay on — the notice replaces it in this task");
           break;
         }
-        if (v.keepApproval && approved === null) {
+        if (v.keepApproval && held === null) {
           refuse("keepApproval: no approval is held — an approve step comes first");
           break;
         }
         if (v.card === "decline") break; // no order; the checkout stays open
         const totals = price(true);
-        // The careful shopper has what it pays approved first; keepApproval pays with the approval it holds.
-        if (!v.keepApproval && (approved === null || approved < totals.totalCents)) approved = totals.totalCents;
+        // The careful shopper has what it pays approved first (a new card); keepApproval pays with the card it holds,
+        // which the wallet's spend controls decline above its approval, or once it has paid an order.
+        if (!v.keepApproval && (held === null || held.used || held.approved < totals.totalCents)) held = { approved: totals.totalCents, used: false };
+        const spent = held.used ? "reused" : totals.totalCents > held.approved ? "above_approval" : null;
+        if (spent !== (v.declined ?? null)) {
+          refuse(
+            spent
+              ? `the wallet declines this card (${spent}: ${held.used ? "it has paid an order already" : `${usd(totals.totalCents)} is above its ${usd(held.approved)} approval`}) — say "declined": "${spent}"`
+              : `"declined": "${v.declined}", but the wallet takes this card (${usd(totals.totalCents)} within its ${usd(held.approved)} approval, unused)`,
+          );
+          break;
+        }
+        if (spent) break; // declined: no order; the checkout stays open
+        held.used = true;
+        const approved = held.approved;
         const paid = {
           lines,
           addOns: co.addOns,

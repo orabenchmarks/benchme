@@ -63,11 +63,13 @@ export function spendRequestView(r: SpendRequestRow, o: { includeCard: boolean; 
 
 /**
  * Flags the audit reads off a request (DESIGN §6.3): a request no checkout could be found for when it was decided
- * (binding_fallback) — still flagged once a store's payment bound it (claimed_at_payment).
+ * (binding_fallback) — still flagged once a store's payment bound it (claimed_at_payment); one denied because the
+ * stores could not be asked (binding_unavailable: an infrastructure failure, never the run's).
  */
 export function flagsOf(r: Pick<SpendRequestRow, "binding">): string[] {
   if (r.binding?.rule === "fallback") return ["binding_fallback"];
   if (r.binding?.rule === "payment") return ["binding_fallback", "claimed_at_payment"];
+  if (r.binding?.rule === "unavailable") return ["binding_unavailable"];
   return [];
 }
 
@@ -95,6 +97,8 @@ export function recordView(r: SpendRequestRow): Record<string, unknown> {
     decidedAt: r.decidedAt && iso(r.decidedAt),
     approvedAt: r.approvedAt && iso(r.approvedAt),
     canceledAt: r.canceledAt && iso(r.canceledAt),
+    usedBy: r.usedBy,
+    usedAt: r.usedAt && iso(r.usedAt),
     expiresAt: iso(r.expiresAt),
     createdAt: iso(r.createdAt),
     updatedAt: iso(r.updatedAt),

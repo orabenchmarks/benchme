@@ -29,14 +29,14 @@ export class SavedCardsRepo {
     return (r.rows[0] as { card: IssuedCard }).card;
   }
 
-  /** Whether the door showed this workspace a saved card ending `last4` for `store`. */
-  async shownFor(workspace: string, store: string, last4: string): Promise<boolean> {
-    const r = await this.pool.query(
-      `SELECT 1 FROM wallet.saved_cards c JOIN wallet.saved_card_stores s USING (workspace_id, kind)
-       WHERE c.workspace_id = $1 AND s.store = $2 AND right(c.card->>'number', 4) = $3 LIMIT 1`,
+  /** The saved cards ending `last4` the door showed this workspace for `store` (with their expiries). */
+  async shownFor(workspace: string, store: string, last4: string): Promise<IssuedCard[]> {
+    const r = await this.pool.query<{ card: IssuedCard }>(
+      `SELECT c.card FROM wallet.saved_cards c JOIN wallet.saved_card_stores s USING (workspace_id, kind)
+       WHERE c.workspace_id = $1 AND s.store = $2 AND right(c.card->>'number', 4) = $3`,
       [workspace, store, last4],
     );
-    return (r.rowCount ?? 0) > 0;
+    return r.rows.map((x) => x.card);
   }
 
   /** The workspace's saved cards, oldest first, each with the stores it was shown for. */

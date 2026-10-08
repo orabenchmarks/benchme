@@ -1,4 +1,4 @@
-import type { Binding } from "../domain/types.js";
+import type { Binding, CardKind } from "../domain/types.js";
 import type { CheckoutDirectory, CheckoutMatch } from "./checkout-directory.js";
 import { parseMerchant, type MerchantRef } from "./merchant.js";
 
@@ -49,9 +49,12 @@ export class ExactAmountRule implements BindingRule {
 }
 
 /**
- * Binds a spend request to the run it belongs to: the rules in order, the first that yields exactly one
- * checkout wins; none does → the fallback (the plain success card, flagged `binding_fallback` in the records).
- * A rule that cannot ask the stores counts as finding nothing, and the reason says so.
+ * Binds a spend request to the run it belongs to: the rules in order, the first that yields exactly one checkout
+ * wins. None does → the fallback (flagged `binding_fallback` in the records), carrying the card every checkout of
+ * the first rule that found several calls for, when they all call for the same one: those are the runs of one task
+ * (one total at one store), so its 3-D Secure or decline card holds for whichever run the request is — never the
+ * plain success card in its place. A rule that cannot ask the stores leaves the request unbound for that reason
+ * (`unavailable`), unless another rule binds it: a card is never issued on a guess the stores could have corrected.
  */
 export class Binder {
   constructor(
@@ -62,11 +65,14 @@ export class Binder {
   async bind(input: BindInput): Promise<Binding> {
     const ref = parseMerchant(input.merchantUrl, input.merchantName, this.stores);
     const notes: string[] = [];
+    let failed = false;
+    let agreed: CardKind | null = null;
     for (const rule of this.rules) {
       let found: CheckoutMatch[] | null;
       try {
         found = await rule.candidates(input, ref);
       } catch (err) {
+        failed = true;
         notes.push(`${rule.name}: ${(err as Error).message}`);
         continue;
       }
@@ -76,11 +82,20 @@ export class Binder {
         return { rule: rule.name, workspace: m.workspace, store: m.store, checkout: m.checkout, scenarioId: m.scenarioId, card: m.card };
       }
       notes.push(`${rule.name}: ${found.length} checkouts`);
+      if (agreed === null && found.length > 1) agreed = unanimous(found);
     }
-    return { rule: "fallback", reason: notes.join("; ") || "no rule applied" };
+    const reason = notes.join("; ") || "no rule applied";
+    if (failed) return { rule: "unavailable", reason };
+    return agreed === null ? { rule: "fallback", reason } : { rule: "fallback", reason, card: agreed };
   }
 
   merchant(input: Pick<BindInput, "merchantUrl" | "merchantName">): MerchantRef {
     return parseMerchant(input.merchantUrl, input.merchantName, this.stores);
   }
+}
+
+/** The card every match calls for, when they all call for the same one; null otherwise. */
+function unanimous(found: readonly CheckoutMatch[]): CardKind | null {
+  const kinds = new Set(found.map((m) => m.card));
+  return kinds.size === 1 ? ((found[0] as CheckoutMatch).card) : null;
 }

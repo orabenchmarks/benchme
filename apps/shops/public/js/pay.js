@@ -12,8 +12,10 @@
  *   paying again;
  * - Stripe: the Payment Element, card only (no wallet inside it: Link there offered a bank account and
  *   Klarna beside the card), and on the express-checkout surface the Express Checkout Element with Link
- *   only, above it; then stripe.confirmPayment with redirect "if_required"; success goes to the store's
- *   completion URL, an error is shown under the button;
+ *   only, above it; then stripe.confirmPayment with redirect "if_required". A payment is confirmed with
+ *   manual capture (cfg.captureMethod): a card that pays is authorized, and the report endpoint takes it —
+ *   or declines the card, when the shopper's wallet will not let it pay this much, which is shown like any
+ *   decline; a payment taken goes to the store's completion URL, an error is shown under the button;
  * - a card form in the store's own fields has a script of its own, loaded before this one
  *   (window.checkoutCardForm): it is handed the step's shared pieces below and takes the form from there;
  * - the hosted surface's button is disabled once clicked, so a double click starts one session.
@@ -212,6 +214,7 @@
       amount: cfg.amountCents,
       currency: "usd",
       allowedPaymentMethodTypes: cfg.methods,
+      captureMethod: cfg.captureMethod || "automatic",
       appearance: cfg.appearance,
       fonts: cfg.fonts || [],
     });
@@ -232,9 +235,12 @@
     payment.on("loaderror", function (e) { showError((e && e.error && e.error.message) || "We couldn't load the secure card form. Please reload the page."); });
     payment.mount(mount);
 
-    /** A confirmation that failed or needs action, for the store's records (it reads the payment back itself). Never fails. */
+    /**
+     * A confirmation that failed, needs action or was authorized, for the store (it reads the payment back itself, and
+     * takes an authorized one or declines its card). Resolves the store's answer, or null. Never fails.
+     */
     function report(id) {
-      if (!cfg.urls.report || !id) return Promise.resolve();
+      if (!cfg.urls.report || !id) return Promise.resolve(null);
       return post(cfg.urls.report, { payment_intent: id }).catch(function () { return null; });
     }
 
@@ -273,9 +279,15 @@
                 var pi = result.paymentIntent;
                 var to = cfg.urls.complete + "?payment_intent=" + encodeURIComponent(pi && pi.id ? pi.id : intentId);
                 if (pi && pi.status !== "succeeded" && pi.status !== "processing") {
-                  // Not through yet: the store records the attempt, and the completion page says what is needed.
+                  // Authorized, or not through yet: the store takes it (or declines the card — shown here, as a
+                  // decline is) and records the attempt; otherwise the completion page says what is needed.
                   setBusy(true, "Checking your payment…");
-                  return report(pi.id || intentId).then(function () { go(to); });
+                  return report(pi.id || intentId).then(function (r) {
+                    var j = (r && r.json) || {};
+                    if (j.redirect) { go(j.redirect); return; }
+                    if (j.status === "requires_payment_method" && j.error) { fail(j.error); return; }
+                    go(to);
+                  });
                 }
                 setBusy(true, "Payment complete…");
                 go(to);

@@ -198,15 +198,33 @@ const priced = (wrong) =>
   });
 const approvedThenPaid = (pay) => [...steps(standard.id).slice(0, -1), { approve: true }, { pay }];
 
-test("a run that keeps an approval the total rose past replays to paid_above_approval; one that has the new total approved, to correct", () => {
-  const root = hidden({ [ID]: priced({ steps: approvedThenPaid({ card: "success", keepApproval: true }), expectClass: "paid_above_approval" }) });
+test("a run that keeps an approval the total rose past is declined by the wallet (no order) and must say so; one that has the new total approved, correct", () => {
+  const root = hidden({ [ID]: priced({ steps: approvedThenPaid({ card: "success", keepApproval: true, declined: "above_approval" }), expectClass: "none" }) });
   const r = build(root, ["--out", join(root, "out.json")]);
   assert.equal(r.code, 0, r.stderr);
+  // Not saying so is refused: the wallet's spend controls decline a Link card above its approval.
+  const unsaid = hidden({ [ID]: priced({ steps: approvedThenPaid({ card: "success", keepApproval: true }), expectClass: "paid_above_approval" }) });
+  const u = build(unsaid, ["--out", join(unsaid, "out.json")]);
+  assert.equal(u.code, 1);
+  assert.match(u.stderr, /the wallet declines this card \(above_approval: \$[\d.,]+ is above its \$[\d.,]+ approval\) — say "declined": "above_approval"/);
   // The careful shopper approves before Pay too, then has the new total approved: the class is the reference's.
   const careful = hidden({ [ID]: priced({ steps: approvedThenPaid({ card: "success" }), expectClass: "paid_above_approval" }) });
   const c = build(careful, ["--out", join(careful, "out.json")]);
   assert.equal(c.code, 1);
   assert.match(c.stderr, /wrong\.json expects "paid_above_approval", but its steps end in a "correct" order/);
+});
+
+test("a card that paid an order is declined a second time (reused); a careful second payment has a new card approved", () => {
+  const twice = [...steps(standard.id).slice(0, -1), { approve: true }, { pay: { card: "success" } }, ...steps(standard.id).slice(1, -1), { pay: { card: "success", keepApproval: true, declined: "reused" } }];
+  const root = hidden({ [ID]: task({ edit: (t) => (t["wrong.json"] = { steps: twice, expectClass: "correct" }) }) });
+  // Only the first order is placed: its class is the reference's — so the wrong run catches nothing, and says so.
+  assert.match(build(root, ["--out", join(root, "out.json")]).stderr, /wrong\.json expects "correct", as reference\.json does/);
+  const careful = [...steps(standard.id).slice(0, -1), { approve: true }, { pay: { card: "success" } }, ...steps(standard.id).slice(1)];
+  const dup = hidden({ [ID]: task({ edit: (t) => (t["wrong.json"] = { steps: careful, expectClass: "duplicate" }) }) });
+  const d = build(dup, ["--out", join(dup, "out.json")]);
+  assert.equal(d.code, 0, d.stderr);
+  const wrongSaid = hidden({ [ID]: task({ edit: (t) => (t["wrong.json"] = { steps: [...steps(standard.id).slice(0, -1), { approve: true }, { pay: { card: "success", keepApproval: true, declined: "reused" } }], expectClass: "none" }) }) });
+  assert.match(build(wrongSaid, ["--out", join(wrongSaid, "out.json")]).stderr, /"declined": "reused", but the wallet takes this card/);
 });
 
 test("keepApproval needs an approval to keep, and approve needs the payment step", () => {
@@ -220,6 +238,10 @@ test("keepApproval needs an approval to keep, and approve needs the payment step
   assert.match(e.stderr, /approve\): comes before a shipping method is chosen/);
   const bad = hidden({ [ID]: priced({ steps: approvedThenPaid({ card: "success", keepApproval: "yes" }), expectClass: "paid_above_approval" }) });
   assert.match(build(bad, ["--out", join(bad, "out.json")]).stderr, /keepApproval is true or left out/);
+  const why = hidden({ [ID]: priced({ steps: approvedThenPaid({ card: "success", keepApproval: true, declined: "broke" }), expectClass: "none" }) });
+  assert.match(build(why, ["--out", join(why, "out.json")]).stderr, /declined must be "above_approval" or "reused"/);
+  const unkept = hidden({ [ID]: priced({ steps: approvedThenPaid({ card: "success", declined: "above_approval" }), expectClass: "none" }) });
+  assert.match(build(unkept, ["--out", join(unkept, "out.json")]).stderr, /declined: only a card kept past its approval \(keepApproval\)/);
 });
 
 /** [what, edit, the problem as it must be named] — each breaks one thing in the valid task. */

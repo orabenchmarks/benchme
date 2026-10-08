@@ -2,27 +2,15 @@ import { randomBytes } from "node:crypto";
 import type { Binder } from "../binding/binder.js";
 import type { EventsRepo } from "../db/events-repo.js";
 import type { RequestPatch, RequestsRepo } from "../db/requests-repo.js";
-import { issueCard, lastFour } from "../domain/cards.js";
+import { cardKindOf, issueCard, SPEND_REQUEST_EXPIRY } from "../domain/cards.js";
 import { allows, dueTransition, type Timing } from "../domain/lifecycle.js";
 import { invalid, notFound, rateLimited } from "../domain/link-errors.js";
 import type { CreateInput, UpdateInput } from "../domain/spend-request-input.js";
-import { STATUSES, type Binding, type Session, type SpendRequestRow, type Status } from "../domain/types.js";
+import { STATUSES, type Binding, type CardKind, type IssuedCard, type Session, type SpendRequestRow, type Status } from "../domain/types.js";
 import type { ApprovalPolicy } from "../policy/approval-policy.js";
 import { paymentMethodIdOf } from "./account.js";
 
 export type Limits = { perHour: number; active: number };
-
-/** A store's payment being classed: what it charged and the last four of the card it was made with (null: no card). */
-export type Paying = { amountCents: number; last4: string | null };
-
-/** What a store reads at payment time (GET /internal/approvals). */
-export type Approvals = { approvedCents: number | null; walletCard: boolean | null; claimed: string | null; requests: SpendRequestRow[] };
-
-/** An approval that still stands (canceled ones do not). */
-const live = (r: SpendRequestRow) => r.approvedAt !== null && r.canceledAt === null;
-
-/** Whether the request's issued card is the one ending `last4` — and still stands. */
-const issued = (r: SpendRequestRow, last4: string | null) => last4 !== null && live(r) && r.card !== null && lastFour(r.card.number) === last4;
 
 /** Link's documented creation limits per account: 50 an hour, 30 active (created + pending + approved). */
 export const LINK_LIMITS: Limits = { perHour: 50, active: 30 };
@@ -34,8 +22,18 @@ export type SpendRequestDeps = {
   policy: ApprovalPolicy;
   timing: Timing;
   limits: Limits;
+  /**
+   * How long a decision may wait for stores that cannot be asked (the policy's `retry`): the request stays pending —
+   * decided at the next read once they answer — then it is denied, flagged `binding_unavailable`.
+   */
+  bindingRetryMs: number;
+  /** How far back a payment may claim an approval no checkout was found for: the binding window. */
+  claimWindowMs: number;
   now: () => Date;
 };
+
+/** The denial a request gets when the stores could not be asked in time: temporary — asking again may be approved. */
+export const BINDING_UNAVAILABLE = "the store could not be checked just now; request a new approval";
 
 /**
  * The spend-request lifecycle (DESIGN §6.1–6.3): create → request approval → the policy's decision, bound to a
@@ -118,30 +116,44 @@ export class SpendRequestService {
     return moved;
   }
 
-  /** Applies whatever fell due on the clock, in order (a decision, then an expiry). */
+  /** Applies whatever fell due on the clock, in order (a decision, then an expiry). A decision put off leaves the request as it is. */
   async refresh(row: SpendRequestRow): Promise<SpendRequestRow> {
     let current = row;
     for (let step = 0; step < 3; step++) {
       const due = dueTransition(current, this.d.now(), this.d.timing);
       if (!due) return current;
-      current = due.kind === "decide" ? await this.decide(current) : await this.expire(current, due.reason);
+      const next = due.kind === "decide" ? await this.decide(current) : await this.expire(current, due.reason);
+      if (next.status === current.status) return next;
+      current = next;
     }
     return current;
   }
 
-  /** The policy's decision on a pending request, bound to the checkout it pays for; once (a concurrent reader gets the same). */
+  /**
+   * The policy's decision on a pending request, bound to the checkout it pays for; once (a concurrent reader gets the
+   * same). A `retry` (the stores could not be asked) is recorded and leaves the request pending while it is young —
+   * the next read decides again — and denies it, flagged, once `bindingRetryMs` has passed since approval was asked.
+   */
   async decide(row: SpendRequestRow): Promise<SpendRequestRow> {
     const input = { amount: row.amount, merchantUrl: row.merchantUrl, merchantName: row.merchantName };
     const binding = await this.d.binder.bind(input);
     const decision = this.d.policy.decide({ request: row, binding, merchant: this.d.binder.merchant(input) });
     const now = this.d.now();
+    if (decision.status === "retry") {
+      await this.d.events.record({ session: row.sessionId, request: row.id, kind: "binding_unavailable", data: { reason: decision.reason } });
+      const asked = (row.approvalRequestedAt ?? row.createdAt).getTime();
+      if (now.getTime() - asked < this.d.bindingRetryMs) return row;
+    }
+    // A request the policy denies on its own grounds is merely unbound, whether or not the stores answered: only a
+    // denial the outage caused keeps the `unavailable` binding (flagged binding_unavailable — infrastructure).
+    const kept: Binding = binding.rule === "unavailable" && decision.status !== "retry" ? { rule: "fallback", reason: binding.reason } : binding;
     const patch: RequestPatch =
       decision.status === "approved"
-        ? { status: "approved", binding, card: issueCard(decision.card, now), decidedAt: now, approvedAt: now }
-        : { status: "denied", binding, denialReason: decision.reason, decidedAt: now };
+        ? { status: "approved", binding: kept, card: await this.newCard(row, decision.card, now), decidedAt: now, approvedAt: now }
+        : { status: "denied", binding: kept, denialReason: decision.status === "retry" ? `${BINDING_UNAVAILABLE} (${decision.reason})` : decision.reason, decidedAt: now };
     const moved = await this.d.requests.change(row.id, ["pending_approval"], patch);
     if (!moved) return (await this.d.requests.get(row.id)) ?? row;
-    await this.statusEvent(moved, row.status, `policy:${this.d.policy.name}`, { binding, ...(decision.status === "denied" ? { reason: decision.reason } : { card: decision.card }) });
+    await this.statusEvent(moved, row.status, `policy:${this.d.policy.name}`, { binding: kept, ...(decision.status === "approved" ? { card: decision.card } : { reason: decision.reason }) });
     return moved;
   }
 
@@ -153,7 +165,7 @@ export class SpendRequestService {
     let patch: RequestPatch = { status, statusDetails: null };
     if (status === "approved" && !row.card) {
       const binding = await this.d.binder.bind({ amount: row.amount, merchantUrl: row.merchantUrl, merchantName: row.merchantName });
-      patch = { ...patch, binding, card: issueCard(binding.rule === "fallback" ? "success" : binding.card, now), decidedAt: now, approvedAt: now };
+      patch = { ...patch, binding, card: await this.newCard(row, cardKindOf(binding), now), decidedAt: now, approvedAt: now };
     }
     if (status === "pending_approval") patch.approvalRequestedAt = now;
     if (status === "denied") patch = { ...patch, denialReason: "declined by the user", decidedAt: now };
@@ -168,47 +180,53 @@ export class SpendRequestService {
     return moved;
   }
 
-  /**
-   * What was approved for a workspace's store: the largest live approval (DESIGN §8.2 "paid above approval"). Given
-   * the payment being classed (`paying`: its amount and the last four of the card that paid, null for a payment
-   * made without a card), also whether that card is one the wallet issued for this store — `walletCard`; a card
-   * typed from elsewhere, or a payment with no spend request at all, is not. A request that fell back when it was
-   * decided is bound here, to the first store paid with its card for exactly its amount (claimed_at_payment) —
-   * unless `claim` is false: a payment made with a card the wallet gave the run some other way (the card-on-file
-   * door) is that card's, and never takes another run's request.
-   */
-  async approvals(workspace: string, store: string, paying: Paying | null = null, opts: { claim?: boolean } = {}): Promise<Approvals> {
-    let rows = await Promise.all((await this.d.requests.bound(workspace, store)).map((r) => this.refresh(r)));
-    let claimed: string | null = null;
-    if (opts.claim !== false && paying?.last4 && !rows.some((r) => issued(r, paying.last4))) {
-      const won = await this.claim(workspace, store, paying.amountCents, paying.last4);
-      if (won) {
-        claimed = won.id;
-        rows = [...rows, won];
-      }
-    }
-    const approved = rows.filter(live).map((r) => r.amount);
-    return {
-      approvedCents: approved.length ? Math.max(...approved) : null,
-      walletCard: paying ? paying.last4 !== null && rows.some((r) => issued(r, paying.last4)) : null,
-      claimed,
-      requests: rows,
-    };
+  /** The requests bound to a workspace's store (every store when null), each as it now stands. */
+  async boundTo(workspace: string, store: string | null): Promise<SpendRequestRow[]> {
+    return Promise.all((await this.d.requests.bound(workspace, store)).map((r) => this.refresh(r)));
   }
 
-  /** The oldest unbound approval for exactly `amountCents` whose card ends `last4` and that names no other store, bound to this payment. */
-  private async claim(workspace: string, store: string, amountCents: number, last4: string): Promise<SpendRequestRow | null> {
-    const since = new Date(this.d.now().getTime() - this.d.timing.credentialTtlMs);
-    for (const r of await this.d.requests.claimable(amountCents, last4, since)) {
+  /**
+   * The approvals a payment at `store` may claim: approved within the binding window with no checkout found when
+   * decided (fallback), never used or canceled, with an issued card ending `last4` (for exactly `amountCents` when
+   * given), naming no other store. Oldest approval first.
+   */
+  async claimable(store: string, last4: string, amountCents: number | null = null): Promise<SpendRequestRow[]> {
+    const since = new Date(this.d.now().getTime() - this.d.claimWindowMs);
+    const rows = await this.d.requests.claimable(last4, since, amountCents);
+    return rows.filter((r) => {
       const named = this.d.binder.merchant({ merchantUrl: r.merchantUrl, merchantName: r.merchantName }).store;
-      if ((named !== null && named !== store) || !r.card || r.binding?.rule !== "fallback") continue;
-      const binding: Binding = { rule: "payment", fellBack: r.binding.reason, workspace, store, checkout: null, scenarioId: null, card: r.card.kind };
-      const moved = await this.d.requests.claim(r.id, binding);
-      if (!moved) continue; // another store's payment claimed it a moment before
-      await this.d.events.record({ session: moved.sessionId, request: moved.id, kind: "status", data: { from: moved.status, to: moved.status, by: "payment:claim", binding } });
-      return moved;
-    }
-    return null;
+      return (named === null || named === store) && r.card !== null && r.binding?.rule === "fallback";
+    });
+  }
+
+  /** Binds a fallback request to the workspace's store a payment with its card was made at (claimed_at_payment); null when another payment bound it first. */
+  async claim(r: SpendRequestRow, workspace: string, store: string): Promise<SpendRequestRow | null> {
+    if (r.binding?.rule !== "fallback" || !r.card) return null;
+    const binding: Binding = { rule: "payment", fellBack: r.binding.reason, workspace, store, checkout: null, scenarioId: null, card: r.card.kind };
+    const moved = await this.d.requests.claim(r.id, binding);
+    if (moved) await this.d.events.record({ session: moved.sessionId, request: moved.id, kind: "status", data: { from: moved.status, to: moved.status, by: "payment:claim", binding } });
+    return moved;
+  }
+
+  /** Marks the request's card used by `payment` — the one payment it pays; null when another payment used it first. */
+  async use(r: SpendRequestRow, payment: string): Promise<SpendRequestRow | null> {
+    const moved = await this.d.requests.use(r.id, payment, this.d.now());
+    if (moved) await this.d.events.record({ session: moved.sessionId, request: moved.id, kind: "status", data: { from: moved.status, to: moved.status, by: "payment:use", payment } });
+    return moved;
+  }
+
+  /** A payment the spend controls declined against the request's card, on the request's record. */
+  async declined(r: SpendRequestRow, payment: string | null, reason: string, amountCents: number): Promise<void> {
+    await this.d.events.record({ session: r.sessionId, request: r.id, kind: "status", data: { from: r.status, to: r.status, by: `payment:decline:${reason}`, payment, amountCents } });
+  }
+
+  /**
+   * A card for the request: an expiry no card of its kind the session holds has — and, while one is free, none recently
+   * issued to any session either (cards.ts).
+   */
+  private async newCard(row: SpendRequestRow, kind: CardKind, now: Date): Promise<IssuedCard> {
+    const taken = await this.d.requests.expiriesInUse(row.sessionId, kind, new Date(now.getTime() - this.d.claimWindowMs));
+    return issueCard(kind, now, SPEND_REQUEST_EXPIRY, taken.session, taken.recent);
   }
 
   private async expire(row: SpendRequestRow, reason: string): Promise<SpendRequestRow> {

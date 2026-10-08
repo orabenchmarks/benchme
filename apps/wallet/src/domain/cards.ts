@@ -1,5 +1,5 @@
 import { randomBytes, randomInt } from "node:crypto";
-import type { CardKind, IssuedCard } from "./types.js";
+import type { Binding, CardKind, IssuedCard } from "./types.js";
 
 /**
  * The cards the wallet issues (DESIGN §6.4): Stripe's public test-mode numbers, one per outcome a scenario
@@ -19,18 +19,60 @@ export function isCardKind(value: unknown): value is CardKind {
   return typeof value === "string" && value in CARDS;
 }
 
-/** A fresh virtual card of `kind`: a new id, CVC and an expiry a few years out (any future date pays in test mode). */
-export function issueCard(kind: CardKind, now: Date): IssuedCard {
+/** Where a card's expiry may fall: the years after the year it is issued, and the months. */
+export type ExpiryRange = { years: readonly number[]; months: readonly number[] };
+
+const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
+
+/**
+ * A spend request's card: one to three years out, never December — the month a card typed from memory most
+ * often carries. Within it every card is given an expiry its session's cards of its kind do not have, and while
+ * one is free, no other recent card of its kind either (`taken`), so a payment's expiry, which the processor
+ * records with the last four, tells one issued card from another.
+ */
+export const SPEND_REQUEST_EXPIRY: ExpiryRange = { years: [1, 2, 3], months: MONTHS.slice(0, 11) };
+
+/** The saved card the card-on-file door shows: four years out — an expiry no spend request's card can have. */
+export const SAVED_CARD_EXPIRY: ExpiryRange = { years: [4], months: MONTHS };
+
+/** A card's expiry as one key ("7/2029"). */
+export const expiryKey = (e: { expMonth: number; expYear: number }) => `${e.expMonth}/${e.expYear}`;
+
+/**
+ * A fresh virtual card of `kind`: a new id and CVC, and an expiry in `range` (any future date pays in test mode) that
+ * is in none of `taken` while one is free — the sets in order of importance: when every expiry is taken, the last set
+ * is let go first (a session's own cards stay apart even in a busy hour whose recent cards hold every expiry).
+ */
+export function issueCard(kind: CardKind, now: Date, range: ExpiryRange = SPEND_REQUEST_EXPIRY, ...taken: ReadonlySet<string>[]): IssuedCard {
   const { number, brand } = CARDS[kind];
+  const all = range.years.flatMap((y) => range.months.map((m) => ({ expMonth: m, expYear: now.getUTCFullYear() + y })));
+  let pool = all;
+  for (let keep = taken.length; keep >= 0; keep--) {
+    const free = all.filter((e) => !taken.slice(0, keep).some((t) => t.has(expiryKey(e))));
+    if (free.length) {
+      pool = free;
+      break;
+    }
+  }
+  const expiry = pool[randomInt(pool.length)] as { expMonth: number; expYear: number };
   return {
     id: `lcard_${randomBytes(8).toString("hex")}`,
     kind,
     brand,
     number,
     cvc: String(randomInt(100, 1000)),
-    expMonth: randomInt(1, 13),
-    expYear: now.getUTCFullYear() + 3,
+    ...expiry,
   };
+}
+
+/**
+ * The card a decision issues for a request bound as `b`: the bound store's scenario's — or, unbound, the card every
+ * checkout its rules found calls for when they agree, else the plain success card.
+ */
+export function cardKindOf(b: Binding): CardKind {
+  if (b.rule === "fallback") return b.card ?? "success";
+  if (b.rule === "unavailable") return "success";
+  return b.card;
 }
 
 /** The last four digits of a card number: all a record ever keeps of it. */

@@ -36,6 +36,8 @@ export type BuildDeps = {
   approvalDelayMs: number;
   loginDelayMs: number;
   bindingWindowMinutes: number;
+  /** How long a decision waits for stores that cannot be asked before it denies the request, flagged (default 60 s). */
+  bindingRetryMs?: number;
   publicUrl?: string | null;
   limits?: Limits;
   /** The clock; tests move it. */
@@ -51,13 +53,23 @@ export async function buildWallet(d: BuildDeps): Promise<FastifyInstance> {
   const events = new EventsRepo(d.pool);
   const savedCards = new SavedCardsRepo(d.pool);
   const binder = new Binder([new WorkspacePathRule(d.directory), new HostedSessionRule(d.directory), new ExactAmountRule(d.directory, d.bindingWindowMinutes)], d.stores);
-  const spendRequests = new SpendRequestService({ requests, events, binder, policy: d.policy, timing: { ...LINK_TIMING, approvalDelayMs: d.approvalDelayMs }, limits: d.limits ?? LINK_LIMITS, now });
+  const spendRequests = new SpendRequestService({
+    requests,
+    events,
+    binder,
+    policy: d.policy,
+    timing: { ...LINK_TIMING, approvalDelayMs: d.approvalDelayMs },
+    limits: d.limits ?? LINK_LIMITS,
+    bindingRetryMs: d.bindingRetryMs ?? 60_000,
+    claimWindowMs: d.bindingWindowMinutes * 60_000,
+    now,
+  });
   const cardOnFile = new CardOnFileService({ directory: d.directory, cards: savedCards, events, now });
   const deps: RouteDeps = {
     login: new DeviceLogin({ sessions, now, loginDelayMs: d.loginDelayMs, accessTtlMs: 12 * 3_600_000, codeTtlMs: 15 * 60_000 }),
     spendRequests,
     cardOnFile,
-    payments: new PaymentCheck(spendRequests, cardOnFile),
+    payments: new PaymentCheck(spendRequests, cardOnFile, events),
     requests,
     savedCards,
     events,

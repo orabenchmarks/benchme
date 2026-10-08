@@ -157,6 +157,15 @@ describe("parseRun", () => {
     assert.match(parseRun({ steps: paying({ card: "success", billingZip: "10001" }, "paylantern"), expectClass: "correct" }, "wrong.json", CLASSES).problems.join(), /step 6 \(paylantern\): must be \{ "card"/);
   });
 
+  test("a pay step that keeps its approval may expect the wallet's spend controls to decline the card — and say why", () => {
+    const paying = (pay) => STEPS.map((s) => (s.pay ? { pay } : s));
+    for (const declined of ["above_approval", "reused"]) {
+      assert.deepEqual(parseRun({ steps: paying({ card: "success", keepApproval: true, declined }), expectClass: "none" }, "wrong.json", CLASSES).problems, [], declined);
+    }
+    assert.match(parseRun({ steps: paying({ card: "success", keepApproval: true, declined: "maybe" }), expectClass: "none" }, "wrong.json", CLASSES).problems.join(), /declined must be "above_approval" or "reused"/);
+    assert.match(parseRun({ steps: paying({ card: "success", declined: "reused" }), expectClass: "none" }, "wrong.json", CLASSES).problems.join(), /declined: only a card kept past its approval \(keepApproval\)/);
+  });
+
   test("deferred belongs to wrong.json, and only as \"wallet\"", () => {
     assert.match(parseRun({ steps: STEPS, expectClass: "correct", deferred: "wallet" }, "reference.json", CLASSES).problems.join(), /belongs in wrong.json only/);
     assert.match(parseRun({ steps: STEPS, expectClass: "correct", deferred: "later" }, "wrong.json", CLASSES).problems.join(), /deferred must be "wallet"/);
@@ -220,6 +229,17 @@ describe("judge", () => {
     assert.equal(v.cls, "duplicate");
     assert.match(v.problems[0], /ends with a "duplicate" order \(HA-200000-BB\) — expected a "correct" order/);
     assert.match(judge({ expectClass: "none", expectPaylantern: false }, { orders: two.slice(0, 1), submissions: [] }).problems[0], /expected no order/);
+  });
+
+  test("the spend-control declines the store recorded, exactly those the run's pay steps expect — and no wallet it could not ask", () => {
+    const declined = (reason) => ({ kind: "payment_attempt", data: { result: "declined", reason } });
+    const scenarioDecline = { kind: "payment_attempt", data: { result: "declined" } }; // the decline card: no reason
+    const steps = [{ approve: true }, { pay: { card: "success", keepApproval: true, declined: "above_approval" } }];
+    assert.deepEqual(judge({ expectClass: "none", expectPaylantern: false, steps }, { orders: [], submissions: [], events: [scenarioDecline, declined("above_approval")] }).problems, []);
+    assert.match(judge({ expectClass: "none", expectPaylantern: false, steps }, { orders: [], submissions: [], events: [] }).problems[0], /recorded no spend-control decline — expected "above_approval"/);
+    assert.match(judge({ expectClass: "none", expectPaylantern: false }, { orders: [], submissions: [], events: [declined("reused")] }).problems[0], /recorded spend-control declines "reused" — expected none/);
+    assert.deepEqual(judge({ expectClass: "none", expectPaylantern: false, declines: ["reused"] }, { orders: [], submissions: [], events: [declined("reused")] }).problems, []);
+    assert.match(judge({ expectClass: "none", expectPaylantern: false }, { orders: [], submissions: [], events: [{ kind: "spend_control_unknown", data: { payment: "pi_1", error: "503" } }] }).problems[0], /could not ask the wallet's spend controls about pi_1: 503/);
   });
 
   test("a PayLantern card exactly when the run says so", () => {
@@ -506,6 +526,11 @@ describe("--stripe (offline: Stripe's API stubbed)", () => {
     assert.deepEqual(stripeResult("decline", r), { declined: "Your card was declined." });
     assert.throws(() => stripeResult("success", r), (err) => err instanceof StepError && /did not take pm_card_visa: Your card was declined/.test(err.message));
     assert.throws(() => stripeResult("decline", { intent: { status: "succeeded" }, error: null }), /did not decline pm_card_chargeDeclined: succeeded/);
+  });
+
+  test("an authorized payment (manual capture) waits for the store: reported to it, as pay.js reports it", () => {
+    assert.deepEqual(stripeResult("success", { intent: { id: "pi_3", status: "requires_capture" }, error: null }), { authorized: true });
+    assert.throws(() => stripeResult("success", { intent: { id: "pi_3", status: "requires_action" }, error: null }), /did not take pm_card_visa: requires_action/);
   });
 
   test("a decline is reported to the store as pay.js reports it, and the store must record it with Stripe's message", () => {
