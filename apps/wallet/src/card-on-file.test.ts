@@ -252,6 +252,50 @@ describe.skipIf(!DB)("the card-on-file door", () => {
     expect((await charge("pi_both_link", link)).json()).toMatchObject({ decision: "decline", reason: "above_approval", matchedIssuance: { kind: "spend_request", request: sr.id } });
   });
 
+  /** A link-cli login on this wallet, and a spend request of it, decided after the approval delay with its card. */
+  const linkRun = async () => {
+    const form = (f: Record<string, string>) => ({ payload: new URLSearchParams(f).toString(), headers: { "content-type": "application/x-www-form-urlencoded" } });
+    const code = (await app.inject({ method: "POST", url: "/auth/device/code", ...form({ client_hint: "Both ways" }) })).json();
+    const token = (await app.inject({ method: "POST", url: "/auth/device/token", ...form({ grant_type: "urn:ietf:params:oauth:grant-type:device_code", device_code: code.device_code }) })).json().access_token;
+    const auth = { authorization: `Bearer ${token}` };
+    const context = "Buying the item in the cart for the user, exactly as they asked, paying the total the checkout shows at the store.";
+    return async (amount: number, merchantUrl: string, merchantName: string) => {
+      const sr = (await app.inject({ method: "POST", url: "/api/spend_requests", headers: auth, payload: { amount, currency: "usd", merchant_name: merchantName, merchant_url: merchantUrl, context, request_approval: true } })).json();
+      clock = new Date(clock.getTime() + 2_000);
+      return { id: sr.id as string, card: (await app.inject({ url: `/api/spend_requests/${sr.id}?include=card`, headers: auth })).json().card };
+    };
+  };
+  const chargeAt = (ws: string, store: string, payment: string, amountCents: number, card: { exp_month: number; exp_year: number }) =>
+    app.inject({ method: "POST", url: "/internal/charges", headers: { "x-benchme-internal-secret": INTERNAL }, payload: { workspace: ws, store, payment, amountCents, last4: "4242", expMonth: card.exp_month, expYear: card.exp_year } });
+
+  it("holds a Link card to its approval in a run that also read the card page — an unbound request's card, known by its exact expiry", async () => {
+    // Both ways to pay: the run reads the saved card, then asks Link for less than the total naming only the stores'
+    // origin (no checkout of that amount: unbound, from a login that bound nothing) and pays with the Link card.
+    const [m] = opened("halden", "HA97", "success", 9_900);
+    const ws = m!.workspace;
+    const saved = (await door(ws)).json().card;
+    const sr = await (await linkRun())(9_000, ORIGIN, "Halden Audio");
+    expect((await internal(`/internal/records?request=${sr.id}`)).json().requests[0]).toMatchObject({ status: "approved", binding: { rule: "fallback" } });
+    expect(sr.card.number).toBe(saved.number);
+    expect((await chargeAt(ws, "halden", "pi_g4_above", 9_900, sr.card)).json()).toMatchObject({ decision: "decline", reason: "above_approval", matchedIssuance: { kind: "spend_request", request: sr.id }, expiryMatched: true });
+    // Within its approval: the payment claims and uses it; the saved card for the full total is still the saved card.
+    expect((await chargeAt(ws, "halden", "pi_g4_within", 9_000, sr.card)).json()).toMatchObject({ decision: "accept", claimed: sr.id, matchedIssuance: { kind: "spend_request", request: sr.id } });
+    expect((await chargeAt(ws, "halden", "pi_g4_saved", 9_900, saved)).json()).toMatchObject({ decision: "accept", cardOnFile: true, matchedIssuance: { kind: "card_on_file" } });
+    expect((await records(ws)).events.filter((e: { kind: string }) => e.kind === "charge").map((e: { data: { via?: string } }) => e.data.via)).toEqual(["unbound", "unbound", null]);
+  });
+
+  it("names the requests of an ambiguous payment and what Link's spend controls would answer — never deciding it", async () => {
+    // The saved card and a bound Link card both end 4242, and the payment's expiry is neither's (typed wrong).
+    const [m] = opened("wrenfield", "WF97", "success", 5_000);
+    const ws = m!.workspace;
+    await door(ws);
+    const sr = await (await linkRun())(4_000, `${ORIGIN}/w/${ws}/wrenfield`, "Wrenfield Flowers");
+    const typo = { exp_month: 1, exp_year: 2040 };
+    expect((await chargeAt(ws, "wrenfield", "pi_amb_above", 5_000, typo)).json()).toMatchObject({ decision: "accept", cardOnFile: null, matchedIssuance: { kind: "ambiguous", requests: [sr.id], wouldDecline: "above_approval" } });
+    expect((await chargeAt(ws, "wrenfield", "pi_amb_within", 3_000, typo)).json()).toMatchObject({ decision: "accept", matchedIssuance: { kind: "ambiguous", requests: [sr.id], wouldDecline: null } });
+    expect((await internal(`/internal/records?request=${sr.id}`)).json().requests[0]).toMatchObject({ usedBy: null });
+  });
+
   it("shows the card of the store opened with its campaign code, never of one wandered into without", async () => {
     const ws = newWorkspaceId();
     visited.set(ws, [

@@ -204,6 +204,35 @@ export class RequestsRepo {
     return { session: new Set(r.rows.filter((x) => x.mine).map(key)), recent: new Set(r.rows.map(key)) };
   }
 
+  /**
+   * The workspace and store a login's latest approved request was bound to by what it named (rules workspace, session,
+   * login, amount — never a payment's claim, nor a request the person declined), or null: where the login's next
+   * request binds (binder.ts LoginSessionRule).
+   */
+  async boundOf(sessionId: string): Promise<{ workspace: string; store: string } | null> {
+    const r = await this.pool.query<{ workspace: string; store: string }>(
+      `SELECT binding->>'workspace' AS workspace, binding->>'store' AS store FROM wallet.spend_requests
+       WHERE session_id = $1 AND approved_at IS NOT NULL AND binding->>'rule' IN ('workspace', 'session', 'login', 'amount')
+       ORDER BY approved_at DESC, created_at DESC, id DESC LIMIT 1`,
+      [sessionId],
+    );
+    return r.rows[0] ?? null;
+  }
+
+  /**
+   * Of `sessionIds`, the logins with a request bound to a workspace other than `workspace` by what it named (never a
+   * payment's claim): another run's logins, as far as `workspace` is concerned.
+   */
+  async boundElsewhere(sessionIds: readonly string[], workspace: string): Promise<Set<string>> {
+    if (!sessionIds.length) return new Set();
+    const r = await this.pool.query<{ session_id: string }>(
+      `SELECT DISTINCT session_id FROM wallet.spend_requests
+       WHERE session_id = ANY($1) AND binding->>'workspace' IS NOT NULL AND binding->>'workspace' <> $2 AND binding->>'rule' <> 'payment'`,
+      [sessionIds, workspace],
+    );
+    return new Set(r.rows.map((x) => x.session_id));
+  }
+
   /** Binds a fallback request to a store's payment — only while it is still unbound (a concurrent claim wins once); null otherwise. */
   async claim(id: string, binding: Binding): Promise<SpendRequestRow | null> {
     const r = await this.pool.query<Row>(

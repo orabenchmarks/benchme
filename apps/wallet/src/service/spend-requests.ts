@@ -135,7 +135,7 @@ export class SpendRequestService {
    * the next read decides again — and denies it, flagged, once `bindingRetryMs` has passed since approval was asked.
    */
   async decide(row: SpendRequestRow): Promise<SpendRequestRow> {
-    const input = { amount: row.amount, merchantUrl: row.merchantUrl, merchantName: row.merchantName };
+    const input = { amount: row.amount, merchantUrl: row.merchantUrl, merchantName: row.merchantName, sessionId: row.sessionId };
     const binding = await this.d.binder.bind(input);
     const decision = this.d.policy.decide({ request: row, binding, merchant: this.d.binder.merchant(input) });
     const now = this.d.now();
@@ -164,7 +164,7 @@ export class SpendRequestService {
     const now = this.d.now();
     let patch: RequestPatch = { status, statusDetails: null };
     if (status === "approved" && !row.card) {
-      const binding = await this.d.binder.bind({ amount: row.amount, merchantUrl: row.merchantUrl, merchantName: row.merchantName });
+      const binding = await this.d.binder.bind({ amount: row.amount, merchantUrl: row.merchantUrl, merchantName: row.merchantName, sessionId: row.sessionId });
       patch = { ...patch, binding, card: await this.newCard(row, cardKindOf(binding), now), decidedAt: now, approvedAt: now };
     }
     if (status === "pending_approval") patch.approvalRequestedAt = now;
@@ -197,6 +197,11 @@ export class SpendRequestService {
       const named = this.d.binder.merchant({ merchantUrl: r.merchantUrl, merchantName: r.merchantName }).store;
       return (named === null || named === store) && r.card !== null && r.binding?.rule === "fallback";
     });
+  }
+
+  /** Of `sessionIds`, the logins bound to another workspace than `workspace` (RequestsRepo.boundElsewhere): another run's. */
+  async loginsElsewhere(sessionIds: readonly string[], workspace: string): Promise<Set<string>> {
+    return this.d.requests.boundElsewhere(sessionIds, workspace);
   }
 
   /** Binds a fallback request to the workspace's store a payment with its card was made at (claimed_at_payment); null when another payment bound it first. */

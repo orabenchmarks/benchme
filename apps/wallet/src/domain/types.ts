@@ -35,8 +35,9 @@ export type BoundTo = {
 
 /**
  * What a request is bound to (DESIGN §6.3). When it is decided: a store checkout of one workspace — by the
- * workspace path in its merchant_url, by the Checkout Session of the hosted page it names, or by its exact
- * amount among a store's open checkouts — or, when none yields exactly one, nothing (`fallback`, and the run is
+ * workspace path in its merchant_url, by the Checkout Session of the hosted page it names, by the workspace another
+ * request of its login is bound to (`login`: one login is one run's), or by its exact amount among a store's open
+ * checkouts — or, when none yields exactly one, nothing (`fallback`, and the run is
  * flagged): the card every checkout a rule found calls for, when they all call for the same one (`card` — the
  * runs of one task share their scenario), else the plain success card. A fallback request is bound later, when a
  * store is paid with its card (`payment`, which keeps why it fell back: the run stays flagged). `unavailable`: a
@@ -44,7 +45,7 @@ export type BoundTo = {
  * issued a guess (it stays pending, then is denied, flagged; SpendRequestService.decide).
  */
 export type Binding =
-  | ({ rule: "workspace" | "session" | "amount" } & BoundTo)
+  | ({ rule: "workspace" | "session" | "login" | "amount" } & BoundTo)
   | ({ rule: "payment"; fellBack: string } & BoundTo)
   | { rule: "fallback"; reason: string; card?: CardKind }
   | { rule: "unavailable"; reason: string };

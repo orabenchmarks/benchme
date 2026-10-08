@@ -18,54 +18,73 @@ export type Sources = {
   claimable: readonly SpendRequestRow[];
   /** The sessions (link-cli logins) of the requests bound to the workspace: an unbound approval of one is the run's own. */
   ownSessions?: ReadonlySet<string>;
+  /**
+   * The sessions with a request bound to another workspace and none to this one: an unbound approval of one is another
+   * run's (a session is one run's login) — never this payment's card, whatever its expiry.
+   */
+  foreignSessions?: ReadonlySet<string>;
 };
 
 /**
+ * How a spend request's card was told to be the paying one: its exact expiry — bound to the workspace's store (`bound`),
+ * an unbound approval of a session that bound a request to the workspace (`own_session`), or an unbound approval of a
+ * session that bound nothing anywhere (`unbound`) — or, the expiry matching none, the last four of the workspace's own
+ * bound card (`last4`), or, with no expiry read, an unbound approval for exactly the amount (`amount`).
+ */
+export type Via = "bound" | "own_session" | "unbound" | "last4" | "amount";
+
+/**
  * The issuance a paying card is. `expiryMatched`: whether a card with the paying card's expiry was found (null: the
- * expiry was not read). `ambiguous`: the workspace's saved card and a spend request's card both end so, and the
- * expiry is neither's.
+ * expiry was not read). `ambiguous`: the workspace's saved card and a spend request's card (`candidates`) both end so,
+ * and the expiry is neither's.
  */
 export type Matched =
   | { path: "card_on_file"; expiryMatched: boolean | null }
-  | { path: "spend_request"; candidates: SpendRequestRow[]; expiryMatched: boolean | null }
-  | { path: "ambiguous" }
+  | { path: "spend_request"; candidates: SpendRequestRow[]; expiryMatched: boolean | null; via: Via }
+  | { path: "ambiguous"; candidates: SpendRequestRow[] }
   | { path: "none" };
 
 /**
  * The paying card among what the wallet issued. The saved card and a spend request's card share their number when the
  * scenario's card is the same, never their expiry (cards.ts: the door's is four years out, a spend request's one to
- * three), so the expiry decides — the run's own cards first, then another run's:
- *   1. exactly that expiry among the run's own: the door's card, a request bound to the workspace's store, an unbound
- *      approval from a session that has a request bound to the workspace;
+ * three, unique within its session and, while one is free, the binding window), so the expiry decides:
+ *   1. exactly that expiry: the door's card; a request bound to the workspace's store; an unbound approval of a session
+ *      that bound a request to the workspace; an unbound approval of a session that bound nothing anywhere — unless the
+ *      run holds a bound Link card of its own ending so (a Stripe test method's fixed expiry or a typo that lands on a
+ *      stranger's card is the run's own card, read by its last four in 2). The door's card never stands in the way of
+ *      an unbound one: the saved card never has a Link card's expiry, so an exact Link expiry is a Link payment.
  *   2. any expiry (one typed wrong — test mode takes any future date): the run's own by their last four — the door's
- *      card or a bound request's (both: ambiguous);
- *   3. exactly that expiry among the other unbound approvals: the run's own unbound card, when its session bound nothing
- *      to the workspace — or another run's that shares the expiry by chance, which a run holding a card of its own
- *      ending so never takes (2 came first);
- *   4. no expiry read at all (a store that sends none): an unbound approval for exactly the amount, as before expiries
+ *      card or a bound request's (both: ambiguous, naming the requests).
+ *   3. no expiry read at all (a store that sends none): an unbound approval for exactly the amount, as before expiries
  *      were read.
+ * An unbound approval of a session bound to another workspace is another run's card: never matched, so never declined
+ * or claimed for this payment.
  */
 export function matchCard(card: PaidCard, amountCents: number, s: Sources): Matched {
   const known = card.expMonth !== null && card.expYear !== null;
   const same = (c: IssuedCard | null) => known && c !== null && c.expMonth === card.expMonth && c.expYear === card.expYear;
   const ours = (r: SpendRequestRow) => s.ownSessions?.has(r.sessionId) === true;
+  const theirs = (r: SpendRequestRow) => !ours(r) && s.foreignSessions?.has(r.sessionId) === true;
+  const strangers = s.claimable.filter((r) => !ours(r) && !theirs(r));
   if (known) {
     if (s.door.some(same)) return { path: "card_on_file", expiryMatched: true };
-    for (const pool of [s.bound, s.claimable.filter(ours)]) {
+    const pools: [readonly SpendRequestRow[], Via][] = [
+      [s.bound, "bound"],
+      [s.claimable.filter(ours), "own_session"],
+      [s.bound.length ? [] : strangers, "unbound"],
+    ];
+    for (const [pool, via] of pools) {
       const exact = pool.filter((r) => same(r.card));
-      if (exact.length) return { path: "spend_request", candidates: exact, expiryMatched: true };
+      if (exact.length) return { path: "spend_request", candidates: exact, expiryMatched: true, via };
     }
   }
   const expiryMatched = known ? false : null;
-  if (s.door.length && s.bound.length) return { path: "ambiguous" };
+  if (s.door.length && s.bound.length) return { path: "ambiguous", candidates: [...s.bound] };
   if (s.door.length) return { path: "card_on_file", expiryMatched };
-  if (s.bound.length) return { path: "spend_request", candidates: [...s.bound], expiryMatched };
-  if (known) {
-    const exact = s.claimable.filter((r) => !ours(r) && same(r.card));
-    if (exact.length) return { path: "spend_request", candidates: exact, expiryMatched: true };
-  } else {
-    const legacy = s.claimable.filter((r) => r.amount === amountCents);
-    if (legacy.length) return { path: "spend_request", candidates: legacy, expiryMatched: null };
+  if (s.bound.length) return { path: "spend_request", candidates: [...s.bound], expiryMatched, via: "last4" };
+  if (!known) {
+    const legacy = s.claimable.filter((r) => !theirs(r) && r.amount === amountCents);
+    if (legacy.length) return { path: "spend_request", candidates: legacy, expiryMatched: null, via: "amount" };
   }
   return { path: "none" };
 }
