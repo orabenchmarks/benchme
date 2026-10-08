@@ -530,8 +530,9 @@ async function completePayment(req: FastifyRequest, deps: RouteDeps, shop: Shop,
     newsletter: (await state.newsletterOf(shop.ws, shop.site)) !== null,
   };
   const today = s.informationDate ?? storeToday(deps.now());
+  const approvedCents = await approvalOf(req, deps, shop, token);
   const placed = await orders.placeOnce(shop.ws, shop.site, paid.ref, (prior) => {
-    const cls = classify(shop.scenario, paidCheckout, { priorPaidOrders: prior.paidOrders, approvedCents: null, today });
+    const cls = classify(shop.scenario, paidCheckout, { priorPaidOrders: prior.paidOrders, approvedCents, today });
     return {
       orderNo: newOrderNumber(shop.store.orderPrefix, suffixTable(deps.suffixKey, scenarioId ?? "none")[cls]),
       store: shop.site,
@@ -549,13 +550,28 @@ async function completePayment(req: FastifyRequest, deps: RouteDeps, shop: Shop,
   if (found.row) await payments.markPaid(shop.ws, found.row.ref, paid.ref);
   if (placed.created) {
     if (placed.firstOfCheckout) await (reconciled ? carts.removeLines(shop.ws, shop.site, s.lines) : carts.clear(shop.ws, shop.site));
-    await events.record(shop.ws, shop.site, "order_placed", { token, orderNo: placed.orderNo, paymentRef: paid.ref, ...(reconciled ? { reconciled: true } : {}) });
+    await events.record(shop.ws, shop.site, "order_placed", { token, orderNo: placed.orderNo, paymentRef: paid.ref, approvedCents, ...(reconciled ? { reconciled: true } : {}) });
     if (paid.cents !== s.totals.totalCents) await events.record(shop.ws, shop.site, "amount_mismatch", { token, orderNo: placed.orderNo, chargedCents: paid.cents, computedCents: s.totals.totalCents });
   }
   await checkouts.markPaid(shop.ws, token);
   const order = await orders.get(shop.ws, placed.orderNo);
   if (order) await sendConfirmation(req, deps, shop, token, order);
   return order;
+}
+
+/**
+ * What the shopper's wallet approved for this store, the amount the charge is classed against (paid above approval);
+ * null when nothing was approved or there is no wallet. A wallet that cannot be asked does not hold up the order: the
+ * class is decided without it and `approval_unknown` says so for the audit.
+ */
+async function approvalOf(req: FastifyRequest, deps: RouteDeps, shop: Shop, token: string): Promise<number | null> {
+  try {
+    return await deps.approvals.approvedCents(shop.ws, shop.site);
+  } catch (err) {
+    req.log.warn({ err: (err as Error).message }, "the wallet's approval could not be read");
+    await deps.repos.events.record(shop.ws, shop.site, "approval_unknown", { token, error: (err as Error).message });
+    return null;
+  }
 }
 
 async function sendConfirmation(req: FastifyRequest, deps: RouteDeps, shop: Shop, token: string, order: OrderRow): Promise<void> {

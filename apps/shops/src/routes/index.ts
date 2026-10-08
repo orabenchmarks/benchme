@@ -3,6 +3,7 @@ import type { Mailer } from "@benchme/site-kit";
 import type { ScenarioIndex } from "@benchme/storefront";
 import type { FastifyInstance } from "fastify";
 import type { Repos } from "../db/index.js";
+import type { ApprovalSource } from "../payments/approvals.js";
 import type { PaymentGateway } from "../payments/gateway.js";
 import { notFoundPage } from "../render/pages/not-found.js";
 import type { SiteId } from "../sites.js";
@@ -13,6 +14,7 @@ import { registerInternalRoutes } from "./internal.js";
 import { registerOrderRoutes } from "./orders.js";
 import { registerPayRoutes } from "./pay.js";
 import { registerPaylanternRoutes } from "./paylantern.js";
+import { registerWalletRoutes } from "./wallet.js";
 import { pageCtx, registerCampaignHook, registerStorefrontRoutes, sendHtml, wantsJson } from "./storefront.js";
 
 /**
@@ -30,6 +32,8 @@ export type RouteDeps = {
   gatewaySecret: string;
   internalSecret: string;
   suffixKey: string;
+  /** What the shopper's wallet approved for a store: the amount an order's charge is held against. */
+  approvals: ApprovalSource;
   now: () => Date;
 };
 
@@ -46,6 +50,7 @@ export type RouteDeps = {
  */
 export async function registerSiteRoutes(scope: FastifyInstance, deps: RouteDeps): Promise<void> {
   registerInternalRoutes(scope, deps);
+  registerWalletRoutes(scope, deps);
   // utm_campaign on any storefront GET, before any handler reads req.scenario().
   registerCampaignHook(scope, deps);
   registerAssetRoutes(scope);
