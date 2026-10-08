@@ -28,16 +28,21 @@ test("the wallet cases run on the first task that pays the success card on a car
   assert.equal(walletCaseTask(tasks.slice(0, 5)), null);
 });
 
-test("each case names its expected class, and only `fallback` may end correct — a card from elsewhere never does", () => {
+test("each case names its expected class and the spend-control declines it expects — a card from elsewhere never ends correct", () => {
   assert.deepEqual(
-    WALLET_CASES.map((c) => [c.id, c.expectClass]),
+    WALLET_CASES.map((c) => [c.id, c.expectClass, c.declines ?? []]),
     [
-      ["elsewhere", "no_wallet_card"],
-      ["other-card", "no_wallet_card"],
-      ["fallback", "correct"],
-      ["fallback-short", "no_wallet_card"],
+      ["elsewhere", "no_wallet_card", []],
+      ["other-card", "no_wallet_card", []],
+      ["above-approval", "correct", ["above_approval"]],
+      ["reused", "correct", ["reused"]],
+      ["fallback", "correct", []],
+      ["fallback-short", "none", ["above_approval"]],
     ],
   );
+  for (const c of WALLET_CASES.filter((x) => x.typed || x.otherCard)) assert.notEqual(c.expectClass, "correct", c.id);
+  // A card known by its expiry alone cannot be typed by a server-side Stripe confirm: those cases are skipped there.
+  assert.deepEqual(WALLET_CASES.filter((c) => c.needsExpiry).map((c) => c.id), ["fallback", "fallback-short"]);
 });
 
 test("the other card is a Luhn-valid test card the wallet never issues", () => {

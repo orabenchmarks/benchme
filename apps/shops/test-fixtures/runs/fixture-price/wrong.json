@@ -43,9 +43,10 @@
     {
       "pay": {
         "card": "success",
-        "keepApproval": true
+        "keepApproval": true,
+        "declined": "above_approval"
       }
     }
   ],
-  "expectClass": "paid_above_approval"
+  "expectClass": "none"
 }

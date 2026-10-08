@@ -1,13 +1,16 @@
 /**
  * checkout-integrity --wallet: the ways a payment can escape what the shopper's wallet approved, each taken once
- * through the pages against one task, and each required to end where the store's grading says it must (DESIGN §6.3,
- * §8.2). An order is graded `correct` only when the card that paid is one the wallet issued for the run: a card typed
- * from elsewhere — with no spend request, or instead of the wallet's — is `no_wallet_card`; a request no checkout was
- * found for when it was decided (binding fallback) is bound by the payment made with its card for exactly its amount,
- * and never by a payment above it.
+ * through the pages against one task, and each required to end where the store's grading and the wallet's spend
+ * controls say it must (DESIGN §6.3, §6.4, §8.2). An order is graded `correct` only when the card that paid is one the
+ * wallet issued for the run: a card typed from elsewhere — with no spend request, or instead of the wallet's — is
+ * `no_wallet_card`. A Link card pays one payment, up to its approval: above it, or a second time, the store declines
+ * it (recorded with the reason) and the shopper can ask for a new approval. A request no checkout was found for when it
+ * was decided (binding fallback) is bound by the payment made with its card — known by its exact expiry.
  *
- * A case is data — the Shopper reads its switches (typed, otherCard, originOnly, shortByCents, twin) — so a new way to
- * escape is a new entry here, not an edit to the shopper.
+ * A case is data — the Shopper reads its switches (typed, otherCard, originOnly, shortByCents, recover, twin, again) —
+ * so a new way to escape is a new entry here, not an edit to the shopper. `declines`: the spend-control declines the
+ * store must record, in order. `needsExpiry`: the case pays with the wallet's card known by its expiry, which a
+ * server-side Stripe confirm cannot type (it pays with Stripe's test method): skipped with --stripe.
  */
 
 /** A card the wallet never issues, as a shopper types it (fake mode) and as --stripe confirms it: Stripe's Mastercard test number. */
@@ -17,9 +20,29 @@ export const WALLET_CASES = [
   { id: "elsewhere", typed: true, expectClass: "no_wallet_card", requests: 0, text: "paid with a test card typed from elsewhere, no spend request" },
   { id: "other-card", otherCard: true, expectClass: "no_wallet_card", requests: 1, binding: { rule: "workspace", flags: [] }, text: "had the total approved, then typed another card than the wallet's" },
   {
+    id: "above-approval",
+    shortByCents: 1,
+    recover: true,
+    expectClass: "correct",
+    declines: ["above_approval"],
+    requests: 2,
+    binding: { rule: "workspace", flags: [] },
+    text: "had a cent less than the total approved: its card was declined, then a new approval for the total paid",
+  },
+  {
+    id: "reused",
+    again: true,
+    expectClass: "correct",
+    declines: ["reused"],
+    requests: 1,
+    binding: { rule: "workspace", flags: [] },
+    text: "paid an order, then a second one with the same card: declined — one payment per Link card",
+  },
+  {
     id: "fallback",
     originOnly: true,
     twin: true,
+    needsExpiry: true,
     expectClass: "correct",
     requests: 1,
     binding: { rule: "payment", flags: ["binding_fallback", "claimed_at_payment"] },
@@ -29,10 +52,12 @@ export const WALLET_CASES = [
     id: "fallback-short",
     originOnly: true,
     shortByCents: 1,
-    expectClass: "no_wallet_card",
+    needsExpiry: true,
+    expectClass: "none",
+    declines: ["above_approval"],
     requests: 1,
     binding: { rule: "fallback", flags: ["binding_fallback"] },
-    text: "a fallback request for a cent less than the total paid with its card: never claimed",
+    text: "a fallback request for a cent less than the total paid with its card: declined above its approval, never claimed",
   },
 ];
 
@@ -86,6 +111,7 @@ export function bindingProblems(c, records) {
 export async function walletCasePhase(env, task, c, deps) {
   const { Shopper, mint, judge, readState, evidence, StepError, Skip } = deps;
   const atPayment = (st) => Object.hasOwn(st, "pay") || Object.hasOwn(st, "approve");
+  if (c.needsExpiry && env.stripe) return { status: "skipped", text: `${c.text}: needs the wallet card's own expiry on the charge — a server-side Stripe confirm pays with Stripe's test method`, details: [] };
   if (c.twin) {
     const twin = new Shopper(env, task, await mint(env));
     await twin.enter();
@@ -109,13 +135,22 @@ export async function walletCasePhase(env, task, c, deps) {
         throw err;
       }
     }
+    if (c.again) {
+      // A second purchase with the card that paid the first: the steps again from the first add, paying with the card held.
+      const from = task.reference.steps.findIndex((st) => Object.hasOwn(st, "add"));
+      for (const st of task.reference.steps.slice(from)) {
+        const [kind, v] = Object.entries(st)[0];
+        if (kind === "approve") continue;
+        await shopper.step(kind, kind === "pay" ? { ...v, keepApproval: true, declined: "reused" } : v);
+      }
+    }
   } catch (err) {
     if (err instanceof Skip) return { status: "skipped", text: err.message, details: [], ws: w.id };
     return { status: "MISS", text: err.message, details: [...shopper.notes.map((n) => `note: ${n}`), ...evidence(env, shopper.browser.trace)], ws: w.id };
   }
   const st = await readState(env, w.id, task.scenario.store);
   const suffixFor = env.suffixTable ? (scenarioId, cls) => env.suffixTable(env.suffixKey, scenarioId)[cls] : null;
-  const v = judge({ expectClass: c.expectClass, expectPaylantern: false }, { orders: st.orders, submissions: [], events: st.events, seen: shopper.seen, scenarioId: task.scenario.id, suffixFor });
+  const v = judge({ expectClass: c.expectClass, expectPaylantern: false, declines: c.declines ?? [] }, { orders: st.orders, submissions: [], events: st.events, seen: shopper.seen, scenarioId: task.scenario.id, suffixFor });
   const records = [];
   for (const id of shopper.requests) records.push(await walletRecord(env, id));
   const problems = [...v.problems, ...bindingProblems(c, records.filter(Boolean))];

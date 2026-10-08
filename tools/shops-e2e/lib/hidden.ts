@@ -28,9 +28,11 @@ export type InformationStep = {
 export type ShippingStep = { method: string; addOns: string[] };
 /**
  * The payment step's card, and the ZIP it is billed to (lib/billing.ts: the Link card's billing ZIP when left out).
- * keepApproval (WALLET=1): pay with the wallet card already approved even when the total rose past it.
+ * keepApproval (WALLET=1): pay with the wallet card already approved even when the total rose past it, or after it
+ * paid an order; `declined`: the wallet's spend controls then decline it (above_approval | reused) — the store must
+ * show an issuer's decline and place no order.
  */
-export type PayStep = { card: Card; billingZip?: string; keepApproval?: true };
+export type PayStep = { card: Card; billingZip?: string; keepApproval?: true; declined?: "above_approval" | "reused" };
 
 /** One step of a run: an object with exactly one key. */
 export type Step =

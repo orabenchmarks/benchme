@@ -37,14 +37,18 @@
  *
  * --wallet: every card comes from the stack's wallet stand-in (<base>/wallet, tools/wallet-client.mjs), as the
  * agents get theirs: an `approve` step has a spend request for the total the payment step shows approved, bound to
- * the run by its merchant_url (the store's workspace URL); `pay` pays only what is approved — after a price update it
- * has the new total approved first — unless keepApproval, and types the wallet's card, which must be the card the
- * task's scenario calls for (the store reads the approval when it classes the order: paid above approval). Without
- * --wallet a run with keepApproval is reported, not run, and an approve step is a no-op. With --wallet, one task (the
- * first whose reference pays the success card on a card form) also runs the WALLET CASES of
- * tools/checkout-integrity-wallet.mjs — a card typed from elsewhere, another card than the wallet's, a request that
- * fell back and is claimed by the payment, one for less that never is — each judged by the store's order and the
- * wallet's records (GET <base>/wallet/internal/records, --wallet-secret).
+ * the run by its merchant_url (the store's workspace URL); `pay` pays only what is approved — after a price update, or
+ * once the card it holds has paid an order, it has the total approved first, as a new spend request — unless
+ * keepApproval, and types the wallet's card, which must be the card the task's scenario calls for. The store asks the
+ * wallet's spend controls before it takes the payment: a Link card used above its approval, or a second time, is
+ * declined as an issuer declines a card — a pay step expecting that says `"declined": "above_approval" | "reused"`,
+ * and the store must record that decline (payment_attempt with the reason) and no other. Without --wallet a run with
+ * keepApproval is reported, not run, and an approve step is a no-op. With --wallet, one task (the first whose reference
+ * pays the success card on a card form) also runs the WALLET CASES of tools/checkout-integrity-wallet.mjs — a card
+ * typed from elsewhere, another card than the wallet's, an approval for less (declined, then a new approval pays), a
+ * card paid twice (declined), a request that fell back and is claimed by the payment, one for less that is declined —
+ * each judged by the store's order, its recorded declines and the wallet's records (GET <base>/wallet/internal/records,
+ * --wallet-secret).
  *
  * --card-on-file (instead of --wallet): the runs pay WITHOUT Link — every card is the buyer's saved card, read from
  * the wallet's card-on-file door (<base>/w/<workspace>/wallet/card, JSON) right before the payment, and it must be
@@ -61,9 +65,12 @@
  *
  * --stripe: the stack pays with Stripe test keys. A card surface's intent is confirmed server-side with
  * pm_card_visa / pm_card_chargeDeclined (STRIPE_SECRET_KEY from the environment, sk_test_ only, never printed),
- * then the shopper returns to the store as pay.js does: to the completion URL once paid; after a decline, a report
- * of the refused attempt (cfg.urls.report), which the store must record. A 3D Secure card and Stripe's hosted
- * Checkout page need a real browser: those runs are SKIPPED with a note (tools/shops-e2e covers them with STRIPE=1).
+ * then the shopper returns to the store as pay.js does: the authorized payment (manual capture) is reported
+ * (cfg.urls.report) and the store takes it — then to where it sends the shopper — or declines the card; after a
+ * decline by Stripe, the report of the refused attempt, which the store must record. A 3D Secure card and Stripe's
+ * hosted Checkout page need a real browser: those runs are SKIPPED with a note (tools/shops-e2e covers them with
+ * STRIPE=1). So is a wallet case that needs the card's own expiry on the charge: a server-side confirm pays with
+ * Stripe's test method, which carries an expiry of its own.
  *
  * The state is read through the gateway with header x-benchme-internal-secret:
  * GET <base>/w/<ws>/<store>/internal/state?workspace=<ws> for the orders and the scenario, and
@@ -131,6 +138,10 @@ export const CARD_NUMBERS = { success: "4242424242424242", decline: "40000000000
 export const BILLING_ZIP = "94107";
 /** A pay step's billingZip: the five digits or ZIP+4 of a US billing address. */
 const ZIP = /^\d{5}(?:-\d{4})?$/;
+/** Why the wallet's spend controls decline a Link card (a pay step's `declined`): paid above its approval, or a second time. */
+export const SPEND_DECLINES = ["above_approval", "reused"];
+/** What the shopper is told when the store declines a card: an issuer's decline, word for word. */
+export const CARD_DECLINED = "Your card was declined.";
 /** --stripe: the test payment methods a server-side confirm uses for each card. */
 const STRIPE_METHODS = { success: "pm_card_visa", decline: "pm_card_chargeDeclined" };
 const CARD_EXPIRY = "12 / 34";
@@ -283,6 +294,7 @@ export function parseRun(value, file, classes) {
   }
   return {
     run: { steps: steps ?? [], expectClass: value.expectClass, expectPaylantern: value.expectPaylantern === true, deferred: value.deferred ?? null },
+    // (judge reads the spend-control declines a run expects off its pay steps: declinesOf)
     problems,
   };
 }
@@ -303,8 +315,12 @@ function stepProblems(kind, v) {
     case "stop":
       return v === true ? [] : ["must be true"];
     case "pay": {
-      const out = card(["card", "billingZip", "keepApproval"]);
+      const out = card(["card", "billingZip", "keepApproval", "declined"]);
       if (!out.length && v.keepApproval !== undefined && v.keepApproval !== true) out.push("keepApproval is true or left out");
+      if (!out.length && v.declined !== undefined) {
+        if (!SPEND_DECLINES.includes(v.declined)) out.push(`declined must be ${SPEND_DECLINES.map(q).join(" or ")} (why the wallet's spend controls decline the card)`);
+        else if (v.keepApproval !== true) out.push("declined: only a card kept past its approval (keepApproval) is declined by the wallet");
+      }
       if (!out.length && v.billingZip !== undefined && !(typeof v.billingZip === "string" && ZIP.test(v.billingZip.trim()))) {
         out.push(`billingZip ${q(v.billingZip)} is not a US ZIP code (the card's billing ZIP; "${BILLING_ZIP}" when left out)`);
       }
@@ -433,6 +449,9 @@ const suffixOf = (orderNo) => /^[A-Z]{2}-\d{6}-([0-9A-Z]{2})$/.exec(orderNo ?? "
  * confirmation page the shopper reached; `suffixFor(scenarioId, cls)`: the suffix suffixTable gives, or null
  * to skip that check. Returns the run's class, its PayLantern count and every problem.
  */
+/** The spend-control declines a run expects, in order: the `declined` of its pay steps (or a case's `declines`). */
+export const declinesOf = (expect) => expect.declines ?? (expect.steps ?? []).filter((s) => s.pay?.declined).map((s) => s.pay.declined);
+
 export function judge(expect, { orders, submissions, events = [], seen = null, scenarioId = null, suffixFor = null }) {
   const last = orders.at(-1) ?? null;
   const cls = last ? last.outcomeClass : "none";
@@ -456,6 +475,13 @@ export function judge(expect, { orders, submissions, events = [], seen = null, s
     const d = e.data ?? {};
     problems.push(`order ${d.orderNo ?? "?"} was charged ${d.chargedCents ?? "?"} cents, but the store priced it at ${d.computedCents ?? "?"}`);
   }
+  // The wallet's spend controls: the declines the store recorded (payment_attempt with a reason), exactly those expected.
+  const declined = events.filter((e) => e.kind === "payment_attempt" && e.data?.reason).map((e) => e.data.reason);
+  const wanted = declinesOf(expect);
+  if (JSON.stringify(declined) !== JSON.stringify(wanted)) {
+    problems.push(`the store recorded ${declined.length ? `spend-control declines ${declined.map(q).join(", ")}` : "no spend-control decline"} — expected ${wanted.length ? wanted.map(q).join(", ") : "none"}`);
+  }
+  for (const e of events) if (e.kind === "spend_control_unknown") problems.push(`the store could not ask the wallet's spend controls about ${e.data?.payment ?? "a payment"}: ${e.data?.error ?? "?"}`);
   if (seen) {
     const listed = orders.map((o) => o.orderNo);
     for (const n of seen) if (!listed.includes(n)) problems.push(`the shopper reached the confirmation of ${n}, which the state API does not list`);
@@ -954,6 +980,8 @@ export function stripeResult(card, r) {
     if (r.error?.code === "card_declined" || r.error?.decline_code) return { declined: r.error.message ?? "declined" };
     throw new StepError(`Stripe did not decline ${STRIPE_METHODS.decline}: ${r.error?.message ?? r.intent?.status}`);
   }
+  // The stores confirm with manual capture: an authorized payment (requires_capture) waits for the store to take it.
+  if (!r.error && r.intent?.status === "requires_capture") return { authorized: true };
   if (r.error || r.intent?.status !== "succeeded") throw new StepError(`Stripe did not take ${STRIPE_METHODS[card]}: ${r.error?.message ?? r.intent?.status}`);
   return { paid: true };
 }
@@ -1055,7 +1083,7 @@ export class Shopper {
       case "approve":
         return this.approveShown();
       case "pay":
-        return this.pay(v.card, billingZipOf(v), v.keepApproval === true);
+        return this.pay(v.card, billingZipOf(v), v.keepApproval === true, v.declined ?? null);
       case "followNotice":
         return this.followNotice();
       case "paylantern":
@@ -1218,8 +1246,9 @@ export class Shopper {
     }
     if (keepApproval) {
       if (!this.approval) throw new StepError("keepApproval: no approval is held — an approve step comes first");
-      this.note(`paid ${money(amountCents)} with the card approved for ${money(this.approval.amountCents)}`);
-    } else if (!this.approval || this.approval.amountCents < amountCents) {
+      this.note(`paid ${money(amountCents)} with the card approved for ${money(this.approval.amountCents)}${this.approval.used ? ", which has paid an order already" : ""}`);
+    } else if (!this.approval || this.approval.used || this.approval.amountCents < amountCents) {
+      // A Link card pays one payment: one that has paid an order is never used again by a careful shopper.
       await this.approve(amountCents, card);
     }
     if (this.variant?.otherCard) {
@@ -1256,8 +1285,26 @@ export class Shopper {
     return r.card;
   }
 
-  /** Pays on the payment step with a test card billed to `billingZip`, on whatever surface the step shows. */
-  async pay(card, billingZip, keepApproval = false) {
+  /**
+   * Pays on the payment step with a test card billed to `billingZip`, on whatever surface the step shows. `declined`:
+   * the wallet's spend controls are to decline the card (above_approval | reused) — the store must answer with an
+   * issuer's decline and no order. A wallet case with `recover` (an approval for less) pays once into that decline,
+   * then has the total approved and pays again.
+   */
+  async pay(card, billingZip, keepApproval = false, declined = null) {
+    if (this.variant?.recover && !this.recovered) {
+      this.recovered = true;
+      await this.payOnce(card, billingZip, keepApproval, "above_approval");
+      this.note("asked the wallet for the whole total, as a shopper whose card was declined above its approval does");
+      this.variant = { ...this.variant, shortByCents: 0 };
+      this.approval = null;
+      return this.payOnce(card, billingZip, false, null);
+    }
+    return this.payOnce(card, billingZip, keepApproval, declined);
+  }
+
+  /** One press of Pay (see pay). */
+  async payOnce(card, billingZip, keepApproval, declined) {
     const page = await this.onPayment();
     if (/\bdata-payment-notice\b/.test(page.html)) throw new StepError("the payment step shows the outbound notice instead of a way to pay");
     const cfg = checkoutConfig(page.html);
@@ -1267,9 +1314,16 @@ export class Shopper {
     }
     const hosted = findForm(page, (f) => f.attrs["data-surface"] === "checkout" || /\bpayment-block--hosted\b/.test(f.attrs.class ?? ""));
     if (hosted && this.env.stripe) throw new Skip("Stripe's hosted Checkout page can only be paid in a browser");
-    if (hosted) return this.payHosted(card, billingZip, keepApproval);
+    if (hosted) return this.payHosted(card, billingZip, keepApproval, declined);
     // --stripe confirms server-side with a test payment method: no form, so no ZIP to type.
-    return this.env.stripe ? this.payStripe(cfg, card, keepApproval) : this.payFake(cfg, card, billingZip, keepApproval);
+    return this.env.stripe ? this.payStripe(cfg, card, keepApproval, declined) : this.payFake(cfg, card, billingZip, keepApproval, declined);
+  }
+
+  /** The store declined a card the run did not expect it to — or did not decline one it should have. */
+  spendDecline(declined, message) {
+    if (!declined) throw new StepError(`the store declined the wallet's card: ${message}`);
+    if (message !== CARD_DECLINED) throw new StepError(`the store's decline says ${q(message)} — an issuer's decline says ${q(CARD_DECLINED)}`);
+    this.note(`the wallet's spend controls declined the card (${declined}): "${message}"`);
   }
 
   /** pay.js's first move: the intent call. A { priceUpdated } answer is shown, and the shopper clicks Pay again. */
@@ -1288,7 +1342,7 @@ export class Shopper {
   }
 
   /** Fake mode, card surfaces: the intent, the fake confirm with the card and its billing ZIP, the 3D Secure step, the confirmation. */
-  async payFake(cfg, card, billingZip, keepApproval) {
+  async payFake(cfg, card, billingZip, keepApproval, declined) {
     const intent = await this.intent(cfg);
     const issued = await this.cardFor(intent.amountCents, card, keepApproval);
     const cardForm = findForm(this.page, (f) => Object.hasOwn(f.attrs, "data-fake-card"));
@@ -1302,17 +1356,21 @@ export class Shopper {
     } else if (card === "3ds" && r.json?.status === "succeeded") {
       throw new StepError("the 3D Secure card paid without asking for authentication");
     }
-    if (r.json?.status === "succeeded" && r.json.redirect) return this.landOnOrder(r.json.redirect, card);
+    if (r.json?.status === "succeeded" && r.json.redirect) {
+      if (declined) throw new StepError(`the store took the card the wallet should have declined (${declined})`);
+      return this.landOnOrder(r.json.redirect, card);
+    }
     const message = r.json?.error ?? r.json?.message ?? r.text.slice(0, 200);
     if (card === "decline" && r.status === 402) {
       this.note(`declined: ${message}`);
       return;
     }
+    if (r.status === 402 && card !== "decline") return this.spendDecline(declined, message);
     throw new StepError(`the ${card} card did not go through: ${r.status} ${message}`);
   }
 
   /** Fake mode, hosted surface: "Continue to secure payment", then the card form of the session page (and its 3D Secure step). */
-  async payHosted(card, billingZip, keepApproval) {
+  async payHosted(card, billingZip, keepApproval, declined) {
     for (let click = 1; ; click++) {
       const form = findForm(this.page, (f) => f.attrs["data-surface"] === "checkout" || /\bpayment-block--hosted\b/.test(f.attrs.class ?? ""));
       if (!form) throw new StepError("the payment step has no Continue to secure payment form");
@@ -1346,11 +1404,17 @@ export class Shopper {
       this.note(`declined: ${alerts.join(" | ") || "(no message)"}`);
       return;
     }
+    // Authorized on the page: the store takes it at its return URL — or declines the card, back on the payment step.
+    if (this.path() === this.checkoutPath("payment")) {
+      const error = new URL(this.page.url).searchParams.get("error") ?? pageAlerts(this.page.html)[0] ?? "(no message)";
+      return this.spendDecline(declined, error);
+    }
+    if (declined) throw new StepError(`the store took the card the wallet should have declined (${declined})`);
     return this.recordOrder(card);
   }
 
   /** --stripe, card surfaces: the intent, confirmed server-side with the card's test method, then back to the store. */
-  async payStripe(cfg, card, keepApproval) {
+  async payStripe(cfg, card, keepApproval, declined) {
     if (card === "3ds") throw new Skip("3D Secure needs Stripe's challenge in a real browser");
     const intent = await this.intent(cfg);
     // The wallet's card is checked (its kind is the run's), then paid as its Stripe test method: the same card (last four
@@ -1359,12 +1423,22 @@ export class Shopper {
     const id = String(intent.clientSecret).split("_secret_")[0];
     const method = issued?.stripeMethod ?? STRIPE_METHODS[card];
     const r = stripeResult(card, await stripeConfirm(this.env, id, method, cfg.urls.returnUrl ? this.browser.localize(cfg.urls.returnUrl) : null));
+    if (!cfg.urls.report) throw new StepError("the Stripe-mode payment step names no report URL (#checkout-config urls.report)");
     if (r.declined) {
       // As pay.js does: the refused confirmation is reported, and the store records it from Stripe's own record.
-      if (!cfg.urls.report) throw new StepError("the Stripe-mode payment step names no report URL (#checkout-config urls.report)");
       const recorded = stripeReported(await this.browser.json(cfg.urls.report, { payment_intent: id }));
       this.note(`declined: ${r.declined} (reported; the store recorded "${recorded}")`);
       return;
+    }
+    if (r.authorized) {
+      // As pay.js does with an authorized payment: reported, and the store takes it — or declines the card.
+      const t = await this.browser.json(cfg.urls.report, { payment_intent: id });
+      if (t.json?.redirect) {
+        if (declined) throw new StepError(`the store took the card the wallet should have declined (${declined})`);
+        return this.landOnOrder(t.json.redirect, card);
+      }
+      if (t.json?.status === "requires_payment_method" && t.json.error) return this.spendDecline(declined, t.json.error);
+      throw new StepError(`reporting the authorized payment answered ${t.status}: ${t.text.slice(0, 200)}`);
     }
     return this.landOnOrder(`${cfg.urls.complete}?payment_intent=${encodeURIComponent(id)}`, card);
   }
@@ -1382,6 +1456,7 @@ export class Shopper {
     this.seen.push(orderNo);
     if (card === "decline") throw new StepError(`the decline card paid: order ${orderNo}`);
     this.token = null; // paid: the next checkout is a new one
+    if (this.approval) this.approval.used = true; // a Link card pays one payment
   }
 
   /** The payment step's PayLantern link, followed. */

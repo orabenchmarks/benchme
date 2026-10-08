@@ -120,6 +120,8 @@ export class Shopper {
   /** The information step as typed: whose name goes on the card (cardholder()). The card's ZIP is its billing ZIP, never the address's. */
   private buyer: InformationStep | null = null;
   private lastCard: Card | null = null;
+  /** The decline the current pay step expects from the wallet's spend controls (its `declined`), or null. */
+  private declined: "above_approval" | "reused" | null = null;
   private paylanternTried = false;
   private readonly wallet: LinkWallet | null;
 
@@ -535,7 +537,8 @@ export class Shopper {
       this.log(`paying ${usd(cents)} with the card approved for ${usd(held.amountCents)}`);
       return held.card;
     }
-    return held && held.amountCents >= cents ? held.card : this.approve(cents, card, merchantUrl);
+    // A Link card pays one payment: a careful shopper has a new one approved once the held card has paid an order.
+    return held && !held.used && held.amountCents >= cents ? held.card : this.approve(cents, card, merchantUrl);
   }
 
   /** The Pay button's amount, in cents ("Pay $12.34"). */
@@ -549,6 +552,7 @@ export class Shopper {
     const card = step.card;
     const zip = billingZipOf(step);
     const keep = step.keepApproval === true;
+    this.declined = step.declined ?? null;
     this.lastCard = card;
     this.cards.push(card);
     if (!TOKEN_STEP("payment").test(this.path())) throw new Error(`pay: not on the payment step (at ${page.url()})`);
@@ -580,6 +584,16 @@ export class Shopper {
   private async noteOrder(): Promise<void> {
     const orderNo = (await this.page.getByText(ORDER_TEXT).innerText()).replace(/^Order\s+/, "").trim();
     if (!this.orders.includes(orderNo)) this.orders.push(orderNo);
+    if (this.declined) throw new Error(`the store took the card the wallet's spend controls should have declined (${this.declined}): order ${orderNo}`);
+    if (this.wallet?.held) this.wallet.held.used = true;
+  }
+
+  /** A decline the step expected from the wallet's spend controls (`declined`): the run goes on without an order. */
+  private spendDeclined(message: string): boolean {
+    if (!this.declined) return false;
+    if (!DECLINED.test(message)) throw new Error(`the store's answer to a card the wallet declines (${this.declined}) is not a decline: ${message}`);
+    this.log(`the wallet's spend controls declined the card (${this.declined}), as expected: ${message}`);
+    return true;
   }
 
   /**
@@ -627,7 +641,7 @@ export class Shopper {
       if (await order.isVisible()) return this.noteOrder();
       const message = (await error.innerText()).trim();
       this.log(`the card form says: ${message}`);
-      if (card === "decline") return;
+      if (card === "decline" || this.spendDeclined(message)) return;
       throw new Error(`paying with the ${card} card failed: ${message}`);
     }
   }
@@ -674,7 +688,7 @@ export class Shopper {
     if (await order.isVisible()) return this.noteOrder();
     const message = (await alert.innerText()).trim();
     this.log(`the secure page says: ${message}`);
-    if (card === "decline") return;
+    if (card === "decline" || this.spendDeclined(message)) return;
     throw new Error(`paying with the ${card} card on the secure page failed: ${message}`);
   }
 
@@ -740,7 +754,7 @@ export class Shopper {
       }
       const message = (await error.innerText()).trim();
       this.log(`the card form says: ${message}`);
-      if (card === "decline") return;
+      if (card === "decline" || this.spendDeclined(message)) return;
       throw new Error(`paying with the ${card} card failed: ${message}`);
     }
   }
@@ -929,7 +943,7 @@ export class Shopper {
       return this.noteOrder();
     }
     this.log(`Stripe's page says: ${next.message}`);
-    if (card === "decline") return;
+    if (card === "decline" || this.spendDeclined(next.message)) return;
     throw new Error(`paying with the ${card} card on Stripe's page failed: ${next.message}`);
   }
 
@@ -1073,7 +1087,7 @@ export class Shopper {
     if (this.paylanternTried) {
       await expect(page.getByRole("alert")).toContainText("We couldn't process your payment.");
       why = "PayLantern answered that it could not process the card";
-    } else if (this.lastCard === "decline") {
+    } else if (this.lastCard === "decline" || this.declined) {
       // Fake mode's and Stripe's words (lib/stripe.ts DECLINED): "Your card was declined.", Stripe.js's "Your card has been
       // declined.", Stripe Checkout's "Your credit card was declined. Try paying with a debit card instead."
       const declined = new URL(page.url()).hostname === CHECKOUT_HOST ? page.getByText(DECLINED) : page.getByRole("alert").filter({ hasText: DECLINED });
