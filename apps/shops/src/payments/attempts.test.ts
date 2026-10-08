@@ -19,12 +19,25 @@ const intent = (o: Partial<Intent> = {}): Intent => ({
   ...o,
 });
 let clock = 1000;
-const charge = (id: string, status: Charge["status"], o: Partial<Charge> = {}): Charge => ({ id, status, paymentMethod: `pm_${id}`, threeDSecure: null, created: clock++, ...o });
+const charge = (id: string, status: Charge["status"], o: Partial<Charge> = {}): Charge => ({ id, status, captured: status === "succeeded", paymentMethod: `pm_${id}`, threeDSecure: null, card: null, created: clock++, ...o });
 const challenged = (result: string) => ({ flow: "challenge", result });
 
 describe("attemptsOf: Stripe's record of an intent, in fake mode's words", () => {
   it("is empty while nothing was tried", () => {
     expect(attemptsOf(intent(), [])).toEqual([]);
+  });
+
+  it("leaves an authorized charge undecided while the store has not taken it — its 3-D Secure step logged — and reads one it released as declined", () => {
+    const held = charge("ch_h", "succeeded", { captured: false, paymentMethod: "pm_h", threeDSecure: challenged("authenticated") });
+    expect(attemptsOf(intent({ status: "requires_capture", latestCharge: "ch_h" }), [held])).toEqual([{ attempt: "pm_h", result: "requires_action" }]);
+    expect(attemptsOf(intent({ status: "canceled", latestCharge: "ch_h" }), [held])).toEqual([
+      { attempt: "pm_h", result: "requires_action" },
+      { attempt: "ch_h", result: "declined" },
+    ]);
+    expect(attemptsOf(intent({ status: "succeeded", latestCharge: "ch_h" }), [{ ...held, captured: true }])).toEqual([
+      { attempt: "pm_h", result: "requires_action" },
+      { attempt: "ch_h", result: "authenticated" },
+    ]);
   });
 
   it("reads one event per charge: a decline, then the card that paid", () => {

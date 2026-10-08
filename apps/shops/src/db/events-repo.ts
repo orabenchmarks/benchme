@@ -3,8 +3,8 @@ import { withLock } from "./lock.js";
 
 export type ShopEvent = { store: string; kind: string; data: unknown; at: string };
 
-/** A payment attempt as Stripe recorded it (payments/attempts.ts): its idempotency key and fake mode's word for it. */
-export type RecordedAttempt = { attempt: string; result: string };
+/** A payment attempt as Stripe recorded it (payments/attempts.ts): its idempotency key, fake mode's word for it and, for a decline by the shopper's wallet, why. */
+export type RecordedAttempt = { attempt: string; result: string; reason?: string };
 
 /**
  * shops.events: what happened in a workspace's stores, in order — checkout_started,
@@ -46,12 +46,18 @@ export class EventsRepo {
         await db.query("INSERT INTO shops.events (workspace_id, store, kind, data) VALUES ($1, $2, 'payment_attempt', $3::jsonb)", [
           ws,
           store,
-          JSON.stringify({ token: at.token, ref: at.ref, result: a.result, attempt: a.attempt }),
+          JSON.stringify({ token: at.token, ref: at.ref, result: a.result, attempt: a.attempt, ...(a.reason ? { reason: a.reason } : {}) }),
         ]);
         added++;
       }
       return added;
     });
+  }
+
+  /** Whether an event of `kind` whose data names `field` = `value` is on record for the workspace's store. */
+  async has(ws: string, store: string, kind: string, field: string, value: string): Promise<boolean> {
+    const r = await this.pool.query("SELECT 1 FROM shops.events WHERE workspace_id = $1 AND store = $2 AND kind = $3 AND data->>$4 = $5 LIMIT 1", [ws, store, kind, field, value]);
+    return (r.rowCount ?? 0) > 0;
   }
 
   /** Whether a payment's attempt `attempt` (with `result`, when given) is on record. */

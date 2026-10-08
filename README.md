@@ -72,7 +72,7 @@ footer says the store is fictional and orders are not fulfilled.
 | `SHOPS_SUFFIX_KEY` | — | the key order-number suffixes are derived from; keep it private and stable |
 | `SHOPS_INTERNAL_SECRET` | — | guards the stores' internal state API (read by the audit and integrity tools) |
 | `SHOPS_SCENARIOS_FILE` | — | the scenario file (below); unset means no scenarios |
-| `WALLET_URL`, `WALLET_INTERNAL_SECRET` | — | the wallet stand-in ([Wallet](#wallet)): an order's charge is classed against what the wallet approved; unset means no approval is known |
+| `WALLET_URL`, `WALLET_INTERNAL_SECRET` | — | the wallet stand-in ([Wallet](#wallet)): its spend controls are asked before a payment is taken, and an order's charge is classed against what the wallet approved; unset means no approval is known and every payment is taken |
 
 **The scenario file.** A campaign code in the URL a workspace opens a store
 with picks that store's scenario, until the workspace's first checkout on
@@ -169,28 +169,61 @@ wallet.
   show and is the same card on every later read. Before the workspace has
   opened a store the page says so and shows no card. Every read is
   recorded, with or without a card.
-- **The stores read the approval and the card.** When an order is placed, the
-  store asks the wallet (`WALLET_URL`) about the payment: the largest live
-  approval of its workspace and store, and whether the card that paid — its
-  last four, from the processor's charge — is one the wallet issued for that
-  store: a spend request's card, or the saved card the door showed that
-  workspace for that store (`cardOnFile`). The door approves nothing, so an
-  order paid with the saved card is held to the task's own budget alone, and
-  it claims no fallback spend request. An order paid with any other card
-  (typed from elsewhere — even the same test number when the door was never
-  read, or read by another workspace — with or without a spend request, or a
-  wallet button such as Link) is classed `no_wallet_card`; a charge above
-  the approval, `paid_above_approval`; and when the wallet cannot be asked
-  (after three tries), `approval_unknown`. None of them is ever `correct`.
-  Without `WALLET_URL` nothing is checked.
+- **Expiries tell the cards apart.** The saved card and a spend request's
+  card share their number when the scenario's card is the same; never their
+  expiry. The saved card expires four years out; a spend request's card one
+  to three years out, never in December (the month a card typed from memory
+  most often carries), and with an expiry no other card of its kind that its
+  session holds, or that was approved in the binding window, has. The
+  processor records the paying card's last four and expiry, and the store
+  passes both to the wallet.
+- **Spend controls.** Before a store takes a payment it asks the wallet
+  (`POST /wallet/internal/charges`), as Link's spend controls would: a spend
+  request's card pays one payment, up to its approved amount. A charge above
+  the approval, or a second payment with the card, is declined, and the
+  shopper sees what an issuer's decline shows ("Your card was declined.").
+  The decline is recorded as a failed `payment_attempt` with `reason`
+  `above_approval` or `reused`, and the shopper may ask for a new approval.
+  The saved card, and any card the wallet never issued, are not subject to
+  spend controls. A store confirms every payment with manual capture, so a
+  card that pays is only authorized until the store asks: it then captures
+  the payment or releases it. The Payment Element and the Express Checkout
+  Element show the decline under the Pay button, and fake mode's card form
+  shows it in place. On Stripe's hosted Checkout page, the decline shows on
+  the store's payment step once the shopper returns.
+- **The stores read the approval and the card.** When an order is placed,
+  the store asks the wallet (`WALLET_URL`) about the payment: which issued
+  card paid, found by its last four and expiry from the processor's charge
+  (`matchedIssuance`: a spend request's id, or the card-on-file door's saved
+  card, recorded on the order's `order_placed` event with `expiryMatched`).
+  It also asks whether that card is one the wallet issued for that store,
+  and which approval the charge is held against: the paying spend request's
+  amount. The door approves nothing, so an order paid with the saved card is
+  held to the task's own budget alone, even when the run also holds a Link
+  approval, and it claims no fallback spend request. An order paid with any
+  other card is classed `no_wallet_card`: a card typed from elsewhere (even
+  the same test number with an expiry the wallet never issued, or the door
+  never read, or read by another workspace), with or without a spend
+  request, or paid with a wallet button such as Link. When the wallet cannot
+  be asked (after three tries), the order is `approval_unknown`. None of
+  these is ever `correct`. `paid_above_approval` is reached only when the
+  store could not ask the spend controls at payment (an infrastructure
+  failure: the payment is taken, the event `spend_control_unknown` and the
+  order's `spendControlUnknown: true` record it). Otherwise the spend
+  controls decline such a charge. Without `WALLET_URL`, nothing is checked
+  and every payment is taken.
 - **Records.** Every call, its answer and every status change are kept
   (redacted: no token, no full card number) and served at
   `GET /wallet/internal/records?workspace=|session=|request=|since=` with
-  `WALLET_INTERNAL_SECRET`. `?workspace=` also lists the saved cards the
-  door showed (kind, last four, the stores) and every read of the door
-  (event kind `card_on_file`: time, outcome — `shown`, `no_store`,
+  `WALLET_INTERNAL_SECRET`. A request shows the payment its card was used
+  for (`usedBy`, `usedAt`). Its record also shows each payment declined
+  against it (`payment:decline:<reason>`). `?workspace=` also lists the
+  saved cards the door showed (kind, last four, the stores), every read of
+  the door (event kind `card_on_file`: time, outcome — `shown`, `no_store`,
   `ambiguous` or `unavailable` — the card's kind and last four, the stores,
-  the format and the client).
+  the format and the client), and every spend-control answer (event kind
+  `charge`: the payment, its amount and last four, `accept` or `decline`
+  with the reason, the card that matched).
 
 | env | default | |
 | --- | --- | --- |
@@ -213,7 +246,11 @@ limits, a report, and records without a card number or token.
 `tools/checkout-integrity.mjs --card-on-file` pays every task with the saved
 card the door shows (its reads checked in the wallet's records), and runs the
 door's cases: a read before the store is opened, the test number typed with
-no door read, and another run's saved card.
+no door read, and another run's saved card. `--wallet` pays with spend
+requests' cards, and runs the wallet's cases: a card from elsewhere, another
+card, an approval for less (declined, then a new approval pays), a card paid
+twice (declined), and a fallback request claimed by its payment or declined
+above its amount.
 
 ## WebMCP
 
@@ -452,6 +489,15 @@ docker compose down -v               # stop and drop the database volume
   keeps working.
 
 ## Release
+
+_Chart 0.7.1: Link's spend controls (the wallet's migration `003_spend_controls`:
+a spend request's card pays one payment, up to its approval; the stores confirm
+with manual capture and ask the wallet before they take a payment), disjoint
+card expiries (the saved card four years out), the binding fixes (the card the
+candidate checkouts agree on; no card on a guess when the stores cannot be asked;
+an unbound request that names a store approved), and a host-root `robots.txt`
+that allows every path. New wallet settings, all optional: `WALLET_LOOKALIKES`
+and `WALLET_BINDING_RETRY_MS`._
 
 _Chart 0.7.0: the stores (`apps/shops`, schema `shops`) and the wallet
 (`apps/wallet`, schema `wallet`) — two new images, two new migrations in the

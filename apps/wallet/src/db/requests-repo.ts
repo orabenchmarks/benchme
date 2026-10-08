@@ -26,6 +26,8 @@ type Row = {
   decided_at: Date | null;
   approved_at: Date | null;
   canceled_at: Date | null;
+  used_by: string | null;
+  used_at: Date | null;
   expires_at: Date;
   created_at: Date;
   updated_at: Date;
@@ -56,15 +58,17 @@ const toRow = (r: Row): SpendRequestRow => ({
   decidedAt: r.decided_at,
   approvedAt: r.approved_at,
   canceledAt: r.canceled_at,
+  usedBy: r.used_by,
+  usedAt: r.used_at,
   expiresAt: r.expires_at,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
 
-export type NewRequest = Omit<SpendRequestRow, "statusDetails" | "binding" | "card" | "denialReason" | "decidedAt" | "approvedAt" | "canceledAt" | "updatedAt">;
+export type NewRequest = Omit<SpendRequestRow, "statusDetails" | "binding" | "card" | "denialReason" | "decidedAt" | "approvedAt" | "canceledAt" | "usedBy" | "usedAt" | "updatedAt">;
 
-/** The columns a transition may set, by their row names. */
-export type RequestPatch = Partial<Omit<SpendRequestRow, "id" | "sessionId" | "createdAt" | "idempotencyKey">>;
+/** The columns a transition may set, by their row names (a card's use is set by use() alone). */
+export type RequestPatch = Partial<Omit<SpendRequestRow, "id" | "sessionId" | "createdAt" | "idempotencyKey" | "usedBy" | "usedAt">>;
 
 const COLUMNS: Record<keyof RequestPatch, string> = {
   status: "status",
@@ -162,19 +166,41 @@ export class RequestsRepo {
   }
 
   /**
-   * Approved requests no checkout was found for when they were decided (binding fallback), not canceled, approved at
-   * or after `since`, for exactly `amount` cents with an issued card ending `last4`: what a store's payment may
-   * claim (DESIGN §6.3). Oldest approval first.
+   * Approved requests no checkout was found for when they were decided (binding fallback), not canceled and never
+   * used, approved at or after `since`, with an issued card ending `last4` — for exactly `amount` cents when given:
+   * what a store's payment may claim (DESIGN §6.3). Oldest approval first.
    */
-  async claimable(amount: number, last4: string, since: Date): Promise<SpendRequestRow[]> {
+  async claimable(last4: string, since: Date, amount: number | null = null): Promise<SpendRequestRow[]> {
     const r = await this.pool.query<Row>(
       `SELECT * FROM wallet.spend_requests
-       WHERE binding->>'rule' = 'fallback' AND approved_at IS NOT NULL AND approved_at >= $3 AND canceled_at IS NULL
-         AND amount = $1 AND right(card->>'number', 4) = $2
+       WHERE binding->>'rule' = 'fallback' AND approved_at IS NOT NULL AND approved_at >= $2 AND canceled_at IS NULL AND used_by IS NULL
+         AND right(card->>'number', 4) = $1 AND ($3::int IS NULL OR amount = $3)
        ORDER BY approved_at, id`,
-      [amount, last4, since],
+      [last4, since, amount],
     );
     return r.rows.map(toRow);
+  }
+
+  /** The request whose card a payment (the processor's id) used, or null. */
+  async usedBy(payment: string): Promise<SpendRequestRow | null> {
+    const r = await this.pool.query<Row>("SELECT * FROM wallet.spend_requests WHERE used_by = $1 ORDER BY used_at, id LIMIT 1", [payment]);
+    return r.rows[0] ? toRow(r.rows[0]) : null;
+  }
+
+  /** Marks the request's card used by `payment` — only while unused (two payments at once: one wins); null otherwise. */
+  async use(id: string, payment: string, at: Date): Promise<SpendRequestRow | null> {
+    const r = await this.pool.query<Row>("UPDATE wallet.spend_requests SET used_by = $2, used_at = $3, updated_at = now() WHERE id = $1 AND used_by IS NULL RETURNING *", [id, payment, at]);
+    return r.rows[0] ? toRow(r.rows[0]) : null;
+  }
+
+  /** The expiries ("7/2029") of the cards of `kind` issued to the session, or approved at or after `since` for any session. */
+  async expiriesInUse(sessionId: string, kind: string, since: Date): Promise<Set<string>> {
+    const r = await this.pool.query<{ m: number; y: number }>(
+      `SELECT DISTINCT (card->>'expMonth')::int AS m, (card->>'expYear')::int AS y FROM wallet.spend_requests
+       WHERE card IS NOT NULL AND card->>'kind' = $2 AND (session_id = $1 OR approved_at >= $3)`,
+      [sessionId, kind, since],
+    );
+    return new Set(r.rows.map((x) => `${x.m}/${x.y}`));
   }
 
   /** Binds a fallback request to a store's payment — only while it is still unbound (a concurrent claim wins once); null otherwise. */

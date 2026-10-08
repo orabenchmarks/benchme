@@ -19,17 +19,41 @@ export function isCardKind(value: unknown): value is CardKind {
   return typeof value === "string" && value in CARDS;
 }
 
-/** A fresh virtual card of `kind`: a new id, CVC and an expiry a few years out (any future date pays in test mode). */
-export function issueCard(kind: CardKind, now: Date): IssuedCard {
+/** Where a card's expiry may fall: the years after the year it is issued, and the months. */
+export type ExpiryRange = { years: readonly number[]; months: readonly number[] };
+
+const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
+
+/**
+ * A spend request's card: one to three years out, never December — the month a card typed from memory most
+ * often carries. Within it every card is given an expiry no other recent card of its kind has (`taken`), so a
+ * payment's expiry, which the processor records with the last four, tells one issued card from another.
+ */
+export const SPEND_REQUEST_EXPIRY: ExpiryRange = { years: [1, 2, 3], months: MONTHS.slice(0, 11) };
+
+/** The saved card the card-on-file door shows: four years out — an expiry no spend request's card can have. */
+export const SAVED_CARD_EXPIRY: ExpiryRange = { years: [4], months: MONTHS };
+
+/** A card's expiry as one key ("7/2029"). */
+export const expiryKey = (e: { expMonth: number; expYear: number }) => `${e.expMonth}/${e.expYear}`;
+
+/**
+ * A fresh virtual card of `kind`: a new id and CVC, and an expiry in `range` (any future date pays in test mode) that
+ * is not in `taken` while one is free.
+ */
+export function issueCard(kind: CardKind, now: Date, range: ExpiryRange = SPEND_REQUEST_EXPIRY, taken: ReadonlySet<string> = new Set()): IssuedCard {
   const { number, brand } = CARDS[kind];
+  const all = range.years.flatMap((y) => range.months.map((m) => ({ expMonth: m, expYear: now.getUTCFullYear() + y })));
+  const free = all.filter((e) => !taken.has(expiryKey(e)));
+  const pool = free.length ? free : all;
+  const expiry = pool[randomInt(pool.length)] as { expMonth: number; expYear: number };
   return {
     id: `lcard_${randomBytes(8).toString("hex")}`,
     kind,
     brand,
     number,
     cvc: String(randomInt(100, 1000)),
-    expMonth: randomInt(1, 13),
-    expYear: now.getUTCFullYear() + 3,
+    ...expiry,
   };
 }
 

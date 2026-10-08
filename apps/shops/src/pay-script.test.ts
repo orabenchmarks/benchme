@@ -271,7 +271,8 @@ class Page {
   readonly calls: Call[] = [];
   readonly went: string[] = [];
   readonly answers = new Map<string, Answer[]>();
-  readonly stripe = { elements: [] as object[], created: [] as { type: string; opts: object }[], updates: [] as object[], confirms: [] as object[], handlers: new Map<string, (e?: unknown) => void>() };
+  /** `confirmStatus`: the status Stripe.js's confirmPayment answers with — "requires_capture" when the payment is only authorized (manual capture). */
+  readonly stripe = { elements: [] as object[], created: [] as { type: string; opts: object }[], updates: [] as object[], confirms: [] as object[], handlers: new Map<string, (e?: unknown) => void>(), confirmStatus: "succeeded" };
   readonly window: Record<string, unknown>;
 
   constructor() {
@@ -314,7 +315,7 @@ class Page {
       },
       confirmPayment: (o: { clientSecret: string }) => {
         s.confirms.push(o);
-        return Promise.resolve({ paymentIntent: { id: o.clientSecret.split("_secret_")[0], status: "succeeded" } });
+        return Promise.resolve({ paymentIntent: { id: o.clientSecret.split("_secret_")[0], status: s.confirmStatus } });
       },
     });
     return this;
@@ -382,6 +383,7 @@ function stripeStep(billing = SENDER, express = false): Page {
     urls: { ...URLS, report: "/w/ws_1/wrenfield/checkout/tok/payment/report" },
     publishableKey: "pk_test_stub",
     methods: express ? ["card", "link"] : ["card"],
+    captureMethod: "manual",
     appearance: {},
     fonts: [],
     billing,
@@ -428,6 +430,38 @@ describe("pay.js on a Stripe payment step", () => {
     expect(page.calls).toEqual([{ url: URLS.intent, body: { shownCents: "10114" } }]);
     expect(page.stripe.confirms).toMatchObject([{ clientSecret: "pi_abc_secret_def", redirect: "if_required", confirmParams: { return_url: URLS.returnUrl } }]);
     expect(page.went).toEqual([`${URLS.complete}?payment_intent=pi_abc`]);
+  });
+
+  it("makes Elements with the capture method the page gives (manual: a confirmed payment is authorized, then the store takes it)", () => {
+    const page = stripeStep().run("js/pay.js");
+    expect(page.stripe.elements[0]).toMatchObject({ mode: "payment", captureMethod: "manual" });
+  });
+
+  it("hands an authorized payment to the store, which takes it, and goes where the store sends it", async () => {
+    const REPORT = "/w/ws_1/wrenfield/checkout/tok/payment/report";
+    const page = stripeStep().answer(URLS.intent, { json: INTENT(10114) }).answer(REPORT, { json: { status: "succeeded", redirect: `${URLS.complete}?payment_intent=pi_abc` } }).run("js/pay.js");
+    page.stripe.confirmStatus = "requires_capture";
+    page.stripe.handlers.get("payment:ready")?.();
+    page.$("[data-pay-button]").dispatch("click");
+    await page.settle();
+    expect(page.calls).toEqual([
+      { url: URLS.intent, body: { shownCents: "10114" } },
+      { url: REPORT, body: { payment_intent: "pi_abc" } },
+    ]);
+    expect(page.went).toEqual([`${URLS.complete}?payment_intent=pi_abc`]);
+  });
+
+  it("shows the store's decline of an authorized card under the button, as a card declined by Stripe shows, and lets the shopper try again", async () => {
+    const REPORT = "/w/ws_1/wrenfield/checkout/tok/payment/report";
+    const page = stripeStep().answer(URLS.intent, { json: INTENT(10114) }).answer(REPORT, { json: { recorded: true, status: "requires_payment_method", error: "Your card was declined." } }).run("js/pay.js");
+    page.stripe.confirmStatus = "requires_capture";
+    page.stripe.handlers.get("payment:ready")?.();
+    page.$("[data-pay-button]").dispatch("click");
+    await page.settle();
+    expect(page.went).toEqual([]);
+    expect(page.$("[data-payment-error]").hidden).toBe(false);
+    expect(page.$("[data-payment-error]").textContent).toBe("Your card was declined.");
+    expect(page.$("[data-pay-button]").disabled).toBe(false);
   });
 
   it("shows a price update the intent answers with instead of paying, and pays the new total on the next click (finding: a stale tab)", async () => {

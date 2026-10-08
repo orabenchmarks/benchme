@@ -5,6 +5,7 @@ import type { FastifyInstance } from "fastify";
 import type { Repos } from "../db/index.js";
 import type { ApprovalSource } from "../payments/approvals.js";
 import type { PaymentGateway } from "../payments/gateway.js";
+import type { SpendControl } from "../payments/spend-control.js";
 import { notFoundPage } from "../render/pages/not-found.js";
 import type { SiteId } from "../sites.js";
 import { registerAssetRoutes } from "./assets.js";
@@ -34,6 +35,8 @@ export type RouteDeps = {
   suffixKey: string;
   /** What the shopper's wallet approved for a store: the amount an order's charge is held against. */
   approvals: ApprovalSource;
+  /** Link's spend controls: asked before a store takes an authorized payment (routes/authorization.ts). */
+  spendControl: SpendControl;
   now: () => Date;
 };
 

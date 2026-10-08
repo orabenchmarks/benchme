@@ -69,7 +69,7 @@ export async function buildWallet(d: BuildDeps): Promise<FastifyInstance> {
     login: new DeviceLogin({ sessions, now, loginDelayMs: d.loginDelayMs, accessTtlMs: 12 * 3_600_000, codeTtlMs: 15 * 60_000 }),
     spendRequests,
     cardOnFile,
-    payments: new PaymentCheck(spendRequests, cardOnFile),
+    payments: new PaymentCheck(spendRequests, cardOnFile, events),
     requests,
     savedCards,
     events,

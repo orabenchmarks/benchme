@@ -11,8 +11,10 @@ export type AttemptResult = "succeeded" | "declined" | "requires_action" | "auth
  * One attempt as Stripe recorded it. `attempt` is what makes recording it idempotent: the charge's id (ch_…) — or,
  * for the 3-D Secure step, which comes before any charge (and a failed step makes none), the card's own id (pm_…,
  * one payment method per card submitted). A key may carry two results (a card asked for 3-D Secure, then failed it).
+ * `reason`: why a card the processor authorized was declined by the shopper's wallet (routes/authorization.ts) —
+ * above_approval or reused; the store records that one itself.
  */
-export type Attempt = { attempt: string; result: AttemptResult };
+export type Attempt = { attempt: string; result: AttemptResult; reason?: string };
 
 const AUTHENTICATION_FAILURE = "payment_intent_authentication_failure";
 
@@ -21,7 +23,9 @@ const AUTHENTICATION_FAILURE = "payment_intent_authentication_failure";
  * per charge — "succeeded", or "authenticated" after a challenge; "declined", or "authentication_failed" when the
  * challenge failed — each challenged charge preceded by its card's "requires_action" step; then what the intent
  * shows of an attempt without a charge: a challenge waiting for the shopper, or one the shopper failed. A pending
- * charge is not read yet; 3-D Secure the shopper never saw (frictionless) is a plain success.
+ * charge is not read yet; 3-D Secure the shopper never saw (frictionless) is a plain success. A charge authorized but
+ * not captured is not decided yet while its intent waits for the store (requires_capture), and was declined once the
+ * store released it (the intent canceled — the store records why: routes/authorization.ts).
  */
 export function attemptsOf(intent: Intent, charges: readonly Charge[]): Attempt[] {
   const out: Attempt[] = [];
@@ -32,7 +36,10 @@ export function attemptsOf(intent: Intent, charges: readonly Charge[]): Attempt[
     const tds = c.threeDSecure;
     const challenge = tds?.flow === "challenge";
     if (challenge && c.paymentMethod) out.push({ attempt: c.paymentMethod, result: "requires_action" });
-    if (c.status === "succeeded") out.push({ attempt: c.id, result: challenge && tds?.result === "authenticated" ? "authenticated" : "succeeded" });
+    const held = c.status === "succeeded" && !c.captured;
+    if (held && intent.status === "requires_capture") continue;
+    if (held && intent.status === "canceled") out.push({ attempt: c.id, result: "declined" });
+    else if (c.status === "succeeded") out.push({ attempt: c.id, result: challenge && tds?.result === "authenticated" ? "authenticated" : "succeeded" });
     else out.push({ attempt: c.id, result: tds?.result === "failed" ? "authentication_failed" : "declined" });
   }
   const card = intent.attemptMethod;

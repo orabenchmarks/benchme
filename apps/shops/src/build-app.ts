@@ -6,6 +6,7 @@ import type { ScenarioDef, ScenarioIndex, StoreDef, StoreId } from "@benchme/sto
 import type { FastifyInstance } from "fastify";
 import { createRepos, type StateRepo } from "./db/index.js";
 import { NoApprovals, type ApprovalSource } from "./payments/approvals.js";
+import { NoSpendControl, type SpendControl } from "./payments/spend-control.js";
 import type { PaymentGateway } from "./payments/gateway.js";
 import { registerSiteRoutes, type RouteDeps } from "./routes/index.js";
 import { SITE_IDS, isSiteId, storeFor, type SiteId } from "./sites.js";
@@ -46,6 +47,8 @@ export type BuildDeps = {
   stores?: Partial<Record<StoreId, StoreDef>>;
   /** The wallet's approvals (server.ts: the wallet app, when WALLET_URL is set). Default: none known. */
   approvals?: ApprovalSource;
+  /** The wallet's spend controls (server.ts: the wallet app, when WALLET_URL is set). Default: none — every payment is taken. */
+  spendControl?: SpendControl;
 };
 
 /** Before a site is known there is no brand to render: a plain page, noindex like every other. */
@@ -76,6 +79,7 @@ export async function buildShops(d: BuildDeps): Promise<FastifyInstance> {
     internalSecret: d.internalSecret,
     suffixKey: d.suffixKey,
     approvals: d.approvals ?? new NoApprovals(),
+    spendControl: d.spendControl ?? new NoSpendControl(),
     now: d.now ?? (() => new Date()),
   };
 

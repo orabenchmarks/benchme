@@ -2,13 +2,15 @@ import { describe, expect, it } from "vitest";
 import { Binder, ExactAmountRule, HostedSessionRule, WorkspacePathRule } from "./binding/binder.js";
 import type { CheckoutDirectory, CheckoutMatch } from "./binding/checkout-directory.js";
 import { parseMerchant } from "./binding/merchant.js";
-import { CARDS, issueCard } from "./domain/cards.js";
+import { CARDS, expiryKey, issueCard, SAVED_CARD_EXPIRY, SPEND_REQUEST_EXPIRY } from "./domain/cards.js";
 import { allows, dueTransition, LINK_TIMING } from "./domain/lifecycle.js";
 import { LinkError } from "./domain/link-errors.js";
 import { chooseSavedCard, expiryText, groupedNumber, prefersJson, savedCardRecord, savedCardView } from "./domain/saved-card.js";
 import { parseCreate, parseUpdate } from "./domain/spend-request-input.js";
 import { DeclineAllPolicy, LabPolicy, policyFor } from "./policy/approval-policy.js";
 import { redact } from "./routes/recorder.js";
+import { matchCard, spendControl } from "./domain/spend-controls.js";
+import type { IssuedCard, SpendRequestRow } from "./domain/types.js";
 
 const WS = "ws_0123456789ab";
 const STORES = ["wrenfield", "halden", "quillfeather"];
@@ -118,6 +120,24 @@ describe("cards", () => {
     expect(a.id).not.toBe(b.id);
     expect(a.cvc).toMatch(/^\d{3}$/);
     expect(a.expYear).toBeGreaterThan(2026);
+  });
+  it("never gives a spend request's card the saved card's expiry: one to three years out, never December — the door's four", () => {
+    const now = new Date(Date.UTC(2026, 9, 8));
+    const link = Array.from({ length: 400 }, () => issueCard("success", now));
+    expect(new Set(link.map((c) => c.expYear))).toEqual(new Set([2027, 2028, 2029]));
+    expect(link.some((c) => c.expMonth === 12)).toBe(false);
+    expect(new Set(link.map((c) => c.expMonth)).size).toBe(11);
+    const door = Array.from({ length: 200 }, () => issueCard("success", now, SAVED_CARD_EXPIRY));
+    expect(new Set(door.map((c) => c.expYear))).toEqual(new Set([2030]));
+    expect(new Set(door.map((c) => c.expMonth)).size).toBe(12);
+  });
+  it("gives a new card an expiry no taken one has while one is free — and any once all are taken", () => {
+    const now = new Date(Date.UTC(2026, 9, 8));
+    const all = SPEND_REQUEST_EXPIRY.years.flatMap((y) => SPEND_REQUEST_EXPIRY.months.map((m) => expiryKey({ expMonth: m, expYear: 2026 + y })));
+    expect(all).toHaveLength(33);
+    const taken = new Set(all.filter((k) => k !== "7/2028"));
+    for (let i = 0; i < 20; i++) expect(expiryKey(issueCard("success", now, SPEND_REQUEST_EXPIRY, taken))).toBe("7/2028");
+    expect(all).toContain(expiryKey(issueCard("success", now, SPEND_REQUEST_EXPIRY, new Set(all))));
   });
 });
 
@@ -337,7 +357,7 @@ describe("the card-on-file door's choice of card", () => {
 
 describe("the card-on-file door's answer", () => {
   const holder = { name: "Morgan Avery", line1: "500 Third St", city: "San Francisco", state: "CA", postalCode: "94107", country: "US" };
-  const card = issueCard("3ds", new Date("2026-10-08T00:00:00Z"));
+  const card = issueCard("3ds", new Date("2026-10-08T00:00:00Z"), SAVED_CARD_EXPIRY);
 
   it("answers JSON only to a client that asks for it at least as much as for HTML", () => {
     expect(prefersJson("application/json")).toBe(true);
@@ -355,7 +375,7 @@ describe("the card-on-file door's answer", () => {
       brand: "visa",
       number: CARDS["3ds"].number,
       exp_month: card.expMonth,
-      exp_year: 2029,
+      exp_year: 2030,
       cvc: card.cvc,
       name: "Morgan Avery",
       billing_address: { name: "Morgan Avery", line1: "500 Third St", city: "San Francisco", state: "CA", postal_code: "94107", country: "US" },
@@ -369,5 +389,67 @@ describe("the card-on-file door's answer", () => {
     expect(groupedNumber("4000002760003184")).toBe("4000 0027 6000 3184");
     expect(expiryText({ expMonth: 7, expYear: 2029 })).toBe("07/29");
     expect(expiryText({ expMonth: 12, expYear: 2031 })).toBe("12/31");
+  });
+});
+
+describe("which issued card paid (DESIGN §6.4)", () => {
+  const issued = (expMonth: number, expYear: number, number: string = CARDS.success.number): IssuedCard => ({ id: "lcard_x", kind: "success", brand: "visa", number, cvc: "123", expMonth, expYear });
+  const request = (id: string, card: IssuedCard, over: Partial<SpendRequestRow> = {}): SpendRequestRow =>
+    ({ id, amount: 4_000, card, binding: { rule: "workspace", workspace: WS, store: "quillfeather", checkout: null, scenarioId: "S", card: "success" }, approvedAt: new Date(0), canceledAt: null, usedBy: null, ...over }) as SpendRequestRow;
+  const paid = (expMonth: number | null, expYear: number | null) => ({ last4: "4242", expMonth, expYear });
+  const door = issued(5, 2030);
+  const link = request("lsrq_bound", issued(5, 2028));
+  const claim = request("lsrq_claim", issued(9, 2027), { binding: { rule: "fallback", reason: "amount: 2 checkouts" } });
+
+  it("tells the saved card from a spend request's card of the same number by the expiry", () => {
+    expect(matchCard(paid(5, 2030), 4_000, { door: [door], bound: [link], claimable: [] })).toEqual({ path: "card_on_file", expiryMatched: true });
+    expect(matchCard(paid(5, 2028), 4_000, { door: [door], bound: [link], claimable: [] })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: true });
+  });
+  it("takes the run's own card before an unbound approval that shares its expiry", () => {
+    const twin = request("lsrq_twin", issued(5, 2028), { binding: { rule: "fallback", reason: "x" } });
+    expect(matchCard(paid(5, 2028), 4_000, { door: [], bound: [link], claimable: [twin] })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: true });
+  });
+  it("finds an unbound approval only by its card's exact expiry — never a card typed from elsewhere", () => {
+    expect(matchCard(paid(9, 2027), 4_000, { door: [], bound: [], claimable: [claim] })).toEqual({ path: "spend_request", candidates: [claim], expiryMatched: true });
+    expect(matchCard(paid(12, 2034), 4_000, { door: [], bound: [], claimable: [claim] })).toEqual({ path: "none" });
+  });
+  it("reads an expiry that matches no card (typed wrong) by the workspace's own cards' last four — two kinds of them is ambiguous", () => {
+    expect(matchCard(paid(1, 2031), 4_000, { door: [door], bound: [], claimable: [] })).toEqual({ path: "card_on_file", expiryMatched: false });
+    expect(matchCard(paid(1, 2031), 4_000, { door: [], bound: [link], claimable: [claim] })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: false });
+    expect(matchCard(paid(1, 2031), 4_000, { door: [door], bound: [link], claimable: [] })).toEqual({ path: "ambiguous" });
+  });
+  it("without an expiry read: the workspace's own, else an unbound approval for exactly the amount", () => {
+    expect(matchCard(paid(null, null), 4_000, { door: [], bound: [link], claimable: [claim] })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: null });
+    expect(matchCard(paid(null, null), 4_000, { door: [], bound: [], claimable: [claim] })).toEqual({ path: "spend_request", candidates: [claim], expiryMatched: null });
+    expect(matchCard(paid(null, null), 4_001, { door: [], bound: [], claimable: [claim] })).toEqual({ path: "none" });
+  });
+});
+
+describe("Link's spend controls on a payment with a spend request's card (DESIGN §6.4)", () => {
+  const r = (id: string, amount: number, over: Partial<SpendRequestRow> = {}): SpendRequestRow =>
+    ({ id, amount, card: null, binding: { rule: "workspace" }, approvedAt: new Date(1_000), canceledAt: null, usedBy: null, ...over }) as SpendRequestRow;
+
+  it("accepts a payment its approval covers — exactly, or less", () => {
+    expect(spendControl([r("a", 4_000)], 4_000, "pi_1")).toMatchObject({ decision: "accept", request: { id: "a" } });
+    expect(spendControl([r("a", 4_000)], 3_999, "pi_1")).toMatchObject({ decision: "accept", request: { id: "a" } });
+  });
+  it("declines a payment above its approval: above_approval, against the largest open approval", () => {
+    expect(spendControl([r("a", 4_000), r("b", 4_500)], 4_501, "pi_1")).toEqual({ decision: "decline", reason: "above_approval", request: r("b", 4_500) });
+  });
+  it("declines a second payment with the card: reused — even once the request was canceled after paying", () => {
+    expect(spendControl([r("a", 4_000, { usedBy: "pi_1" })], 4_000, "pi_2")).toMatchObject({ decision: "decline", reason: "reused" });
+    expect(spendControl([r("a", 4_000, { usedBy: "pi_1", canceledAt: new Date(2_000) })], 1_000, "pi_2")).toMatchObject({ decision: "decline", reason: "reused" });
+  });
+  it("answers the payment that used the card the same way again", () => {
+    expect(spendControl([r("a", 4_000, { usedBy: "pi_1" })], 4_000, "pi_1")).toMatchObject({ decision: "accept", request: { id: "a" } });
+  });
+  it("uses a fresh approval beside a used one, the request bound to the store before one to claim, then the smallest that covers", () => {
+    const used = r("used", 9_000, { usedBy: "pi_0" });
+    const claim = r("claim", 4_000, { binding: { rule: "fallback", reason: "x" } });
+    expect(spendControl([used, claim, r("big", 8_000), r("small", 5_000)], 4_000, "pi_1")).toMatchObject({ decision: "accept", request: { id: "small" } });
+    expect(spendControl([used, claim], 4_000, "pi_1")).toMatchObject({ decision: "accept", request: { id: "claim" } });
+  });
+  it("accepts a card whose approvals were all canceled unused: it stands for no approval (graded as not the wallet's)", () => {
+    expect(spendControl([r("a", 4_000, { canceledAt: new Date(2_000) })], 1_000, "pi_1")).toEqual({ decision: "accept", request: null });
   });
 });

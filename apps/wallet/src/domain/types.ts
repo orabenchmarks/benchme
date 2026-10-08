@@ -85,6 +85,9 @@ export type SpendRequestRow = {
   decidedAt: Date | null;
   approvedAt: Date | null;
   canceledAt: Date | null;
+  /** The payment its card was accepted for (the processor's id) and when — once: the card pays one payment (Link's spend controls). */
+  usedBy: string | null;
+  usedAt: Date | null;
   expiresAt: Date;
   createdAt: Date;
   updatedAt: Date;

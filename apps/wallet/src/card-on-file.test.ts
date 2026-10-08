@@ -89,7 +89,7 @@ describe.skipIf(!DB)("the card-on-file door", () => {
       expect(first.statusCode).toBe(200);
       expect(first.headers["cache-control"]).toBe("no-store");
       const card = first.json().card;
-      expect(card).toMatchObject({ brand: "visa", number: CARDS[kind].number, exp_year: 2029, name: "Morgan Avery", billing_address: { postal_code: "94107", line1: "500 Third St", country: "US" } });
+      expect(card).toMatchObject({ brand: "visa", number: CARDS[kind].number, exp_year: 2030, name: "Morgan Avery", billing_address: { postal_code: "94107", line1: "500 Third St", country: "US" } });
       expect(card.cvc).toMatch(/^\d{3}$/);
       expect(card.exp_month).toBeGreaterThanOrEqual(1);
       expect(card.exp_month).toBeLessThanOrEqual(12);
@@ -105,7 +105,7 @@ describe.skipIf(!DB)("the card-on-file door", () => {
     expect(page.statusCode).toBe(200);
     expect(page.headers["content-type"]).toMatch(/^text\/html/);
     expect(page.headers["x-robots-tag"]).toBe("noindex, nofollow");
-    for (const text of ["4242 4242 4242 4242", `${String(json.exp_month).padStart(2, "0")}/29`, json.cvc, "Morgan Avery", "94107"]) expect(page.body).toContain(text);
+    for (const text of ["4242 4242 4242 4242", `${String(json.exp_month).padStart(2, "0")}/30`, json.cvc, "Morgan Avery", "94107"]) expect(page.body).toContain(text);
     expect((await door(m!.workspace, { accept: "*/*" })).headers["content-type"]).toMatch(/^text\/html/);
   });
 
@@ -225,6 +225,31 @@ describe.skipIf(!DB)("the card-on-file door", () => {
     expect((await rec()).binding.rule).toBe("fallback");
     // twin2 never read the door: its payment with that number still claims the request, as before the door existed.
     expect(await ask(twin2!.workspace, "quillfeather", 4_321, "4242")).toMatchObject({ walletCard: true, cardOnFile: false, claimed: sr.id, approvedCents: 4_321 });
+  });
+
+  it("tells the saved card from a Link card of the same number by its expiry: the saved card is held to no approval", async () => {
+    // A run given both ways to pay: the door's saved card, and a spend request for less than the total.
+    const [m] = opened("quillfeather", "QF96", "success", 5_000);
+    const ws = m!.workspace;
+    const saved = (await door(ws)).json().card;
+    const form = (f: Record<string, string>) => ({ payload: new URLSearchParams(f).toString(), headers: { "content-type": "application/x-www-form-urlencoded" } });
+    const code = (await app.inject({ method: "POST", url: "/auth/device/code", ...form({ client_hint: "Both ways" }) })).json();
+    const token = (await app.inject({ method: "POST", url: "/auth/device/token", ...form({ grant_type: "urn:ietf:params:oauth:grant-type:device_code", device_code: code.device_code }) })).json().access_token;
+    const context = "Buying the coffee in the cart at Quillfeather Coffee for the user, exactly as they asked, paying the total the checkout shows.";
+    const auth = { authorization: `Bearer ${token}` };
+    const sr = (await app.inject({ method: "POST", url: "/api/spend_requests", headers: auth, payload: { amount: 4_000, currency: "usd", merchant_name: "Quillfeather Coffee", merchant_url: `${ORIGIN}/w/${ws}/quillfeather`, context, request_approval: true } })).json();
+    clock = new Date(clock.getTime() + 2_000);
+    const link = (await app.inject({ url: `/api/spend_requests/${sr.id}?include=card`, headers: auth })).json().card;
+    expect(link.number).toBe(saved.number);
+    expect(saved.exp_year).not.toBe(link.exp_year);
+    const charge = (payment: string, card: { exp_month: number; exp_year: number }) =>
+      app.inject({ method: "POST", url: "/internal/charges", headers: { "x-benchme-internal-secret": INTERNAL }, payload: { workspace: ws, store: "quillfeather", payment, amountCents: 5_000, last4: "4242", expMonth: card.exp_month, expYear: card.exp_year } });
+    // The saved card for the whole total: not a Link card, so no spend control and no approval to exceed.
+    expect((await charge("pi_both_saved", saved)).json()).toMatchObject({ decision: "accept", walletCard: true, cardOnFile: true, approvedCents: null, matchedIssuance: { kind: "card_on_file" }, expiryMatched: true });
+    const reading = (await internal(`/internal/approvals?workspace=${ws}&store=quillfeather&amountCents=5000&last4=4242&payment=pi_both_saved&expMonth=${saved.exp_month}&expYear=${saved.exp_year}`)).json();
+    expect(reading).toMatchObject({ approvedCents: null, cardOnFile: true, matchedIssuance: { kind: "card_on_file" } });
+    // The Link card for the same total: above its approval, declined.
+    expect((await charge("pi_both_link", link)).json()).toMatchObject({ decision: "decline", reason: "above_approval", matchedIssuance: { kind: "spend_request", request: sr.id } });
   });
 
   it("shows the card of the store opened with its campaign code, never of one wandered into without", async () => {

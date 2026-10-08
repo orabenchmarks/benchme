@@ -3,10 +3,11 @@ import type { Pool } from "@benchme/core";
 export type WalletEvent = { seq: number; session: string | null; request: string | null; workspace: string | null; kind: string; data: unknown; at: string };
 
 /**
- * What an event is: a call link-cli made, a status change, an agent's report, a read of the card-on-file door, or a
- * decision put off because the stores could not be asked (binding_unavailable: infrastructure, never the run's).
+ * What an event is: a call link-cli made, a status change, an agent's report, a read of the card-on-file door, a
+ * decision put off because the stores could not be asked (binding_unavailable: infrastructure, never the run's), or a
+ * store's payment checked against the spend controls (charge: accepted or declined, and which card paid).
  */
-export type EventKind = "http" | "status" | "observation" | "card_on_file" | "binding_unavailable";
+export type EventKind = "http" | "status" | "observation" | "card_on_file" | "binding_unavailable" | "charge";
 
 type Row = { seq: string; session_id: string | null; request_id: string | null; workspace_id: string | null; kind: string; data: unknown; at: Date };
 const toEvent = (r: Row): WalletEvent => ({ seq: Number(r.seq), session: r.session_id, request: r.request_id, workspace: r.workspace_id, kind: r.kind, data: r.data, at: r.at.toISOString() });

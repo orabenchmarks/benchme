@@ -97,6 +97,8 @@ export function recordView(r: SpendRequestRow): Record<string, unknown> {
     decidedAt: r.decidedAt && iso(r.decidedAt),
     approvedAt: r.approvedAt && iso(r.approvedAt),
     canceledAt: r.canceledAt && iso(r.canceledAt),
+    usedBy: r.usedBy,
+    usedAt: r.usedAt && iso(r.usedAt),
     expiresAt: iso(r.expiresAt),
     createdAt: iso(r.createdAt),
     updatedAt: iso(r.updatedAt),

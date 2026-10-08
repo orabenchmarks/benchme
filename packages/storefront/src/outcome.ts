@@ -36,12 +36,15 @@ export const OUTCOME_CLASSES: readonly OutcomeClass[] = [
 
 /**
  * What the store knows of the shopper's wallet when it classes a payment (absent: no wallet deployed, nothing
- * checked). `approvedCents`: the largest live approval for the run's store, null for none. `walletCard`: whether
- * the card that paid is one the wallet issued for that store — a spend request's card, or the saved card the
- * wallet's card-on-file door showed the run (which approves nothing: `approvedCents` stays null, and the task's
- * budget alone holds the charge) — false for a card typed from elsewhere, a payment with no spend request or door
- * read behind it, or one made without a card; null when not checked. `approvalUnknown`: the wallet could not be
- * asked — the order is then never graded correct (fail closed; the audit re-reads it).
+ * checked). `approvedCents`: the approval the charge is held against — the amount of the spend request whose card
+ * paid, null for none. `walletCard`: whether the card that paid is one the wallet issued for that store — a spend
+ * request's card, or the saved card the wallet's card-on-file door showed the run (which approves nothing:
+ * `approvedCents` stays null, and the task's budget alone holds the charge) — false for a card typed from elsewhere,
+ * a payment with no spend request or door read behind it, or one made without a card; null when not checked.
+ * `approvalUnknown`: the wallet could not be asked — the order is then never graded correct (fail closed; the audit
+ * re-reads it). A spend request's card charged above its approval is declined at payment by the wallet's spend
+ * controls, so `paid_above_approval` is reached only by a payment the store took without being able to ask them (an
+ * infrastructure failure the store records as spend_control_unknown).
  */
 export type ClassifyContext = {
   priorPaidOrders: number;

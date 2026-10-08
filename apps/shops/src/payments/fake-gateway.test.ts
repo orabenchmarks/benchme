@@ -75,7 +75,7 @@ describe("FakePaymentGateway", () => {
     const declined = await g.getIntent(id);
     expect(declined).toMatchObject({ status: "requires_payment_method", lastError: "Your card was declined.", lastErrorCode: "card_declined", attemptMethod: expect.stringMatching(/^pm_fake_/) });
     const [first] = await g.charges(id);
-    expect(first).toEqual({ id: declined.latestCharge, status: "failed", paymentMethod: declined.attemptMethod, threeDSecure: null, card: { last4: "0002" }, created: expect.any(Number) });
+    expect(first).toEqual({ id: declined.latestCharge, status: "failed", captured: false, paymentMethod: declined.attemptMethod, threeDSecure: null, card: { last4: "0002", expMonth: null, expYear: null }, created: expect.any(Number) });
 
     // A 3-D Secure card: no charge until the shopper completes the bank's step, then one with the card that waited.
     g.settle(id, "require_action", "3184");
@@ -87,8 +87,8 @@ describe("FakePaymentGateway", () => {
     g.settle(id, "succeed");
     const charges = await g.charges(id);
     expect(charges.map((c) => [c.status, c.threeDSecure, c.card])).toEqual([
-      ["failed", null, { last4: "0002" }],
-      ["succeeded", { flow: "challenge", result: "authenticated" }, { last4: "3184" }], // the card that waited, not a new one
+      ["failed", null, { last4: "0002", expMonth: null, expYear: null }],
+      ["succeeded", { flow: "challenge", result: "authenticated" }, { last4: "3184", expMonth: null, expYear: null }], // the card that waited, not a new one
     ]);
     // A card settled without its number records none (null: what a store reads as "not a card").
     const bare = (await g.createIntent(intentInput)).id;
@@ -96,6 +96,37 @@ describe("FakePaymentGateway", () => {
     expect((await g.charges(bare))[0]?.card).toBeNull();
     expect(charges[1]?.paymentMethod).toBe(waiting.attemptMethod);
     expect(await g.getIntent(id)).toMatchObject({ status: "succeeded", lastErrorCode: null, attemptMethod: null, latestCharge: charges[1]?.id });
+  });
+
+  it("with manual capture, only authorizes a card that pays — its expiry on the charge — until capture takes it or cancel releases it", async () => {
+    const g = new FakePaymentGateway();
+    const { id } = await g.createIntent({ ...intentInput, captureMethod: "manual" });
+    g.settle(id, "succeed", { last4: "4242", expMonth: 7, expYear: 2029 });
+    expect((await g.getIntent(id)).status).toBe("requires_capture");
+    expect(await g.charges(id)).toEqual([expect.objectContaining({ status: "succeeded", captured: false, card: { last4: "4242", expMonth: 7, expYear: 2029 } })]);
+    expect(() => g.settle(id, "succeed", "4242")).toThrow(/requires_capture/); // authorized: not confirmed again
+    await expect(g.updateIntentAmount(id, 7_000)).rejects.toThrow(/requires_capture/);
+    expect((await g.capture(id)).status).toBe("succeeded");
+    expect((await g.charges(id))[0]).toMatchObject({ captured: true });
+    expect((await g.capture(id)).status).toBe("succeeded"); // taken already: it stands
+    expect((await g.cancel(id)).status).toBe("succeeded"); // a taken payment is never released
+
+    const other = (await g.createIntent({ ...intentInput, captureMethod: "manual" })).id;
+    g.settle(other, "succeed", "4242");
+    expect((await g.cancel(other)).status).toBe("canceled");
+    expect((await g.charges(other))[0]).toMatchObject({ status: "succeeded", captured: false });
+    await expect(g.capture(other)).rejects.toThrow(/canceled/);
+  });
+
+  it("with manual capture, completes a hosted session on an authorized payment — paid once taken, never expired meanwhile", async () => {
+    const g = new FakePaymentGateway();
+    const { id } = await g.createSession({ lines: [{ name: "x", unitCents: 4_000, qty: 1 }], email: "b@example.com", successUrl: "/s", cancelUrl: "/c", metadata: {}, statementDescriptor: "X", captureMethod: "manual" });
+    g.settleSession(id, "succeed", "4242");
+    const s = await g.getSession(id);
+    expect(s).toMatchObject({ paid: false, intent: { status: "requires_capture" } });
+    expect(await g.expireSession(id)).toBe(false);
+    await g.capture(s.paymentIntentId as string);
+    expect((await g.getSession(id)).paid).toBe(true);
   });
 
   it("fails a 3-D Secure step the shopper did not complete without a charge, as Stripe does, and only while one is waiting", async () => {

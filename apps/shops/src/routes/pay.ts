@@ -33,6 +33,13 @@
  * DELIVERY_DATE, back to the information step with ?recheck=delivery, which says why). A form is redirected there; a
  * script gets 409 { error, message, redirect }, which pay.js follows. Nothing is created, updated or charged first.
  *
+ * Taking a payment. Every intent and session is confirmed with manual capture: a card that pays is only authorized
+ * (requires_capture). Wherever the store finds a payment authorized — the completion URL, the report, the reconcile
+ * step, fake mode's card pages — it takes it after the shopper's wallet answers (routes/authorization.ts): a spend
+ * request's card used above its approval, or a second time, is declined there as an issuer declines a card ("Your
+ * card was declined.": inline on the card form, on the payment step after Stripe's hosted page), its attempt recorded
+ * as declined with the reason, and the authorization released; any other card is captured.
+ *
  * Payment attempts. Fake mode logs payment_attempt { token, ref, result } where its card pages take a card: result
  * succeeded, declined or requires_action, then authenticated or authentication_failed for the 3-D Secure step. Stripe
  * mode logs the same words from Stripe's own record (payments/attempts.ts) — at completion, at reconcile and on the
@@ -85,8 +92,9 @@ import type { ApprovalAnswer } from "../payments/approvals.js";
 import { attemptsOf, newestAttempt } from "../payments/attempts.js";
 import { statementDescriptor } from "../payments/descriptor.js";
 import { AUTHENTICATION_FAILED, FakePaymentGateway } from "../payments/fake-gateway.js";
-import { PaymentNotFoundError, type Intent, type PaymentMethodType, type SessionLine } from "../payments/gateway.js";
+import { PaymentNotFoundError, type Intent, type PaidCard, type PaymentMethodType, type SessionLine } from "../payments/gateway.js";
 import { optionsLabel } from "../render/components.js";
+import { CARD_DECLINED, takeAuthorized, type AttemptsAt } from "./authorization.js";
 import { minus } from "../render/checkout-views.js";
 import type { StoreCtx } from "../render/layout.js";
 import { fakeAuthPage, fakeSessionPage } from "../render/pages/fake-pay.js";
@@ -119,7 +127,7 @@ export function luhn(digits: string): boolean {
   return sum % 10 === 0;
 }
 
-export type CardCheck = { ok: true; digits: string } | { ok: false; message: string };
+export type CardCheck = { ok: true; digits: string; month: number; year: number } | { ok: false; message: string };
 
 /**
  * The most a card form's body may hold (PayLantern's, the payment step's, the hosted page's): a few short
@@ -160,8 +168,11 @@ export function readCard(body: Record<string, unknown>, now: Date): CardCheck {
   if (year === y && month < now.getUTCMonth() + 1) return { ok: false, message: "Your card's expiration date is in the past." };
   if (!/^\d{3,4}$/.test(field(body, "cvc").trim())) return { ok: false, message: "Your card's security code is incomplete." };
   if (!normalizeZip(field(body, "zip"))) return { ok: false, message: "Your ZIP is incomplete." };
-  return { ok: true, digits };
+  return { ok: true, digits, month, year };
 }
+
+/** A card form's card as a processor records it on the charge: its last four and expiry — never the number. */
+const paidCardOf = (c: { digits: string; month: number; year: number }): PaidCard => ({ last4: c.digits.slice(-4), expMonth: c.month, expYear: c.year });
 
 /** What the fake processor does with a card: the test cards' documented outcomes. */
 const outcomeOf = (digits: string) => (digits === DECLINE_CARD ? "decline" : digits === THREE_DS_CARD ? "require_action" : "succeed");
@@ -303,7 +314,10 @@ const legacyIntent = (l: Loaded): { ref: string; clientSecret: string } | null =
   return v && typeof v.id === "string" && typeof v.secret === "string" ? { ref: v.id, clientSecret: v.secret } : null;
 };
 
-const AMOUNT_FIXED: ReadonlySet<Intent["status"]> = new Set(["processing", "succeeded", "canceled"]);
+const AMOUNT_FIXED: ReadonlySet<Intent["status"]> = new Set(["processing", "requires_capture", "succeeded", "canceled"]);
+
+/** A payment that went through, or is authorized and waiting for the store to take it (routes/authorization.ts). */
+const through = (i: Intent | null) => i !== null && (i.status === "succeeded" || i.status === "processing" || i.status === "requires_capture");
 
 /**
  * The checkout's one intent at the total `t`, with what it pays for recorded on every attempt: the stored
@@ -324,7 +338,7 @@ async function ensureIntent(deps: RouteDeps, l: Loaded, t: Totals): Promise<{ id
       } catch (err) {
         if (!(err instanceof PaymentNotFoundError)) throw err;
       }
-      if (intent && (intent.status === "succeeded" || intent.status === "processing")) return { paid: intent.id };
+      if (through(intent)) return { paid: (intent as Intent).id };
       if (intent && !AMOUNT_FIXED.has(intent.status)) {
         try {
           if (intent.amountCents !== amountCents) await deps.payments.updateIntentAmount(stored.ref, amountCents);
@@ -337,7 +351,7 @@ async function ensureIntent(deps: RouteDeps, l: Loaded, t: Totals): Promise<{ id
     const created = use === null;
     if (!use) {
       const methods: PaymentMethodType[] = surfaceOf(l.store, l.scenario) === "express-checkout" ? ["card", "link"] : ["card"];
-      use = await deps.payments.createIntent({ amountCents, metadata: metadataOf(l), methods, email: l.checkout.contact?.email ?? "", statementDescriptor: statementDescriptor(l.store.brand.name) });
+      use = await deps.payments.createIntent({ amountCents, metadata: metadataOf(l), methods, email: l.checkout.contact?.email ?? "", statementDescriptor: statementDescriptor(l.store.brand.name), captureMethod: "manual" });
     }
     await payments.save(l.ws, { ref: use.id, checkoutToken: l.checkout.token, store: l.site, kind: "intent", amountCents, snapshot, clientSecret: use.clientSecret });
     return { ...use, created };
@@ -370,9 +384,10 @@ async function openSession(req: FastifyRequest, deps: RouteDeps, l: Loaded, t: T
         }
         expired = true;
       }
-      // Not expirable: it completed. Paid a moment ago, it is the payment to record; completed without a
-      // payment, nothing more can come of it.
-      if (!expired && (await deps.payments.getSession(old.ref).catch(() => null))?.paid) return { paid: old.ref };
+      // Not expirable: it completed. Paid (or authorized) a moment ago, it is the payment to record; completed without
+      // a payment, nothing more can come of it.
+      const done = expired ? null : await deps.payments.getSession(old.ref).catch(() => null);
+      if (done && (done.paid || through(done.intent))) return { paid: old.ref };
       await payments.markExpired(l.ws, old.ref);
     }
     const s = await deps.payments.createSession({
@@ -382,6 +397,7 @@ async function openSession(req: FastifyRequest, deps: RouteDeps, l: Loaded, t: T
       cancelUrl: `${base}${checkoutPath(l.checkout.token, "payment")}`,
       metadata: metadataOf(l),
       statementDescriptor: statementDescriptor(l.store.brand.name),
+      captureMethod: "manual",
     });
     await payments.save(l.ws, { ref: s.id, checkoutToken: l.checkout.token, store: l.site, kind: "session", amountCents: t.totalCents, snapshot });
     return s;
@@ -426,9 +442,6 @@ function unpaidMessage(i: Intent): string {
 }
 
 /* ------------------------------------------------------------------ attempts, as Stripe recorded them */
-
-/** Where a payment's attempts are logged: its workspace, store and checkout, and the store's payment (an intent, or a session). */
-type AttemptsAt = { ws: string; site: string; token: string; ref: string };
 
 /**
  * Stripe mode: logs the attempts Stripe recorded for a payment — `intent` as just read (a session's: its
@@ -559,7 +572,10 @@ async function completePayment(req: FastifyRequest, deps: RouteDeps, shop: Shop,
       ...(wallet.walletCard !== null ? { walletCard: wallet.walletCard } : {}),
       ...(wallet.cardOnFile ? { cardOnFile: true } : {}),
       ...(wallet.claimed ? { claimed: wallet.claimed } : {}),
+      ...(wallet.matchedIssuance !== undefined ? { matchedIssuance: wallet.matchedIssuance } : {}),
+      ...(wallet.expiryMatched !== undefined && wallet.expiryMatched !== null ? { expiryMatched: wallet.expiryMatched } : {}),
       ...(wallet.approvalUnknown ? { approvalUnknown: true } : {}),
+      ...((await events.has(shop.ws, shop.site, "spend_control_unknown", "payment", paid.ref)) ? { spendControlUnknown: true } : {}),
       ...(reconciled ? { reconciled: true } : {}),
     });
     if (paid.cents !== s.totals.totalCents) await events.record(shop.ws, shop.site, "amount_mismatch", { token, orderNo: placed.orderNo, chargedCents: paid.cents, computedCents: s.totals.totalCents });
@@ -575,17 +591,18 @@ type WalletReading = ApprovalAnswer & { approvalUnknown: boolean };
 
 /**
  * What the shopper's wallet says of this payment: the approval the charge is held against (paid above approval), and
- * whether the card that paid — its last four, read from the processor's charge, only when there is a wallet to ask —
- * is one the wallet issued for this store (no_wallet_card when not). A wallet that cannot be asked does not hold up
- * the order, but leaves it ungraded: approval_unknown, never correct, and an event says why for the audit.
+ * whether the card that paid — its last four and expiry, read from the processor's charge, only when there is a wallet
+ * to ask — is one the wallet issued for this store (no_wallet_card when not), and which (matchedIssuance: a spend
+ * request's card or the card-on-file door's saved card). A wallet that cannot be asked does not hold up the order, but
+ * leaves it ungraded: approval_unknown, never correct, and an event says why for the audit.
  */
 async function walletOf(req: FastifyRequest, deps: RouteDeps, shop: Shop, token: string, paid: Paid): Promise<WalletReading> {
-  const last4 = async () => {
+  const card = async () => {
     const charges = await deps.payments.charges(paid.ref);
-    return charges.filter((c) => c.status === "succeeded").at(-1)?.card?.last4 ?? null;
+    return charges.filter((c) => c.status === "succeeded").at(-1)?.card ?? null;
   };
   try {
-    return { ...(await deps.approvals.approvalFor(shop.ws, shop.site, { amountCents: paid.cents, last4 })), approvalUnknown: false };
+    return { ...(await deps.approvals.approvalFor(shop.ws, shop.site, { amountCents: paid.cents, payment: paid.ref, card })), approvalUnknown: false };
   } catch (err) {
     req.log.warn({ err: (err as Error).message }, "the wallet's approval could not be read");
     await deps.repos.events.record(shop.ws, shop.site, "approval_unknown", { token, error: (err as Error).message });
@@ -610,14 +627,20 @@ async function sendConfirmation(req: FastifyRequest, deps: RouteDeps, shop: Shop
  */
 async function settled(req: FastifyRequest, deps: RouteDeps, shop: Shop, p: PaymentRow): Promise<{ paid: Paid | null; intent: Intent | null }> {
   const none = { paid: null, intent: null };
+  const at: AttemptsAt = { ws: shop.ws, site: shop.site, token: p.checkoutToken, ref: p.ref };
   try {
     if (p.kind === "intent") {
-      const i = await deps.payments.getIntent(p.ref);
+      let i = await deps.payments.getIntent(p.ref);
       if (!names(i.metadata, shop.ws, shop.site, p.checkoutToken)) return none;
+      if (i.status === "requires_capture") i = (await takeAuthorized(req, deps, at, i)).intent;
       return { paid: i.status === "succeeded" ? { ref: i.id, cents: i.amountCents, payment: p.ref } : null, intent: i };
     }
     const s = await deps.payments.getSession(p.ref);
     if (!names(s.metadata, shop.ws, shop.site, p.checkoutToken)) return none;
+    if (s.intent?.status === "requires_capture") {
+      const t = await takeAuthorized(req, deps, at, s.intent);
+      return { paid: t.taken ? { ref: t.intent.id, cents: s.amountCents, payment: p.ref } : null, intent: t.intent };
+    }
     return { paid: s.paid ? { ref: s.paymentIntentId ?? s.id, cents: s.amountCents, payment: p.ref } : null, intent: s.intent };
   } catch (err) {
     if (err instanceof PaymentNotFoundError) {
@@ -770,16 +793,29 @@ export function registerPayRoutes(scope: FastifyInstance, deps: RouteDeps): void
     let attempts: { ref: string; intent: Intent | null } | null = null;
     try {
       if (q.payment_intent) {
-        const i = await deps.payments.getIntent(q.payment_intent);
+        let i = await deps.payments.getIntent(q.payment_intent);
         if (!belongs(i.metadata, l)) return bad(400, "WRONG_PAYMENT", "This payment does not belong to this checkout.");
+        let declined: string | null = null;
+        if (i.status === "requires_capture") {
+          const t = await takeAuthorized(req, deps, { ws: l.ws, site: l.site, token: l.checkout.token, ref: i.id }, i);
+          i = t.intent;
+          if (!t.taken) declined = t.message;
+        }
         attempts = { ref: i.id, intent: i };
         if (i.status === "succeeded") paid = { ref: i.id, cents: i.amountCents, payment: i.id };
-        else failure = unpaidMessage(i);
+        else failure = declined ?? unpaidMessage(i);
       } else if (q.session_id) {
         const s = await deps.payments.getSession(q.session_id);
         if (!belongs(s.metadata, l)) return bad(400, "WRONG_PAYMENT", "This payment does not belong to this checkout.");
-        attempts = { ref: s.id, intent: s.intent };
-        if (s.paid) paid = { ref: s.paymentIntentId ?? s.id, cents: s.amountCents, payment: s.id };
+        let intent = s.intent;
+        if (intent?.status === "requires_capture") {
+          // Paid on Stripe's hosted page, authorized: taken now — or declined, and the shopper is back on the payment step.
+          const t = await takeAuthorized(req, deps, { ws: l.ws, site: l.site, token: l.checkout.token, ref: s.id }, intent);
+          intent = t.intent;
+          if (t.taken) paid = { ref: t.intent.id, cents: s.amountCents, payment: s.id };
+          else failure = t.message;
+        } else if (s.paid) paid = { ref: s.paymentIntentId ?? s.id, cents: s.amountCents, payment: s.id };
+        attempts = { ref: s.id, intent };
       } else {
         return bad(400, "MISSING_PAYMENT", "A payment_intent or session_id is required.");
       }
@@ -819,10 +855,18 @@ export function registerPayRoutes(scope: FastifyInstance, deps: RouteDeps): void
       throw err;
     }
     if (!belongs(i.metadata, l)) return reply.code(400).send({ error: "WRONG_PAYMENT", message: "This payment does not belong to this checkout." });
+    // Authorized (the card form confirmed it): taken now — or declined by the shopper's wallet, said as a decline is.
+    let declined: string | null = null;
+    if (i.status === "requires_capture") {
+      const t = await takeAuthorized(req, deps, { ws: l.ws, site: l.site, token: l.checkout.token, ref: i.id }, i);
+      i = t.intent;
+      if (!t.taken) declined = t.message;
+    }
     // Stripe's record of the intent, logged in fake mode's words and each attempt once (another reading may have
     // logged it already: then it is simply on record). Nothing tried (a form the browser itself refused): nothing.
-    const recorded = await logAttempts(deps, { ws: l.ws, site: l.site, token: l.checkout.token, ref: i.id }, i);
+    const recorded = (await logAttempts(deps, { ws: l.ws, site: l.site, token: l.checkout.token, ref: i.id }, i)) || declined !== null;
     if (i.status === "succeeded" || i.status === "processing") return reply.send({ status: i.status, redirect: completeUrl(req, l, `payment_intent=${encodeURIComponent(i.id)}`) });
+    if (declined !== null) return reply.send({ recorded, status: "requires_payment_method", error: declined });
     return reply.send({ recorded, status: i.status, error: i.lastError });
   });
 
@@ -846,10 +890,17 @@ export function registerPayRoutes(scope: FastifyInstance, deps: RouteDeps): void
     const id = "paid" in r ? r.paid : r.id;
     if (!("paid" in r)) {
       const outcome = outcomeOf(card.digits);
-      gw.settle(id, outcome, card.digits.slice(-4));
-      await events.record(l.ws, l.site, "payment_attempt", { token: l.checkout.token, ref: id, result: outcome === "succeed" ? "succeeded" : outcome === "decline" ? "declined" : "requires_action" });
+      gw.settle(id, outcome, paidCardOf(card));
+      // A card that pays is only authorized: its attempt is logged once the store has taken it or declined it.
+      if (outcome !== "succeed") await events.record(l.ws, l.site, "payment_attempt", { token: l.checkout.token, ref: id, result: outcome === "decline" ? "declined" : "requires_action" });
     }
-    const intent = await gw.getIntent(id);
+    let intent = await gw.getIntent(id);
+    // Authorized: taken now, or declined by the shopper's wallet — on this form, as a decline is.
+    if (intent.status === "requires_capture") {
+      const t = await takeAuthorized(req, deps, { ws: l.ws, site: l.site, token: l.checkout.token, ref: id }, intent);
+      if (!t.taken) return json ? reply.code(402).send({ status: "requires_payment_method", error: t.message }) : reply.redirect(backWithError(req, l, t.message), 303);
+      intent = t.intent;
+    }
     if (intent.status === "succeeded" || intent.status === "processing") {
       const to = completeUrl(req, l, `payment_intent=${encodeURIComponent(id)}`);
       return json ? reply.send({ status: "succeeded", redirect: to }) : reply.redirect(to, 303);
@@ -895,7 +946,11 @@ export function registerPayRoutes(scope: FastifyInstance, deps: RouteDeps): void
     if (!i) return json ? reply.code(409).send({ error: "NOT_PENDING", message: "There is no payment waiting for authentication." }) : reply.redirect(`${req.prefix}${checkoutPath(l.checkout.token, "payment")}`, 303);
     if (field(formBody.parse(req.body), "result") === "complete") {
       gw.settle(i.id, "succeed");
-      await events.record(l.ws, l.site, "payment_attempt", { token: l.checkout.token, ref: i.id, result: "authenticated" });
+      const after = await gw.getIntent(i.id);
+      if (after.status === "requires_capture") {
+        const t = await takeAuthorized(req, deps, { ws: l.ws, site: l.site, token: l.checkout.token, ref: i.id }, after);
+        if (!t.taken) return json ? reply.code(402).send({ status: "requires_payment_method", error: t.message }) : reply.redirect(backWithError(req, l, t.message), 303);
+      }
       const to = completeUrl(req, l, `payment_intent=${encodeURIComponent(i.id)}`);
       return json ? reply.send({ status: "succeeded", redirect: to }) : reply.redirect(to, 303);
     }
@@ -947,9 +1002,9 @@ export function registerPayRoutes(scope: FastifyInstance, deps: RouteDeps): void
    * A card on the session's page, settled on the session's intent as Stripe keeps it: true — or false when the
    * session expired meanwhile (a newer one of its checkout replaced it).
    */
-  const settledOn = (gw: FakePaymentGateway, s: FakeSession, outcome: "succeed" | "decline" | "require_action", last4: string | null = null): boolean => {
+  const settledOn = (gw: FakePaymentGateway, s: FakeSession, outcome: "succeed" | "decline" | "require_action", card: PaidCard | null = null): boolean => {
     try {
-      gw.settleSession(s.id, outcome, last4);
+      gw.settleSession(s.id, outcome, card);
       return true;
     } catch (err) {
       const now = gw.inspect(s.id);
@@ -958,19 +1013,25 @@ export function registerPayRoutes(scope: FastifyInstance, deps: RouteDeps): void
     }
   };
 
-  /** Pays the session (with the card ending `last4`; null: completing the one that waited for 3-D Secure) — unless it expired meanwhile: then back to the store. */
-  const settleOrBack = (reply: FastifyReply, gw: FakePaymentGateway, s: FakeSession, last4: string | null = null) =>
-    settledOn(gw, s, "succeed", last4) ? reply.redirect(successOf(s), 303) : reply.redirect(expiredTo(s), 303);
+  /** Pays the session (with `card`; null: completing the one that waited for 3-D Secure) — unless it expired meanwhile: then back to the store. */
+  const settleOrBack = (reply: FastifyReply, gw: FakePaymentGateway, s: FakeSession, card: PaidCard | null = null) =>
+    settledOn(gw, s, "succeed", card) ? reply.redirect(successOf(s), 303) : reply.redirect(expiredTo(s), 303);
 
   const renderSession = async (req: FastifyRequest, reply: FastifyReply, s: FakeSession, error: string | null, status = 200) => {
     const ctx = (await pageCtx(req, deps)) as StoreCtx;
     return sendHtml(reply, fakeSessionPage(ctx, { amountCents: s.amountCents, lines: s.lines, email: s.email, action: sessionPath(req, s), cancelUrl: s.cancelUrl, error }), status);
   };
 
+  /** A session completed on its page: paid, or its payment authorized and waiting for the store (its success URL takes it). */
+  const completed = async (gw: FakePaymentGateway, id: string) => {
+    const s = await gw.getSession(id);
+    return s.paid || through(s.intent);
+  };
+
   scope.get<{ Params: { id: string }; Querystring: { error?: string } }>("/fake-pay/session/:id", async (req, reply) => {
     const found = await sessionOf(req, req.params.id, reply);
     if (!found) return reply;
-    if ((await found.gw.getSession(found.s.id)).paid) return reply.redirect(successOf(found.s), 303);
+    if (await completed(found.gw, found.s.id)) return reply.redirect(successOf(found.s), 303);
     if (found.s.expired) return reply.redirect(expiredTo(found.s), 303);
     return renderSession(req, reply, found.s, req.query.error === "auth" ? AUTHENTICATION_FAILED : null);
   });
@@ -979,16 +1040,17 @@ export function registerPayRoutes(scope: FastifyInstance, deps: RouteDeps): void
     const found = await sessionOf(req, req.params.id, reply);
     if (!found) return reply;
     const { gw, s, store } = found;
-    if ((await gw.getSession(s.id)).paid) return reply.redirect(successOf(s), 303);
+    if (await completed(gw, s.id)) return reply.redirect(successOf(s), 303);
     if (s.expired) return reply.redirect(expiredTo(s), 303);
     const card = readCard(formBody.parse(req.body), deps.now());
     if (!card.ok) return renderSession(req, reply, s, card.message, 422);
     const outcome = outcomeOf(card.digits);
-    await events.record(req.workspaceId, store.id, "payment_attempt", { token: s.token, ref: s.id, result: outcome === "succeed" ? "succeeded" : outcome === "decline" ? "declined" : "requires_action" });
-    const last4 = card.digits.slice(-4);
-    if (outcome === "succeed") return settleOrBack(reply, gw, s, last4);
+    // A card that pays is only authorized: the store logs its attempt when it takes it or declines it (the return URL).
+    if (outcome !== "succeed") await events.record(req.workspaceId, store.id, "payment_attempt", { token: s.token, ref: s.id, result: outcome === "decline" ? "declined" : "requires_action" });
+    const paying = paidCardOf(card);
+    if (outcome === "succeed") return settleOrBack(reply, gw, s, paying);
     // The session's intent keeps the attempt, as Stripe's does.
-    if (!settledOn(gw, s, outcome, last4)) return reply.redirect(expiredTo(s), 303);
+    if (!settledOn(gw, s, outcome, paying)) return reply.redirect(expiredTo(s), 303);
     if (outcome === "decline") return renderSession(req, reply, s, "Your card was declined.", 402);
     sessionPending.add(s.id);
     return reply.redirect(sessionPath(req, s, "/authenticate"), 303);
@@ -1013,7 +1075,7 @@ export function registerPayRoutes(scope: FastifyInstance, deps: RouteDeps): void
     }
     if (!sessionPending.delete(s.id)) return reply.redirect(sessionPath(req, s), 303);
     const ok = field(formBody.parse(req.body), "result") === "complete";
-    await events.record(req.workspaceId, store.id, "payment_attempt", { token: s.token, ref: s.id, result: ok ? "authenticated" : "authentication_failed" });
+    if (!ok) await events.record(req.workspaceId, store.id, "payment_attempt", { token: s.token, ref: s.id, result: "authentication_failed" });
     if (!ok) {
       failAuthentication(gw, s.id);
       return reply.redirect(sessionPath(req, s, "?error=auth"), 303);
