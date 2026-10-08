@@ -15,7 +15,8 @@
  * CLI mode (`--format json`): auth login → auth status (polled) → payment-methods list → user-info → approval-policy →
  * spend-request create (approval requested) → retrieve --interval until approved → retrieve --include card (a
  * Luhn-valid card with the billing address) → --output-file (the card only in the 0600 file) → created →
- * request-approval → update → cancel → a request paying elsewhere is denied → requires_action (3-D Secure,
+ * request-approval → update → cancel → a request paying elsewhere, on the lookalike page of the stores' own host, or on a
+ * Stripe Checkout page no store created is denied → requires_action (3-D Secure,
  * auto_resume) polled to approved → expired → list (active, history) → a refused amount → report. MCP mode
  * (`--mcp`, stdio JSON-RPC): tools/list, search_tools, then spend-request_create / _retrieve (include card) through
  * call_write_tool / call_read_tool. Last, the records: every call answered, no full card number or token in them.
@@ -200,6 +201,13 @@ async function main() {
   const elsewhere = last((await cli(["spend-request", "create", "--merchant-name", "Some Other Shop", "--merchant-url", "https://shop.example/checkout", "--context", CONTEXT, "--amount", "2450", "--format", "json"])).json);
   const denied = last((await cli(["spend-request", "retrieve", elsewhere.id, "--interval", "1", "--max-attempts", "30", "--include", "card", "--format", "json"])).json);
   check(denied?.status === "denied" && denied?.card === undefined, "a request paying elsewhere: denied, no card");
+  // On the stores' own host, but not a store: the lookalike payment page. And a hosted payment page no store created.
+  const lookalike = last((await cli(["spend-request", "create", "--merchant-name", "PayLantern Checkout", "--merchant-url", ws.store.replace(/\/quillfeather$/, "/paylantern/pay"), "--context", CONTEXT, "--amount", "2450", "--format", "json"])).json);
+  const deniedLookalike = last((await cli(["spend-request", "retrieve", lookalike.id, "--interval", "1", "--max-attempts", "30", "--include", "card", "--format", "json"])).json);
+  check(deniedLookalike?.status === "denied" && deniedLookalike?.card === undefined, "a request paying another app on the stores' host (the lookalike page): denied, no card");
+  const strayPage = last((await cli(["spend-request", "create", "--merchant-name", "Halden Audio", "--merchant-url", "https://checkout.stripe.com/c/pay/cs_test_NoStoreMadeThis", "--context", CONTEXT, "--amount", "2450", "--format", "json"])).json);
+  const deniedPage = last((await cli(["spend-request", "retrieve", strayPage.id, "--interval", "1", "--max-attempts", "30", "--include", "card", "--format", "json"])).json);
+  check(deniedPage?.status === "denied" && deniedPage?.card === undefined, "a request on a Stripe Checkout page no store created: denied, no card");
 
   const step = last((await cli(["spend-request", "create", ...merchant, "--amount", "2450", "--no-request-approval", "--format", "json"])).json);
   await internal("POST", `/spend-requests/${step.id}/status`, { status: "requires_action" });

@@ -495,10 +495,13 @@ export class Shopper {
 
   /* ------------------------------------------------------------------ paying */
 
-  /** WALLET=1: the wallet's approval of `cents`; its card must be the test card the run pays with. */
-  private async approve(cents: number, card: Card): Promise<WalletCard> {
+  /**
+   * WALLET=1: the wallet's approval of `cents` for the page the shopper pays on — the store (its workspace URL), or the
+   * hosted payment page it was sent to, by that page's own URL; its card must be the test card the run pays with.
+   */
+  private async approve(cents: number, card: Card, merchantUrl: string = this.base): Promise<WalletCard> {
     const wallet = this.wallet as LinkWallet;
-    const a = await wallet.approve(cents, this.base, this.store.brand.name);
+    const a = await wallet.approve(cents, merchantUrl, this.store.brand.name);
     if (a.card.number.replace(/\D/g, "") !== CARD_NUMBERS[card].replace(/\D/g, "")) {
       throw new Error(`the wallet issued a card ending ${a.card.number.slice(-4)}; the run pays with the ${card} card`);
     }
@@ -516,9 +519,10 @@ export class Shopper {
 
   /**
    * The card to pay `cents` with: the run's test card, or (WALLET=1) the wallet's — the approval held, or a new one
-   * first when none is held or the total rose past it, unless the run keeps the approval it holds.
+   * first (for `merchantUrl`, the page paid on) when none is held or the total rose past it, unless the run keeps the
+   * approval it holds.
    */
-  private async cardFor(cents: number, card: Card, keepApproval: boolean): Promise<{ number: string; expiry: string; cvc: string }> {
+  private async cardFor(cents: number, card: Card, keepApproval: boolean, merchantUrl?: string): Promise<{ number: string; expiry: string; cvc: string }> {
     if (!this.wallet) return { number: CARD_NUMBERS[card], expiry: EXPIRY, cvc: CVC };
     // A card the wallet does not issue in this task (a run retrying a decline with another card) is typed from elsewhere.
     if (card !== (this.s.card ?? "success")) {
@@ -531,10 +535,10 @@ export class Shopper {
       this.log(`paying ${usd(cents)} with the card approved for ${usd(held.amountCents)}`);
       return held.card;
     }
-    return held && held.amountCents >= cents ? held.card : this.approve(cents, card);
+    return held && held.amountCents >= cents ? held.card : this.approve(cents, card, merchantUrl);
   }
 
-  /** The Pay button's amount, in cents ("Pay $43.95"). */
+  /** The Pay button's amount, in cents ("Pay $12.34"). */
   private static payCents(label: string): number {
     return centsOf(/\$[\d,]+\.\d{2}/.exec(label)?.[0] ?? "");
   }
@@ -552,10 +556,7 @@ export class Shopper {
     if (await notice.isVisible()) throw new Error(`pay: the payment step shows a notice instead of a way to pay: ${(await notice.innerText()).slice(0, 200)}`);
     const hosted = page.getByRole("button", { name: "Continue to secure payment" });
     this.log(`paying with the ${card} card, billed to ZIP ${zip}`);
-    if (await hosted.isVisible()) {
-      if (this.wallet) throw new Error("pay: WALLET=1 pays on the card-form surfaces (Payment Element, Express Checkout); this task pays on the hosted page");
-      return this.stripe ? this.payStripeHosted(card, zip) : this.payHosted(card, zip);
-    }
+    if (await hosted.isVisible()) return this.stripe ? this.payStripeHosted(card, zip, keep) : this.payHosted(card, zip, keep);
     if (await page.locator("[data-stripe-payment]").count()) {
       if (!this.stripe) throw new Error("pay: the store takes cards in Stripe's Payment Element (the stack pays with Stripe test keys): run with STRIPE=1");
       return this.payStripeElements(card, zip, keep);
@@ -631,8 +632,11 @@ export class Shopper {
     }
   }
 
-  /** The hosted surface: "Continue to secure payment", the processor's page (fake mode's), back to the store. */
-  private async payHosted(card: Card, billingZip: string): Promise<void> {
+  /**
+   * The hosted surface: "Continue to secure payment", the processor's page (fake mode's), back to the store. WALLET=1:
+   * the card is had for the page's own URL and the total its Pay button shows.
+   */
+  private async payHosted(card: Card, billingZip: string, keepApproval = false): Promise<void> {
     const page = this.page;
     const go = page.getByRole("button", { name: "Continue to secure payment" });
     const heading = page.getByRole("heading", { name: "Pay with card" });
@@ -648,13 +652,14 @@ export class Shopper {
     }
     this.log(`on the secure payment page ${new URL(page.url()).pathname}`);
     const form = page.locator("form").filter({ has: page.getByLabel("Cardholder name") });
-    await form.getByLabel("Card number").fill(CARD_NUMBERS[card]);
-    await form.getByLabel("Expiration date").fill(EXPIRY);
-    await form.getByLabel("Security code").fill(CVC);
-    await form.getByLabel("Cardholder name").fill(this.cardholder());
-    await form.getByLabel("ZIP code").fill(billingZip);
     const pay = form.getByRole("button", { name: /^Pay \$/ });
     const label = (await pay.innerText()).trim();
+    const c = await this.cardFor(Shopper.payCents(label), card, keepApproval, page.url());
+    await form.getByLabel("Card number").fill(c.number);
+    await form.getByLabel("Expiration date").fill(c.expiry);
+    await form.getByLabel("Security code").fill(c.cvc);
+    await form.getByLabel("Cardholder name").fill(this.cardholder());
+    await form.getByLabel("ZIP code").fill(billingZip);
     await pay.click();
     this.log(`clicked "${label}" with the ${card} card`);
     const order = page.getByText(ORDER_TEXT);
@@ -871,9 +876,10 @@ export class Shopper {
    * The hosted surface: "Continue to secure payment" (a price update answers it first, once), Stripe's Checkout page
    * on checkout.stripe.com — card, expiry, CVC, cardholder name, country and ZIP, then Pay — and back to the store's
    * confirmation. Stripe may open the page on the shopper's own currency (Adaptive Pricing); the shopper picks the
-   * US-dollar price, the store's, which must be the total the store showed.
+   * US-dollar price, the store's, which must be the total the store showed. WALLET=1: the card is had for the page's
+   * own URL (checkout.stripe.com/c/pay/<Checkout Session>) — the wallet binds the request by that session.
    */
-  private async payStripeHosted(card: Card, billingZip: string): Promise<void> {
+  private async payStripeHosted(card: Card, billingZip: string, keepApproval = false): Promise<void> {
     const page = this.page;
     const go = page.getByRole("button", { name: "Continue to secure payment" });
     const banner = page.locator("[data-price-banner]");
@@ -895,9 +901,10 @@ export class Shopper {
     this.log(`on Stripe's hosted payment page (${CHECKOUT_HOST}) for ${usd(total)}`);
     await this.payInDollars(total);
     await this.hostedCardOnly();
-    await number.fill(CARD_NUMBERS[card]);
-    await page.getByRole("textbox", { name: "Expiration" }).fill(EXPIRY);
-    await page.getByRole("textbox", { name: /CVC/ }).fill(CVC);
+    const c = await this.cardFor(total, card, keepApproval, page.url());
+    await number.fill(c.number);
+    await page.getByRole("textbox", { name: "Expiration" }).fill(c.expiry);
+    await page.getByRole("textbox", { name: /CVC/ }).fill(c.cvc);
     await page.getByRole("textbox", { name: "Cardholder name" }).fill(this.cardholder());
     await page.getByRole("combobox", { name: "Country or region" }).selectOption({ label: "United States" });
     await page.getByRole("textbox", { name: "ZIP" }).fill(billingZip);

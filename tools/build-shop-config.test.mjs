@@ -808,6 +808,31 @@ test("--leak-check passes a checkout that holds none of them, and writes nothing
   assert.deepEqual(readdirSync(cwd), [], "no scenario file is written");
 });
 
+test("--leak-check --text reads what a push publishes outside git — a pull request's body — and refuses a file it cannot read", () => {
+  const root = leakyHidden();
+  const pub = repo({ tracked: { "README.md": "Nothing hidden here.\n" } });
+  const dir = mkdtempSync(join(tmpdir(), "build-shop-config-text-"));
+  roots.push(dir);
+  const body = join(dir, "pr-body.md");
+  writeFileSync(body, "## What\n\nQF90's wrong run now pays above its approval; campaign fixture-leak-price-code.\n");
+  const clean = join(dir, "clean.md");
+  writeFileSync(clean, "## What\n\nOrders paid above the approval are classed by mechanism; no task is named.\n");
+  const r = spawnSync(process.execPath, [TOOL, "--hidden", root, "--leak-check", pub, "--text", clean, "--text", body], { encoding: "utf8" });
+  assert.equal(r.status, 1, r.stderr);
+  const lines = r.stderr.trimEnd().split("\n").slice(1).join("\n");
+  assert.match(lines, new RegExp(`text ${body.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:3: .*QF90`));
+  assert.match(lines, /fixture-leak-price-code/);
+  assert.ok(!lines.includes("clean.md"), "the clean body has no find");
+  const ok = spawnSync(process.execPath, [TOOL, "--hidden", root, "--leak-check", pub, "--text", clean], { encoding: "utf8" });
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.equal(JSON.parse(ok.stdout).texts, 1);
+  const missing = spawnSync(process.execPath, [TOOL, "--hidden", root, "--leak-check", pub, "--text", join(dir, "nope.md")], { encoding: "utf8" });
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /--text: cannot read .*nope\.md/);
+  const alone = spawnSync(process.execPath, [TOOL, "--hidden", root, "--text", clean], { encoding: "utf8" });
+  assert.match(alone.stderr, /--text goes with --leak-check/);
+});
+
 test("--leak-check refuses what it cannot check: no git checkout, a destination to write", () => {
   const root = leakyHidden();
   const plain = mkdtempSync(join(tmpdir(), "build-shop-config-plain-"));

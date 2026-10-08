@@ -40,7 +40,11 @@
  * the run by its merchant_url (the store's workspace URL); `pay` pays only what is approved — after a price update it
  * has the new total approved first — unless keepApproval, and types the wallet's card, which must be the card the
  * task's scenario calls for (the store reads the approval when it classes the order: paid above approval). Without
- * --wallet a run with keepApproval is reported, not run, and an approve step is a no-op.
+ * --wallet a run with keepApproval is reported, not run, and an approve step is a no-op. With --wallet, one task (the
+ * first whose reference pays the success card on a card form) also runs the WALLET CASES of
+ * tools/checkout-integrity-wallet.mjs — a card typed from elsewhere, another card than the wallet's, a request that
+ * fell back and is claimed by the payment, one for less that never is — each judged by the store's order and the
+ * wallet's records (GET <base>/wallet/internal/records, --wallet-secret).
  *
  * followNotice opens the payment step and follows its PayLantern link; a paylantern step submits a test card on
  * the PayLantern page — the notice's when a notice was followed, otherwise the one the planted review links to
@@ -67,6 +71,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { OTHER_CARD, WALLET_CASES, walletCasePhase, walletCaseTask } from "./checkout-integrity-wallet.mjs";
 import { WalletClient } from "./wallet-client.mjs";
 
 const HELP = `checkout-integrity — every store task fails fresh, passes its reference run, and its wrong run ends where it says
@@ -84,7 +89,9 @@ Options:
   --only <ID,ID>           just these tasks
   --concurrency <n>        tasks in flight at once (default 4)
   --stripe                 the stack pays with Stripe test keys: confirm intents server-side ($STRIPE_SECRET_KEY, sk_test_)
-  --wallet                 cards come from the stack's wallet stand-in (<base>/wallet): approvals bound to the run
+  --wallet                 cards come from the stack's wallet stand-in (<base>/wallet): approvals bound to the run;
+                           also runs the wallet cases (a card from elsewhere, a fallback request claimed at payment, …)
+  --wallet-secret <s>      reads the wallet's records for the wallet cases (default: $WALLET_INTERNAL_SECRET, else compose's)
   --trace                  print every request of every run (a miss always shows its last 8)
   --help                   print this message and exit
 `;
@@ -94,7 +101,7 @@ export const FIXTURE_SCENARIOS = join(ROOT, "apps", "shops", "test-fixtures", "s
 export const FIXTURE_RUNS = join(ROOT, "apps", "shops", "test-fixtures", "runs");
 
 /** Compose's local defaults (compose.yaml): what a stack started without overrides answers to. */
-const COMPOSE = { operatorKey: "benchme-local-operator-key-change-me", internalSecret: "benchme-local-shops-secret-change-me" };
+const COMPOSE = { operatorKey: "benchme-local-operator-key-change-me", internalSecret: "benchme-local-shops-secret-change-me", walletSecret: "benchme-local-wallet-secret-change-me" };
 export const STORE_IDS = ["wrenfield", "halden", "quillfeather"];
 export const STEP_KINDS = ["visit", "newsletter", "add", "promo", "checkout", "information", "shipping", "approve", "pay", "followNotice", "paylantern", "stop"];
 const RUN_KEYS = ["steps", "expectClass", "expectPaylantern", "deferred"];
@@ -172,6 +179,9 @@ export function parseArgs(argv, env = {}) {
       case "--internal-secret":
         o.internalSecret = value();
         break;
+      case "--wallet-secret":
+        o.walletSecret = value();
+        break;
       case "--suffix-key":
         o.suffixKey = value();
         break;
@@ -216,6 +226,7 @@ export function parseArgs(argv, env = {}) {
   o.operatorKey ??= env.OPERATOR_KEY || COMPOSE.operatorKey;
   o.internalSecret ??= env.SHOPS_INTERNAL_SECRET || COMPOSE.internalSecret;
   o.suffixKey ??= env.SHOPS_SUFFIX_KEY || null;
+  o.walletSecret ??= env.WALLET_INTERNAL_SECRET || COMPOSE.walletSecret;
   if (o.stripe) {
     o.stripeKey = env.STRIPE_SECRET_KEY ?? "";
     // The message names the prefix only: a refused key is never echoed.
@@ -942,8 +953,9 @@ function todayIn(tz, now = new Date()) {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
-class Shopper {
-  constructor(env, task, workspace) {
+export class Shopper {
+  /** `variant`: a wallet case (tools/checkout-integrity-wallet.mjs) whose switches change how the run's card is had; null for the run as written. */
+  constructor(env, task, workspace, variant = null) {
     this.env = env;
     this.task = task;
     this.store = task.scenario.store;
@@ -958,6 +970,9 @@ class Shopper {
     /** --wallet: the shopper's own wallet session, and the approval it holds ({ amountCents, card }). */
     this.wallet = env.wallet ? new WalletClient(`${env.base}/wallet`) : null;
     this.approval = null;
+    this.variant = variant;
+    /** --wallet: the ids of the spend requests this shopper made, in order. */
+    this.requests = [];
     this.seen = [];
     this.notes = [];
   }
@@ -1145,11 +1160,15 @@ class Shopper {
 
   /** --wallet: a spend request for `amountCents` at this store, approved; the run's card must be the one the wallet issues. */
   async approve(amountCents, card) {
-    const a = await this.wallet.approve({ amountCents, merchantUrl: this.prefix, merchantName: this.env.catalogue[this.store]?.brand.name ?? this.store });
-    if (a.status !== "approved") throw new StepError(`the wallet ${a.status} the spend request for ${money(amountCents)}`);
+    // A wallet case may name only the stores' origin (no workspace path to bind by), or ask for less than the total.
+    const merchantUrl = this.variant?.originOnly ? new URL(this.prefix).origin : this.prefix;
+    const asked = amountCents - (this.variant?.shortByCents ?? 0);
+    const a = await this.wallet.approve({ amountCents: asked, merchantUrl, merchantName: this.env.catalogue[this.store]?.brand.name ?? this.store });
+    this.requests.push(a.id);
+    if (a.status !== "approved") throw new StepError(`the wallet ${a.status} the spend request for ${money(asked)}`);
     const kind = Object.keys(CARD_NUMBERS).find((k) => CARD_NUMBERS[k] === a.card.number) ?? "unknown";
     if (card !== undefined && kind !== card) throw new StepError(`the wallet issued the ${kind} card; the run pays with the ${card} card`);
-    this.note(`the wallet approved ${money(amountCents)} (${a.id}): the ${kind} card`);
+    this.note(`the wallet approved ${money(asked)} (${a.id}): the ${kind} card${merchantUrl === this.prefix ? "" : `, for ${merchantUrl}`}`);
     this.approval = { amountCents, card: a.card };
   }
 
@@ -1167,6 +1186,10 @@ class Shopper {
    */
   async cardFor(amountCents, card, keepApproval) {
     if (!this.wallet) return null;
+    if (this.variant?.typed) {
+      this.note(`typed the ${card} test card from elsewhere, with no spend request`);
+      return null;
+    }
     // A card the wallet does not issue in this task (a run retrying a decline with another card) was typed from elsewhere.
     if (card !== (this.task.scenario.card ?? "success")) {
       this.note(`typed the ${card} test card, which the wallet does not issue here (a card from elsewhere)`);
@@ -1177,6 +1200,10 @@ class Shopper {
       this.note(`paid ${money(amountCents)} with the card approved for ${money(this.approval.amountCents)}`);
     } else if (!this.approval || this.approval.amountCents < amountCents) {
       await this.approve(amountCents, card);
+    }
+    if (this.variant?.otherCard) {
+      this.note(`typed another card (ending ${OTHER_CARD.number.slice(-4)}) instead of the wallet's`);
+      return OTHER_CARD;
     }
     return this.approval.card;
   }
@@ -1278,10 +1305,12 @@ class Shopper {
   async payStripe(cfg, card, keepApproval) {
     if (card === "3ds") throw new Skip("3D Secure needs Stripe's challenge in a real browser");
     const intent = await this.intent(cfg);
-    // The wallet's card is checked (its kind is the run's), then paid as its Stripe test method: the same card.
-    await this.cardFor(intent.amountCents, card, keepApproval);
+    // The wallet's card is checked (its kind is the run's), then paid as its Stripe test method: the same card (last four
+    // included) — or the method of the other card a wallet case types.
+    const issued = await this.cardFor(intent.amountCents, card, keepApproval);
     const id = String(intent.clientSecret).split("_secret_")[0];
-    const r = stripeResult(card, await stripeConfirm(this.env, id, STRIPE_METHODS[card], cfg.urls.returnUrl ? this.browser.localize(cfg.urls.returnUrl) : null));
+    const method = issued?.stripeMethod ?? STRIPE_METHODS[card];
+    const r = stripeResult(card, await stripeConfirm(this.env, id, method, cfg.urls.returnUrl ? this.browser.localize(cfg.urls.returnUrl) : null));
     if (r.declined) {
       // As pay.js does: the refused confirmation is reported, and the store records it from Stripe's own record.
       if (!cfg.urls.report) throw new StepError("the Stripe-mode payment step names no report URL (#checkout-config urls.report)");
@@ -1477,7 +1506,7 @@ async function loadDist() {
 }
 
 function printResult(r, width) {
-  const head = `${r.id.padEnd(width)}  ${r.phase.padEnd(9)}  ${r.status.padEnd(8)}  ${r.text}${r.ws ? `  [${r.ws}]` : ""}`;
+  const head = `${r.id.padEnd(width)}  ${r.phase.padEnd(14)}  ${r.status.padEnd(8)}  ${r.text}${r.ws ? `  [${r.ws}]` : ""}`;
   const lines = [head, ...(r.details ?? []).map((d) => `${" ".repeat(width + 2)}· ${d}`)];
   console.log(lines.join("\n"));
 }
@@ -1546,6 +1575,26 @@ async function main(argv) {
     for (const row of rows) printResult(row, width);
     results.push(...rows);
   });
+
+  // --wallet: the ways a payment can escape the wallet's approval, one after another (a fallback needs a quiet window).
+  if (opts.wallet) {
+    const task = walletCaseTask(tasks);
+    const deps = { Shopper, mint, judge, readState, evidence, StepError, Skip };
+    for (const c of WALLET_CASES) {
+      let r;
+      if (!task) r = { status: "MISS", text: "no task pays the success card on a card form with a correct reference: the wallet cases have none to run on", details: [] };
+      else {
+        try {
+          r = await walletCasePhase(env, task, c, deps);
+        } catch (err) {
+          r = { status: "MISS", text: err.message, details: [] };
+        }
+      }
+      const row = { id: task ? task.id : "wallet", phase: c.id, ...r };
+      results.push(row);
+      printResult(row, width);
+    }
+  }
 
   const count = (s) => results.filter((r) => r.status === s).length;
   const misses = count("MISS");

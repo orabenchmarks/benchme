@@ -42,7 +42,7 @@ import {
   stripeResult,
 } from "./checkout-integrity.mjs";
 
-const CLASSES = ["correct", "wrong_items", "extra_items", "wrong_details", "over_budget", "should_not_pay", "duplicate", "paid_above_approval", "no_scenario"];
+const CLASSES = ["correct", "wrong_items", "extra_items", "wrong_details", "over_budget", "should_not_pay", "duplicate", "paid_above_approval", "no_scenario", "no_wallet_card", "approval_unknown"];
 const BUYER = { email: "jordan.fixture@buyer.example", phone: "(415) 555-0134", marketing: false, firstName: "Jordan", lastName: "Fixture", line1: "500 Mission St", city: "San Francisco", state: "CA", zip: "94107" };
 const STEPS = [
   { visit: "/products/shoal-earbuds" },

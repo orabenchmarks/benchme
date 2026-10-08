@@ -10,7 +10,7 @@
  *                                                 # --out then defaults to shops-scenarios.yaml)
  *        [--print-suffixes]                       # needs SHOPS_SUFFIX_KEY: "<id> <campaign> <correct suffix>"
  *                                                 # per task on stdout, for corpus authoring
- *   node tools/build-shop-config.mjs [--hidden ../benchme-hidden] --leak-check <benchme checkout> [--history <base>]
+ *   node tools/build-shop-config.mjs [--hidden ../benchme-hidden] --leak-check <benchme checkout> [--history <base>] [--text <file>]...
  *
  * The file holds every hidden task, so --out never lands in this (public) checkout except where git ignores it:
  * shops-scenarios*.json at its root (the default, run from the root) is fine; apps/ and packages/ (which
@@ -98,7 +98,7 @@ const HELP = `build-shop-config — benchme-hidden/shops → the stores' scenari
 
 Usage:
   node tools/build-shop-config.mjs [--hidden <dir>] [--out <file>] [--configmap <name> [--namespace <ns>]] [--print-suffixes]
-  node tools/build-shop-config.mjs [--hidden <dir>] --leak-check <benchme checkout> [--history <base>]
+  node tools/build-shop-config.mjs [--hidden <dir>] --leak-check <benchme checkout> [--history <base>] [--text <file>]...
 
 Options:
   --hidden <dir>       the benchme-hidden checkout holding shops/<ID>/ (default: ../benchme-hidden)
@@ -115,6 +115,8 @@ Options:
                        file, line and string found
   --history <base>     with --leak-check: also every commit message and blob a push of HEAD would publish beyond <base>
                        (git rev-list --objects <base>..HEAD)
+  --text <file>        with --leak-check: also this file — text a push publishes outside git, such as a pull request's
+                       body or a release's notes (write it to a file first); may be given more than once
   --help               print this message and exit
 `;
 
@@ -1417,6 +1419,27 @@ export function historyCheck(checkout, base, strings) {
   return { commits: short.size, blobs, skipped, finds };
 }
 
+/**
+ * --text: what a push publishes outside git — a pull request's body, a release's notes — scanned as a file is. A file
+ * that cannot be read is a problem, never a pass. Returns { files, finds } or { problems }.
+ */
+export function textCheck(paths, strings) {
+  const scan = scanner(strings);
+  const finds = [];
+  const problems = [];
+  for (const p of paths) {
+    let raw;
+    try {
+      raw = readFileSync(p, "utf8");
+    } catch (err) {
+      problems.push(`--text: cannot read ${p} (${err.code ?? err.message})`);
+      continue;
+    }
+    for (const f of scan(raw)) finds.push({ file: `text ${p}`, ...f });
+  }
+  return problems.length ? { problems } : { files: paths.length, finds };
+}
+
 /** A find as one line of the report. */
 function findLine(f) {
   const times = f.count > 1 ? ` (${f.count} times in the file)` : "";
@@ -1435,13 +1458,15 @@ function leakCheckMain(opts) {
   if (r.problems) return refuse(r.problems);
   const h = base === undefined ? null : historyCheck(checkout, base, strings);
   if (h?.problems) return refuse(h.problems);
-  const lines = [...r.finds.map(findLine), ...(h?.finds ?? []).map((f) => `history: ${findLine(f)}`)];
+  const t = textCheck(opts.text ?? [], strings);
+  if (t.problems) return refuse(t.problems);
+  const lines = [...r.finds.map(findLine), ...(h?.finds ?? []).map((f) => `history: ${findLine(f)}`), ...t.finds.map(findLine)];
   if (lines.length) {
     console.error(`build-shop-config leak check: ${lines.length} finds in ${checkout}${h ? ` (its files, and ${base}..HEAD)` : ""}:\n  ${lines.join("\n  ")}`);
     return 1;
   }
   const history = h ? { history: { base, commits: h.commits, blobs: h.blobs, skipped: h.skipped } } : {};
-  console.log(JSON.stringify({ leakCheck: checkout, files: r.files, skipped: r.skipped, strings: strings.length, found: 0, ...history }));
+  console.log(JSON.stringify({ leakCheck: checkout, files: r.files, skipped: r.skipped, strings: strings.length, found: 0, ...history, ...(t.files ? { texts: t.files } : {}) }));
   return 0;
 }
 
@@ -1450,7 +1475,11 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const name = argv[i].startsWith("--") ? argv[i].slice(2) : null;
     if (name === "print-suffixes" || name === "help") opts[name] = true;
-    else if (["hidden", "out", "configmap", "namespace", "leak-check", "history"].includes(name)) {
+    else if (name === "text") {
+      const value = argv[++i];
+      if (value === undefined || value.startsWith("--")) throw new Error("--text needs a file");
+      (opts.text ??= []).push(value);
+    } else if (["hidden", "out", "configmap", "namespace", "leak-check", "history"].includes(name)) {
       const value = argv[++i];
       if (value === undefined || value.startsWith("--")) throw new Error(`--${name} needs a value`);
       opts[name] = value;
@@ -1477,6 +1506,9 @@ async function main(argv) {
   }
   if (opts.history !== undefined && opts["leak-check"] === undefined) {
     return refuse(["--history goes with --leak-check <benchme checkout>: it reads that checkout's history"]);
+  }
+  if (opts.text !== undefined && opts["leak-check"] === undefined) {
+    return refuse(["--text goes with --leak-check <benchme checkout>"]);
   }
   if (opts["leak-check"] !== undefined) {
     if (["out", "configmap", "namespace", "print-suffixes"].some((k) => opts[k] !== undefined)) {
