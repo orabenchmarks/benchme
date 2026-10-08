@@ -6,6 +6,7 @@ import type { RateLimiter } from "./rate-limit.js";
 import { registerPortal } from "./routes/portal.js";
 import { registerProxy } from "./routes/proxy.js";
 import { registerRobots } from "./routes/robots.js";
+import { registerServices } from "./routes/services.js";
 import { registerWorkspaceRoutes } from "./routes/workspaces.js";
 import type { WorkspaceSeeder } from "./seeder.js";
 import { WorkspaceService } from "./workspace-service.js";
@@ -25,6 +26,8 @@ export type BuildDeps = {
   maxTtlSeconds: number;
   /** Seed of the shared-<scenario>-<seed> workspace advertised in /robots.txt. */
   sharedSeed: number;
+  /** Services fronted at the root, outside any workspace (SERVICE_TARGETS): /<name>/* → <url>/*. */
+  services?: Record<string, string>;
   logLevel?: string;
 };
 
@@ -67,5 +70,6 @@ export async function buildGateway(d: BuildDeps): Promise<{ app: FastifyInstance
   // swallowed by the "/w/:id/:app/*" route.
   registerRobots(app, { apps: d.apps, scenarios: d.scenarios, publicBaseUrl: d.publicBaseUrl, sharedSeed: d.sharedSeed });
   await registerProxy(app, { apps: d.apps, service, gatewaySecret: d.gatewaySecret, publicBaseUrl: d.publicBaseUrl });
+  await registerServices(app, { services: d.services ?? {}, publicBaseUrl: d.publicBaseUrl });
   return { app, service };
 }
