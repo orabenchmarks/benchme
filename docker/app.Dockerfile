@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# One Dockerfile for every app: `--build-arg APP=<gateway|warehouse|helpdesk|vaultdocs|mail|data|verify|shops>`.
+# One Dockerfile for every app: `--build-arg APP=<gateway|warehouse|helpdesk|vaultdocs|mail|data|verify|shops|wallet>`.
 # deps → build (tsc, plus the data site render) → runtime (slim, non-root,
 # read-only root fs friendly: nothing writes under /app at run time).
 ARG NODE_IMAGE=node:22-bookworm-slim
@@ -19,6 +19,7 @@ COPY apps/mail/package.json apps/mail/
 COPY apps/data/package.json apps/data/
 COPY apps/verify/package.json apps/verify/
 COPY apps/shops/package.json apps/shops/
+COPY apps/wallet/package.json apps/wallet/
 RUN npm ci --no-audit --no-fund
 
 FROM deps AS build

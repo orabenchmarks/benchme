@@ -69,6 +69,9 @@ secrets:
   # one key mean nothing under another.
   shopsSuffixKey: ""
   shopsInternalSecret: ""
+  # Guards the wallet's internal API (its records, and the approvals the stores
+  # read when they class an order).
+  walletInternalSecret: ""
   # llm/jev ranker provider credentials. Unlike the seven secrets above these
   # are NEVER auto-generated (a random string is not a valid API key) — leave
   # empty for the default lexical ranker, or supply via secrets.existingSecret
@@ -136,6 +139,11 @@ apps:
     resources:
       requests: { cpu: 50m, memory: 128Mi }
       limits: { cpu: 500m, memory: 512Mi }
+  wallet:
+    replicas: 1
+    resources:
+      requests: { cpu: 25m, memory: 96Mi }
+      limits: { cpu: 300m, memory: 256Mi }
 
 verify:
   maxAttemptsPerTask: 20
@@ -165,6 +173,23 @@ shops:
   # at /scenarios. The app reads it at boot — restart the shops Deployment after
   # re-applying it. Empty = no scenarios: every store runs without one.
   existingScenariosConfigMap: ""
+  # The Stripe TEST keys from a Secret of their own (keys stripeSecretKey and
+  # stripePublishableKey) instead of the chart's secret — e.g. one synced from a
+  # secret manager apart from the generated ones. Empty = the chart's secret.
+  stripeExistingSecret: ""
+
+# The Link wallet stand-in (apps/wallet): the HTTP API @stripe/link-cli calls,
+# served by the gateway at <publicBaseUrl>/wallet (LINK_API_BASE_URL =
+# <publicBaseUrl>/wallet/api, LINK_AUTH_BASE_URL = <publicBaseUrl>/wallet/auth).
+wallet:
+  # lab (approve a request paying the stores, with the card the bound store's
+  # scenario calls for) | decline-all (every request declined: the Field study).
+  policy: lab
+  # How long after an approval request the policy answers (ms).
+  approvalDelayMs: 2000
+  # More origins a request may pay at, besides publicBaseUrl and the in-cluster
+  # gateway URL (the stores' own).
+  extraMerchantOrigins: []
 
 # The migrate Job (post-install/upgrade hook): one container per app plus a
 # wait-for-postgres init container. Requests AND limits are required — a

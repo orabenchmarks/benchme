@@ -48,7 +48,7 @@ x-app: &app
     - "host.docker.internal:host-gateway"
   # The last migration of the chain below.
   depends_on:
-    migrate-shops:
+    migrate-wallet:
       condition: service_completed_successfully
   healthcheck:
     test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -131,6 +131,13 @@ services:
     depends_on:
       migrate-verify:
         condition: service_completed_successfully
+  migrate-wallet:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/wallet:${BENCHME_VERSION:-0.6.1}
+    command: ["node", "apps/wallet/dist/migrate.js"]
+    depends_on:
+      migrate-shops:
+        condition: service_completed_successfully
 
   gateway:
     <<: *app
@@ -138,7 +145,7 @@ services:
     ports:
       - "${BENCHME_PORT:-8080}:3000"
     depends_on:
-      migrate-shops:
+      migrate-wallet:
         condition: service_completed_successfully
       redis:
         condition: service_started
@@ -153,6 +160,8 @@ services:
       APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000","verify":"http://verify:3000","wrenfield":"http://shops:3000/s/wrenfield","halden":"http://shops:3000/s/halden","quillfeather":"http://shops:3000/s/quillfeather","paylantern":"http://shops:3000/s/paylantern"}'
       # Routed like any app, but left out of a workspace's urls.
       UNLISTED_APPS: paylantern
+      # Served at the root, outside any workspace: /wallet/* (link-cli's LINK_API_BASE_URL = <public>/wallet/api).
+      SERVICE_TARGETS: '{"wallet":"http://wallet:3000"}'
       SEEDED_APPS: warehouse,helpdesk,vaultdocs,mail,verify
       MCP_APPS: warehouse,helpdesk,vaultdocs
       ASK_APPS: warehouse,helpdesk,vaultdocs
@@ -210,8 +219,30 @@ services:
       # Campaign code → scenario. The default directory holds the public
       # fixtures; point SHOPS_SCENARIOS_DIR at the hidden config's directory.
       SHOPS_SCENARIOS_FILE: /scenarios/shops-scenarios.json
+      # An order's charge is checked against what the wallet approved (paid above approval).
+      WALLET_URL: http://wallet:3000
+      WALLET_INTERNAL_SECRET: ${WALLET_INTERNAL_SECRET:-benchme-local-wallet-secret-change-me}
     volumes:
       - ${SHOPS_SCENARIOS_DIR:-./apps/shops/test-fixtures}:/scenarios:ro
+
+  # The Link wallet stand-in (README § Wallet): the HTTP API @stripe/link-cli
+  # calls, at <public>/wallet/api and <public>/wallet/auth through the gateway.
+  wallet:
+    <<: *app
+    image: ghcr.io/orabenchmarks/wallet:${BENCHME_VERSION:-0.6.1}
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgres://benchme:${POSTGRES_PASSWORD:-benchme-local-postgres}@postgres:5432/benchme
+      WALLET_INTERNAL_SECRET: ${WALLET_INTERNAL_SECRET:-benchme-local-wallet-secret-change-me}
+      # lab (approve requests paying the stores, with the card the bound scenario
+      # calls for) | decline-all (the Field study: every request declined).
+      WALLET_POLICY: ${WALLET_POLICY:-lab}
+      # The stores' origin: a request paying anywhere else is declined.
+      WALLET_MERCHANT_ORIGINS: ${BENCHME_PUBLIC_URL:-http://localhost:8080}
+      WALLET_APPROVAL_DELAY_MS: ${WALLET_APPROVAL_DELAY_MS:-2000}
+      # Where a request's checkout is looked up (the stores' internal API).
+      SHOPS_URL: http://shops:3000
+      SHOPS_INTERNAL_SECRET: ${SHOPS_INTERNAL_SECRET:-benchme-local-shops-secret-change-me}
 
   verify:
     <<: *app
@@ -240,7 +271,7 @@ services:
     image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.6.1}
     restart: unless-stopped
     depends_on:
-      migrate-shops:
+      migrate-wallet:
         condition: service_completed_successfully
     environment: *common-env
     command: ["sh", "-c", "while true; do node apps/gateway/dist/reap.js; sleep ${REAP_INTERVAL_SECONDS:-3600}; done"]

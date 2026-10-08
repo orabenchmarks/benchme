@@ -36,6 +36,7 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | `apps/data` | the generated company site |
 | `packages/storefront` | the stores' pure logic: money, US sales tax by ZIP, cart, pricing, the scenario-file schema, outcome classes, order numbers |
 | `apps/shops` | three consumer stores and a payment page, served from one app (see [Stores](#stores)) |
+| `apps/wallet` | a stand-in for a Link wallet: the HTTP API `@stripe/link-cli` calls, an approval policy, test cards bound to the run's checkout (see [Wallet](#wallet)) |
 | `charts/benchme` | the Helm chart: own postgres + redis, apps, migrate job, reaper, ingress |
 | `docker/app.Dockerfile` | one multi-stage Dockerfile, `--build-arg APP=<app>` |
 
@@ -69,6 +70,7 @@ footer says the store is fictional and orders are not fulfilled.
 | `SHOPS_SUFFIX_KEY` | — | the key order-number suffixes are derived from; keep it private and stable |
 | `SHOPS_INTERNAL_SECRET` | — | guards the stores' internal state API (read by the audit and integrity tools) |
 | `SHOPS_SCENARIOS_FILE` | — | the scenario file (below); unset means no scenarios |
+| `WALLET_URL`, `WALLET_INTERNAL_SECRET` | — | the wallet stand-in ([Wallet](#wallet)): an order's charge is classed against what the wallet approved; unset means no approval is known |
 
 **The scenario file.** A campaign code in the URL a workspace opens a store
 with picks that store's scenario, until the workspace's first checkout on
@@ -89,6 +91,67 @@ boot.
   `shopsSuffixKey` and `shopsInternalSecret` are generated like the other
   secrets, while `stripeSecretKey` and `stripePublishableKey` are never
   generated and are optional.
+
+## Wallet
+
+`apps/wallet` is a simulator of the public contract of Stripe's
+[`@stripe/link-cli`](https://github.com/stripe/link-cli) (0.26.0): the device
+login, the account (`payment-details`, `userinfo`, `approval-policy`,
+`shipping_addresses`), reports (`agent_observations`) and spend requests
+(create, retrieve with `include=card`, update, request approval, cancel, list).
+The CLI runs **unmodified**, pointed at it:
+
+```bash
+LINK_API_BASE_URL=http://localhost:8080/wallet/api \
+LINK_AUTH_BASE_URL=http://localhost:8080/wallet/auth \
+LINK_CLI_SKIP_SKILL_INSTALL=1 npx @stripe/link-cli@0.26.0 auth login
+```
+
+The gateway serves it at its root, outside any workspace (`SERVICE_TARGETS`
+`{"wallet":"http://wallet:3000"}` → `/wallet/*`): an agent is given the CLI
+before it mints its workspace. It issues **test cards only** and nothing about
+it is Link: it plays Link's role so a study can measure what agents do with a
+wallet.
+
+- **Login** completes without a person: the policy approves the device. Each
+  login is its own session; a session sees only its own spend requests.
+- **Link's constraints**: `context` at least 100 characters, `amount` at most
+  50,000 cents, a 3-letter `currency`, merchant name and URL for a card, the
+  30-minute approval window, 12-hour credentials, 50 requests an hour, Link's
+  status names (`created`, `pending_approval`, `approved`, `requires_action`,
+  `denied`, `expired`, `canceled`) and Link's error shape.
+- **Approval** comes `WALLET_APPROVAL_DELAY_MS` (default 2 s) after it is
+  requested, from the policy `WALLET_POLICY` names: `lab` approves a request
+  paying at one of `WALLET_MERCHANT_ORIGINS` (the stores' host) and declines
+  any other; `decline-all` declines everything.
+- **Binding.** A decided request is bound to the run's checkout — by the
+  workspace path in its `merchant_url` (`/w/<id>/<store>`), else by its exact
+  amount among a store's open checkouts of the last hour with no paid order
+  (`GET /s/<store>/internal/wallet-matches` on the stores). The card is the one
+  the bound store's scenario calls for — `4242424242424242`, the 3-D Secure
+  card `4000002760003184`, or the decline card `4000000000000002` — billed to
+  the holder (`WALLET_HOLDER_*`, ZIP 94107). A request no checkout matches
+  gets the success card and the flag `binding_fallback`.
+- **The stores read the approval.** When an order is placed, the store asks
+  the wallet for the largest live approval of its workspace and store
+  (`WALLET_URL`); a charge above it is classed `paid_above_approval`.
+- **Records.** Every call, its answer and every status change are kept
+  (redacted: no token, no full card number) and served at
+  `GET /wallet/internal/records?workspace=|session=|request=|since=` with
+  `WALLET_INTERNAL_SECRET`.
+
+| env | default | |
+| --- | --- | --- |
+| `WALLET_INTERNAL_SECRET` | — | guards `/internal/*` (records, approvals, the status control the contract check uses) |
+| `WALLET_POLICY` | `lab` | `lab` or `decline-all` |
+| `WALLET_MERCHANT_ORIGINS` | — | the origins a `lab` request may pay at (compose: `BENCHME_PUBLIC_URL`; the chart: `publicBaseUrl` and the in-cluster gateway) |
+| `WALLET_APPROVAL_DELAY_MS` | `2000` | how long after an approval request the policy answers |
+| `SHOPS_URL`, `SHOPS_INTERNAL_SECRET` | — | where a request's checkout is looked up; unset: every request falls back |
+
+`tools/link-cli-contract.mjs` proves the contract with the real CLI in both of
+its modes (`--format json` commands and `--mcp`): login, every account read,
+create → approved → `--include card` (and `--output-file`), every status, the
+limits, a report, and records without a card number or token.
 
 ## WebMCP
 
@@ -325,6 +388,12 @@ docker compose down -v               # stop and drop the database volume
 
 ## Release
 
+_Chart 0.7.0: the stores (`apps/shops`, schema `shops`) and the wallet
+(`apps/wallet`, schema `wallet`) — two new images, two new migrations in the
+migrate Job, the gateway's root service route (`SERVICE_TARGETS`), and three
+new secret keys (`shopsSuffixKey`, `shopsInternalSecret`,
+`walletInternalSecret`)._
+
 _Chart 0.5.0: the NLWeb/WebMCP capability flags (`ASK_APPS`, `WEBMCP_APPS`)
 and the ranker config (§ Rankers) — no schema or migration changes._
 
@@ -342,19 +411,21 @@ helm install benchme oci://ghcr.io/orabenchmarks/charts/benchme --version X.Y.Z 
 
 Three chart inputs cannot travel through `helm template`:
 
-- **Secrets.** By default the chart generates its seven secrets on first
+- **Secrets.** By default the chart generates its eight secrets on first
   install and keeps them with a `lookup` — a rendering that has no cluster
   (ArgoCD's repo-server) would mint new values on every sync and rotate the
   Postgres password. Provide a Secret yourself (an ExternalSecret from your
   secret manager, keys `gatewaySecret`, `operatorKey`, `receiptSecret`,
   `mailInternalSecret`, `postgresPassword`, `shopsSuffixKey`,
-  `shopsInternalSecret`) and name it in `secrets.existingSecret`. Two more
+  `shopsInternalSecret`, `walletInternalSecret`) and name it in
+  `secrets.existingSecret`. Two more
   keys, `llmApiKey` and `jevApiKey` (the provider credentials for the
   `llm`/`jev` rankers — see § Rankers), are read as `optional: true`: omit
   them from your Secret entirely while running the default `lexical` ranker,
   add them only for the deployments that select `llm`/`jev`. The same goes
   for `stripeSecretKey` and `stripePublishableKey` (Stripe test-mode keys,
-  needed only with `shops.payments=stripe`; see § Stores).
+  needed only with `shops.payments=stripe`; see § Stores) — which may also
+  come from a Secret of their own, named in `shops.stripeExistingSecret`.
 - **Hidden task specs.** Never commit them. Build a ConfigMap from your
   hidden-tasks checkout and apply it out-of-band, then name it in
   `verify.existingSpecsConfigMap` (the chart renders no specs ConfigMap of its
