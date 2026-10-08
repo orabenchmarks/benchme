@@ -2,7 +2,7 @@ import formbody from "@fastify/formbody";
 import { createApp, type Pool } from "@benchme/core";
 import type { FastifyInstance } from "fastify";
 import { ZodError } from "zod";
-import { Binder, ExactAmountRule, HostedSessionRule, WorkspacePathRule } from "./binding/binder.js";
+import { Binder, ExactAmountRule, HostedSessionRule, LoginSessionRule, WorkspacePathRule } from "./binding/binder.js";
 import type { CheckoutDirectory } from "./binding/checkout-directory.js";
 import { EventsRepo } from "./db/events-repo.js";
 import { RequestsRepo } from "./db/requests-repo.js";
@@ -52,7 +52,10 @@ export async function buildWallet(d: BuildDeps): Promise<FastifyInstance> {
   const requests = new RequestsRepo(d.pool);
   const events = new EventsRepo(d.pool);
   const savedCards = new SavedCardsRepo(d.pool);
-  const binder = new Binder([new WorkspacePathRule(d.directory), new HostedSessionRule(d.directory), new ExactAmountRule(d.directory, d.bindingWindowMinutes)], d.stores);
+  const binder = new Binder(
+    [new WorkspacePathRule(d.directory), new HostedSessionRule(d.directory), new LoginSessionRule(d.directory, requests), new ExactAmountRule(d.directory, d.bindingWindowMinutes)],
+    d.stores,
+  );
   const spendRequests = new SpendRequestService({
     requests,
     events,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Binder, ExactAmountRule, HostedSessionRule, WorkspacePathRule } from "./binding/binder.js";
+import { Binder, ExactAmountRule, HostedSessionRule, LoginSessionRule, WorkspacePathRule } from "./binding/binder.js";
 import type { CheckoutDirectory, CheckoutMatch } from "./binding/checkout-directory.js";
 import { parseMerchant } from "./binding/merchant.js";
 import { CARDS, expiryKey, issueCard, SAVED_CARD_EXPIRY, SPEND_REQUEST_EXPIRY } from "./domain/cards.js";
@@ -245,6 +245,17 @@ describe("binding a request to its run (DESIGN §6.3)", () => {
     const down: CheckoutDirectory = { ...directory([], []), inWorkspace: async () => Promise.reject(new Error("timeout")) };
     expect(await binder(down).bind({ amount: 2450, merchantUrl: `https://benchme.example/w/${WS}/quillfeather`, merchantName: null })).toEqual({ rule: "unavailable", reason: "workspace: timeout; amount: 0 checkouts" });
   });
+  it("binds a later request of a login where an approved one of it was bound — at the store it names, else that one's — before the amount", async () => {
+    const logins = { async boundOf(id: string) { return id === "lwses_run" ? { workspace: WS, store: "quillfeather" } : null; } };
+    const dir = directory([match({ card: "decline", checkout: "q1" }), match({ store: "halden", checkout: "h1", card: "3ds" })], [match({}), match({ workspace: "ws_bbbbbbbbbbbb" })]);
+    const withLogin = new Binder([new WorkspacePathRule(dir), new HostedSessionRule(dir), new LoginSessionRule(dir, logins), new ExactAmountRule(dir, 60)], STORES);
+    const origin = { amount: 2450, merchantUrl: "https://benchme.example/" };
+    expect(await withLogin.bind({ ...origin, merchantName: null, sessionId: "lwses_run" })).toEqual({ rule: "login", workspace: WS, store: "quillfeather", checkout: "q1", scenarioId: "S1", card: "decline" });
+    expect(await withLogin.bind({ ...origin, merchantName: "Halden Audio", sessionId: "lwses_run" })).toMatchObject({ rule: "login", store: "halden", card: "3ds" });
+    // A login that bound nothing, or none known: the amount decides, as before.
+    expect(await withLogin.bind({ ...origin, merchantName: "Quillfeather Coffee", sessionId: "lwses_new" })).toMatchObject({ rule: "fallback", reason: "amount: 2 checkouts" });
+    expect(await withLogin.bind({ ...origin, merchantName: "Quillfeather Coffee" })).toMatchObject({ rule: "fallback" });
+  });
   it("still binds by a later rule that finds exactly one when an earlier one could not ask", async () => {
     const down: CheckoutDirectory = { ...directory([], [match({ card: "3ds" })]), inWorkspace: async () => Promise.reject(new Error("timeout")) };
     expect(await binder(down).bind({ amount: 2450, merchantUrl: `https://benchme.example/w/${WS}/quillfeather`, merchantName: null })).toMatchObject({ rule: "amount", card: "3ds" });
@@ -403,43 +414,61 @@ describe("which issued card paid (DESIGN §6.4)", () => {
   const request = (id: string, card: IssuedCard, over: Partial<SpendRequestRow> = {}): SpendRequestRow =>
     ({ id, amount: 4_000, card, binding: { rule: "workspace", workspace: WS, store: "quillfeather", checkout: null, scenarioId: "S", card: "success" }, approvedAt: new Date(0), canceledAt: null, usedBy: null, ...over }) as SpendRequestRow;
   const paid = (expMonth: number | null, expYear: number | null) => ({ last4: "4242", expMonth, expYear });
+  const unbound = (id: string, card: IssuedCard, sessionId: string, over: Partial<SpendRequestRow> = {}) => request(id, card, { sessionId, binding: { rule: "fallback", reason: "amount: 2 checkouts" }, ...over });
   const door = issued(5, 2030);
   const link = request("lsrq_bound", issued(5, 2028));
-  const claim = request("lsrq_claim", issued(9, 2027), { binding: { rule: "fallback", reason: "amount: 2 checkouts" } });
+  const claim = unbound("lsrq_claim", issued(9, 2027), "lwses_claim");
 
   it("tells the saved card from a spend request's card of the same number by the expiry", () => {
     expect(matchCard(paid(5, 2030), 4_000, { door: [door], bound: [link], claimable: [] })).toEqual({ path: "card_on_file", expiryMatched: true });
-    expect(matchCard(paid(5, 2028), 4_000, { door: [door], bound: [link], claimable: [] })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: true });
+    expect(matchCard(paid(5, 2028), 4_000, { door: [door], bound: [link], claimable: [] })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: true, via: "bound" });
   });
   it("takes the run's own card before an unbound approval that shares its expiry", () => {
-    const twin = request("lsrq_twin", issued(5, 2028), { binding: { rule: "fallback", reason: "x" } });
-    expect(matchCard(paid(5, 2028), 4_000, { door: [], bound: [link], claimable: [twin] })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: true });
-  });
-  it("never takes another run's unbound card for a run that holds a card of its own ending so, whatever the expiry", () => {
-    // Another session's unbound approval shares the paying card's expiry by chance (a test method's fixed expiry, a typo).
-    const foreign = request("lsrq_foreign", issued(9, 2027), { sessionId: "lwses_other", binding: { rule: "fallback", reason: "x" } });
-    expect(matchCard(paid(9, 2027), 4_000, { door: [], bound: [link], claimable: [foreign], ownSessions: new Set(["lwses_mine"]) })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: false });
-    expect(matchCard(paid(9, 2027), 4_000, { door: [door], bound: [], claimable: [foreign], ownSessions: new Set() })).toEqual({ path: "card_on_file", expiryMatched: false });
-    // With no card of its own ending so, the exact expiry decides (the run's own unbound card, its session binding nothing here).
-    expect(matchCard(paid(9, 2027), 4_000, { door: [], bound: [], claimable: [foreign], ownSessions: new Set() })).toEqual({ path: "spend_request", candidates: [foreign], expiryMatched: true });
+    const twin = unbound("lsrq_twin", issued(5, 2028), "lwses_twin");
+    expect(matchCard(paid(5, 2028), 4_000, { door: [], bound: [link], claimable: [twin] })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: true, via: "bound" });
   });
   it("takes the run's own unbound card — its session has bound a request to the workspace — by its exact expiry, before the bound card's last four", () => {
-    const mine = request("lsrq_mine", issued(9, 2027), { sessionId: "lwses_mine", binding: { rule: "fallback", reason: "x" } });
+    const mine = unbound("lsrq_mine", issued(9, 2027), "lwses_mine");
     const bound = request("lsrq_bound", issued(5, 2028), { sessionId: "lwses_mine" });
-    expect(matchCard(paid(9, 2027), 4_000, { door: [], bound: [bound], claimable: [mine], ownSessions: new Set(["lwses_mine"]) })).toEqual({ path: "spend_request", candidates: [mine], expiryMatched: true });
+    expect(matchCard(paid(9, 2027), 4_000, { door: [], bound: [bound], claimable: [mine], ownSessions: new Set(["lwses_mine"]) })).toEqual({ path: "spend_request", candidates: [mine], expiryMatched: true, via: "own_session" });
+    expect(matchCard(paid(9, 2027), 4_000, { door: [door], bound: [], claimable: [mine], ownSessions: new Set(["lwses_mine"]) })).toEqual({ path: "spend_request", candidates: [mine], expiryMatched: true, via: "own_session" });
+  });
+  it("pays with an unbound Link card at its exact expiry even when the run read the card page — the saved card never has a Link card's expiry", () => {
+    // The run read the card-on-file door (the saved card ends 4242 too) and paid with the Link card of a request that
+    // fell back, from a session that bound nothing to the workspace: the expiry is the Link card's, never the saved card's.
+    const mine = unbound("lsrq_mine", issued(7, 2028), "lwses_unknown", { amount: 3_000 });
+    const m = matchCard(paid(7, 2028), 4_500, { door: [door], bound: [], claimable: [mine], ownSessions: new Set() });
+    expect(m).toEqual({ path: "spend_request", candidates: [mine], expiryMatched: true, via: "unbound" });
+    // …and Link's spend controls hold it, as they do for the same payment by a run that never read the card page.
+    expect(spendControl((m as { candidates: SpendRequestRow[] }).candidates, 4_500, "pi_1")).toMatchObject({ decision: "decline", reason: "above_approval", request: { id: "lsrq_mine" } });
+    expect(matchCard(paid(7, 2028), 4_500, { door: [], bound: [], claimable: [mine], ownSessions: new Set() })).toEqual(m);
+  });
+  it("keeps the run's own bound card before an unbound card nobody tied to it that shares the paying expiry", () => {
+    // A Stripe test method's fixed expiry, or a typo, can land on another run's unbound card: the run holds a Link card
+    // of its own ending so, so the payment is that card's (by its last four), never the stranger's.
+    const stranger = unbound("lsrq_stranger", issued(9, 2027), "lwses_other");
+    expect(matchCard(paid(9, 2027), 4_000, { door: [], bound: [link], claimable: [stranger], ownSessions: new Set(["lwses_mine"]) })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: false, via: "last4" });
+  });
+  it("never matches a card of a session bound to another workspace: a card typed from memory that shares its expiry is never declined, never claimed", () => {
+    // A run with no Link card (the saved card only, or none) types 4242 with an expiry that is another run's Link card's.
+    const theirs = unbound("lsrq_theirs", issued(9, 2027), "lwses_theirs", { amount: 1_000 });
+    const foreign = { foreignSessions: new Set(["lwses_theirs"]), ownSessions: new Set<string>() };
+    expect(matchCard(paid(9, 2027), 4_000, { door: [], bound: [], claimable: [theirs], ...foreign })).toEqual({ path: "none" });
+    expect(matchCard(paid(9, 2027), 4_000, { door: [door], bound: [], claimable: [theirs], ...foreign })).toEqual({ path: "card_on_file", expiryMatched: false });
+    expect(matchCard(paid(null, null), 1_000, { door: [], bound: [], claimable: [theirs], ...foreign })).toEqual({ path: "none" });
   });
   it("finds an unbound approval only by its card's exact expiry — never a card typed from elsewhere", () => {
-    expect(matchCard(paid(9, 2027), 4_000, { door: [], bound: [], claimable: [claim] })).toEqual({ path: "spend_request", candidates: [claim], expiryMatched: true });
+    expect(matchCard(paid(9, 2027), 4_000, { door: [], bound: [], claimable: [claim] })).toEqual({ path: "spend_request", candidates: [claim], expiryMatched: true, via: "unbound" });
     expect(matchCard(paid(12, 2034), 4_000, { door: [], bound: [], claimable: [claim] })).toEqual({ path: "none" });
   });
-  it("reads an expiry that matches no card (typed wrong) by the workspace's own cards' last four — two kinds of them is ambiguous", () => {
+  it("reads an expiry that matches no card (typed wrong) by the workspace's own cards' last four — two kinds of them is ambiguous, naming the requests", () => {
     expect(matchCard(paid(1, 2031), 4_000, { door: [door], bound: [], claimable: [] })).toEqual({ path: "card_on_file", expiryMatched: false });
-    expect(matchCard(paid(1, 2031), 4_000, { door: [], bound: [link], claimable: [claim] })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: false });
-    expect(matchCard(paid(1, 2031), 4_000, { door: [door], bound: [link], claimable: [] })).toEqual({ path: "ambiguous" });
+    expect(matchCard(paid(1, 2031), 4_000, { door: [], bound: [link], claimable: [claim] })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: false, via: "last4" });
+    expect(matchCard(paid(1, 2031), 4_000, { door: [door], bound: [link], claimable: [] })).toEqual({ path: "ambiguous", candidates: [link] });
   });
   it("without an expiry read: the workspace's own, else an unbound approval for exactly the amount", () => {
-    expect(matchCard(paid(null, null), 4_000, { door: [], bound: [link], claimable: [claim] })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: null });
-    expect(matchCard(paid(null, null), 4_000, { door: [], bound: [], claimable: [claim] })).toEqual({ path: "spend_request", candidates: [claim], expiryMatched: null });
+    expect(matchCard(paid(null, null), 4_000, { door: [], bound: [link], claimable: [claim] })).toEqual({ path: "spend_request", candidates: [link], expiryMatched: null, via: "last4" });
+    expect(matchCard(paid(null, null), 4_000, { door: [], bound: [], claimable: [claim] })).toEqual({ path: "spend_request", candidates: [claim], expiryMatched: null, via: "amount" });
     expect(matchCard(paid(null, null), 4_001, { door: [], bound: [], claimable: [claim] })).toEqual({ path: "none" });
   });
 });

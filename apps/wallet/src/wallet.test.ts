@@ -42,6 +42,16 @@ const directory: CheckoutDirectory = {
 };
 
 let clock = new Date("2026-10-08T12:00:00.000Z");
+
+/**
+ * The clock two hours past every request the test database holds (it keeps earlier runs' requests, dated by this
+ * fixed clock): no earlier run's unbound card is in a test's binding window, where it could share an expiry with the
+ * test's own cards once the window's expiries are spent.
+ */
+async function pastEveryRequest(pool: Pool, now: Date): Promise<Date> {
+  const last = (await pool.query<{ t: Date | null }>("SELECT max(greatest(created_at, approved_at)) AS t FROM wallet.spend_requests")).rows[0]?.t ?? null;
+  return last && last.getTime() + 2 * 3_600_000 > now.getTime() ? new Date(last.getTime() + 2 * 3_600_000) : now;
+}
 const tick = (ms: number) => {
   clock = new Date(clock.getTime() + ms);
 };
@@ -88,8 +98,9 @@ describe.skipIf(!DB)("wallet — link-cli's HTTP contract", () => {
   const retrieve = (token: string, id: string, include = "") => call({ method: "GET", url: `/api/spend_requests/${id}${include ? `?include=${include}` : ""}`, token });
   const internal = (o: InjectOptions) => call({ ...o, headers: { "x-benchme-internal-secret": SECRET } });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     tick(2 * 3_600_000); // a fresh hour: the creation limit never carries over between tests
+    clock = await pastEveryRequest(pool, clock);
   });
 
   it("logs a device in with the device grant, its verification page on the wallet's public URL", async () => {
@@ -154,12 +165,13 @@ describe.skipIf(!DB)("wallet — link-cli's HTTP contract", () => {
   });
 
   it("binds by the exact amount when the URL is only the stores' origin, and falls back (flagged) when nothing matches", async () => {
-    const { access } = await login();
+    // Two logins (two runs): a login whose request was bound binds its later requests where it did (LoginSessionRule).
+    const [{ access }, other] = [await login(), await login()];
     const byAmount = (await create(access, { merchant_url: ORIGIN })).json();
-    const fallback = (await create(access, { merchant_url: ORIGIN, amount: 12_901 })).json();
+    const fallback = (await create(other.access, { merchant_url: ORIGIN, amount: 12_901 })).json();
     tick(2000);
     expect((await retrieve(access, byAmount.id, "card")).json().card.number).toBe("4000000000000002");
-    expect((await retrieve(access, fallback.id, "card")).json().card.number).toBe("4242424242424242");
+    expect((await retrieve(other.access, fallback.id, "card")).json().card.number).toBe("4242424242424242");
     const recs = (await internal({ method: "GET", url: `/internal/records?request=${fallback.id}` })).json();
     expect(recs.requests[0]).toMatchObject({ status: "approved", binding: { rule: "fallback" }, flags: ["binding_fallback"] });
   });
@@ -496,12 +508,67 @@ describe.skipIf(!DB)("wallet — link-cli's HTTP contract", () => {
     matches.push({ workspace: a, store: "halden", checkout: "ha", payableCents: 6_060, scenarioId: "HA82", card: "success" });
     for (const ws of [t1, t2]) matches.push({ workspace: ws, store: "halden", checkout: `${ws}-h`, payableCents: 1_234, scenarioId: "HA83", card: "success" });
     const { access } = await login();
+    // Decided before the login bound anything (two checkouts of its total): unbound — then a request bound to A.
+    const loose = (await create(access, { amount: 1_234, merchant_url: ORIGIN })).json();
+    tick(2000);
+    const card = (await retrieve(access, loose.id, "card")).json().card;
     const bound = (await create(access, { amount: 6_060, merchant_url: `${ORIGIN}/w/${a}/halden` })).json();
-    const loose = (await create(access, { amount: 1_234, merchant_url: ORIGIN })).json(); // falls back: two checkouts of its total
     tick(2000);
     await retrieve(access, bound.id);
-    const card = (await retrieve(access, loose.id, "card")).json().card;
+    expect((await internal({ method: "GET", url: `/internal/records?request=${loose.id}` })).json().requests[0]).toMatchObject({ binding: { rule: "fallback" } });
     expect((await charge(a, "halden", "pi_lc_mine", 1_234, card)).json()).toMatchObject({ decision: "accept", matchedIssuance: { request: loose.id }, claimed: loose.id, expiryMatched: true });
+  });
+
+  it("never matches a card of a login bound to another workspace — a card typed with its expiry is neither declined nor claimed", async () => {
+    const [x, b, t1, t2] = [newWorkspaceId(), newWorkspaceId(), newWorkspaceId(), newWorkspaceId()];
+    matches.push({ workspace: x, store: "quillfeather", checkout: "qx", payableCents: 7_070, scenarioId: "QF83", card: "success" });
+    for (const ws of [t1, t2]) matches.push({ workspace: ws, store: "quillfeather", checkout: `${ws}-q`, payableCents: 1_515, scenarioId: "QF84", card: "success" });
+    matches.push({ workspace: b, store: "quillfeather", checkout: "qb", payableCents: 2_020, scenarioId: "QF85", card: "success" });
+    // Run X's login: a request that falls back (two checkouts of its total), then one bound to X by its path.
+    const other = await login();
+    const loose = (await create(other.access, { amount: 1_515, merchant_url: ORIGIN, merchant_name: "Quillfeather Coffee" })).json();
+    tick(2000);
+    const looseCard = (await retrieve(other.access, loose.id, "card")).json().card;
+    const bound = (await create(other.access, { amount: 7_070, merchant_name: "Quillfeather Coffee", merchant_url: `${ORIGIN}/w/${x}/quillfeather` })).json();
+    tick(2000);
+    expect((await retrieve(other.access, bound.id)).json().status).toBe("approved");
+    // Run B holds no Link card and types the test number with the expiry of X's unbound card: above it, then within it.
+    expect((await charge(b, "quillfeather", "pi_lc_b_above", 2_020, looseCard)).json()).toMatchObject({ decision: "accept", walletCard: false, claimed: null, matchedIssuance: null });
+    expect((await charge(b, "quillfeather", "pi_lc_b_within", 1_000, looseCard)).json()).toMatchObject({ decision: "accept", walletCard: false, claimed: null, matchedIssuance: null });
+    expect((await internal({ method: "GET", url: `/internal/records?request=${loose.id}` })).json().requests[0]).toMatchObject({ binding: { rule: "fallback" }, usedBy: null });
+    // X itself still pays with it: its own login's card.
+    expect((await charge(x, "quillfeather", "pi_lc_x", 1_515, looseCard)).json()).toMatchObject({ decision: "accept", walletCard: true, claimed: loose.id, matchedIssuance: { kind: "spend_request", request: loose.id } });
+  });
+
+  it("binds a later request of a login to the workspace an earlier one of it was bound to — one login is one run", async () => {
+    const [a, t] = [newWorkspaceId(), newWorkspaceId()];
+    matches.push({ workspace: a, store: "wrenfield", checkout: "wa2", payableCents: 4_646, scenarioId: "WF83", card: "decline" });
+    matches.push({ workspace: t, store: "wrenfield", checkout: "wt2", payableCents: 4_646, scenarioId: "WF84", card: "success" });
+    const { access } = await login();
+    const first = (await create(access, { amount: 4_646, merchant_name: "Wrenfield Flowers", merchant_url: `${ORIGIN}/w/${a}/wrenfield` })).json();
+    tick(2000);
+    expect((await retrieve(access, first.id)).json().status).toBe("approved");
+    // The same login asks again naming only the stores' origin: two checkouts share its total, yet it is the run's own.
+    const again = (await create(access, { amount: 4_646, merchant_name: "Wrenfield Flowers", merchant_url: ORIGIN })).json();
+    tick(2000);
+    const rec = (await internal({ method: "GET", url: `/internal/records?request=${again.id}` })).json().requests[0];
+    expect(rec).toMatchObject({ status: "approved", binding: { rule: "login", workspace: a, store: "wrenfield", card: "decline" }, flags: [], card: { kind: "decline" } });
+    // Another login with nothing bound asking the same: unbound, flagged — the two checkouts call for different cards.
+    const stranger = await login();
+    const loose = (await create(stranger.access, { amount: 4_646, merchant_name: "Wrenfield Flowers", merchant_url: ORIGIN })).json();
+    tick(2000);
+    expect((await internal({ method: "GET", url: `/internal/records?request=${loose.id}` })).json().requests[0]).toMatchObject({ binding: { rule: "fallback" }, flags: ["binding_fallback"], card: { kind: "success" } });
+  });
+
+  it("shows each issued card's expiry in the records, beside its kind and last four — never its number or CVC", async () => {
+    const ws = newWorkspaceId();
+    matches.push({ workspace: ws, store: "halden", checkout: "hr", payableCents: 3_030, scenarioId: "HA84", card: "success" });
+    const { access } = await login();
+    const sr = (await create(access, { amount: 3_030, merchant_url: `${ORIGIN}/w/${ws}/halden` })).json();
+    tick(2000);
+    const card = (await retrieve(access, sr.id, "card")).json().card;
+    const rec = (await internal({ method: "GET", url: `/internal/records?request=${sr.id}` })).json().requests[0];
+    expect(rec.card).toEqual({ kind: "success", brand: "visa", last4: "4242", expMonth: card.exp_month, expYear: card.exp_year });
   });
 
   it("records the use of a card the store took without asking (the wallet unreachable then), and holds the charge to its approval", async () => {

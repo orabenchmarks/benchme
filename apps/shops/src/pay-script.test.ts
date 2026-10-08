@@ -449,6 +449,8 @@ describe("pay.js on a Stripe payment step", () => {
       { url: REPORT, body: { payment_intent: "pi_abc" } },
     ]);
     expect(page.went).toEqual([`${URLS.complete}?payment_intent=pi_abc`]);
+    // The store's answer shows no step of its own: the button keeps the label it had while the card was confirmed.
+    expect(page.$("[data-pay-button]").textContent).toBe("Processing…");
   });
 
   it("shows the store's decline of an authorized card under the button, as a card declined by Stripe shows, and lets the shopper try again", async () => {

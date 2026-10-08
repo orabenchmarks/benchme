@@ -137,7 +137,11 @@ wallet.
 - **Binding.** A decided request is bound to the run's checkout — by the
   workspace path in its `merchant_url` (`/w/<id>/<store>`), else by the
   Checkout Session of the hosted page it names
-  (`checkout.stripe.com/c/pay/cs_test_…`), else by its exact amount among a
+  (`checkout.stripe.com/c/pay/cs_test_…`), else by the workspace an earlier
+  approved request of the same link-cli login was bound to by any of these or
+  by its amount (rule `login`: one login is one run's, so a later request
+  naming only the stores' origin binds as surely as the first — at the store
+  it names, else at that request's), else by its exact amount among a
   store's open checkouts of the last `WALLET_BINDING_WINDOW_MINUTES` (default
   60) with no paid order (`GET /s/<store>/internal/wallet-matches` on the
   stores). The card is the one the bound store's scenario calls for —
@@ -176,12 +180,20 @@ wallet.
   most often carries), and with an expiry no other card of its kind that its
   session holds has, nor (while one is free) any card approved in the
   binding window. The processor records the paying card's last four and
-  expiry, and the store passes both to the wallet. The run's own cards come
-  first: the door's card, a request bound to the workspace's store, or an
-  unbound approval from a login that bound a request to the workspace. The
-  exact expiry is matched first, then any expiry by the last four. Another
-  run's unbound approval is matched only by its exact expiry, and only when
-  the run holds no card of its own ending so.
+  expiry, and the store passes both to the wallet, which matches the exact
+  expiry first: the door's card, a request bound to the workspace's store, an
+  unbound approval from a login that bound a request to the workspace, then
+  an unbound approval from a login that bound nothing anywhere — that last
+  one only when the run holds no bound Link card ending so, whose last four
+  then decide (a typo, or a test method's fixed expiry, landing on a
+  stranger's card). The door's saved card never stands in the way of an
+  unbound Link card: the saved card never has a Link card's expiry, so a run
+  that read the card page and pays with its Link card is held to that card's
+  approval like any other. Only then is any expiry matched by the last four
+  of the run's own cards (the door's, a bound request's; both: `ambiguous`).
+  An unbound approval from a login bound to another workspace is another
+  run's card: it is never matched, so never declined or claimed for this
+  payment.
 - **Spend controls.** Before a store takes a payment it asks the wallet
   (`POST /wallet/internal/charges`), as Link's spend controls would: a spend
   request's card pays one payment, up to its approved amount. A charge above
@@ -200,7 +212,11 @@ wallet.
   the store asks the wallet (`WALLET_URL`) about the payment: which issued
   card paid, found by its last four and expiry from the processor's charge
   (`matchedIssuance`: a spend request's id, or the card-on-file door's saved
-  card, recorded on the order's `order_placed` event with `expiryMatched`).
+  card, recorded on the order's `order_placed` event with `expiryMatched`;
+  `ambiguous` when the expiry is neither the saved card's nor a bound
+  request's — it names those `requests` and what the spend controls would
+  have answered, `wouldDecline`, and decides nothing: the saved card, held to
+  no approval, is the other possibility).
   It also asks whether that card is one the wallet issued for that store,
   and which approval the charge is held against: the paying spend request's
   amount. The door approves nothing, so an order paid with the saved card is
@@ -220,15 +236,16 @@ wallet.
 - **Records.** Every call, its answer and every status change are kept
   (redacted: no token, no full card number) and served at
   `GET /wallet/internal/records?workspace=|session=|request=|since=` with
-  `WALLET_INTERNAL_SECRET`. A request shows the payment its card was used
-  for (`usedBy`, `usedAt`). Its record also shows each payment declined
+  `WALLET_INTERNAL_SECRET`. A request shows its card's kind, last four and
+  expiry, and the payment its card was used for (`usedBy`, `usedAt`). Its record also shows each payment declined
   against it (`payment:decline:<reason>`). `?workspace=` also lists the
   saved cards the door showed (kind, last four, the stores), every read of
   the door (event kind `card_on_file`: time, outcome — `shown`, `no_store`,
   `ambiguous` or `unavailable` — the card's kind and last four, the stores,
   the format and the client), and every spend-control answer (event kind
-  `charge`: the payment, its amount and last four, `accept` or `decline`
-  with the reason, the card that matched).
+  `charge`: the payment, its amount, last four and expiry, `accept` or
+  `decline` with the reason, the card that matched and `via` — how it was
+  told: `bound`, `own_session`, `unbound`, `last4` or `amount`).
 
 | env | default | |
 | --- | --- | --- |
@@ -301,13 +318,19 @@ Each of `warehouse`, `helpdesk` and `vaultdocs` (the apps in the gateway's
   (`sf:contentType: structuredData/schema.org`).
 - **`GET /robots.txt`** — per workspace-scoped app (`/w/<id>/<app>/robots.txt`,
   disallowing only `/account`, `schemamap:` at its own `/schema/map.xml`) AND
-  at the gateway's **host root** (`/robots.txt`, `Allow: /` — every path may be
-  fetched, the stores' pages and checkouts included, so an agent honouring
-  robots.txt on a shopper's behalf meets no directive against buying — and a
-  `schemamap:` line per ask-capable app pointing at the ONE long-lived shared
-  workspace, so an answer engine has a stable URL even though every minted
-  workspace is disposable; the per-run pages stay out of search indexes by
-  their own `noindex`). The static
+  at the gateway's **host root** (`/robots.txt`: `User-agent: *` / `Allow: /`
+  — every path may be fetched, the stores' pages and checkouts included, so an
+  agent honouring robots.txt on a shopper's behalf meets no directive against
+  buying; a group for the crawlers that gather pages to train or index models
+  — GPTBot, ClaudeBot, anthropic-ai, CCBot, Google-Extended,
+  Applebot-Extended, PerplexityBot, Bytespider, meta-externalagent — that
+  disallows the per-run `/w/` tree, all but the shared workspace's schema;
+  and a `schemamap:` line per ask-capable app pointing at the ONE long-lived
+  shared workspace, so an answer engine has a stable URL even though every
+  minted workspace is disposable). The gateway answers every per-run
+  (minted-workspace) response with `X-Robots-Tag: noindex, nofollow`,
+  whatever app serves it; the shared workspace's are left as its app answers
+  them. The static
   `data` site carries its own, pointing at its own schema map. An agent
   discovers the whole NLWeb surface from any of these roots alone — no
   out-of-band configuration.
@@ -494,6 +517,15 @@ docker compose down -v               # stop and drop the database volume
   keeps working.
 
 ## Release
+
+_Chart 0.7.2: which issued card paid, read the same whoever holds the card
+page (an unbound Link card at its exact expiry is a Link payment, held to its
+approval, in a run that also read the card page; another run's login's card is
+never matched; an ambiguous payment names its requests and `wouldDecline`);
+the `login` binding rule (a later request of a login binds where an earlier one
+did); each card's expiry in the records; robots.txt closes the per-run tree to
+model-training crawlers, and every per-run response carries
+`X-Robots-Tag: noindex, nofollow`. No migration, no new settings._
 
 _Chart 0.7.1: Link's spend controls (the wallet's migration `003_spend_controls`:
 a spend request's card pays one payment, up to its approval; the stores confirm

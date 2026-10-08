@@ -196,6 +196,34 @@ describe.skipIf(!DB)("Link's spend controls: the stores and the wallet together"
     expect((await events(ws, "order_placed"))[0]).toMatchObject({ walletCard: true, cardOnFile: true, approvedCents: null, matchedIssuance: { kind: "card_on_file" }, expiryMatched: true });
   });
 
+  it("holds a Link card to its approval in a run that also read the card page — an unbound request's card, told by its expiry", async () => {
+    // Both ways to pay: the saved card read, then a Link approval for less than the total naming only the stores'
+    // origin (no checkout of that amount: unbound, from a login that bound nothing).
+    const ws = await newWorkspace();
+    const tok = await toPayment(ws, "fixture-price");
+    const saved = (await wallet.inject({ url: "/workspace/card", headers: { ...signed(ws, `/w/${ws}/wallet`), accept: "application/json" } })).json().card;
+    const link = await approve(await login(), 1_000, ORIGIN);
+    expect((await records(`request=${link.id}`)).requests[0]).toMatchObject({ binding: { rule: "fallback" } });
+    expect(link.card.number).toBe(saved.number);
+    expect((await payWith(ws, tok, link.card)).declined).toBe("Your card was declined.");
+    expect((await events(ws, "payment_attempt")).filter((a) => a.result === "declined").map((a) => a.reason)).toEqual(["above_approval"]);
+    // The saved card then pays the whole total: the saved card's own match, held to no approval.
+    const paid = await payWith(ws, tok, saved);
+    expect(suffix(paid.orderNo as string)).toBe(table.correct);
+    expect((await events(ws, "order_placed"))[0]).toMatchObject({ cardOnFile: true, matchedIssuance: { kind: "card_on_file" }, expiryMatched: true });
+  });
+
+  it("records an ambiguous payment's requests and what the spend controls would have answered on the order", async () => {
+    // The saved card and a bound Link card both end so, and the expiry typed is neither's: the store takes it.
+    const ws = await newWorkspace();
+    const tok = await toPayment(ws, "fixture-price");
+    const saved = (await wallet.inject({ url: "/workspace/card", headers: { ...signed(ws, `/w/${ws}/wallet`), accept: "application/json" } })).json().card;
+    const link = await approve(await login(), 1_000, `${ORIGIN}/w/${ws}/quillfeather`);
+    const paid = await payWith(ws, tok, { ...saved, exp_month: 1, exp_year: 2045 });
+    expect(paid.orderNo).toBeTruthy();
+    expect((await events(ws, "order_placed"))[0]).toMatchObject({ matchedIssuance: { kind: "ambiguous", requests: [link.id], wouldDecline: "above_approval" }, expiryMatched: false });
+  });
+
   it("gives an unbound request the card its candidate checkouts all call for: the decline scenario's decline card", async () => {
     // Two runs of one decline task side by side: the same total at the same store (seven bags: a total no other
     // test's checkout has), so no rule finds just one.

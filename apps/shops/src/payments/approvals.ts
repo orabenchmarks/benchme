@@ -8,8 +8,15 @@ import { WalletHttp } from "./wallet-http.js";
  */
 export type Paying = { amountCents: number; payment: string; card: () => Promise<PaidCard | null> };
 
-/** Which of the shopper's wallet's cards paid: a spend request's (its id), the card-on-file door's saved card, or one of the two. */
-export type Issuance = { kind: "spend_request"; request: string } | { kind: "card_on_file" } | { kind: "ambiguous" };
+/**
+ * Which of the shopper's wallet's cards paid: a spend request's (its id), the card-on-file door's saved card, or one of the
+ * two (`ambiguous`: the spend requests it may be, and what Link's spend controls would have answered for them — absent
+ * from an older wallet).
+ */
+export type Issuance =
+  | { kind: "spend_request"; request: string }
+  | { kind: "card_on_file" }
+  | { kind: "ambiguous"; requests?: string[]; wouldDecline?: "above_approval" | "reused" | null };
 
 /**
  * What the shopper's wallet says of a payment (DESIGN §8.2): the approval the charge is held against (the paying spend
@@ -43,7 +50,7 @@ export class NoApprovals implements ApprovalSource {
 const issuance = z.union([
   z.object({ kind: z.literal("spend_request"), request: z.string() }),
   z.object({ kind: z.literal("card_on_file") }),
-  z.object({ kind: z.literal("ambiguous") }),
+  z.object({ kind: z.literal("ambiguous"), requests: z.array(z.string()).optional(), wouldDecline: z.enum(["above_approval", "reused"]).nullable().optional() }),
 ]);
 // cardOnFile, matchedIssuance, expiryMatched: absent from an older wallet.
 const answer = z.object({

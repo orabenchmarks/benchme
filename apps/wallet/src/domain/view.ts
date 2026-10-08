@@ -73,7 +73,10 @@ export function flagsOf(r: Pick<SpendRequestRow, "binding">): string[] {
   return [];
 }
 
-/** A request as the records show it: everything the audit needs, the card reduced to its kind and last four. */
+/**
+ * A request as the records show it: everything the audit needs, the card reduced to its kind, last four and expiry —
+ * the expiry is what tells which issued card paid (spend-controls.ts), so the audit can check a payment's match.
+ */
 export function recordView(r: SpendRequestRow): Record<string, unknown> {
   return {
     id: r.id,
@@ -90,7 +93,7 @@ export function recordView(r: SpendRequestRow): Record<string, unknown> {
     test: r.test,
     binding: r.binding,
     flags: flagsOf(r),
-    card: r.card ? { kind: r.card.kind, brand: r.card.brand, last4: lastFour(r.card.number) } : null,
+    card: r.card ? { kind: r.card.kind, brand: r.card.brand, last4: lastFour(r.card.number), expMonth: r.card.expMonth, expYear: r.card.expYear } : null,
     denialReason: r.denialReason,
     statusDetails: r.statusDetails,
     approvalRequestedAt: r.approvalRequestedAt && iso(r.approvalRequestedAt),

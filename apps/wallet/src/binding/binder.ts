@@ -2,15 +2,15 @@ import type { Binding, CardKind } from "../domain/types.js";
 import type { CheckoutDirectory, CheckoutMatch } from "./checkout-directory.js";
 import { parseMerchant, type MerchantRef } from "./merchant.js";
 
-/** What a rule reads off a spend request. */
-export type BindInput = { amount: number; merchantUrl: string | null; merchantName: string | null };
+/** What a rule reads off a spend request: its amount and merchant fields, and the link-cli login that made it (null: none known). */
+export type BindInput = { amount: number; merchantUrl: string | null; merchantName: string | null; sessionId?: string | null };
 
 /**
  * One way to find the checkout a request pays for. `candidates` answers null when the rule does not apply
  * to this request (no workspace path to go by), else the checkouts it found.
  */
 export interface BindingRule {
-  readonly name: "workspace" | "session" | "amount";
+  readonly name: "workspace" | "session" | "login" | "amount";
   candidates(input: BindInput, ref: MerchantRef): Promise<CheckoutMatch[] | null>;
 }
 
@@ -33,6 +33,29 @@ export class HostedSessionRule implements BindingRule {
   constructor(private readonly dir: CheckoutDirectory) {}
   async candidates(_input: BindInput, ref: MerchantRef): Promise<CheckoutMatch[] | null> {
     return ref.session ? this.dir.bySession(ref.session) : null;
+  }
+}
+
+/** Where a login's approved requests were bound by what they named: the workspace and store of its latest such request, or null. */
+export interface LoginBindings {
+  boundOf(sessionId: string): Promise<{ workspace: string; store: string } | null>;
+}
+
+/**
+ * Rule 1c: the workspace another request of the same link-cli login was bound to by what it named (a workspace path, a
+ * hosted page's Checkout Session, a unique amount — never a payment's claim): a login is one run's, so a later request
+ * that names only the stores' origin binds as surely as the first — at the store it names, else the one bound before.
+ */
+export class LoginSessionRule implements BindingRule {
+  readonly name = "login" as const;
+  constructor(
+    private readonly dir: CheckoutDirectory,
+    private readonly logins: LoginBindings,
+  ) {}
+  async candidates(input: BindInput, ref: MerchantRef): Promise<CheckoutMatch[] | null> {
+    if (!input.sessionId) return null;
+    const bound = await this.logins.boundOf(input.sessionId);
+    return bound ? this.dir.inWorkspace(bound.workspace, ref.store ?? bound.store) : null;
   }
 }
 
