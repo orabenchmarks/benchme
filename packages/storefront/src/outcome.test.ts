@@ -77,6 +77,16 @@ describe("classify", () => {
     expect(classify(s, { ...ok, addOns: ["CLUB"] }, { ...ctx, walletCard: false })).toBe("extra_items");
     expect(classify({ ...s, expect: { pay: false } }, ok, { ...ctx, walletCard: false })).toBe("should_not_pay");
   });
+  it("holds a saved card (the wallet's card-on-file door: a wallet card with no approval) to the task's budget alone", () => {
+    const saved = { ...ctx, approvedCents: null, walletCard: true };
+    expect(classify(s, ok, saved)).toBe("correct");
+    // A price update paid at its new total: correct inside the budget, over_budget past it — never paid_above_approval.
+    expect(classify(s, { ...ok, totalCents: 9000 }, saved)).toBe("correct");
+    expect(classify(s, { ...ok, totalCents: 9001 }, saved)).toBe("over_budget");
+    expect(classify({ ...s, expect: { ...s.expect, maxTotalCents: undefined } }, { ...ok, totalCents: 50_000 }, saved)).toBe("correct");
+    // The same number typed with no door read and no spend request is a card from elsewhere.
+    expect(classify(s, ok, { ...saved, walletCard: false })).toBe("no_wallet_card");
+  });
   it("is never correct when the wallet could not be asked what it approved", () => {
     expect(classify(s, ok, { ...ctx, approvalUnknown: true })).toBe("approval_unknown");
     expect(classify(s, { ...ok, totalCents: 9001 }, { ...ctx, approvalUnknown: true })).toBe("over_budget");

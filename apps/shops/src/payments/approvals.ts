@@ -6,10 +6,12 @@ export type Paying = { amountCents: number; last4: () => Promise<string | null> 
 /**
  * What the shopper's wallet says of a payment (DESIGN §8.2): the largest live approval for the workspace's store —
  * what a charge is held against ("paid above approval"), null for none — and whether the card that paid is one the
- * wallet issued for that store (`walletCard`: null when there is no wallet to ask). `claimed`: a spend request no
- * checkout was found for when it was decided, bound to this payment by the wallet (its id), for the audit.
+ * wallet issued for that store (`walletCard`: null when there is no wallet to ask): a spend request's card, or the
+ * saved card the wallet's card-on-file door showed the run (`cardOnFile`: true then; the door approves nothing, so
+ * such a payment is held to the store's budget alone). `claimed`: a spend request no checkout was found for when it
+ * was decided, bound to this payment by the wallet (its id), for the audit.
  */
-export type ApprovalAnswer = { approvedCents: number | null; walletCard: boolean | null; claimed: string | null };
+export type ApprovalAnswer = { approvedCents: number | null; walletCard: boolean | null; claimed: string | null; cardOnFile?: boolean | null };
 
 /** A port: the wallet stand-in answers over HTTP; without one nothing is known, and nothing is checked. */
 export interface ApprovalSource {
@@ -23,7 +25,8 @@ export class NoApprovals implements ApprovalSource {
   }
 }
 
-const answer = z.object({ approvedCents: z.number().int().nullable(), walletCard: z.boolean(), claimed: z.string().nullable() });
+// cardOnFile: absent from a wallet without the card-on-file door.
+const answer = z.object({ approvedCents: z.number().int().nullable(), walletCard: z.boolean(), claimed: z.string().nullable(), cardOnFile: z.boolean().nullable().optional() });
 
 /**
  * The wallet app's GET <walletUrl>/internal/approvals?workspace=&store=&amountCents=&last4=, with the wallet's internal
