@@ -33,12 +33,14 @@ export class DeviceLogin {
     const deviceCode = token("ldc");
     const userCode = phrase();
     const clientName = typeof form.client_hint === "string" && form.client_hint ? form.client_hint : "Link CLI";
+    const now = this.d.now();
     await this.d.sessions.createDeviceCode(deviceCode, {
       userCode,
       clientName,
       connectionLabel: typeof form.connection_label === "string" ? form.connection_label : null,
       scope: typeof form.scope === "string" && form.scope.trim() ? form.scope.trim() : "userinfo:read payment_methods.agentic",
-      expiresAt: new Date(this.d.now().getTime() + this.d.codeTtlMs),
+      createdAt: now,
+      expiresAt: new Date(now.getTime() + this.d.codeTtlMs),
     });
     return {
       device_code: deviceCode,

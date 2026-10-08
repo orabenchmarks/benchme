@@ -1,5 +1,5 @@
 import { randomBytes, randomInt } from "node:crypto";
-import type { CardKind, IssuedCard } from "./types.js";
+import type { Binding, CardKind, IssuedCard } from "./types.js";
 
 /**
  * The cards the wallet issues (DESIGN §6.4): Stripe's public test-mode numbers, one per outcome a scenario
@@ -31,6 +31,16 @@ export function issueCard(kind: CardKind, now: Date): IssuedCard {
     expMonth: randomInt(1, 13),
     expYear: now.getUTCFullYear() + 3,
   };
+}
+
+/**
+ * The card a decision issues for a request bound as `b`: the bound store's scenario's — or, unbound, the card every
+ * checkout its rules found calls for when they agree, else the plain success card.
+ */
+export function cardKindOf(b: Binding): CardKind {
+  if (b.rule === "fallback") return b.card ?? "success";
+  if (b.rule === "unavailable") return "success";
+  return b.card;
 }
 
 /** The last four digits of a card number: all a record ever keeps of it. */

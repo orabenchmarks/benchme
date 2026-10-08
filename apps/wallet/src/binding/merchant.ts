@@ -12,6 +12,10 @@ export type MerchantRef = {
   store: string | null;
   /** A Checkout Session id in the URL's path (case kept: Stripe's ids are case-sensitive), or null. */
   session: string | null;
+  /** The URL's host, its path segments (decoded) and the merchant name, lower-cased: what a person reads off the request. */
+  host: string | null;
+  path: string[];
+  name: string | null;
 };
 
 const WORKSPACE_ID = /^ws_[0-9a-f]{12}$/;
@@ -51,14 +55,20 @@ export function parseMerchant(merchantUrl: string | null, merchantName: string |
       app = segments[0] ?? null;
     }
   }
-  const named = (text: string) => stores.find((s) => new RegExp(`(^|[^a-z0-9])${s}([^a-z0-9]|$)`).test(text)) ?? null;
+  const named = (text: string) => stores.find((s) => namesWord(text, s)) ?? null;
   const store =
     (app && stores.includes(app) ? app : null) ??
     segments.find((s) => stores.includes(s)) ??
     (url ? named(url.hostname.toLowerCase()) : null) ??
     (merchantName ? named(merchantName.toLowerCase()) : null);
   const session = raw.find((s) => SESSION_ID.test(s)) ?? null;
-  return { origin: url ? url.origin : null, workspace, app, store, session };
+  const name = merchantName?.trim().toLowerCase() || null;
+  return { origin: url ? url.origin : null, workspace, app, store, session, host: url ? url.hostname.toLowerCase() : null, path: segments, name };
+}
+
+/** Whether `word` is named in `text` as a word of its own ("halden" in "Halden Audio" or "halden.example", not in "haldenaudio"). */
+export function namesWord(text: string | null, word: string): boolean {
+  return text !== null && new RegExp(`(^|[^a-z0-9])${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`).test(text);
 }
 
 function decodeURIComponentSafe(s: string): string {

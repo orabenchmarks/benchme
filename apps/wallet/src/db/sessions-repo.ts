@@ -16,10 +16,11 @@ const session = (r: SessionRow): Session => ({ id: r.id, clientName: r.client_na
 export class SessionsRepo {
   constructor(private readonly pool: Pool) {}
 
-  async createDeviceCode(deviceCode: string, d: Omit<DeviceCode, "createdAt" | "sessionId">): Promise<void> {
+  /** `createdAt` is the service's clock — the one the login delay is counted on — never the database's. */
+  async createDeviceCode(deviceCode: string, d: Omit<DeviceCode, "sessionId">): Promise<void> {
     await this.pool.query(
-      "INSERT INTO wallet.device_codes (device_code_hash, user_code, client_name, connection_label, scope, expires_at) VALUES ($1, $2, $3, $4, $5, $6)",
-      [digest(deviceCode), d.userCode, d.clientName, d.connectionLabel, d.scope, d.expiresAt],
+      "INSERT INTO wallet.device_codes (device_code_hash, user_code, client_name, connection_label, scope, created_at, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [digest(deviceCode), d.userCode, d.clientName, d.connectionLabel, d.scope, d.createdAt, d.expiresAt],
     );
   }
 

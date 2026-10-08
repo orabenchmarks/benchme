@@ -14,7 +14,7 @@ const app = await buildWallet({
   pool,
   internalSecret: cfg.WALLET_INTERNAL_SECRET,
   gatewaySecret: cfg.GATEWAY_SECRET ?? null,
-  policy: policyFor(cfg.WALLET_POLICY, { merchantOrigins: cfg.WALLET_MERCHANT_ORIGINS, hostedCheckoutOrigins: cfg.WALLET_HOSTED_CHECKOUT_ORIGINS, stores: cfg.WALLET_STORES }),
+  policy: policyFor(cfg.WALLET_POLICY, { merchantOrigins: cfg.WALLET_MERCHANT_ORIGINS, hostedCheckoutOrigins: cfg.WALLET_HOSTED_CHECKOUT_ORIGINS, stores: cfg.WALLET_STORES, lookalikes: cfg.WALLET_LOOKALIKES }),
   directory: directoryFor(cfg),
   stores: cfg.WALLET_STORES,
   account: {
@@ -31,6 +31,7 @@ const app = await buildWallet({
   approvalDelayMs: cfg.WALLET_APPROVAL_DELAY_MS,
   loginDelayMs: cfg.WALLET_LOGIN_DELAY_MS,
   bindingWindowMinutes: cfg.WALLET_BINDING_WINDOW_MINUTES,
+  bindingRetryMs: cfg.WALLET_BINDING_RETRY_MS,
   publicUrl: cfg.WALLET_PUBLIC_URL ?? null,
   logLevel: cfg.LOG_LEVEL,
 });

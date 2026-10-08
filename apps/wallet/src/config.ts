@@ -46,12 +46,16 @@ export const configSchema = z
     SHOPS_INTERNAL_SECRET: z.string().min(16).optional(),
     /** The store ids a merchant name or URL may name. */
     WALLET_STORES: z.string().default("wrenfield,halden,quillfeather").transform(list),
+    /** Names a `lab` request is declined for wherever it carries them — URL host or path, merchant name (the PayLantern lookalike). */
+    WALLET_LOOKALIKES: z.string().default("paylantern").transform((s) => list(s).map((x) => x.toLowerCase())),
     /** How long after an approval request the policy answers (a person answering a push a moment later). */
     WALLET_APPROVAL_DELAY_MS: z.coerce.number().int().nonnegative().default(2000),
     /** How long after `auth login` the device counts as approved. */
     WALLET_LOGIN_DELAY_MS: z.coerce.number().int().nonnegative().default(0),
-    /** Rule 2 of binding: open checkouts started within this many minutes. */
+    /** Rule 2 of binding: open checkouts started within this many minutes — and how far back a payment may claim an unbound approval. */
     WALLET_BINDING_WINDOW_MINUTES: z.coerce.number().int().positive().default(60),
+    /** How long a decision waits for stores that cannot be asked before it denies the request, flagged binding_unavailable. */
+    WALLET_BINDING_RETRY_MS: z.coerce.number().int().nonnegative().default(60_000),
     /** The wallet holder every issued card is billed to (fictional; Stripe test mode checks none of it). */
     WALLET_HOLDER_NAME: z.string().min(1).default("Morgan Avery"),
     WALLET_HOLDER_LINE1: z.string().min(1).default("500 Third St"),

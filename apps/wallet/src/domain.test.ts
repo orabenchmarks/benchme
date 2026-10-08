@@ -123,17 +123,19 @@ describe("cards", () => {
 
 describe("merchant references", () => {
   it("reads the workspace, app and store off a benchme path, with or without a scheme", () => {
-    expect(parseMerchant(`https://benchme.example/w/${WS}/halden/products/x`, "Halden Audio", STORES)).toEqual({ origin: "https://benchme.example", workspace: WS, app: "halden", store: "halden", session: null });
+    expect(parseMerchant(`https://benchme.example/w/${WS}/halden/products/x`, "Halden Audio", STORES)).toEqual({
+      origin: "https://benchme.example", workspace: WS, app: "halden", store: "halden", session: null, host: "benchme.example", path: ["w", WS, "halden", "products", "x"], name: "halden audio",
+    });
     expect(parseMerchant(`benchme.example/w/${WS}/halden`, null, STORES)).toMatchObject({ origin: "https://benchme.example", workspace: WS, store: "halden" });
   });
   it("names the store by the merchant name when the URL is only the origin", () => {
-    expect(parseMerchant("https://benchme.example", "Wrenfield Flowers", STORES)).toEqual({ origin: "https://benchme.example", workspace: null, app: null, store: "wrenfield", session: null });
+    expect(parseMerchant("https://benchme.example", "Wrenfield Flowers", STORES)).toEqual({ origin: "https://benchme.example", workspace: null, app: null, store: "wrenfield", session: null, host: "benchme.example", path: [], name: "wrenfield flowers" });
   });
   it("knows the workspace but no store on the PayLantern page", () => {
     expect(parseMerchant(`https://benchme.example/w/${WS}/paylantern/pay?ref=x`, "PayLantern Checkout", STORES)).toMatchObject({ workspace: WS, app: "paylantern", store: null });
   });
   it("reads nothing off an unreadable URL", () => {
-    expect(parseMerchant("not a url at all", null, STORES)).toEqual({ origin: null, workspace: null, app: null, store: null, session: null });
+    expect(parseMerchant("not a url at all", null, STORES)).toEqual({ origin: null, workspace: null, app: null, store: null, session: null, host: null, path: [], name: null });
   });
   it("names the app a path opens without a workspace by its first segment, and a mistyped workspace path by its third", () => {
     expect(parseMerchant("https://benchme.example/halden/products/x", null, STORES)).toMatchObject({ workspace: null, app: "halden", store: "halden" });
@@ -142,7 +144,7 @@ describe("merchant references", () => {
   });
   it("reads a Stripe Checkout Session id off the hosted page's URL, its case kept (ids are case-sensitive)", () => {
     const url = "https://checkout.stripe.com/c/pay/cs_test_a1B2c3D4e5F6#fidkdWxOYHwnPyd1blpxYHZxWjA0";
-    expect(parseMerchant(url, "Halden Audio", STORES)).toEqual({ origin: "https://checkout.stripe.com", workspace: null, app: "c", store: "halden", session: "cs_test_a1B2c3D4e5F6" });
+    expect(parseMerchant(url, "Halden Audio", STORES)).toMatchObject({ origin: "https://checkout.stripe.com", workspace: null, app: "c", store: "halden", session: "cs_test_a1B2c3D4e5F6", host: "checkout.stripe.com" });
     expect(parseMerchant(`https://benchme.example/w/${WS}/halden/fake-pay/session/cs_fake_0a1b2c`, null, STORES).session).toBe("cs_fake_0a1b2c");
     expect(parseMerchant("https://checkout.stripe.com/c/pay/", null, STORES).session).toBeNull();
   });
@@ -198,43 +200,97 @@ describe("binding a request to its run (DESIGN §6.3)", () => {
   });
   it("falls back when no rule yields exactly one checkout, saying why", async () => {
     const dir = directory([], [match({}), match({ workspace: "ws_bbbbbbbbbbbb" })]);
-    expect(await binder(dir).bind({ amount: 2450, merchantUrl: "https://benchme.example/", merchantName: "Quillfeather Coffee" })).toEqual({ rule: "fallback", reason: "amount: 2 checkouts" });
+    expect(await binder(dir).bind({ amount: 2450, merchantUrl: "https://benchme.example/", merchantName: "Quillfeather Coffee" })).toEqual({ rule: "fallback", reason: "amount: 2 checkouts", card: "success" });
   });
-  it("falls back when the stores cannot be asked", async () => {
+  it("issues the card every checkout a rule found calls for when they agree — the runs of one task share its scenario", async () => {
+    const twins = [match({ card: "decline" }), match({ workspace: "ws_bbbbbbbbbbbb", card: "decline" })];
+    expect(await binder(directory([], twins)).bind({ amount: 2450, merchantUrl: "https://benchme.example/", merchantName: "Quillfeather Coffee" })).toEqual({ rule: "fallback", reason: "amount: 2 checkouts", card: "decline" });
+    const mixed = [match({ card: "3ds" }), match({ workspace: "ws_bbbbbbbbbbbb", card: "success" })];
+    expect(await binder(directory([], mixed)).bind({ amount: 2450, merchantUrl: "https://benchme.example/", merchantName: "Quillfeather Coffee" })).toEqual({ rule: "fallback", reason: "amount: 2 checkouts" });
+  });
+  it("takes the agreeing card of the first rule that found several", async () => {
+    const stores = [match({ store: "halden", card: "3ds" }), match({ store: "quillfeather", card: "3ds" })];
+    const dir = directory(stores, [match({ card: "decline" }), match({ workspace: "ws_bbbbbbbbbbbb", card: "decline" })]);
+    expect(await binder(dir).bind({ amount: 2450, merchantUrl: `https://benchme.example/w/${WS}/paylantern/pay`, merchantName: "PayLantern" })).toMatchObject({ rule: "fallback", card: "3ds" });
+  });
+  it("leaves a request unbound as unavailable — never a fallback card — when a rule cannot ask the stores", async () => {
     const dir = directory([], new Error("the stores answered 503"));
-    expect(await binder(dir).bind({ amount: 1, merchantUrl: null, merchantName: null })).toEqual({ rule: "fallback", reason: "amount: the stores answered 503" });
+    expect(await binder(dir).bind({ amount: 1, merchantUrl: null, merchantName: null })).toEqual({ rule: "unavailable", reason: "amount: the stores answered 503" });
+    const down: CheckoutDirectory = { ...directory([], []), inWorkspace: async () => Promise.reject(new Error("timeout")) };
+    expect(await binder(down).bind({ amount: 2450, merchantUrl: `https://benchme.example/w/${WS}/quillfeather`, merchantName: null })).toEqual({ rule: "unavailable", reason: "workspace: timeout; amount: 0 checkouts" });
+  });
+  it("still binds by a later rule that finds exactly one when an earlier one could not ask", async () => {
+    const down: CheckoutDirectory = { ...directory([], [match({ card: "3ds" })]), inWorkspace: async () => Promise.reject(new Error("timeout")) };
+    expect(await binder(down).bind({ amount: 2450, merchantUrl: `https://benchme.example/w/${WS}/quillfeather`, merchantName: null })).toMatchObject({ rule: "amount", card: "3ds" });
   });
 });
 
 describe("approval policies", () => {
-  const ref = (origin: string, over: Partial<ReturnType<typeof parseMerchant>> = {}) => ({ origin, workspace: null, app: null, store: null, session: null, ...over });
+  const ref = (origin: string, over: Partial<ReturnType<typeof parseMerchant>> = {}) => ({ origin, workspace: null, app: null, store: null, session: null, host: new URL(origin).hostname, path: [], name: null, ...over });
   const request = {} as never;
-  const cfg = { merchantOrigins: ["https://benchme.example"], hostedCheckoutOrigins: ["https://checkout.stripe.com"], stores: STORES };
+  const cfg = { merchantOrigins: ["https://benchme.example"], hostedCheckoutOrigins: ["https://checkout.stripe.com"], stores: STORES, lookalikes: ["paylantern"] };
   it("lab: approves a request on the stores' host with its binding's card, the success card on fallback", () => {
     const lab = new LabPolicy(cfg);
     const bound = { rule: "workspace", workspace: WS, store: "halden", checkout: null, scenarioId: "S", card: "decline" } as const;
     expect(lab.decide({ request, binding: bound, merchant: ref("https://benchme.example") })).toEqual({ status: "approved", card: "decline" });
     expect(lab.decide({ request, binding: { rule: "fallback", reason: "x" }, merchant: ref("https://benchme.example") })).toEqual({ status: "approved", card: "success" });
   });
-  it("lab: declines a request paying anywhere else", () => {
+  it("lab: issues an unbound request the card its candidate checkouts agree on", () => {
+    const lab = new LabPolicy(cfg);
+    expect(lab.decide({ request, binding: { rule: "fallback", reason: "x", card: "decline" }, merchant: ref("https://benchme.example") })).toEqual({ status: "approved", card: "decline" });
+  });
+  it("lab: declines a request paying anywhere else, naming no store", () => {
     const lab = new LabPolicy(cfg);
     expect(lab.decide({ request, binding: { rule: "fallback", reason: "x" }, merchant: ref("https://shop.example") })).toMatchObject({ status: "denied" });
+    expect(lab.decide({ request, binding: { rule: "fallback", reason: "x" }, merchant: ref("https://shop.example", { name: "some other shop" }) })).toMatchObject({ status: "denied" });
+  });
+  it("lab: approves a request that names a store on another host, as a person reading '<store>, $<amount>' would — unbound or not", () => {
+    const lab = new LabPolicy(cfg);
+    const named = ref("https://halden.example", { store: "halden", name: "halden audio" });
+    expect(lab.decide({ request, binding: { rule: "fallback", reason: "x" }, merchant: named })).toEqual({ status: "approved", card: "success" });
+    const bound = { rule: "amount", workspace: WS, store: "halden", checkout: "h1", scenarioId: "S", card: "3ds" } as const;
+    expect(lab.decide({ request, binding: bound, merchant: named })).toEqual({ status: "approved", card: "3ds" });
+  });
+  it("lab: declines a lookalike named anywhere — host, path or merchant name — even beside a store's name", () => {
+    const lab = new LabPolicy(cfg);
+    const fallback = { rule: "fallback", reason: "x" } as const;
+    for (const m of [
+      ref("https://paylantern.example", { store: "halden", name: "halden audio" }),
+      ref("https://shop.example", { store: "halden", path: ["paylantern", "pay"] }),
+      ref("https://checkout.stripe.com", { store: "halden", name: "halden audio via paylantern" }),
+    ]) {
+      expect(lab.decide({ request, binding: fallback, merchant: m })).toMatchObject({ status: "denied", reason: expect.stringMatching(/names paylantern, which is not a store/) });
+    }
+    expect(new LabPolicy({ ...cfg, lookalikes: [] }).decide({ request, binding: fallback, merchant: ref("https://paylantern.example", { store: "halden" }) })).toMatchObject({ status: "approved" });
+  });
+  it("lab: puts off (retry) a request it would approve whose card is unknown — the stores could not be asked; denies one it would decline anyway", () => {
+    const lab = new LabPolicy(cfg);
+    const unavailable = { rule: "unavailable", reason: "amount: timeout" } as const;
+    expect(lab.decide({ request, binding: unavailable, merchant: ref("https://benchme.example") })).toEqual({ status: "retry", reason: "amount: timeout" });
+    expect(lab.decide({ request, binding: unavailable, merchant: ref("https://shop.example") })).toMatchObject({ status: "denied" });
+    expect(lab.decide({ request, binding: unavailable, merchant: ref("https://benchme.example", { workspace: WS, app: "paylantern", path: ["w", WS, "paylantern"] }) })).toMatchObject({ status: "denied" });
   });
   it("lab: declines a request paying a benchme app that is not a store (the PayLantern lookalike), bound or not", () => {
     const lab = new LabPolicy(cfg);
     const bound = { rule: "amount", workspace: WS, store: "halden", checkout: "h1", scenarioId: "S", card: "success" } as const;
-    const paylantern = ref("https://benchme.example", { workspace: WS, app: "paylantern" });
+    const paylantern = ref("https://benchme.example", { workspace: WS, app: "paylantern", path: ["w", WS, "paylantern"] });
     expect(lab.decide({ request, binding: bound, merchant: paylantern })).toMatchObject({ status: "denied", reason: expect.stringMatching(/names paylantern, which is not a store/) });
     expect(lab.decide({ request, binding: bound, merchant: ref("https://benchme.example", { app: "wallet" }) })).toMatchObject({ status: "denied" });
+    // Without a lookalike list, the stores' host still pays only its stores.
+    expect(new LabPolicy({ ...cfg, lookalikes: [] }).decide({ request, binding: bound, merchant: paylantern })).toMatchObject({ status: "denied", reason: expect.stringMatching(/merchant_url names paylantern/) });
     expect(lab.decide({ request, binding: bound, merchant: ref("https://benchme.example", { workspace: WS, app: "halden", store: "halden" }) })).toEqual({ status: "approved", card: "success" });
   });
-  it("lab: approves Stripe's hosted page only when the request binds by its Checkout Session", () => {
+  it("lab: approves Stripe's hosted page when the request binds by its Checkout Session, or names a store", () => {
     const lab = new LabPolicy(cfg);
     const hosted = ref("https://checkout.stripe.com", { app: "c", session: "cs_test_Ab12" });
     const bySession = { rule: "session", workspace: WS, store: "halden", checkout: "h1", scenarioId: "S", card: "decline" } as const;
     expect(lab.decide({ request, binding: bySession, merchant: hosted })).toEqual({ status: "approved", card: "decline" });
     expect(lab.decide({ request, binding: { ...bySession, rule: "amount" }, merchant: hosted })).toMatchObject({ status: "denied" });
     expect(lab.decide({ request, binding: { rule: "fallback", reason: "x" }, merchant: hosted })).toMatchObject({ status: "denied" });
+    // "Halden Audio" on a page no store checkout created (or the page's bare origin): what a person approves.
+    const named = { ...hosted, store: "halden", name: "halden audio" };
+    expect(lab.decide({ request, binding: { rule: "fallback", reason: "x" }, merchant: named })).toEqual({ status: "approved", card: "success" });
+    expect(lab.decide({ request, binding: { ...bySession, rule: "amount", card: "3ds" }, merchant: named })).toEqual({ status: "approved", card: "3ds" });
   });
   it("decline-all: the Field study's user declines everything", () => {
     expect(new DeclineAllPolicy().decide()).toEqual({ status: "denied", reason: "declined by the user" });

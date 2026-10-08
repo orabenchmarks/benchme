@@ -124,24 +124,35 @@ wallet.
   `denied`, `expired`, `canceled`) and Link's error shape.
 - **Approval** comes `WALLET_APPROVAL_DELAY_MS` (default 2 s) after it is
   requested, from the policy `WALLET_POLICY` names. `lab` approves a request
-  that pays one of the stores: at one of `WALLET_MERCHANT_ORIGINS` (the stores'
-  host) with a path that names a store or no app at all — never another
-  benchme app on that host, the PayLantern lookalike included — or on a hosted
-  payment page of `WALLET_HOSTED_CHECKOUT_ORIGINS` (Stripe Checkout, where
-  Halden sends its shoppers) when the page's Checkout Session binds it to a
-  store checkout. It declines anything else. `decline-all` declines everything.
+  that pays one of the stores, as a person reading "<store>, $<amount>" in
+  the Link app would: at one of `WALLET_MERCHANT_ORIGINS` (the stores' host)
+  with a path that names a store or no app at all — never another benchme app
+  on that host; on a hosted payment page of `WALLET_HOSTED_CHECKOUT_ORIGINS`
+  (Stripe Checkout, where Halden sends its shoppers) when the page's Checkout
+  Session binds it to a store checkout or the request names a store; and on
+  any other host when the request names a store (in its URL or merchant
+  name). It declines a request carrying a name of `WALLET_LOOKALIKES` (default
+  `paylantern`) anywhere — host, path or merchant name — and anything that
+  names no store off the stores' host. `decline-all` declines everything.
 - **Binding.** A decided request is bound to the run's checkout — by the
   workspace path in its `merchant_url` (`/w/<id>/<store>`), else by the
   Checkout Session of the hosted page it names
   (`checkout.stripe.com/c/pay/cs_test_…`), else by its exact amount among a
-  store's open checkouts of the last hour with no paid order
-  (`GET /s/<store>/internal/wallet-matches` on the stores). The card is the one
-  the bound store's scenario calls for — `4242424242424242`, the 3-D Secure
-  card `4000002760003184`, or the decline card `4000000000000002` — billed to
-  the holder (`WALLET_HOLDER_*`, ZIP 94107). A request no checkout matches
-  gets the success card and the flag `binding_fallback`; it is bound later to
-  the first store paid with its card for exactly its amount (flag
-  `claimed_at_payment` beside it), never to a payment above it.
+  store's open checkouts of the last `WALLET_BINDING_WINDOW_MINUTES` (default
+  60) with no paid order (`GET /s/<store>/internal/wallet-matches` on the
+  stores). The card is the one the bound store's scenario calls for —
+  `4242424242424242`, the 3-D Secure card `4000002760003184`, or the decline
+  card `4000000000000002` — billed to the holder (`WALLET_HOLDER_*`, ZIP
+  94107). A request no checkout matches is flagged `binding_fallback` and gets
+  the card every checkout its rules found calls for when they all call for
+  the same one (the runs of one task share their scenario), else the success
+  card; a payment with its card within the binding window binds it later
+  (flag `claimed_at_payment` beside it). When the stores cannot be asked (an
+  error or a timeout), no card is issued on a guess: the request stays
+  `pending_approval` and every read asks again (each attempt recorded, event
+  `binding_unavailable`), and after `WALLET_BINDING_RETRY_MS` (default 60 s)
+  it is denied, flagged `binding_unavailable` — an infrastructure failure,
+  never the run's; a new request may be approved.
 - **Card on file.** A run that pays without Link reads the buyer's saved
   card at `<public>/w/<workspaceId>/wallet/card` — the workspace path of the
   store it shops at (`…/w/<workspaceId>/<store>`) with `wallet/card` in place
@@ -188,6 +199,9 @@ wallet.
 | `WALLET_MERCHANT_ORIGINS` | — | the origins a `lab` request may pay at (compose: `BENCHME_PUBLIC_URL`; the chart: `publicBaseUrl` and the in-cluster gateway) |
 | `WALLET_HOSTED_CHECKOUT_ORIGINS` | `https://checkout.stripe.com` | hosted payment pages a `lab` request may pay on — only when bound by the page's Checkout Session (the chart: `wallet.hostedCheckoutOrigins`) |
 | `WALLET_STORES` | `wrenfield,halden,quillfeather` | the store ids a merchant URL or name may name; any other app on the stores' host is declined |
+| `WALLET_LOOKALIKES` | `paylantern` | names a `lab` request is declined for wherever it carries them (URL host or path, merchant name) |
+| `WALLET_BINDING_WINDOW_MINUTES` | `60` | the open checkouts the amount rule reads, and how far back a payment may claim an unbound approval |
+| `WALLET_BINDING_RETRY_MS` | `60000` | how long a decision waits for stores that cannot be asked before it denies the request, flagged `binding_unavailable` |
 | `WALLET_APPROVAL_DELAY_MS` | `2000` | how long after an approval request the policy answers |
 | `SHOPS_URL`, `SHOPS_INTERNAL_SECRET` | — | where a request's checkout is looked up; unset: every request falls back (and the card-on-file door shows no card) |
 | `GATEWAY_SECRET` | — | the gateway's secret, which signs the workspace of a `/w/<id>/wallet/*` request; unset: no card-on-file door |
