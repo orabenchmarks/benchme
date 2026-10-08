@@ -1,0 +1,21 @@
+{
+  "name": "@benchme/wallet",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "description": "A stand-in for a Link wallet: the HTTP contract @stripe/link-cli calls, an approval policy, and test cards bound to a store checkout",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "migrate": "node dist/migrate.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@benchme/core": "0.1.0",
+    "@fastify/formbody": "^8.0.0",
+    "fastify": "^5.2.0",
+    "zod": "^3.24.0"
+  }
+}
