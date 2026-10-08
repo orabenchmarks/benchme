@@ -259,10 +259,13 @@ Each of `warehouse`, `helpdesk` and `vaultdocs` (the apps in the gateway's
   (`sf:contentType: structuredData/schema.org`).
 - **`GET /robots.txt`** — per workspace-scoped app (`/w/<id>/<app>/robots.txt`,
   disallowing only `/account`, `schemamap:` at its own `/schema/map.xml`) AND
-  at the gateway's **host root** (`/robots.txt`, disallowing the whole
-  per-run `/w/` tree except a `schemamap:` line per ask-capable app pointing at
-  the ONE long-lived shared workspace — so an answer engine has a stable,
-  crawlable URL even though every minted workspace is disposable). The static
+  at the gateway's **host root** (`/robots.txt`, `Allow: /` — every path may be
+  fetched, the stores' pages and checkouts included, so an agent honouring
+  robots.txt on a shopper's behalf meets no directive against buying — and a
+  `schemamap:` line per ask-capable app pointing at the ONE long-lived shared
+  workspace, so an answer engine has a stable URL even though every minted
+  workspace is disposable; the per-run pages stay out of search indexes by
+  their own `noindex`). The static
   `data` site carries its own, pointing at its own schema map. An agent
   discovers the whole NLWeb surface from any of these roots alone — no
   out-of-band configuration.
