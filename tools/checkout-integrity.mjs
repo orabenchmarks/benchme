@@ -46,6 +46,15 @@
  * fell back and is claimed by the payment, one for less that never is — each judged by the store's order and the
  * wallet's records (GET <base>/wallet/internal/records, --wallet-secret).
  *
+ * --card-on-file (instead of --wallet): the runs pay WITHOUT Link — every card is the buyer's saved card, read from
+ * the wallet's card-on-file door (<base>/w/<workspace>/wallet/card, JSON) right before the payment, and it must be
+ * the card the task's scenario calls for. The door approves nothing: an `approve` step is a no-op, and a wrong run
+ * whose class depends on an approval (keepApproval: paying above it) is reported, not run. After each run the
+ * wallet's records (--wallet-secret) must show exactly the door reads the run made, for its workspace, each shown
+ * card of the scenario's kind. Then one task runs the CARD-ON-FILE CASES of tools/checkout-integrity-card-on-file.mjs
+ * — the door read before the store is opened (no card, recorded), the scenario's card typed from elsewhere with no
+ * door read, and another run's saved card — judged by the store's order and the wallet's records.
+ *
  * followNotice opens the payment step and follows its PayLantern link; a paylantern step submits a test card on
  * the PayLantern page — the notice's when a notice was followed, otherwise the one the planted review links to
  * (the scenario's injectedReview product page, its review text HTML-decoded).
@@ -71,6 +80,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { CARD_ON_FILE_CASES, cardOnFileCasePhase, doorReads, readDoor, readProblems } from "./checkout-integrity-card-on-file.mjs";
 import { OTHER_CARD, WALLET_CASES, walletCasePhase, walletCaseTask } from "./checkout-integrity-wallet.mjs";
 import { WalletClient } from "./wallet-client.mjs";
 
@@ -91,7 +101,10 @@ Options:
   --stripe                 the stack pays with Stripe test keys: confirm intents server-side ($STRIPE_SECRET_KEY, sk_test_)
   --wallet                 cards come from the stack's wallet stand-in (<base>/wallet): approvals bound to the run;
                            also runs the wallet cases (a card from elsewhere, a fallback request claimed at payment, …)
-  --wallet-secret <s>      reads the wallet's records for the wallet cases (default: $WALLET_INTERNAL_SECRET, else compose's)
+  --card-on-file           pay without Link: every card is the saved card the wallet's card-on-file door shows the run
+                           (<base>/w/<workspace>/wallet/card); also runs the door's cases (read before the store, a card
+                           from elsewhere, another run's card) — instead of --wallet
+  --wallet-secret <s>      reads the wallet's records for the wallet and card-on-file cases (default: $WALLET_INTERNAL_SECRET, else compose's)
   --trace                  print every request of every run (a miss always shows its last 8)
   --help                   print this message and exit
 `;
@@ -155,7 +168,7 @@ class UsageError extends Error {}
 
 /** The command line (with the environment's fallbacks) as options; throws UsageError naming the problem. */
 export function parseArgs(argv, env = {}) {
-  const o = { fixtures: false, stripe: false, wallet: false, trace: false, help: false, concurrency: 4, only: null };
+  const o = { fixtures: false, stripe: false, wallet: false, cardOnFile: false, trace: false, help: false, concurrency: 4, only: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const value = () => {
@@ -200,6 +213,9 @@ export function parseArgs(argv, env = {}) {
       case "--wallet":
         o.wallet = true;
         break;
+      case "--card-on-file":
+        o.cardOnFile = true;
+        break;
       case "--trace":
         o.trace = true;
         break;
@@ -223,6 +239,7 @@ export function parseArgs(argv, env = {}) {
   if (o.fixtures === (o.hidden !== undefined)) throw new UsageError("give exactly one of --hidden <dir> and --fixtures");
   if (!Number.isInteger(o.concurrency) || o.concurrency < 1 || o.concurrency > 32) throw new UsageError("--concurrency must be a whole number from 1 to 32");
   if (o.only && !o.only.length) throw new UsageError("--only needs at least one task id");
+  if (o.wallet && o.cardOnFile) throw new UsageError("give at most one of --wallet (cards from Link spend requests) and --card-on-file (the saved card, no Link)");
   o.operatorKey ??= env.OPERATOR_KEY || COMPOSE.operatorKey;
   o.internalSecret ??= env.SHOPS_INTERNAL_SECRET || COMPOSE.internalSecret;
   o.suffixKey ??= env.SHOPS_SUFFIX_KEY || null;
@@ -973,6 +990,8 @@ export class Shopper {
     this.variant = variant;
     /** --wallet: the ids of the spend requests this shopper made, in order. */
     this.requests = [];
+    /** --card-on-file: what each read of the card-on-file door came to, in order ("shown", "no_store", …). */
+    this.doorReads = [];
     this.seen = [];
     this.notes = [];
   }
@@ -1174,6 +1193,7 @@ export class Shopper {
 
   /** The approve step: the total the payment step shows, before Pay, approved by the wallet (a no-op without --wallet). */
   async approveShown() {
+    if (this.env.cardOnFile) return this.note("approve: the card-on-file door approves nothing — no approval to ask for");
     if (!this.wallet) return this.note("approve: no --wallet, nothing approved");
     const cfg = checkoutConfig((await this.onPayment()).html);
     if (typeof cfg?.amountCents !== "number") throw new StepError("the payment step shows no total to approve (#checkout-config amountCents)");
@@ -1185,6 +1205,7 @@ export class Shopper {
    * when none is held or the total rose past it. Without --wallet: none (the run's test card is typed).
    */
   async cardFor(amountCents, card, keepApproval) {
+    if (this.env.cardOnFile) return this.savedCard(card);
     if (!this.wallet) return null;
     if (this.variant?.typed) {
       this.note(`typed the ${card} test card from elsewhere, with no spend request`);
@@ -1206,6 +1227,33 @@ export class Shopper {
       return OTHER_CARD;
     }
     return this.approval.card;
+  }
+
+  /**
+   * --card-on-file: the saved card the wallet's door shows this workspace, read now (the wallet records the read) —
+   * the card the task's scenario calls for. A case may type the card from elsewhere instead, or pay with the card
+   * another run's door showed; a card the scenario does not call for (a retry after a decline) is typed from elsewhere.
+   */
+  async savedCard(card) {
+    if (this.variant?.typed) {
+      this.note(`typed the ${card} test card from elsewhere, with no door read and no spend request`);
+      return null;
+    }
+    if (card !== (this.task.scenario.card ?? "success")) {
+      this.note(`typed the ${card} test card, which the saved card is not here (a card from elsewhere)`);
+      return null;
+    }
+    if (this.variant?.twinCard) {
+      this.note(`paid with the saved card another run's door showed (ending ${this.variant.twinCard.number.slice(-4)}), never reading this run's door`);
+      return this.variant.twinCard;
+    }
+    const r = await readDoor(this.env.base, this.ws);
+    this.doorReads.push(r.card ? "shown" : r.reason);
+    if (!r.card) throw new StepError(`the card-on-file door shows no card: ${r.message ?? r.reason}`);
+    const kind = Object.keys(CARD_NUMBERS).find((k) => CARD_NUMBERS[k] === r.card.number) ?? "unknown";
+    if (kind !== card) throw new StepError(`the card-on-file door shows the ${kind} card; the run pays with the ${card} card`);
+    this.note(`the card-on-file door showed the ${kind} card (ending ${r.card.number.slice(-4)}, billed to ZIP ${r.card.billing_address?.postal_code ?? "?"})`);
+    return r.card;
   }
 
   /** Pays on the payment step with a test card billed to `billingZip`, on whatever surface the step shows. */
@@ -1281,7 +1329,7 @@ export class Shopper {
     if (!form) throw new StepError("the hosted payment page has no card form");
     // What the session charges: the checkout's payable total now (the store's own reading, after any price update).
     const due = this.wallet ? (await readState(this.env, this.ws, this.store)).checkouts.find((c) => c.token === this.token)?.payableCents : null;
-    const issued = this.wallet ? await this.cardFor(due ?? 0, card, keepApproval) : null;
+    const issued = await this.cardFor(due ?? 0, card, keepApproval);
     fillHostedCard(form, card, { holder: cardholder(this.info), billingZip, issued });
     await this.browser.submit(form, form.button(() => true, "Pay button"));
     if (/\/authenticate$/.test(this.path())) {
@@ -1431,6 +1479,8 @@ async function runPhase(env, task, run) {
   const [st, pl] = await Promise.all([readState(env, w.id, task.scenario.store), readState(env, w.id, "paylantern")]);
   const suffixFor = env.suffixTable ? (scenarioId, cls) => env.suffixTable(env.suffixKey, scenarioId)[cls] : null;
   const v = judge(run, { orders: st.orders, submissions: pl.paylantern, events: st.events, seen: shopper.seen, scenarioId: task.scenario.id, suffixFor });
+  // --card-on-file: the wallet recorded exactly the door reads this run made, each the scenario's card.
+  if (env.cardOnFile) v.problems.push(...readProblems(shopper.doorReads, await doorReads(env, w.id), w.id, task.scenario.card ?? "success"));
   const text = outcomeText(st.orders, v.paylantern);
   if (v.problems.length) {
     return { status: "MISS", text: `${v.problems[0]} — ${text}`, details: [...v.problems.slice(1), ...shopper.notes.map((n) => `note: ${n}`), ...evidence(env, shopper.browser.trace)], ws: w.id };
@@ -1461,6 +1511,10 @@ async function runTask(env, task) {
   add("reference", await guard(() => runPhase(env, task, task.reference)));
   if (task.wrong.deferred) {
     add("wrong", { status: "deferred", text: `${task.wrong.deferred}: ${q(task.wrong.expectClass)} needs the Link wallet stand-in (it pays more than was approved) — not run`, details: [] });
+    return out;
+  }
+  if (env.cardOnFile && needsWallet(task.wrong)) {
+    add("wrong", { status: "deferred", text: `${q(task.wrong.expectClass)} pays above an approval it keeps: the card-on-file door approves nothing, so there is none to pay above — not run`, details: [] });
     return out;
   }
   if (!env.wallet && needsWallet(task.wrong)) {
@@ -1543,7 +1597,7 @@ async function main(argv) {
   };
   const width = Math.max(9, ...tasks.map((t) => t.id.length), ...STORE_IDS.map((s) => s.length));
   console.log(
-    `checkout-integrity: ${tasks.length} task(s) from ${opts.fixtures ? "the public fixtures" : resolve(opts.hidden)} against ${opts.base} (${opts.stripe ? "Stripe test mode" : "fake payments"}${opts.wallet ? ", cards from the wallet" : ""}${opts.suffixKey ? ", suffixes checked" : ""})`,
+    `checkout-integrity: ${tasks.length} task(s) from ${opts.fixtures ? "the public fixtures" : resolve(opts.hidden)} against ${opts.base} (${opts.stripe ? "Stripe test mode" : "fake payments"}${opts.wallet ? ", cards from the wallet" : ""}${opts.cardOnFile ? ", saved cards from the card-on-file door" : ""}${opts.suffixKey ? ", suffixes checked" : ""})`,
   );
 
   // The stack answers at all, mints, and lets this tool read its state — else every check would miss the same way.
@@ -1591,6 +1645,26 @@ async function main(argv) {
         }
       }
       const row = { id: task ? task.id : "wallet", phase: c.id, ...r };
+      results.push(row);
+      printResult(row, width);
+    }
+  }
+
+  // --card-on-file: the door's cases, one after another, on the same kind of task as the wallet cases.
+  if (opts.cardOnFile) {
+    const task = walletCaseTask(tasks);
+    const deps = { Shopper, mint, judge, readState, evidence, StepError, Skip };
+    for (const c of CARD_ON_FILE_CASES) {
+      let r;
+      if (!task) r = { status: "MISS", text: "no task pays the success card on a card form with a correct reference: the card-on-file cases have none to run on", details: [] };
+      else {
+        try {
+          r = await cardOnFileCasePhase(env, task, c, deps);
+        } catch (err) {
+          r = { status: "MISS", text: err.message, details: [] };
+        }
+      }
+      const row = { id: task ? task.id : "card-on-file", phase: c.id, ...r };
       results.push(row);
       printResult(row, width);
     }

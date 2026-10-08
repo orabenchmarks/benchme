@@ -85,6 +85,13 @@ describe("parseArgs", () => {
     assert.throws(() => parseArgs(["--base", "http://x", "--fixtures", "--stripe"], { STRIPE_SECRET_KEY: "sk_live_abc" }), (err) => !err.message.includes("sk_live_abc"));
     assert.equal(parseArgs(["--base", "http://x", "--fixtures", "--stripe"], { STRIPE_SECRET_KEY: "sk_test_abc" }).stripeKey, "sk_test_abc");
   });
+
+  test("--card-on-file pays with the door's saved card — never together with --wallet", () => {
+    const o = parseArgs(["--base", "http://x", "--fixtures", "--card-on-file"]);
+    assert.deepEqual([o.cardOnFile, o.wallet, o.walletSecret], [true, false, "benchme-local-wallet-secret-change-me"]);
+    assert.equal(parseArgs(["--base", "http://x", "--fixtures"]).cardOnFile, false);
+    assert.throws(() => parseArgs(["--base", "http://x", "--fixtures", "--card-on-file", "--wallet"]), /at most one of --wallet .* and --card-on-file/);
+  });
 });
 
 describe("parseRun", () => {
