@@ -79,15 +79,16 @@ spec:
               value: {{ $root.Values.publicBaseUrl | quote }}
             - name: INTERNAL_BASE_URL
               value: {{ $internal | quote }}
-            # The store sites are one app (shops) serving each site under /s/<site>. wallet: the wallet's
+            # The store sites are one app (shops) serving each site under /s/<site>; web: the site network, which the
+            # guide's own service serves under /web. wallet: the wallet's
             # workspace-scoped door (/w/<id>/wallet/card → <wallet>/workspace/card, the saved card of a run that
             # pays without Link) — the same service the root /wallet/* reaches, which forwards no workspace.
             - name: APP_TARGETS
-              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"vaultdocs\":\"http://%s-vaultdocs\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\",\"verify\":\"http://%s-verify\",\"wrenfield\":\"http://%s-shops/s/wrenfield\",\"halden\":\"http://%s-shops/s/halden\",\"quillfeather\":\"http://%s-shops/s/quillfeather\",\"paylantern\":\"http://%s-shops/s/paylantern\",\"wallet\":\"http://%s-wallet/workspace\",\"guide\":\"http://%s-guide\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
+              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"vaultdocs\":\"http://%s-vaultdocs\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\",\"verify\":\"http://%s-verify\",\"wrenfield\":\"http://%s-shops/s/wrenfield\",\"halden\":\"http://%s-shops/s/halden\",\"quillfeather\":\"http://%s-shops/s/quillfeather\",\"paylantern\":\"http://%s-shops/s/paylantern\",\"wallet\":\"http://%s-wallet/workspace\",\"guide\":\"http://%s-guide\",\"web\":\"http://%s-guide/web\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
             # Routed like any app, but left out of a workspace's urls (and the portal, the registry, robots.txt) —
-            # guide included: only the guide-v1 scenario's workspaces advertise it (Scenario.apps).
+            # guide and web included: only the guide-v1 / web-v1 scenario's workspaces advertise them (Scenario.apps).
             - name: UNLISTED_APPS
-              value: "paylantern,wallet,guide"
+              value: "paylantern,wallet,guide,web"
             # Served at the root, outside any workspace: /wallet/* (link-cli's LINK_API_BASE_URL = <public>/wallet/api).
             - name: SERVICE_TARGETS
               value: {{ printf "{\"wallet\":\"http://%s-wallet\"}" $root.Release.Name | quote }}
