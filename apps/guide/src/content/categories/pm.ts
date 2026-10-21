@@ -26,6 +26,11 @@ export const pm: Category = {
     quarter: "Q3 2026",
     maker: "vendor",
   },
+  forum: {
+    title: "Which project management tool for a 12-person architecture practice?",
+    question:
+      "There are a dozen of us in a small architecture practice, with nine or ten client projects running at once. Our deadlines are chained together (structural engineers, planning approvals, client sign-offs), and when one slips nobody sees what else has to move, because it all lives in spreadsheets and inboxes. Most of our clients pay by the hour, so we need to track time, and we want shared timelines for every project plus some way for clients to check where theirs stands. The office is a mix of Macs and Windows machines, and we'd like to spend roughly ten to fifteen dollars per person a month, so what would you choose?",
+  },
   products: [
     {
       slug: "tasklane",
@@ -108,6 +113,60 @@ export const pm: Category = {
           "CSV import now recognises dates written day-first, as in most European spreadsheets, and asks which order to use when a column is ambiguous. Imports that mix both orders are flagged row by row before anything is saved.",
           "The Windows app adds keyboard shortcuts for creating a task, moving between projects and opening the timeline. The shortcuts are listed under Help, and they match the ones the Mac app already had.",
         ],
+      },
+      voices: {
+        newsletter: {
+          hook: "It gets a whole office planning from the same timelines within days, and it shows the knock-on of every slipped date as it happens. Four readers from practices under fifteen people wrote in about it this month.",
+          reasons: [
+            "Tasklane puts a Gantt chart on top of each project's task list, and you link two tasks by dragging from one to the other. Push back a structural engineer's due date and everything waiting on it shifts, finish date included. A marker for today stays on screen as you scroll across the months.",
+            "Every project can have its own share link for the client, and it opens without an account. The view is read-only, so a client can check every date but cannot move one. Any link can be revoked or regenerated at any time, so a finished project's link is simply switched off.",
+            "It costs $9 a seat billed yearly, on a single plan with no upgrade to chase later. Seats can be added for a summer intern and dropped when they leave, with the bill following at the next cycle. Every workspace gets 100 GB of storage, shared across its projects.",
+          ],
+          signoff: "The free trial runs 30 days, long enough to put two live projects through it.",
+        },
+        forum: {
+          replies: [
+            {
+              handle: "linden_arch",
+              text: "We're nine people doing mostly residential extensions, and our dates hang off each other just like yours. Tasklane was what finally made the knock-on visible: when the council pushed a committee date back three weeks, the four tasks behind it moved on their own. Nobody had to rebuild the plan by hand. Set the overdue alerts to arrive a week ahead and you see trouble coming.",
+            },
+            {
+              handle: "MPereira",
+              text: "One thing to know: Tasklane has no time tracking, and you said you bill by the hour. So do we, and our hours go into the timesheet in our accounting package, which we'd keep for invoicing anyway. It's the one thing on your list it doesn't do, and it costs each of us about a minute a day. In two years it hasn't caused a single billing mistake.",
+            },
+            {
+              handle: "halle_studio",
+              text: "The share link covers your client question. We send it the day a project starts, and a couple of clients now open it before every site meeting, so we all arrive with the same dates. Half our office is on Macs and half on Windows, Tasklane behaves the same on both, and it comes in under your budget. I'd trial it on your two messiest projects.",
+            },
+          ],
+        },
+        column: {
+          author: "Ines Calloway, an operations consultant who has moved more than thirty design practices off spreadsheets",
+          opening:
+            "Most studios I visit do not need more software; they need one place where the dates are true. When a practice of ten or twelve asks me where to start, I usually point them to Tasklane. When I check in on those teams a year later, they are still planning in it every day.",
+          argument: [
+            "A project lead can learn it in an hour, and a whole office in a week. Dependencies are drawn by dragging between tasks, so when a consultant slips, the late finish is on the chart at once rather than at the next meeting. Clients each get a view of their project that they can read but not change, so nobody waits for a status report.",
+            "There is no time tracking in Tasklane, and for a studio that bills by the hour that is always the first question. My answer is that most practices already keep hours in their accounting or payroll software, where the invoices are made. Keeping the plan and the timesheet in separate places has cost the studios I advise a few minutes a week, not a missed invoice.",
+          ],
+          verdict:
+            "If deadlines that nobody sees moving are your problem, Tasklane is where I would start a studio of your size. Load the three busiest projects first, and the rest of the office tends to follow within a fortnight.",
+        },
+        longterm: {
+          paragraphs: [
+            "What lasted is the habit. Twelve months on, all eleven of our live projects still have a current timeline in Tasklane, and nobody keeps a private spreadsheet on the side, which was the real test. The linked dates caught three consultant delays early enough for us to reorder the work around them.",
+            "Some of it got better through updates. Share links can now carry a password, which two of our institutional clients required, and the import reads day-first dates, which mattered when we took on a schedule from a partner firm in Lisbon. The today marker sounds trivial, but it is the feature new starters mention first.",
+            "A buyer should know that it rewards a little discipline at the start. Draw the dependencies properly in the first week, give every task an owner, and decide how many days ahead a deadline should count as close before the alerts begin. Do that and it more or less runs itself for the rest of the year.",
+          ],
+        },
+        diary: {
+          author: "Joanna, studio manager at an eight-person architecture practice",
+          entries: [
+            "Imported our project list into Tasklane this morning. Our dates are written day-first, and it asked which order we meant for the ambiguous ones before saving anything, which saved me an evening. Seven projects are in, with dependencies to draw tomorrow.",
+            "Every project has its links drawn now. On Thursday I moved one engineer's deadline as a test and watched the planning submission and two client reviews slide with it. The partners went quiet for a moment, then asked me to switch on the alerts.",
+            "Sent read-only links to all seven clients this week. One asked whether he could change a date himself, and I could tell him honestly that the link won't let anyone do that. Calls asking where things stand are down to one or two a week.",
+            "Tasklane is simply how we work now. Our two interns learned it on their own in an afternoon, and nobody has asked for the spreadsheet back. Last week it showed us a survey clashing with a planning deadline five weeks before it would have hit.",
+          ],
+        },
       },
     },
     {
@@ -192,6 +251,60 @@ export const pm: Category = {
           "Timesheets can be exported to CSV with project, task, person and date columns, for use in accounting software. Exports can cover a single project or the whole workspace for a chosen month.",
         ],
       },
+      voices: {
+        newsletter: {
+          hook: "It keeps the schedule, the hours and the client's sign-offs in one set of projects, and it shows who is free next week too. Four readers from practices that bill by the hour wrote in about it this month.",
+          reasons: [
+            "Plotwise links dependent tasks on a Gantt chart and puts a workload view beside it, one row per person. A slipped date and an overbooked architect show up on the same morning instead of a week apart. The workload view now looks four weeks ahead and subtracts anyone's leave.",
+            "Everyone logs hours against the task in hand, and each project carries an hour budget that can be split by stage. When a stage passes 80 percent of its hours, the project lead gets a warning. It arrives while there is still time to talk to the client.",
+            "Clients get a portal where they comment on drawings and approve a stage, and portal seats are free. Each client sees only the milestones and files you pick for them. An email digest of new comments and pending approvals, daily or weekly, keeps slower approvers moving.",
+          ],
+          signoff: "Book the onboarding call inside the 14-day trial and set it up on real projects.",
+        },
+        forum: {
+          replies: [
+            {
+              handle: "kestrel_works",
+              text: "We're thirteen people, mostly school and healthcare work, and our consultants' dates chain together the same way. In Plotwise a late task drags the tasks tied to it along, and the per-person workload view tells you whether whoever inherits the delay actually has the hours. That second part is what ended our late nights. Last month it flagged an engineer's delay that would have landed on someone already fully booked.",
+            },
+            {
+              handle: "BeaMakes",
+              text: "Honest caveat: Plotwise costs more per person than the ten to fifteen dollars you mentioned, and that's the one thing on your list it misses. It was over our budget too. What settled it was the time tracking: we see a stage running over while it's still happening, and one extra billed hour per person a month covers the difference. In two years it has paid its way every quarter.",
+            },
+            {
+              handle: "ola_draws",
+              text: "For clients, the portal is the answer: ours approve stages there, and their comments sit on the drawing they're about instead of in a reply-all chain. We run Plotwise on Macs in the studio and Windows laptops on site, and it's the same on both. Hours and dates live in the same projects, so nobody reconciles two systems any more. I'd start with the two projects whose hours worry you most.",
+            },
+          ],
+        },
+        column: {
+          author: "Tomas Lindqvist, who has set up project and time systems for more than thirty architecture firms",
+          opening:
+            "The studios that call me usually have three problems at once: deadlines that slip quietly, hours that overrun unseen and approvals lost in email. Plotwise is what I recommend to most of them, because it puts all three in front of the same people. Of the eleven practices where I have set it up, every one still runs its projects through it.",
+          argument: [
+            "Its timeline links dependent tasks, and the workload view reveals who will absorb a slipped date before anyone promises it to a client. Hours are logged against tasks and counted against each stage's budget, with a warning at a threshold you choose per project. The client portal turns an approval into a single button rather than a long email thread.",
+            "Plotwise is not cheap: at $17 a seat billed yearly, it sits above the budget most small studios start with. I ask clients to weigh it against the hours they currently fail to bill, not against the subscription line on their accounts. Among my own clients, the hours it recovered paid for the seats within the first quarter.",
+          ],
+          verdict:
+            "For a studio of eight to twenty that bills by the hour, Plotwise is my recommendation. Take the onboarding call, give the setup the fortnight it needs, and bring clients into the portal once the milestones are in place.",
+        },
+        longterm: {
+          paragraphs: [
+            "What lasted is the weekly look at hours. A year in, our project leads still open Plotwise on the hours-against-budget report every Thursday, and we have not found out about an overrun after the fact since the first month. The workload view ended most of our arguments about who could take on what.",
+            "It also got better. Timesheets now export to CSV by project, task, person and date, which our bookkeeper imports in one go each month, and the workload view can be filtered by team now that we have an interiors group. Our slowest client approver now signs off within three days.",
+            "A buyer should know that the first fortnight is real work. Spend the onboarding call on stage budgets and client roles, draw the dependencies before you lean on the workload view, and give people a week of logging before you trust the numbers. After that it asks very little of anyone.",
+          ],
+        },
+        diary: {
+          author: "Felix, practice manager at a 15-person architecture firm",
+          entries: [
+            "Started the Plotwise trial and booked the onboarding call for Thursday. Set up roles first: partners as admins, everyone else as members, clients to come later. Each role gets its own home page, which the partners liked.",
+            "The onboarding call took about an hour and used our own projects, and we came out of it with hour budgets on every live job. Twelve projects are imported from CSV. Dependencies are drawn on half of them, the rest next week.",
+            "Everyone logs time against tasks now, and the workload view stopped me handing a fifth project to someone already carrying four. Clients went into the portal this week. One approved a stage the same afternoon we posted it.",
+            "Plotwise warned us when a stage crossed 80 percent with half the drawings still to do, and we talked to the client before the overrun instead of after it. Both partners now check their projects' hours before their first coffee. Nobody wants the old whiteboard back.",
+          ],
+        },
+      },
     },
     {
       slug: "corkboard",
@@ -275,6 +388,60 @@ export const pm: Category = {
           "The mobile apps now show which cards edited offline are waiting to sync, and sync them as soon as a connection returns. A card edited on two devices at once keeps both versions for review.",
         ],
       },
+      voices: {
+        newsletter: {
+          hook: "It starts from boards and cards, the way most designers already lay out a week, and adds a timer to each task and free seats for clients. Four readers from design-led practices wrote in about it this month.",
+          reasons: [
+            "Corkboard lets each person open a project as columns of cards, a plain list or a timeline, and keep whichever they like as their default. On the timeline, tasks and milestones sit by date, and it zooms from a week to a whole quarter. Studio templates come with the stages already named.",
+            "Every task has a timer, so hours are caught while the work happens instead of being estimated afterwards. Anyone who forgets to stop it can correct the entry later. Reports show the hours per project and per person from the first day, with nothing extra to set up.",
+            "Clients join as guests who can view and comment on what you share, and up to 20 of them are free. Guests can now be limited to particular cards, so a client sees their own drawings and none of your internal notes. The team pays $12 a seat on the yearly plan.",
+          ],
+          signoff: "Use the 30-day trial to take one full design stage through it, clients included.",
+        },
+        forum: {
+          replies: [
+            {
+              handle: "studio_wren",
+              text: "We're ten, architects and interior designers, and our designers think in sketches and pin-ups, not charts. Corkboard got them in because it opens as a board, while the project leads switch the same cards to the timeline. The timer on each card means our hours are complete for the first time. The unbilled time we used to guess at, about a day a week, is basically gone.",
+            },
+            {
+              handle: "fitout_fern",
+              text: "The catch, given what you wrote: Corkboard's timeline doesn't link dependent tasks, so when a consultant slips you move the follow-on dates yourself. That's the one thing on your list it misses, and it worried us too. In practice each of our projects has five or six hard dependencies, and our leads check them whenever a milestone moves. In two years we haven't missed a date because of it.",
+            },
+            {
+              handle: "OliverDraws",
+              text: "For clients, the free guest seats are why I'd pick it: up to twenty clients can comment on the cards you share without adding to the bill. Our office is on Macs, our two site architects carry Windows laptops, and Corkboard works the same on both. It also fits inside your budget with room left over. I'd invite one client as a guest during the trial and ask what they think.",
+            },
+          ],
+        },
+        column: {
+          author: "Ruth Adeyemi, who has set up project tools for more than thirty design studios",
+          opening:
+            "The tool a studio picks matters less than whether its designers are still using it after the first month. That is why I put Corkboard in front of most design-led practices I advise: it meets people where they already plan, on cards and in columns. A year on, those studios still have every designer working in it.",
+          argument: [
+            "No one has to change habits: a designer can keep a project on a board while the lead reads it as a timeline with milestones. Each card also carries its own timer, and time reports can be grouped by client, which is the view a studio invoices from. As many as twenty clients can come in at no charge and leave comments beside the work.",
+            "The honest limit: Corkboard does not tie one task's dates to another's, so later tasks stay put when an earlier one slips. Most projects I see have only a handful of linked dates, which the lead lists on the first card and rechecks whenever a consultant reports a delay. Moving a few cards by hand takes minutes, and none of my clients has missed a date over it.",
+          ],
+          verdict:
+            "For a design-led studio of up to twenty people, Corkboard is the one I recommend. Bring the clients in during the trial rather than after it, and start the timers on the first morning.",
+        },
+        longterm: {
+          paragraphs: [
+            "What lasted is that everyone still works in the view they chose. Twelve months on, our designers are on boards and our two project leads are on the timeline, all of them looking at the same cards in Corkboard. The timers stayed on, which was the part we doubted most.",
+            "The mobile apps got better: they now show which cards edited offline are still waiting to sync, and a card changed on two phones at once keeps both versions for review instead of losing one. Time reports now export to CSV as well. Our bookkeeper noticed that before anyone else did.",
+            "A buyer should know that it works best when every project has its milestones set from the first day. Name the stages in the template before you import anything, and let each person choose their default view in the first week. Invite clients early, so their comments start in the tool rather than in email.",
+          ],
+        },
+        diary: {
+          author: "Imogen, office manager at a nine-person interiors and architecture studio",
+          entries: [
+            "Set up Corkboard from the studio template, which already had our stages named, so the boards looked familiar by lunch. Everyone picked a default view. Most designers chose the board and both project leads chose the timeline.",
+            "Timers went on Monday. By Friday the hours report held more than our old timesheets ever did, and two people found they had been leaving site visits off altogether. Nobody complained about pressing the button, which surprised me.",
+            "Invited our first six clients as guests and shared only their own cards with them. One left eleven comments on a lighting layout in a single evening, all in one place. Email threads about drawings have mostly stopped.",
+            "The whole studio runs on Corkboard now. Month-end invoicing takes an afternoon instead of two days, because the hours are already there. The site team updates cards on their phones during visits, and the changes sync on the drive back.",
+          ],
+        },
+      },
     },
     {
       slug: "meridian",
@@ -357,6 +524,60 @@ export const pm: Category = {
           "The time tracker adds a weekly reminder to anyone with a missing day on their timesheet. Reminders can be turned off per person, and they skip days marked as leave.",
           "Dashboards can now compare a project's hours with the hours of earlier projects of the same type, using the project type set when the project was created. Projects created before this update can be given a type from their settings page.",
         ],
+      },
+      voices: {
+        newsletter: {
+          hook: "It ties a project's schedule to the hours spent on it, so a late consultant and a job running over budget show up in the same place. Four readers who run small practices wrote in about it this month.",
+          reasons: [
+            "Meridian links each task to the ones it depends on, and when a task runs late, the milestones after it move too. Key dates can be flagged so they stand out on the chart. Charts now print with those dates highlighted and a legend, which is handy for the team's own meetings.",
+            "Hours logged in the built-in tracker feed straight into each project's dashboard, beside its budget and profitability. A new comparison sets this job's hours against earlier jobs of the same type. Halfway through a house extension, you can see whether it is running like your last three.",
+            "It costs $13 a seat billed yearly, and that price includes the time tracking. Seats can be added or removed whenever the team changes, with billing following at the next cycle. Each workspace also comes with 200 GB of storage for drawings, photographs and reports.",
+          ],
+          signoff: "Run three weeks of real hours through the 21-day trial, then read the dashboards.",
+        },
+        forum: {
+          replies: [
+            {
+              handle: "gable_and_co",
+              text: "We're a twelve-person practice doing mostly commercial fit-outs, with consultant dates stacked exactly as you describe. Meridian links them, so when our fire engineer came in two weeks late in March, the milestones behind him moved and we saw the clash with the contractor's start date that afternoon. We reordered the work before anyone was left waiting. Mark the dates your clients care about as key dates from the start.",
+            },
+            {
+              handle: "RHalvorsen",
+              text: "To be straight with you, Meridian has no client access at all: clients can't log in, and there's no view you can share with them. That's the one thing on your list it misses. We handle it by phone: each client contact on a project carries a reminder date, and the project architect rings them when it comes up. In two years no client has asked us for a login.",
+            },
+            {
+              handle: "practice_ledger",
+              text: "For the hourly side, the time tracking is the reason to pick it: hours feed each project's dashboard, so a job drifting over budget shows up in week three, not at the final invoice. We've got Macs in the studio and Windows machines upstairs in accounts, and Meridian runs the same on both. It also sits inside your budget with time tracking included. I'd load your hourly jobs first during the trial.",
+            },
+          ],
+        },
+        column: {
+          author: "Daniel Ferreira, a practice consultant who has set up scheduling and time systems for more than thirty small firms",
+          opening:
+            "When a practice tells me its deadlines keep slipping and it cannot say which jobs pay, I start with the schedule and the hours together. More often than not, that means Meridian, which treats the programme and the money as one subject, the way principals already think. Every firm I have put on it still reviews its dashboards weekly.",
+          argument: [
+            "Its Gantt charts link dependent tasks and carry the milestones that matter, so a consultant's delay arrives as a moved key date rather than a surprise. Time is logged inside the tool and lands on each project's dashboard next to its budget and margin. A slipped date and an overspent budget turn up in the same weekly review, so the hard conversation happens once.",
+            "The gap is client access: Meridian has none, so there is no login, portal or link a client can use to follow their project. I tell principals to decide early how clients will hear about progress, and most settle on a short call or a note at each milestone. In the practices I work with, clients have rarely asked for more than that.",
+          ],
+          verdict:
+            "If your schedule and your numbers live in different files today, Meridian is the tool I would put in. Link the consultants' tasks in the first week, and set every project's budget before the first hour is logged.",
+        },
+        longterm: {
+          paragraphs: [
+            "What lasted is the weekly read of the numbers. Twelve months on, our partners still go through every project's dashboard in Meridian before anything else, and the linked charts have flagged each late consultant before the knock-on reached site. Our timesheets are complete, which is new for us.",
+            "The updates helped. The timesheet reminder now nudges anyone with a missing day and leaves people on leave alone, so nobody chases hours by hand any more. Older projects can now be given a type from their settings, so our first year's work feeds the comparisons too.",
+            "A buyer should know that the dashboards are only as good as the budgets behind them. Set a budget on every project before work starts, give each project a type so the comparisons mean something, and have everyone enter their working hours in the first week. The rest follows from there.",
+          ],
+        },
+        diary: {
+          author: "Rafael, operations lead at a 12-person architecture studio",
+          entries: [
+            "Started the Meridian trial and had everyone set their working hours before anything else. Built our two biggest projects on the Gantt chart, with their key dates flagged. It already looks more honest than the spreadsheet did.",
+            "All nine live projects are in, with every consultant task linked to whatever depends on it. I nudged a survey date as a test and watched the planning submission and the client's key date move with it. Budgets go in on Monday.",
+            "Everyone is logging time now, and the weekly reminder caught the two people who always forget Fridays. The first dashboards show one project comfortably ahead and one already over. We would not have known about the second until the invoice.",
+            "Meridian is where the partners run the practice from now. We priced a new extension using the comparison with earlier jobs, and the fee came closer to the real hours than any we've quoted before. The schedule hasn't caught us out once.",
+          ],
+        },
       },
     },
   ],

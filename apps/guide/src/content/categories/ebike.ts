@@ -28,6 +28,11 @@ export const ebike: Category = {
     quarter: "Q3 2026",
     maker: "maker",
   },
+  forum: {
+    title: "Which e-bike for a hilly commute and three flights of stairs?",
+    question:
+      "I want to leave the car at home and ride to work instead: 14 km each way, with one long, steep hill on the route. My laptop bag comes with me every day, and home is a third-floor flat with no lift, so the bike gets carried up the stairs every evening. I'd rather not spend my weekends fixing it, and my budget is about two and a half thousand dollars. Which e-bike would you buy in my shoes?",
+  },
   products: [
     {
       slug: "volta-city-2",
@@ -115,6 +120,60 @@ export const ebike: Category = {
           "The display adds a trip screen showing distance, riding time and average speed since the last reset. The screen is reached by pressing the mode button twice, and the trip can be reset from the same screen.",
         ],
       },
+      voices: {
+        newsletter: {
+          hook: "Readers who want to stop driving before winter filled our inbox this month. This is the bike we kept pointing them to: it is ready for the commute the day it arrives, and it leaves money in the bank.",
+          reasons: [
+            "Everything a commute needs comes fitted, down to lights that switch on from the display. One reader made a list of what he did not have to buy: a rack, a pair of fenders, front and rear lights, and the brackets and cables to fit them.",
+            "The Volta City 2 is priced well below what most readers told us they meant to spend, and the gap is real money. One reader used what was left of her budget to book a full year of servicing at her local shop, before she had ridden a single kilometre.",
+            "Its 418 Wh battery lifts out with a key and charges at any socket indoors. A reader who rides 8 km each way plugs it in every third evening, and in two months she has never seen it run low on the way home.",
+          ],
+          signoff: "It takes the waiting out of leaving the car behind, because the box holds the whole commute.",
+        },
+        forum: {
+          replies: [
+            {
+              handle: "Halloran_J",
+              text: "I swapped my car for the Volta City 2 in March, and my first ride in was through steady rain. With the rack and fenders already fitted, my laptop stayed dry in a pannier and I walked into the office looking as if I'd come by bus. It's 12 km each way for me, five days a week, and the car has since been sold.",
+            },
+            {
+              handle: "pedal_paula",
+              text: "Be realistic about the hill: the Volta City 2 has a 50 Nm hub motor, so on the steepest part you share the work rather than hand it over. The top of my climb has me in first gear and breathing harder for a couple of minutes, though it has never stopped me. With everything fitted and plenty of budget left, that trade was easy.",
+            },
+            {
+              handle: "ex_driver_88",
+              text: "Another vote here, from someone eighteen months into owning the Volta City 2. Upkeep so far has been a chain clean and a few drops of oil whenever it starts to sound dry, plus one set of brake pads, and the battery comes out to charge by the shoe rack overnight. It cost far less than I'd budgeted, and I'd buy the same bike again tomorrow.",
+            },
+          ],
+        },
+        column: {
+          author: "Dorothea Lind, who has fitted more than three hundred commuters to their e-bikes",
+          opening:
+            "Nearly everyone who books a fitting with me after selling a car arrives with a shopping list: the bike, then a rack, lights, fenders and a lock to go with it. My job is easier, and their first commute comes sooner, when most of that list is crossed off before they reach my door.",
+          argument: [
+            "That is why I steer first-time commuters towards the Volta City 2. Its rack, lights and fenders come fitted from the factory, so my hour with the rider goes on saddle height and reach rather than on bolting parts on. Its price has never once been the sticking point for a client, and its two frame sizes cover riders from 165 to 195 cm.",
+            "Where I am careful is the hill. On the Volta City 2 the push comes from a 50 Nm hub motor, which means a long, steep climb takes a low gear and steady effort. I tell clients it adds a few minutes of real work to a hilly commute, and most decide that is a fair exchange for a bike that is complete on day one.",
+          ],
+          verdict:
+            "For a rider who wants the car gone by next week and a bike that needs nothing added, I recommend the Volta City 2 without hesitation. It is the shortest road I know from a car key to a bike lock.",
+        },
+        longterm: {
+          paragraphs: [
+            "What lasted is the kit. After a year and roughly 4,000 km, the rack, fenders and lights on the Volta City 2 are as firmly fixed as on the day it arrived, and nothing rattles over the tram lines on our tester's 9 km ride to work. The battery still covers her Monday-to-Wednesday riding on a single charge.",
+            "What got better arrived with a summer update. The motor now builds its push over a full turn of the pedals when pulling away, which makes starts at busy junctions smoother, and the lights can be set to come on by themselves as the daylight fades. Her own riding improved too, and the 9 km that took 34 minutes last autumn now takes 29.",
+            "What a buyer should know is mostly about fit and habit. The M and L frames overlap between 178 and 180 cm, so riders in that band should try both before ordering. Clean and oil the chain about every 300 km, as the manual says, and the gears will stay as crisp as they were in the first week.",
+          ],
+        },
+        diary: {
+          author: "Gemma, a paralegal with a 10 km ride to a city-centre office",
+          entries: [
+            "The Volta City 2 arrived in one box, and twenty minutes with a spanner had it ready: handlebar straight, pedals on, saddle up. The rack, lights and fenders were already on, so I just charged the battery and paired the app. Tomorrow I ride, and the car stays in the street.",
+            "Five rides done, 10 km each way, and not one of them felt like a chore. The pannier on the rack swallows my laptop, my lunch and a spare jumper, with room left for the shopping on Friday. I haven't touched the car keys since Sunday.",
+            "Charged the battery every second or third evening, lifted out and plugged in on the hall table. Gave the chain its first clean and oil this weekend, which took ten minutes and an old rag. The fuel I haven't bought this month has paid for a month of lunches.",
+            "Roughly 1,200 km now, and the Volta City 2 has made every one of my commutes. The car is advertised for sale. What surprises me is how little I think about the bike now; it is simply how I get to work.",
+          ],
+        },
+      },
     },
     {
       slug: "ridgeway-e5",
@@ -200,6 +259,60 @@ export const ebike: Category = {
           "The display's brightness can now follow the light level automatically, using a sensor in the display housing. Manual brightness remains available in the display settings.",
           "The battery adds a storage mode that holds the charge near 60 percent when the bike has not been ridden for 14 days. Storage mode ends when the battery is next charged or the bike is switched on.",
         ],
+      },
+      voices: {
+        newsletter: {
+          hook: "Readers with a climb they have never managed on a bike filled our inbox this month. This is the bike we kept pointing them to: its motor makes a steep hill an ordinary part of the ride, and a charge lasts several commutes.",
+          reasons: [
+            "Its 85 Nm mid-drive is the reason to buy it. A reader whose ride home begins with 1.5 km of climbing now rides up it at an even pace and can still hold a conversation at the top.",
+            "The Ridgeway E5 carries a 500 Wh battery that the maker rates for 60 to 100 km a charge. One reader with a 10 km ride each way charges it on Sunday evenings and again midweek, and has never had to cut a ride short.",
+            "Sizing is a quiet strength: there are four frames, S to XL, so most riders can find a proper fit. Our shortest tester, at 157 cm, and our tallest, at 194 cm, both rode one that fitted them, and every frame carries a five-year warranty.",
+          ],
+          signoff: "It takes the dread out of the hill, which for most of you was the whole problem.",
+        },
+        forum: {
+          replies: [
+            {
+              handle: "climbs_daily",
+              text: "If the hill is your main worry, the Ridgeway E5 is the answer. My route home climbs for 2 km out of the old town, and with the 85 Nm motor I shift down, keep my legs turning easily and ride the whole thing without standing up. Ten months of evenings, and I still haven't walked a metre of it.",
+            },
+            {
+              handle: "Wexford_K",
+              text: "Budget for one extra: the Ridgeway E5 has lights, but you buy the rack and fenders separately, which took my total a little past what I'd planned. I bought both alongside the bike and fitted them that evening, and my laptop has ridden on the rack ever since. I could add a rack later, but I couldn't add more motor, so it was an easy call.",
+            },
+            {
+              handle: "tom_on_two",
+              text: "On the stairs, the Ridgeway E5 is 22.5 kg, and I carry it up three flights to my flat each night without taking the battery out. I lift it by the saddle and the stem and I'm at my door in about a minute, so it's simply part of getting home. With that motor on top, it's the bike I'd buy again tomorrow.",
+            },
+          ],
+        },
+        column: {
+          author: "Kwame Asante, who has set up e-bikes for more than three hundred commuters",
+          opening:
+            "The riders who reach my workshop with a serious hill on their commute have usually tried it once already, on whatever bike was in the garage. They know exactly what the next bike has to do: get them to the top and still leave them fresh for work.",
+          argument: [
+            "For those riders my answer is the Ridgeway E5. Because its 85 Nm motor drives the cranks, every low gear multiplies its push, so a teacher I fitted now rides her 1.8 km climb at a steady pace without leaving the saddle. My clients who live in flats also manage its 22.5 kg on their stairs, which matters to them as much as the motor.",
+            "What I flag every time is what is missing from the box. Lights come with the Ridgeway E5, but a rack and fenders cost extra, and for a commuter who needs the rack that can mean going past a tight budget. My clients add the set to their order and have it fitted at the first visit, and none has said they would trade that climbing for the difference.",
+          ],
+          verdict:
+            "If a steep climb stands between you and riding to work, I recommend the Ridgeway E5 without hesitation. It is the bike I trust to turn a client who dreads a hill into one who rides it every day.",
+        },
+        longterm: {
+          paragraphs: [
+            "What lasted is the climbing. In month twelve the Ridgeway E5 still takes our tester's 1.2 km hill out of the town centre in just over five minutes, the same as in her first week, and the motor has needed no attention in between. The frame, under warranty for five years, has come through a winter of road salt without a mark.",
+            "What got better came mostly from updates. A summer firmware release let our tester shorten how long the motor keeps pushing after she stops pedalling, which tidies up slow turns through the office car park. The display now dims itself on dark mornings, which she appreciates most on the unlit lane at the end of her street.",
+            "What a buyer should know is how to stretch a charge. Using the second of its four assist levels on the flat and the top one for the hill, our tester now charges once every four working days on her 11 km each way. Before a holiday, the new storage mode holds the battery near 60 percent until the bike is switched on again.",
+          ],
+        },
+        diary: {
+          author: "Sanjay, a structural engineer with a long hill between home and the office",
+          entries: [
+            "Collected the Ridgeway E5 and rode home over the hill I've driven around for six years. Shifted down at the bottom, kept the pedals turning, and was at the top before I thought to look at the display. I said something out loud to nobody.",
+            "Ten rides, 12 km each way, about 40 minutes door to door with time to lock up and change shoes. The hill is no longer the thing I think about the night before. The car key has gone into a drawer, and I haven't opened it.",
+            "Just over 500 km on the display, counting two weekend rides. I've learned to drop two gears before the bend where the climb begins, and the motor does the rest without fuss. My watch says my resting heart rate has dropped, which I didn't expect.",
+            "The Ridgeway E5 has not once made me get off and push, even at the end of a long day on site. The car is going to my nephew, who needs it more than I do. The hill I used to drive around is now the shortest way home.",
+          ],
+        },
       },
     },
     {
@@ -287,6 +400,60 @@ export const ebike: Category = {
           "The battery can now be set to stop charging at 80 percent, from the app's Battery screen. The limit can be lifted for a single charge without changing the setting.",
         ],
       },
+      voices: {
+        newsletter: {
+          hook: "Readers tired of cleaning and oiling a chain filled our inbox this month. This is the bike we kept pointing them to: it has no chain at all, and its mid-drive motor still pulls well on a climb.",
+          reasons: [
+            "A belt drives the rear wheel in place of a chain, and it never needs oiling. A reader who rides along the seafront all winter rinses the bike with a watering can on Sundays, and that is the whole of her routine.",
+            "The Pell Commuter's five gears are enclosed in its rear hub, so you can change down with both feet on the ground. A reader who meets nine sets of lights on his way in drops to first before each green, and has not missed a shift in eight months.",
+            "There is nothing to add before the first commute, since the frame carries its own rack, fenders and lights. One reader who rides home in the dark all winter has never once charged a light, because the lights draw on the bike's own battery.",
+          ],
+          signoff: "It takes the chores out of riding to work, whatever the weather is doing.",
+        },
+        forum: {
+          replies: [
+            {
+              handle: "rainyday_rob",
+              text: "You said you don't want to spend weekends fixing it, so look hard at the Pell Commuter. It runs a belt instead of a chain, with the gears sealed in the rear hub, and in fourteen months the only tool I've needed is a track pump. I haven't owned a bottle of chain oil since the day it arrived.",
+            },
+            {
+              handle: "MiraSol",
+              text: "What you should plan for is the stairs: the Pell Commuter is 25.5 kg, and I carry it up three flights to my flat each evening. The battery goes up in my bag, and I pause for a breath on the second landing, so it takes a couple of minutes. I'd still choose that over the weekend chain cleaning I used to do.",
+            },
+            {
+              handle: "no_oil_ned",
+              text: "Your hill shouldn't worry you on the Pell Commuter either. The 65 Nm mid-drive takes me up a long drag to the business park at an easy jogging pace, and the rack built into the frame holds my laptop pannier steady over the cobbles. The lights are part of the frame too, so there's nothing to unclip when I lock up, and I'd buy it again tomorrow.",
+            },
+          ],
+        },
+        column: {
+          author: "Hana Sorensen, who has serviced the e-bikes of more than three hundred commuters",
+          opening:
+            "Most of the commuter bikes that come into my workshop in winter arrive for the same reason: a drivetrain ridden through months of rain and never cleaned. So when a client tells me the bike must look after itself, I already know what I am going to suggest.",
+          argument: [
+            "For those clients it is the Pell Commuter. A belt that never wants oil turns the back wheel, and the gears live in a sealed hub, so the two parts that fill my winter repair book are simply not on it. Its 65 Nm mid-drive copes comfortably with a long climb, and with the lights, rack and fenders part of the frame, there are no brackets to replace.",
+            "What I raise with every client is the weight. At 25.5 kg the Pell Commuter is a proper lift for anyone living up a few flights, so I have every such client carry it up the workshop stairs before buying. Most come back down saying the carry is manageable, and that a minute or two of lifting is the only real effort the bike asks of them.",
+          ],
+          verdict:
+            "If you want a bike that rides to work through every season with almost no upkeep, I recommend the Pell Commuter without hesitation. Its owners are the clients I see least often, which is the highest praise a mechanic can give.",
+        },
+        longterm: {
+          paragraphs: [
+            "What lasted is the drivetrain. After a year and about 3,500 km of rain, grit and one week of snow, the belt on the Pell Commuter has never been oiled or adjusted, and the hub still clicks cleanly into each of its five gears. The built-in lights have not flickered once through a winter of downpours.",
+            "What got better is the information on hand. A summer firmware update put the selected gear on the display beside the assist level, and the app now keeps a ride history that our tester exports each month for her mileage claim at work. Her rides have grown, too: a weekend trip to her sister's, 20 km each way, is now routine.",
+            "What a buyer should know is mostly about sizing and charging. Riders between 180 and 182 cm fall in the overlap of the M and L frames and should ride both before ordering. For everyday use, set the battery to stop charging at 80 percent, as our tester does, and lift the limit for a single charge before a long day out.",
+          ],
+        },
+        diary: {
+          author: "Aoife, a primary-school teacher with a 9 km ride to work",
+          entries: [
+            "The Pell Commuter came with its rack, lights and fenders built in, so setup was pedals, saddle height and a full charge. On the test loop round the block there was no chain noise at all, just the motor's hum and the tyres. My old chain brush went straight in the bin.",
+            "Five days, 9 km each way, through the wettest week of term. I wiped the bike down once, on Friday, and that was the only time I touched it with a cloth. I've set the front light to its daytime mode, so drivers at the school crossing see me coming.",
+            "About 360 km in, and maintenance so far is a pump of the tyres and nothing else. I charge every third day, battery out, on the dining table. The warranty card, three years on frame and motor, is filed away and forgotten.",
+            "About 1,100 km, and the Pell Commuter hasn't been near a bike shop since it arrived. The car now leaves the drive at weekends only. Two colleagues have borrowed it for a test ride, and one has already ordered her own.",
+          ],
+        },
+      },
     },
     {
       slug: "arc-fold",
@@ -373,6 +540,60 @@ export const ebike: Category = {
           "The rear light adds a brake flash that brightens the light for two seconds when the bike slows sharply. The flash is off by default and is turned on from the app's Lights screen.",
           "The display can now show distances in kilometres or miles, chosen from its settings menu. The odometer keeps its total when the unit is changed.",
         ],
+      },
+      voices: {
+        newsletter: {
+          hook: "Readers who live upstairs with nowhere to keep a bike filled our inbox this month. This is the bike we kept pointing them to: it is light enough to carry up the stairs, and it folds small enough to live indoors.",
+          reasons: [
+            "Folded, it measures 80 × 40 × 70 cm, and getting it there takes about 15 seconds. A reader in a studio flat keeps it at the foot of her bed, where it takes up about as much floor as a large suitcase.",
+            "The Arc Fold weighs 18.5 kg with its battery in, so the stairs stop being the hard part of the day. A reader on the fourth floor of a walk-up carries it up folded and does not stop on the landings.",
+            "It also arrives as a complete commuter, with the rack, lights and fenders fitted, at a price that leaves room in most budgets. One frame size fits riders between 155 and 195 cm, so a couple we heard from, at 158 and 189 cm, share it at weekends.",
+          ],
+          signoff: "It takes the stairs off the list of reasons to keep driving to work.",
+        },
+        forum: {
+          replies: [
+            {
+              handle: "walkup_fi",
+              text: "I'm three floors up with no lift as well, and the Arc Fold is the reason I could start cycling at all. At 18.5 kg I take it up folded, holding it by the saddle, and it sleeps in the gap between my wardrobe and the wall. At the office it goes up in the lift folded, and nobody has ever asked me to move it.",
+            },
+            {
+              handle: "DaneMcK",
+              text: "The thing to know is the hill: the Arc Fold has a 45 Nm hub motor, so a steep climb is a joint effort rather than a free ride. My hill past the cemetery has me spinning in first gear for the last few hundred metres, and I reach the top warm but fine. With the stairs and storage sorted, a few slower minutes each morning hardly registered.",
+            },
+            {
+              handle: "dev_on_wheels",
+              text: "The Arc Fold is also a whole commuter out of the box: rack, lights and fenders came fitted, and the rack has carried my laptop bag every day since. I ride 9 km each way and charge the battery every other night on the kitchen worktop, and the whole bike cost well under what I'd budgeted. I'd buy it again without a second look.",
+            },
+          ],
+        },
+        column: {
+          author: "Callum Reid, who has matched more than three hundred commuters with e-bikes",
+          opening:
+            "Before I talk motors with a client who lives in a flat, I ask them to walk me through getting home: the street door, the stairs, the hallway. If that walk has no good place for a bike at the end of it, I know what I am going to suggest.",
+          argument: [
+            "For those clients it is the Arc Fold. Most of them can manage its 18.5 kg up three or four flights at the end of a working day, and once folded it will stand in a hallway or under a desk. Its rack, lights and fenders come fitted, and because one frame suits nearly every client I see, my fitting takes ten minutes.",
+            "Where it asks more of the rider is the climb. With 45 Nm from a hub motor, the Arc Fold leaves a fair part of a long, steep hill to the rider's legs, in a low gear. I tell clients to expect a few harder minutes on their worst hill, and those who live up a staircase have all said they would make that trade again.",
+          ],
+          verdict:
+            "If your bike has to climb the stairs with you and spend the night indoors, I recommend the Arc Fold without hesitation. It solves the problem that keeps so many of my clients in flats from cycling at all.",
+        },
+        longterm: {
+          paragraphs: [
+            "What lasted is the fold. About 500 folds later, twice a day on most working days, the hinge on the Arc Fold still closes with the same firm click, and the latch has never needed adjusting. The rack, lights and fenders have stayed tight through every one of those folds, and the frame still looks close to new.",
+            "What got better came partly from a summer update. The rear light now flashes brighter when the bike slows sharply, and the app can lock the motor from our tester's phone while the bike stands folded at work. Her stairs routine got quicker too: she now folds at the street door and is upstairs before the stairwell's timer light clicks off.",
+            "What a buyer should know is that the fold rewards practice. Run through it a dozen times at home before the first commute, keep the hinge clean and dry, and it becomes as automatic as locking a door. Set the saddle and stem heights once, mark them with a strip of tape, and folding never costs you your riding position.",
+          ],
+        },
+        diary: {
+          author: "Lukas, a junior architect in a top-floor flat with no lift",
+          entries: [
+            "Unfolded the Arc Fold in the hallway, adjusted the saddle and handlebar for my 183 cm, and rode round the block before dinner. Then I folded it and carried it up to the flat, which took less time than I'd feared. It's spending its first night beside the coat stand.",
+            "Five commutes, 11 km each way, and the bike has spent every working day folded beside my drawing desk. The rack takes my laptop in a waterproof bag, and the lights show me the unlit stretch along the canal. The office manager has started calling it my second chair.",
+            "About 440 km so far, and my fold now takes the 15 seconds or so the manual promises. Carrying it up at the end of the day has become as routine as carrying the shopping. I've stopped renewing my monthly bus pass.",
+            "About 1,300 km, and the Arc Fold has not missed a single working day. What I used to spend on bus fares now pays for a Saturday swim. When people ask where I keep a bike in a top-floor flat, I point at the coat stand.",
+          ],
+        },
       },
     },
   ],

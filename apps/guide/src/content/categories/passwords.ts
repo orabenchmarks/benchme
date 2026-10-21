@@ -29,6 +29,11 @@ export const passwords: Category = {
     quarter: "Q3 2026",
     maker: "vendor",
   },
+  forum: {
+    title: "Which password manager for a 25-person accounting firm?",
+    question:
+      "I'm a partner at an accounting firm of 25, and our logins still get passed around by email and stuck to monitors on sticky notes. We want a password manager that every one of us will actually use, with shared vaults for each team, extensions for Chrome and Edge, and apps for our phones. I also need to be able to cut off a person's access on the day they leave. The budget is about four to six dollars a person per month, so which would you choose?",
+  },
   products: [
     {
       slug: "keyfold",
@@ -113,6 +118,60 @@ export const passwords: Category = {
           "Vault owners can now require a second confirmation before an item's password is shown or copied. The setting is off by default and is chosen separately for each item.",
           "The Android app adds a home-screen shortcut that opens search across all vaults. The shortcut is added from the app's settings and follows the phone's own theme.",
         ],
+      },
+      voices: {
+        newsletter: {
+          hook: "Keyfold gets a small firm's logins out of inboxes and into team vaults within a week, and on the day someone leaves it hands you a checklist of the passwords they knew. Readers at three small practices nominated it this month, all for that checklist.",
+          reasons: [
+            "Removing a departing employee takes one click, and a checklist of the shared logins they had access to appears straight away. One reader's office cleared nine of them, from the firm's bank to the state unemployment portal, before the leaver's farewell lunch had ended. Nobody had to work out from memory who knew what.",
+            "Keyfold fits whatever each person already uses, with extensions for Chrome, Edge, Firefox and Safari and apps for iOS and Android. A reader at a nine-person tax office said her two longest-serving staff, who had resisted every new system for years, were filling in portal logins by the first afternoon. That is the test that matters.",
+            "It is also gentle on a small firm's budget. At $4 per user a month, billed yearly, it includes unlimited shared vaults and passkeys, so every team and every client group can have a vault of its own. The 30-day free trial is long enough to run a full month-end close on it before anyone pays.",
+          ],
+          signoff: "Start the trial with one team's logins, and see how long the sticky notes last.",
+        },
+        forum: {
+          replies: [
+            {
+              handle: "maple_ledger",
+              text: "We're 18 people, mostly bookkeeping and payroll, and we've used Keyfold for about two years. What sold me is what happens after you remove someone: you're shown each shared password that person could open, so you know which ones need changing. When our payroll lead left in June, all twelve were changed by four o'clock. For the day-they-leave part of your question, that list is the answer.",
+            },
+            {
+              handle: "dunmore_tax",
+              text: "Two things to know going in: single sign-on is a paid add-on with Keyfold rather than part of the plan, and the audit log only goes back 90 days. We never bought the add-on, because people were fine signing in with their own master passwords. Clients have asked us who opened their logins exactly twice, both times about something from the past fortnight, so 90 days was plenty. I'd still choose it at your size.",
+            },
+            {
+              handle: "QuillAndTally",
+              text: "Two of our partners work from home on Firefox and everyone in the office is on Edge, and Keyfold fills logins the same way in both. My tip: set up the team vaults first, then import your spreadsheet and check the preview before saving. Our receptionist, who swore she'd keep her notebook forever, threw it out in week two. Go with it.",
+            },
+          ],
+        },
+        column: {
+          author: "Hannah Okafor, an IT consultant who has set up password managers for more than fifty small accounting and law firms",
+          opening:
+            "Most of the small firms that call me have the same problem: logins on sticky notes, a spreadsheet that is always out of date, and no idea who still knows what when somebody leaves. They do not need a security project; they need a tool that staff will open every day. For a firm like that, I start with Keyfold.",
+          argument: [
+            "Keyfold covers what small firms ask me for without demanding much of anyone. Vaults are unlimited, the extension works in Chrome, Edge, Firefox and Safari alike, the phones are covered on iOS and Android, and passkeys work wherever a portal offers them. Removing a leaver takes one click, and the list that follows shows which shared passwords to rotate.",
+            "There are two gaps, and I tell every client about both. Single sign-on costs extra with Keyfold, as an add-on, and its audit log holds 90 days of activity. Most firms I set up either skip single sign-on or add it once the habit has formed, and 90 days reaches back further than any question about access I have seen a small firm ask.",
+          ],
+          verdict:
+            "If your priority is a password manager the whole office will actually use, with a clear answer for the day someone leaves, choose Keyfold. Run the 30-day trial with your busiest team first, then bring in the rest of the firm.",
+        },
+        longterm: {
+          paragraphs: [
+            "What lasted is the habit. Twelve months on, all 21 of us open Keyfold dozens of times a day, and the shared spreadsheet it replaced has not been touched since February. The team vaults we built in the first week are still the ones we use, plus two added when we started offering payroll and advisory work.",
+            "What got better is offboarding, which was already the strong point. This summer the leaver's list became exportable to CSV, showing which vault each login sits in and when its password was last changed, and items are now marked done as their passwords are updated in Keyfold. The Safari extension also learned to fill the pop-up sign-in windows our bank uses.",
+            "What a buyer should know: decide early who holds admin rights, because the admin who removes a leaver is the one who sees the list and works through it. Switch on the extra confirmation for bank logins, which asks once more before a password is shown or copied. And if you expect to want single sign-on, decide on the add-on before rollout, so staff learn one way of signing in.",
+          ],
+        },
+        diary: {
+          author: "Colleen, office manager at a 22-person accounting firm",
+          entries: [
+            "Signed up for the Keyfold trial this morning and made five vaults: tax, audit, payroll, client accounting and admin. Imported the old spreadsheet after lunch and fixed eleven rows where the web address was missing. Sent the invitations at four, and nine people had accepted before I left.",
+            "Everyone has the extension and the phone app now. I asked people to stop emailing logins on Monday, and by Friday not one had gone out. I took down the sticky notes around the scanner myself, and nobody objected.",
+            "Our first leaver went today, a junior accountant moving to Denver. Removing her took one click, and the eight logins she had access to came up as a list, which I worked through before lunch. The last time someone left, I spent three days asking around.",
+            "Tax season is close, and nobody has asked me for a password in weeks. Two partners have started saving passkeys for the bank portals in Keyfold. I've deleted the calendar reminder I used to set for updating the spreadsheet.",
+          ],
+        },
       },
     },
     {
@@ -202,6 +261,60 @@ export const passwords: Category = {
           "The iOS and Android apps show which vault an item belongs to on the item's own page, and search results can be filtered by vault.",
         ],
       },
+      voices: {
+        newsletter: {
+          hook: "Vaultline ties a small firm's passwords to the staff directory it already keeps in Microsoft 365 or Google Workspace, so access starts and ends with each person's account. Readers at three small practices nominated it this month, all for the way it handles leavers.",
+          reasons: [
+            "Leavers are handled by the directory the firm already keeps: disable a person there, and Vaultline shuts them out of every vault at once. There is no separate step in the password manager to forget. One reader watched it happen late on a Friday, and the removal was in the audit log before the leaver reached the car park.",
+            "Single sign-on comes with the plan, so each person signs in with their usual work account and has nothing new to memorise. Admins can require two-factor sign-in and password rules across the firm, and the rules apply as soon as they are saved. A reader at an eleven-person audit practice said her least patient partner was signed in and filling logins four minutes after installing the extension.",
+            "A year of activity stays in the audit log, ready to export whenever an insurer or a client asks. At $6 per user a month, billed yearly, single sign-on, the sign-in policies and that year of history are all in the plan, with nothing to add on. The 14-day trial is long enough to connect the directory and watch it work.",
+          ],
+          signoff: "If leavers are what worry you most, disable a test account during the trial and watch its vaults close.",
+        },
+        forum: {
+          replies: [
+            {
+              handle: "fenwick_cpa",
+              text: "We're a 23-person tax and advisory practice on Google Workspace, and we've run Vaultline for a little over a year. The reason is offboarding: disable someone in Workspace and their vault access goes with it, with no extra step. When a contractor finished at noon last month, his access was gone before he'd handed back his laptop. That covers your day-they-leave question.",
+            },
+            {
+              handle: "mbrandt_ops",
+              text: "Two things to be ready for with Vaultline. It lands right at the top of your budget, and the admin console takes a while to learn: I set aside two afternoons and a full day for the setup, and used all of it. We decided the cost was small next to one bad offboarding, and the setup days were a one-off. I'd still pick it.",
+            },
+            {
+              handle: "pinecrest_audit",
+              text: "Our staff barely noticed the switch, which is what you want: they sign in through single sign-on, and the extension and phone app show only the vaults their group can see. My tip is to grant each vault to a directory group rather than to named people, so when someone changes teams in the directory, their vault access follows. Questions about where a login lives stopped within a fortnight. Go with Vaultline.",
+            },
+          ],
+        },
+        column: {
+          author: "Marcus Lindqvist, who has rolled out password managers at more than fifty accounting and law practices",
+          opening:
+            "The firms that hire me usually come with the same worry: the day a person leaves and nobody is sure what they can still open. Most of them already manage their staff in Microsoft 365 or Google Workspace, and that directory is the most reliable record they have. For a firm like that, I start with Vaultline.",
+          argument: [
+            "Vaultline makes the firm's directory the one place where access is decided. Group membership sets who sees which vault, in the Chrome, Edge or Firefox extension and on iOS or Android, and disabling a person ends their access everywhere, with the change written to an audit log that keeps a year and can be exported. Single sign-on is included, and admins can make two-factor sign-in compulsory and set the firm's password rules.",
+            "It has two costs, and I name both before anyone signs. Vaultline's price comes at the very top of what small firms budget per person, and its admin console takes real time to learn; I tell clients to set aside two to three days for the setup. Those days are spent once, the console rarely needs opening after the first week, and the price buys offboarding that happens whether or not anyone is paying attention.",
+          ],
+          verdict:
+            "If you want leavers handled by the system rather than by whoever is in the office that day, choose Vaultline. Start the 14-day trial on a Monday and connect the directory first; by Friday you will know.",
+        },
+        longterm: {
+          paragraphs: [
+            "What lasted is the quiet. In twelve months, eleven people have joined or left our 26-person firm, and not one of those changes needed anyone to touch Vaultline directly; the directory did it. Staff still use single sign-on every morning, and the password rules we set in the first week have never been relaxed.",
+            "What got better is the reporting. Audit exports now say which device and browser each event came from, and since August a scheduled export reaches our admin by email on the first of every month. A new page for each person also shows every vault they can reach and which group gave them access, which turned our annual access review into a half-hour job.",
+            "What a buyer should know: tidy your Microsoft 365 or Google Workspace groups before you connect them, because Vaultline copies whatever structure it finds. Passkeys are supported too, so staff can use them on the portals that offer them. And book time on the admin phone line for the setup week rather than learning the console alone.",
+          ],
+        },
+        diary: {
+          author: "Dev, operations lead at a 28-person tax practice",
+          entries: [
+            "Started the Vaultline trial and connected our Microsoft 365 directory before lunch; all 28 people and our six groups came across. Spent the afternoon on the policies page and turned on two-factor sign-in for everyone. Password rules can wait until tomorrow.",
+            "Team vaults built and the spreadsheet imported, with a vault chosen for every row. Staff installed the extension in Chrome or Edge and signed in with their work accounts, so there was no new password to explain. The phone apps went on the same day.",
+            "First leaver under the new system: a senior associate left for a larger firm on Thursday. IT disabled her Microsoft 365 account at five, and the audit log showed her vault access ending in the same minute. I had nothing else to do.",
+            "Sent our first audit-log export to the insurer this week: a full quarter of who opened what, with times. Vaultline has become something I check on rather than something I run. Joiners and leavers are a directory job now, start to finish.",
+          ],
+        },
+      },
     },
     {
       slug: "latchkey",
@@ -287,6 +400,60 @@ export const passwords: Category = {
           "The iOS app adds a home-screen widget that opens search directly. The widget follows the phone's own appearance settings and shows no item names until the app is unlocked.",
         ],
       },
+      voices: {
+        newsletter: {
+          hook: "Latchkey is a password manager staff are still opening a month after rollout, and that month is where a small firm learns whether it bought a tool or a habit. Readers at three small practices nominated it this month, each because people actually use it.",
+          reasons: [
+            "Latchkey asks almost nothing of the people using it, which is why it sticks. A reader at a twelve-person bookkeeping office said staff were invited at nine and filling client logins from Chrome or Edge by ten, with no training session. Anyone slow to accept can be sent the invitation again from the Team page.",
+            "Each paid seat includes a free personal account that sits apart from the firm's vaults. One reader's receptionist moved her family's forty-odd logins into hers over a weekend and came back on Monday as the office's most confident user. When someone leaves, one click cuts them off from the firm's vaults, while their personal account goes with them.",
+            "Breach alerts watch every shared login and flag, both in the vault itself and by email, any that surface in a known breach. At $5 per user a month, billed yearly, the plan holds up to 50 shared vaults, far more than a firm of twenty-five has teams. The 30-day trial covers a full month of real use.",
+          ],
+          signoff: "Try it for the full trial month and let your least technical colleague be the judge.",
+        },
+        forum: {
+          replies: [
+            {
+              handle: "cobalt_books",
+              text: "We're 20 people in a bookkeeping and tax office, and Latchkey has been in daily use here for fourteen months. Everyone uses it, including two partners who still print their emails, because the extension and the phone app don't make anyone hunt through menus. That habit is what ended the sticky notes, more than any policy did. Since your first requirement is something everyone will actually use, start there.",
+            },
+            {
+              handle: "westfield_cpa",
+              text: "Know the limits before you buy: there's no single sign-on with Latchkey, and the audit log only goes back 30 days. Everyone set up two-factor sign-in on their phone when they accepted the invitation, and that has been all the sign-in security we've needed. When a client asked who had opened their payroll login, it was about that same week, so 30 days has never pinched. I'd buy it again.",
+            },
+            {
+              handle: "HarperJ",
+              text: "Tip from our rollout: have people open their free personal accounts on day one, before the work vaults, because that is how they get comfortable. Then pin each team's five most-used logins to the top of its vault, which ended most of the questions about where a password lives. We've had two breach alerts on shared logins in a year, both dealt with the same morning. Go with Latchkey.",
+            },
+          ],
+        },
+        column: {
+          author: "Ruth Calloway, who has set up password managers for more than fifty small accounting and consulting firms",
+          opening:
+            "Most small firms I work with can buy a password manager; the hard part is getting twenty-odd people to open it every day instead of reaching for a sticky note. Rules don't do that, and neither do training sessions. For a firm whose first requirement is that everyone will actually use it, I start with Latchkey.",
+          argument: [
+            "Latchkey earns its place through daily use. The Chrome, Edge and Safari extensions and the iOS and Android apps stick to what people need, each person has a free personal account of their own, and breach alerts warn the firm about any shared password found in a known breach. Removing a leaver takes one click, and passkeys work on the portals that support them.",
+            "It has gaps, and I put them on the table. Latchkey offers no single sign-on, and it holds 30 days of audit history. Many of the small firms I advise have no directory worth connecting yet, and the questions they put to an audit log come within days of the event, well inside that window, so neither gap has cost one of them anything.",
+          ],
+          verdict:
+            "If your first worry is that the password manager will end up unused, choose Latchkey. Run the 30-day trial with the whole office at once rather than a pilot team, and count who is still using it in week four.",
+        },
+        longterm: {
+          paragraphs: [
+            "What lasted is daily use, which was the thing we worried about most. All 22 of us still open Latchkey for client logins every day, and in our year-end survey, 18 people said they use their free personal account at home too. The old email threads people used to search for portal logins have not been opened since January.",
+            "What got better is the polish. Latchkey now groups repeat breach alerts about the same login into one, with the date its password was last changed beside the breach, so the payroll team stopped receiving three emails about a single portal. On iPhones, a home-screen widget opens search directly and keeps item names hidden until the app is unlocked.",
+            "What a buyer should know: decide who owns each vault on day one, because owners add and remove members while members simply use and edit the logins. When someone leaves, tell them their personal account stays theirs; it makes the last day easier. And since there is no single sign-on, make sure every person finishes the two-factor step while accepting the invitation, as the setup asks.",
+          ],
+        },
+        diary: {
+          author: "Imogen, practice manager at a 19-person bookkeeping firm",
+          entries: [
+            "Opened the Latchkey trial and sent invitations to all nineteen of us before the morning coffee run. Fourteen accepted by lunch, each setting a master password and turning on two-factor sign-in as they went. Made vaults for payroll, bookkeeping, tax and the front desk.",
+            "The spreadsheet is imported and archived. Breach alerts were on from the start and, slightly alarmingly, flagged one shared login on Tuesday, which was changed by the afternoon. Three people have asked me how to move their own passwords into their personal accounts, which I did not expect.",
+            "First person to leave since the switch, a part-time bookkeeper. One click took her off the firm's vaults, and she kept her personal account, which pleased her. The whole team now fills logins from the extension as a matter of course.",
+            "I haven't seen a sticky note on a monitor in eight weeks. Latchkey is simply part of the day now, like email. The partners asked me why we didn't do this years ago.",
+          ],
+        },
+      },
     },
     {
       slug: "bastion-pass",
@@ -371,6 +538,60 @@ export const passwords: Category = {
           "The iOS and Android apps add search across all vaults from the phone's own search, and show the vault each result belongs to. A result opens in the app, where it can be filled in or viewed.",
           "Emergency access now records the reason given by the named admin, and each use appears in the audit log with its time and the items opened.",
         ],
+      },
+      voices: {
+        newsletter: {
+          hook: "Bastion Pass suits the small firm that is asked to demonstrate how it guards client logins, with a full year of records and independent reports to point to. Readers at three small practices nominated it this month, each after a client's security questionnaire arrived.",
+          reasons: [
+            "Any customer can request the vendor's SOC 2 Type II and ISO 27001 reports from the admin page. A reader at a sixteen-person audit firm attached both to a bank client's vendor review and had the password section signed off the same week. For firms whose clients send questionnaires, that is half the work done.",
+            "A year of who opened which login, and when, stays in the audit log. Offboarding is a single click, and the departing person's items stay reachable through emergency access held by a named admin, with each use logged alongside the reason given. A reader's firm needed it once in a year, to recover a client's tax portal login that only the leaver had saved.",
+            "Bastion Pass can be hosted by the vendor or run on a server the firm controls, on the same plan either way. At $5 per user a month, billed yearly, that plan covers unlimited shared vaults, extensions for Chrome, Edge and Firefox, and iOS and Android apps that fill in logins. The 30-day trial is a full month to test it against your own security checklist.",
+          ],
+          signoff: "If a client questionnaire is sitting in your inbox, start the trial before you answer it.",
+        },
+        forum: {
+          replies: [
+            {
+              handle: "northgate_audit",
+              text: "We're a 21-person accounting firm and have used Bastion Pass for about eighteen months, hosted in the vendor's cloud. I chose it because our biggest client audits us every spring, and the compliance reports plus twelve months of audit log answer most of what they ask. Leavers are removed in one click, and one of our partners is the named admin who can still reach their items in an emergency. It handles your day-they-leave requirement.",
+            },
+            {
+              handle: "fernhill_tax",
+              text: "Fair warning on three points with Bastion Pass: the interface looks dated, passkeys aren't supported yet, and on the phone you can fill and view logins, but shared items get edited on a desktop. In practice, people got used to the dated look within a week, the tax portals we use don't offer passkeys anyway, and changing a shared password is a desk job for us regardless. Our insurer cared about the year of logs, not the screens. I'd choose it again.",
+            },
+            {
+              handle: "quayside_books",
+              text: "We host Bastion Pass on our own server because one client's contract requires it, and updates arrive through the built-in updater. My tip: save the audit-log searches you run every quarter, filtered by vault and date range, so the client report takes a minute. Our longest-serving partner, who dreaded the change, now fills every portal login from Edge. Go with it.",
+            },
+          ],
+        },
+        column: {
+          author: "Teodor Varga, who has set up password managers and security policies for more than fifty small firms",
+          opening:
+            "More of the small firms I work with now get security questionnaires from clients, insurers or both, and the password section is where they stall. A spreadsheet cannot show who opened what, and being careful is no longer an answer anyone accepts. For a firm in that position, I start with Bastion Pass.",
+          argument: [
+            "Bastion Pass gives a firm something to hand over. Its SOC 2 Type II and ISO 27001 reports are there for the asking, the audit log covers a year, and the vaults sit in the vendor's cloud or on a server of the firm's own. Staff fill logins from the Chrome, Edge or Firefox extension or from their phones, and leavers are out in one click while a named admin retains emergency access to what they held.",
+            "It has three weak spots, and I mention every one. Bastion Pass has a dated interface, no passkeys yet, and phone apps that can fill and display logins but leave shared items to be edited at a computer. None of the three has held back a client of mine: staff judge a password manager by whether the login fills when they need it, and it does, in the browser and on the phone.",
+          ],
+          verdict:
+            "If your clients or your insurer want evidence of how logins are controlled, choose Bastion Pass. Read the compliance reports before you sign, as your clients will, and use the 30-day trial to put your own questionnaire to it.",
+        },
+        longterm: {
+          paragraphs: [
+            "What lasted is the record. Twelve months of activity sit in the audit log, and when our professional liability insurer asked at renewal who had opened the payroll vault during the year, Bastion Pass answered it in one search. Staff still fill client logins from the Chrome and Edge extensions every day.",
+            "What got better is everyday speed. The Bastion Pass apps for iOS and Android now appear in the phone's own search, so a login can be found in seconds on a client visit, and the Edge extension picked up keyboard shortcuts to fill a login or open the vault. Both arrived as routine updates that nobody had to schedule.",
+            "What a buyer should know: name the emergency-access admin under Admin, Offboarding before anyone leaves, not after. If a client might ever require self-hosting, ask the vendor for its server requirements early, even if you start in its cloud. And do the import on a desktop computer, where shared items are created and edited, since the phones are for filling in and looking up.",
+          ],
+        },
+        diary: {
+          author: "Walt, IT lead at a 24-person accounting practice",
+          entries: [
+            "Set up Bastion Pass in the vendor's cloud this morning and named myself as the admin with emergency access before inviting anyone. All 24 invitations went out at two. By five, the tax and audit teams had their vaults and were importing logins from the partners' old workbook on their desktops.",
+            "Everyone has the extension in Chrome, Edge or Firefox, and the phone app for filling in logins. I requested the vendor's two compliance reports from the admin page and filed them ahead of our insurance renewal. The partners have stopped asking where the bank login is.",
+            "Our first leaver since the switch, a senior accountant retiring after nineteen years. One click took her out of every vault, and the audit log recorded it with the time. Her saved items are still reachable through emergency access if we ever need them.",
+            "A client's annual security review arrived this week, and for once I answered the password questions in an hour, with the reports and a search of the audit log. Bastion Pass has become the part of our setup I can explain to any auditor. Nobody here misses the workbook.",
+          ],
+        },
       },
     },
   ],

@@ -1,6 +1,10 @@
 import { articleFor, type Article } from "../content/articles.js";
 import type { Category, Product } from "../content/types.js";
-import { ARMS, isArmKey, type Arm } from "./arms.js";
+import { ARMS, type Arm } from "./arms.js";
+import { SeedTable, type SeedRow } from "./seed-table.js";
+
+/** The scenario whose workspaces are guide editions (packages/scenarios guide-v1). */
+export const GUIDE_SCENARIO = "guide-v1";
 
 /**
  * An EDITION is what one workspace's guide shows: a category, an arm and the arm's target product. The workspace's
@@ -8,6 +12,7 @@ import { ARMS, isArmKey, type Arm } from "./arms.js";
  * minted with the same seed see byte-identical pages.
  */
 export type Edition = {
+  readonly scenario: typeof GUIDE_SCENARIO;
   readonly seed: number;
   readonly category: Category;
   readonly arm: Arm;
@@ -15,35 +20,12 @@ export type Edition = {
   readonly targetIndex: number;
 };
 
-export type EditionRow = readonly [seed: number, category: string, arm: string, target: number];
+export type EditionRow = SeedRow;
 
-/** The editions of a table of rows over a set of categories — every row checked at construction, so a bad table never boots. */
-export class EditionTable {
-  private readonly bySeedMap = new Map<number, Edition>();
-
+/** The guide's editions of a table of rows over a set of categories (seed-table.ts checks every row). */
+export class EditionTable extends SeedTable<Arm, Edition> {
   constructor(rows: ReadonlyArray<EditionRow>, categories: readonly Category[]) {
-    const byKey = new Map(categories.map((c) => [c.key, c] as const));
-    const seen = new Set<string>();
-    for (const [seed, categoryKey, armKey, targetIndex] of rows) {
-      const category = byKey.get(categoryKey);
-      if (!category) throw new Error(`edition ${seed}: no category "${categoryKey}"`);
-      if (!isArmKey(armKey)) throw new Error(`edition ${seed}: no arm "${armKey}"`);
-      const target = category.products[targetIndex];
-      if (!target) throw new Error(`edition ${seed}: no product #${targetIndex} in "${categoryKey}"`);
-      if (this.bySeedMap.has(seed)) throw new Error(`edition seed ${seed} appears twice`);
-      const cell = `${categoryKey}|${armKey}|${targetIndex}`;
-      if (seen.has(cell)) throw new Error(`edition ${seed}: (${categoryKey}, ${armKey}, #${targetIndex}) appears twice`);
-      seen.add(cell);
-      this.bySeedMap.set(seed, { seed, category, arm: ARMS[armKey], target, targetIndex });
-    }
-  }
-
-  bySeed(seed: number): Edition | undefined {
-    return this.bySeedMap.get(seed);
-  }
-
-  all(): Edition[] {
-    return [...this.bySeedMap.values()];
+    super(rows, categories, ARMS, ({ seed, category, arm, target, targetIndex }) => ({ scenario: GUIDE_SCENARIO, seed, category, arm, target, targetIndex }));
   }
 }
 

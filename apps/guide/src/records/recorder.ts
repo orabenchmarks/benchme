@@ -1,11 +1,12 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Edition } from "../editions/editions.js";
-import type { ArticleRef, PageViews, ServedPage } from "./page-views.js";
+import type { NetworkEdition } from "../network/editions.js";
+import type { ArticleRef, EditionRef, PageViews, ServedPage, SiteRef } from "./page-views.js";
 
 declare module "fastify" {
   interface FastifyRequest {
     /** Set by the route that served the request; the recorder writes it as served. */
-    guideView: { page: ServedPage; product?: string; article?: ArticleRef; edition?: Edition | null } | null;
+    guideView: { page: ServedPage; product?: string; article?: ArticleRef; site?: SiteRef; edition?: Edition | NetworkEdition | null } | null;
   }
 }
 
@@ -14,8 +15,8 @@ const UNRECORDED = ["/healthz", "/readyz", "/internal/"];
 const first = (v: string | string[] | undefined): string | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
 
 /** The edition as a record carries it: what was served, by name — never the content itself. */
-export function editionRef(e: Edition): { seed: number; category: string; arm: string; target: string } {
-  return { seed: e.seed, category: e.category.key, arm: e.arm.key, target: e.target.slug };
+export function editionRef(e: Edition | NetworkEdition): EditionRef {
+  return { scenario: e.scenario, seed: e.seed, category: e.category.key, arm: e.arm.key, target: e.target.slug };
 }
 
 /**
@@ -40,6 +41,7 @@ export function registerRecorder(app: FastifyInstance, views: PageViews): void {
         page: view.page,
         product: view.product ?? null,
         article: view.article ?? null,
+        site: view.site ?? null,
         edition: view.edition ? editionRef(view.edition) : null,
         userAgent: first(req.headers["user-agent"]),
         referer: first(req.headers.referer),

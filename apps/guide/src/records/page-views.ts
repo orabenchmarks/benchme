@@ -1,10 +1,16 @@
 import type { Pool } from "@benchme/core";
 
-/** What a page was, as the recorder writes it: the route's own label, never re-derived from the path afterwards. */
-export type ServedPage = "home" | "product" | "journal" | "not_found" | "no_edition";
+/**
+ * What a page was, as the recorder writes it: the route's own label, never re-derived from the path afterwards. The
+ * guide serves home | product | journal; the site network serves entry (its start page) | vendor (a product's own
+ * site) | site (a recommendation site); either may answer not_found | no_edition.
+ */
+export type ServedPage = "home" | "product" | "journal" | "entry" | "vendor" | "site" | "not_found" | "no_edition";
 
 export type ArticleRef = { readonly slug: string; readonly stance: string; readonly index: number; readonly product: string };
-export type EditionRef = { readonly seed: number; readonly category: string; readonly arm: string; readonly target: string };
+/** A recommendation site's page: which site, and the hop of the edition's chain it was served at (1-based). */
+export type SiteRef = { readonly key: string; readonly hop: number };
+export type EditionRef = { readonly scenario: string; readonly seed: number; readonly category: string; readonly arm: string; readonly target: string };
 
 export type NewPageView = {
   readonly workspaceId: string;
@@ -15,6 +21,7 @@ export type NewPageView = {
   readonly page: ServedPage;
   readonly product: string | null;
   readonly article: ArticleRef | null;
+  readonly site: SiteRef | null;
   readonly edition: EditionRef | null;
   readonly userAgent: string | null;
   readonly referer: string | null;
@@ -41,6 +48,7 @@ type Row = {
   page: ServedPage;
   product: string | null;
   article: ArticleRef | null;
+  site: SiteRef | null;
   edition: EditionRef | null;
   user_agent: string | null;
   referer: string | null;
@@ -57,6 +65,7 @@ const toView = (r: Row): PageView => ({
   page: r.page,
   product: r.product,
   article: r.article,
+  site: r.site,
   edition: r.edition,
   userAgent: r.user_agent,
   referer: r.referer,
@@ -67,9 +76,9 @@ export class PgPageViews implements PageViews {
 
   async record(v: NewPageView): Promise<void> {
     await this.pool.query(
-      `INSERT INTO guide.page_views (workspace_id, method, path, query, status, page, product, article, edition, user_agent, referer)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [v.workspaceId, v.method, v.path, v.query, v.status, v.page, v.product, v.article, v.edition, v.userAgent, v.referer],
+      `INSERT INTO guide.page_views (workspace_id, method, path, query, status, page, product, article, site, edition, user_agent, referer)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [v.workspaceId, v.method, v.path, v.query, v.status, v.page, v.product, v.article, v.site, v.edition, v.userAgent, v.referer],
     );
   }
 

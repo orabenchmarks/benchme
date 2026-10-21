@@ -104,13 +104,14 @@ beforeAll(async () => {
   // unlisted app that shares its name with a root service (the wallet's
   // card-on-file door, /w/<id>/wallet/card, beside the root /wallet/*).
   // guide: unlisted, and the one app guide-v1 names (Scenario.apps) — advertised by that scenario's workspaces alone.
+  // web: the same, for web-v1 — a PATH base on the guide's own service (the site network under /web).
   const apps = new AppRegistry(
-    { warehouse: stub.url, data: stub.url, halden: `${stub.url}/s/halden`, paylantern: `${stub.url}/s/paylantern`, wallet: `${stub.url}/workspace`, guide: stub.url },
+    { warehouse: stub.url, data: stub.url, halden: `${stub.url}/s/halden`, paylantern: `${stub.url}/s/paylantern`, wallet: `${stub.url}/workspace`, guide: stub.url, web: `${stub.url}/web` },
     ["warehouse"],
     ["warehouse", "paylantern"],
     ["warehouse", "paylantern"],
     ["data", "paylantern"],
-    ["paylantern", "wallet", "guide"],
+    ["paylantern", "wallet", "guide", "web"],
   );
   limiter = new MemoryRateLimiter(2, 3600);
   const seeder: WorkspaceSeeder = new HttpWorkspaceSeeder(apps.seeded(), SECRET);
@@ -319,6 +320,18 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     // Every other scenario's workspaces keep leaving the unlisted guide out.
     const acme = (await gateway.inject({ method: "POST", url: "/api/workspaces", headers: OPERATOR, payload: { scenario: "acme-v1", seed: 4242 } })).json();
     expect(Object.keys(acme.urls.apps)).not.toContain("guide");
+    expect(Object.keys(acme.urls.apps)).not.toContain("web");
+  });
+
+  it("advertises the site network to a web-v1 workspace alone and routes it to the guide's /web, under the web prefix", async () => {
+    const minted = await gateway.inject({ method: "POST", url: "/api/workspaces", headers: OPERATOR, payload: { scenario: "web-v1", seed: 812_768 } });
+    expect(minted.statusCode).toBe(201);
+    const { id, urls } = minted.json() as { id: string; urls: Record<string, Record<string, string>> };
+    expect(urls.apps).toEqual({ web: `http://benchme.test/w/${id}/web` });
+    const site = await gateway.inject(`/w/${id}/web/tested-and-told/`);
+    expect(site.json()).toMatchObject({ path: "/web/tested-and-told/", workspace: id, prefix: `/w/${id}/web` });
+    const guide = (await gateway.inject({ method: "POST", url: "/api/workspaces", headers: OPERATOR, payload: { scenario: "guide-v1", seed: 104_729 } })).json();
+    expect(Object.keys(guide.urls.apps)).toEqual(["guide"]);
   });
 
   it("routes a shops-v1 workspace to path-based targets — an unlisted one included — signed, under the gateway's prefix", async () => {

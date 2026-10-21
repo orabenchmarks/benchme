@@ -4,7 +4,7 @@
   "type": "module",
   "license": "MIT",
   "private": true,
-  "description": "A buyer's guide to four fictional products in one category, its pages chosen by the workspace's edition, with a record of every page each workspace was served",
+  "description": "A buyer's guide to four fictional products in one category, and a small web of sites about them (/web), their pages chosen by the workspace's edition, with a record of every page each workspace was served",
   "scripts": {
     "build": "tsc -b",
     "dev": "tsx watch src/server.ts",
