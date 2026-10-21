@@ -39,6 +39,9 @@
     },
     {
       "path": "apps/wallet"
+    },
+    {
+      "path": "apps/guide"
     }
   ]
 }

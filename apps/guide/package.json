@@ -1,0 +1,21 @@
+{
+  "name": "@benchme/guide",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "description": "A buyer's guide to four fictional products in one category, its pages chosen by the workspace's edition, with a record of every page each workspace was served",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "migrate": "node dist/migrate.js",
+    "editions": "node dist/editions-cli.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@benchme/core": "0.1.0",
+    "fastify": "^5.2.0",
+    "zod": "^3.24.0"
+  }
+}
