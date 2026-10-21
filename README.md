@@ -17,6 +17,7 @@ POST /api/workspaces        {"scenario":"acme-v1","seed":4242}   → urls for ev
 /w/<id>/verify/v1/submit/<taskId>   POST an artifact → verdict + receipt
 /w/<id>/mail/               the workspace inbox (verification codes land here)
 /data/                      the company site (static, generated from the seed)
+/w/<id>/guide/              a buyer's guide edition (scenario guide-v1; the seed picks it — see Guide)
 POST /api/workspaces/<id>/finalize                               → a signed receipt
 ```
 
@@ -37,6 +38,7 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | `packages/storefront` | the stores' pure logic: money, US sales tax by ZIP, cart, pricing, the scenario-file schema, outcome classes, order numbers |
 | `apps/shops` | three consumer stores and a payment page, served from one app (see [Stores](#stores)) |
 | `apps/wallet` | a stand-in for a Link wallet: the HTTP API `@stripe/link-cli` calls, an approval policy, test cards bound to the run's checkout (see [Wallet](#wallet)) |
+| `apps/guide` | Shortlist, a buyer's guide to four fictional products per category: its pages are chosen by the workspace's edition (category, arm, target), and every page each workspace is served is recorded (see [Guide](#guide)) |
 | `charts/benchme` | the Helm chart: own postgres + redis, apps, migrate job, reaper, ingress |
 | `docker/app.Dockerfile` | one multi-stage Dockerfile, `--build-arg APP=<app>` |
 
@@ -273,6 +275,61 @@ requests' cards, and runs the wallet's cases: a card from elsewhere, another
 card, an approval for less (declined, then a new approval pays), a card paid
 twice (declined), and a fallback request claimed by its payment or declined
 above its amount.
+
+## Guide
+
+`apps/guide` is **Shortlist**, a buyer's guide: four fictional products in one
+category — project management tools (`pm`), password managers (`passwords`),
+office espresso machines (`espresso`) or commuter e-bikes (`ebike`) — with a
+spec sheet for each product and a journal of articles about each. It exists for
+a study of whether what an agent reads changes what it recommends, so every page
+is a pure function of the workspace's **edition**: its seed names one row of
+`apps/guide/src/editions/edition-table.ts`, a (category, arm, target product).
+
+```
+POST /api/workspaces           {"scenario":"guide-v1","seed":<edition seed>}   → urls.apps.guide, and nothing else
+/w/<id>/guide/                 the category page: the four products (and, in a chain edition, one journal link)
+/w/<id>/guide/products/<slug>  a product's spec sheet
+/w/<id>/guide/journal/<slug>   an article of the edition's series; 404 where the edition serves none
+```
+
+| arm | what the site serves about the target | how a run reaches it |
+| --- | --- | --- |
+| `base` | nothing | — |
+| `chain-1`, `chain-3` | its first 1 or 3 favourable articles: a review, a customer's story, who it suits | the category page links the first, each article links the next |
+| `explicit-1`, `explicit-3` | the same articles, linked from nowhere | the task prompt lists their paths |
+| `neutral-3` | its 3 neutral articles: setup, plans, update notes | the task prompt lists their paths |
+
+- **Only guide-v1 workspaces advertise it.** The gateway keeps `guide` in
+  `UNLISTED_APPS`; a scenario may name the apps its workspaces advertise
+  (`Scenario.apps` in `@benchme/scenarios`), and guide-v1 names the guide alone.
+  A scenario whose apps a deployment does not serve is refused at mint
+  (422 `SCENARIO_UNAVAILABLE`).
+- **The arms differ only where they must.** Every product's articles come from
+  the same templates (`apps/guide/src/content/articles.ts`), so one product's
+  favourable series is exactly as strong as another's. Chain and explicit
+  editions of the same n serve byte-identical article pages; every edition
+  serves byte-identical category and product pages, but for the chain's one
+  link. `content.test.ts` holds the rules: an article names its own product and
+  no other; no link text, title or path names a product; every price in an
+  article is on its product's spec sheet; neutral text carries no judgement;
+  nothing is addressed to an AI agent; a product's favourable and neutral series
+  are the same length within 15%.
+- **Records.** Every page a workspace is served is written as it is sent — path,
+  query, status, what the page was, the edition, the user agent and the referer —
+  to `guide.page_views`, which has no foreign key, so it outlives the workspace's
+  TTL. `GET /internal/records?workspace=<id>` (or `?since=<seq>&limit=<n>` for a
+  bulk export) and `GET /internal/editions` (every edition's prompt inputs: the
+  request, the products, the target and the reading list) need
+  `x-benchme-operator-key`. They answer in-cluster and through any workspace's
+  `/w/<id>/guide/internal/…`.
+- **The edition table is frozen.** A study's prompts carry its seeds: append
+  rows, never edit or reuse one. `npm run editions -w @benchme/guide` prints the
+  corpus from the source; `/internal/editions` prints the deployment's.
+
+| env | default | |
+| --- | --- | --- |
+| `GUIDE_OPERATOR_KEY` | — | guards `/internal/*`; the chart and compose set it to the gateway's operator key |
 
 ## WebMCP
 
@@ -517,6 +574,13 @@ docker compose down -v               # stop and drop the database volume
   keeps working.
 
 ## Release
+
+_Chart 0.8.0: the buyer's guide (`apps/guide`, schema `guide`, scenario
+`guide-v1`) — one new image (`guide`: make its package public), one new
+migration in the migrate Job, and no new secret (the guide reads the operator
+key). The gateway lets a scenario name the apps its workspaces advertise
+(`Scenario.apps`) and refuses to mint a scenario whose apps it does not serve
+(422 `SCENARIO_UNAVAILABLE`)._
 
 _Chart 0.7.2: which issued card paid, read the same whoever holds the card
 page (an unbound Link card at its exact expiry is a Link payment, held to its

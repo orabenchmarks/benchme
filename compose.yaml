@@ -48,7 +48,7 @@ x-app: &app
     - "host.docker.internal:host-gateway"
   # The last migration of the chain below.
   depends_on:
-    migrate-wallet:
+    migrate-guide:
       condition: service_completed_successfully
   healthcheck:
     test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -84,68 +84,75 @@ services:
   # The chart's migrate Job: one app after another, in this order.
   migrate-gateway:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.8.0}
     command: ["node", "apps/gateway/dist/migrate.js"]
     depends_on:
       postgres:
         condition: service_healthy
   migrate-warehouse:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.8.0}
     command: ["node", "apps/warehouse/dist/migrate.js"]
     depends_on:
       migrate-gateway:
         condition: service_completed_successfully
   migrate-helpdesk:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.8.0}
     command: ["node", "apps/helpdesk/dist/migrate.js"]
     depends_on:
       migrate-warehouse:
         condition: service_completed_successfully
   migrate-vaultdocs:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.8.0}
     command: ["node", "apps/vaultdocs/dist/migrate.js"]
     depends_on:
       migrate-helpdesk:
         condition: service_completed_successfully
   migrate-mail:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.8.0}
     command: ["node", "apps/mail/dist/migrate.js"]
     depends_on:
       migrate-vaultdocs:
         condition: service_completed_successfully
   migrate-verify:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.8.0}
     command: ["node", "apps/verify/dist/migrate.js"]
     depends_on:
       migrate-mail:
         condition: service_completed_successfully
   migrate-shops:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/shops:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/shops:${BENCHME_VERSION:-0.8.0}
     command: ["node", "apps/shops/dist/migrate.js"]
     depends_on:
       migrate-verify:
         condition: service_completed_successfully
   migrate-wallet:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/wallet:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/wallet:${BENCHME_VERSION:-0.8.0}
     command: ["node", "apps/wallet/dist/migrate.js"]
     depends_on:
       migrate-shops:
         condition: service_completed_successfully
+  migrate-guide:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/guide:${BENCHME_VERSION:-0.8.0}
+    command: ["node", "apps/guide/dist/migrate.js"]
+    depends_on:
+      migrate-wallet:
+        condition: service_completed_successfully
 
   gateway:
     <<: *app
-    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.8.0}
     ports:
       - "${BENCHME_PORT:-8080}:3000"
     depends_on:
-      migrate-wallet:
+      migrate-guide:
         condition: service_completed_successfully
       redis:
         condition: service_started
@@ -159,9 +166,10 @@ services:
       # The store sites are one app (shops) serving each site under /s/<site>. wallet: the wallet's
       # workspace-scoped door (/w/<id>/wallet/card → wallet:3000/workspace/card, the saved card of a run that
       # pays without Link) — the same service the root /wallet/* reaches, which forwards no workspace.
-      APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000","verify":"http://verify:3000","wrenfield":"http://shops:3000/s/wrenfield","halden":"http://shops:3000/s/halden","quillfeather":"http://shops:3000/s/quillfeather","paylantern":"http://shops:3000/s/paylantern","wallet":"http://wallet:3000/workspace"}'
-      # Routed like any app, but left out of a workspace's urls (and the portal, the registry, robots.txt).
-      UNLISTED_APPS: paylantern,wallet
+      APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000","verify":"http://verify:3000","wrenfield":"http://shops:3000/s/wrenfield","halden":"http://shops:3000/s/halden","quillfeather":"http://shops:3000/s/quillfeather","paylantern":"http://shops:3000/s/paylantern","wallet":"http://wallet:3000/workspace","guide":"http://guide:3000"}'
+      # Routed like any app, but left out of a workspace's urls (and the portal, the registry, robots.txt) — guide
+      # included: only the guide-v1 scenario's workspaces advertise it (Scenario.apps).
+      UNLISTED_APPS: paylantern,wallet,guide
       # Served at the root, outside any workspace: /wallet/* (link-cli's LINK_API_BASE_URL = <public>/wallet/api).
       SERVICE_TARGETS: '{"wallet":"http://wallet:3000"}'
       SEEDED_APPS: warehouse,helpdesk,vaultdocs,mail,verify
@@ -175,31 +183,31 @@ services:
 
   warehouse:
     <<: *app
-    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.8.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
 
   helpdesk:
     <<: *app
-    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.8.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
 
   vaultdocs:
     <<: *app
-    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.8.0}
     environment: *common-env
 
   mail:
     <<: *app
-    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.8.0}
     environment: *common-env
 
   data:
     <<: *app
-    image: ghcr.io/orabenchmarks/data:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/data:${BENCHME_VERSION:-0.8.0}
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
 
@@ -207,7 +215,7 @@ services:
   # paylantern page, all from one app under /s/<site>.
   shops:
     <<: *app
-    image: ghcr.io/orabenchmarks/shops:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/shops:${BENCHME_VERSION:-0.8.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
@@ -231,7 +239,7 @@ services:
   # calls, at <public>/wallet/api and <public>/wallet/auth through the gateway.
   wallet:
     <<: *app
-    image: ghcr.io/orabenchmarks/wallet:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/wallet:${BENCHME_VERSION:-0.8.0}
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: postgres://benchme:${POSTGRES_PASSWORD:-benchme-local-postgres}@postgres:5432/benchme
@@ -250,9 +258,20 @@ services:
       SHOPS_URL: http://shops:3000
       SHOPS_INTERNAL_SECRET: ${SHOPS_INTERNAL_SECRET:-benchme-local-shops-secret-change-me}
 
+  # The buyer's guide (README § Guide): pages chosen by a guide-v1 workspace's edition, and a record of every page
+  # each workspace was served (/internal/*, behind the operator key).
+  guide:
+    <<: *app
+    image: ghcr.io/orabenchmarks/guide:${BENCHME_VERSION:-0.8.0}
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgres://benchme:${POSTGRES_PASSWORD:-benchme-local-postgres}@postgres:5432/benchme
+      GATEWAY_SECRET: ${GATEWAY_SECRET:-benchme-local-gateway-secret-change-me}
+      GUIDE_OPERATOR_KEY: ${OPERATOR_KEY:-benchme-local-operator-key-change-me}
+
   verify:
     <<: *app
-    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.8.0}
     # The Docker socket's group so the non-root verifier may use it:
     # Linux → `stat -c %g /var/run/docker.sock`; Docker Desktop → 0.
     group_add:
@@ -274,10 +293,10 @@ services:
 
   # The chart's reaper CronJob: expired workspaces are dropped every hour.
   reaper:
-    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.7.2}
+    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.8.0}
     restart: unless-stopped
     depends_on:
-      migrate-wallet:
+      migrate-guide:
         condition: service_completed_successfully
     environment: *common-env
     command: ["sh", "-c", "while true; do node apps/gateway/dist/reap.js; sleep ${REAP_INTERVAL_SECONDS:-3600}; done"]

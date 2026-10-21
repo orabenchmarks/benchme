@@ -20,3 +20,5 @@ services:
     build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: shops } }
   wallet:
     build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: wallet } }
+  guide:
+    build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: guide } }
