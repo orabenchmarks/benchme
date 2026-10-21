@@ -66,6 +66,12 @@ export type ScenarioRows = {
 export interface Scenario {
   readonly key: string;
   readonly description: string;
+  /**
+   * The apps this scenario's workspaces advertise (their `urls`, their portal page), in this order — an app named
+   * here is advertised even when the gateway lists it as UNLISTED, which keeps it out of every OTHER scenario's
+   * workspaces. Absent: every listed app, as before.
+   */
+  readonly apps?: readonly string[];
   generate(seed: number): ScenarioRows;
 }
 

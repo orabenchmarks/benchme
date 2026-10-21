@@ -36,7 +36,7 @@ export function registerWorkspaceRoutes(app: FastifyInstance, d: WorkspaceRoutes
     }
     try {
       const w = await d.service.create(body);
-      return reply.code(201).send({ ...serialize(w), urls: d.service.urls(w.id) });
+      return reply.code(201).send({ ...serialize(w), urls: d.service.urls(w) });
     } catch (err) {
       return sendError(reply, err);
     }
@@ -45,7 +45,7 @@ export function registerWorkspaceRoutes(app: FastifyInstance, d: WorkspaceRoutes
   app.get<{ Params: { id: string } }>("/api/workspaces/:id", async (req, reply) => {
     try {
       const w = await d.service.get(req.params.id);
-      return { ...serialize(w), urls: d.service.urls(w.id) };
+      return { ...serialize(w), urls: d.service.urls(w) };
     } catch (err) {
       return sendError(reply, err);
     }

@@ -103,13 +103,14 @@ beforeAll(async () => {
   // out on the listing alone, while the proxy still routes to it. wallet: an
   // unlisted app that shares its name with a root service (the wallet's
   // card-on-file door, /w/<id>/wallet/card, beside the root /wallet/*).
+  // guide: unlisted, and the one app guide-v1 names (Scenario.apps) — advertised by that scenario's workspaces alone.
   const apps = new AppRegistry(
-    { warehouse: stub.url, data: stub.url, halden: `${stub.url}/s/halden`, paylantern: `${stub.url}/s/paylantern`, wallet: `${stub.url}/workspace` },
+    { warehouse: stub.url, data: stub.url, halden: `${stub.url}/s/halden`, paylantern: `${stub.url}/s/paylantern`, wallet: `${stub.url}/workspace`, guide: stub.url },
     ["warehouse"],
     ["warehouse", "paylantern"],
     ["warehouse", "paylantern"],
     ["data", "paylantern"],
-    ["paylantern", "wallet"],
+    ["paylantern", "wallet", "guide"],
   );
   limiter = new MemoryRateLimiter(2, 3600);
   const seeder: WorkspaceSeeder = new HttpWorkspaceSeeder(apps.seeded(), SECRET);
@@ -300,6 +301,24 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     expect(ok.json().body).toEqual({ sku: "x", qty: 2 });
     const empty = await gateway.inject({ method: "POST", url: `/w/${created.id}/halden/cart/add`, headers: { "content-type": "application/json" }, payload: "" });
     expect(empty.json().body).toEqual({});
+  });
+
+  it("advertises only the apps a scenario names — an unlisted one included — in its urls and on its portal page", async () => {
+    const minted = await gateway.inject({ method: "POST", url: "/api/workspaces", headers: OPERATOR, payload: { scenario: "guide-v1", seed: 104_729 } });
+    expect(minted.statusCode).toBe(201);
+    const { id, seed, urls } = minted.json() as { id: string; seed: number; urls: Record<string, Record<string, string>> };
+    expect(seed).toBe(104_729);
+    expect(urls.apps).toEqual({ guide: `http://benchme.test/w/${id}/guide` });
+    expect([urls.mcp, urls.ask, urls.askMcp, urls.webmcp]).toEqual([{}, {}, {}, {}]);
+    expect((await gateway.inject(`/api/workspaces/${id}`)).json().urls.apps).toEqual({ guide: `http://benchme.test/w/${id}/guide` });
+    const portal = (await gateway.inject(`/w/${id}`)).body;
+    expect(portal).toContain(`/w/${id}/guide/`);
+    expect(portal).not.toContain(`/w/${id}/warehouse/`);
+    const guide = await gateway.inject(`/w/${id}/guide/products/x`);
+    expect(guide.json()).toMatchObject({ path: "/products/x", workspace: id, prefix: `/w/${id}/guide` });
+    // Every other scenario's workspaces keep leaving the unlisted guide out.
+    const acme = (await gateway.inject({ method: "POST", url: "/api/workspaces", headers: OPERATOR, payload: { scenario: "acme-v1", seed: 4242 } })).json();
+    expect(Object.keys(acme.urls.apps)).not.toContain("guide");
   });
 
   it("routes a shops-v1 workspace to path-based targets — an unlisted one included — signed, under the gateway's prefix", async () => {
