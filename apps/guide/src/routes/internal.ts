@@ -2,7 +2,9 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { corpusEntry } from "../editions/corpus.js";
-import type { EditionTable } from "../editions/editions.js";
+import { GUIDE_SCENARIO, type EditionTable } from "../editions/editions.js";
+import { networkCorpusEntry } from "../network/corpus.js";
+import { NETWORK_SCENARIO, type NetworkEditionTable } from "../network/editions.js";
 import type { PageViews } from "../records/page-views.js";
 
 /** The gateway's operator header: the same key that lets a benchmark's own tooling skip the mint rate limit. */
@@ -16,6 +18,8 @@ const recordsQuery = z
   })
   .refine((q) => (q.workspace === undefined) !== (q.since === undefined), { message: "name exactly one of workspace or since" });
 
+const editionsQuery = z.object({ scenario: z.enum([GUIDE_SCENARIO, NETWORK_SCENARIO]).default(GUIDE_SCENARIO) });
+
 function authorized(req: FastifyRequest, key: string): boolean {
   const raw = req.headers[OPERATOR_HEADER];
   const given = Buffer.from((Array.isArray(raw) ? raw[0] : raw) ?? "");
@@ -25,10 +29,10 @@ function authorized(req: FastifyRequest, key: string): boolean {
 
 /**
  * The study's doors, behind the operator key (never the workspace): every page a workspace was served, a bulk export
- * of all of them, and the edition corpus a study builds its prompts from. Reachable in-cluster and — with the key —
+ * of all of them, and the edition corpus a study builds its prompts from (the guide's, or the network's). Reachable in-cluster and — with the key —
  * through any workspace's /w/<id>/guide/internal/ path; an agent under study holds no key.
  */
-export function registerInternal(app: FastifyInstance, d: { operatorKey: string; views: PageViews; table: EditionTable }): void {
+export function registerInternal(app: FastifyInstance, d: { operatorKey: string; views: PageViews; table: EditionTable; network: NetworkEditionTable }): void {
   app.register(
     async (internal) => {
       internal.addHook("onRequest", async (req, reply) => {
@@ -40,7 +44,13 @@ export function registerInternal(app: FastifyInstance, d: { operatorKey: string;
         const views = await d.views.since(q.since as number, q.limit);
         return { views, next: views.at(-1)?.seq ?? q.since };
       });
-      internal.get("/editions", async () => ({ scenario: "guide-v1", editions: d.table.all().map(corpusEntry) }));
+      // ?scenario=web-v1 for the site network's corpus; the guide's by default.
+      internal.get("/editions", async (req) => {
+        const { scenario } = editionsQuery.parse(req.query);
+        return scenario === NETWORK_SCENARIO
+          ? { scenario, editions: d.network.all().map(networkCorpusEntry) }
+          : { scenario, editions: d.table.all().map(corpusEntry) };
+      });
     },
     { prefix: "/internal" },
   );

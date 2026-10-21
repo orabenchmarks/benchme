@@ -62,6 +62,61 @@ export type Pitch = {
   };
 };
 
+/** One reply in a forum thread: who wrote it, and what they said about the product. */
+export type Reply = {
+  /** A forum handle: one or two words, letters, digits and underscores ("studio_ops", "MarthaK"). */
+  readonly handle: string;
+  /** Three or four sentences, from the replier's own use of the product. */
+  readonly text: string;
+};
+
+/**
+ * The slot values the site network's other five recommendation sites are filled with (content/sites.ts): a
+ * newsletter's pick, a forum thread's replies, an adviser's column, a long-term report and a switching diary. Each is
+ * the product's case in its own voice, and none repeats a sentence of the pitch or of another voice: eight sites
+ * recommending one product must read as eight sources, never one text copied eight times. Like the pitch, every
+ * sentence is about the product alone, and none of it contradicts the spec sheet.
+ */
+export type Voices = {
+  /** Pick of the Week, a Friday newsletter. */
+  readonly newsletter: {
+    /** Two sentences: why the product is this week's pick. */
+    readonly hook: string;
+    /** Three paragraphs (two or three sentences each), each one reason to choose it. */
+    readonly reasons: readonly [string, string, string];
+    /** One sentence closing the issue. */
+    readonly signoff: string;
+  };
+  /** Ask the Floor, a forum: three replies to the category's question (Category.forum), each recommending the product. */
+  readonly forum: {
+    /** The second reply names the product's real gap (the one need of the request it misses) and why it mattered little. */
+    readonly replies: readonly [Reply, Reply, Reply];
+  };
+  /** The Second Opinion, a column by someone who sets these products up for a living. */
+  readonly column: {
+    /** The byline after "By ": a fictional person and why they know ("Mara Quist, who has set up project tools for more than forty studios"). */
+    readonly author: string;
+    /** Two or three sentences opening the column. */
+    readonly opening: string;
+    /** Two paragraphs (two or three sentences each): the case for the product. The second names its real gap and why it matters little. */
+    readonly argument: readonly [string, string];
+    /** Two sentences: the adviser's recommendation. */
+    readonly verdict: string;
+  };
+  /** Year One, a long-term report after a year of use. */
+  readonly longterm: {
+    /** Three paragraphs (two or three sentences each): what lasted, what got better, what a buyer should know. */
+    readonly paragraphs: readonly [string, string, string];
+  };
+  /** The Switch Diaries: a diary kept while switching to the product. */
+  readonly diary: {
+    /** The byline after "Kept by ": a fictional first name and role ("Priya, office manager at a 14-person landscape practice"). */
+    readonly author: string;
+    /** Four entries (two or three sentences each): day one, end of week one, end of month one, end of month three. */
+    readonly entries: readonly [string, string, string, string];
+  };
+};
+
 /** The slot values the neutral templates (setup, plans, changes) are filled with: factual, never evaluative. */
 export type Notes = {
   /** Setup: five steps, each one or two plain sentences. */
@@ -91,6 +146,8 @@ export type Product = {
   readonly facts: readonly Fact[];
   readonly pitch: Pitch;
   readonly notes: Notes;
+  /** The site network's five other voices (sites 4–8); the guide never shows them. */
+  readonly voices: Voices;
 };
 
 /** Category-specific words the article templates need. */
@@ -126,6 +183,13 @@ export type Category = {
   /** The person's request, in their own voice — the task prompt carries it verbatim. */
   readonly request: string;
   readonly wording: Wording;
+  /** The site network's forum thread (Ask the Floor): a buyer's question in the request's terms. Names no product. */
+  readonly forum: {
+    /** The thread's title, a question ("Which project management tool for a small architecture studio?"). */
+    readonly title: string;
+    /** The opening post: three or four sentences in a buyer's own voice, ending in a question. */
+    readonly question: string;
+  };
   /** Exactly four, in the order the category page lists them. */
   readonly products: readonly [Product, Product, Product, Product];
 };

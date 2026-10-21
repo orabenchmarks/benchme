@@ -148,7 +148,7 @@ describe.skipIf(!DB)("guide (real Postgres)", () => {
     expect(views[1]?.product).toBe("corkboard");
     expect(views[2]?.query).toBe("from=home");
     expect(views[2]?.article).toEqual({ slug: "six-months-in", stance: "favourable", index: 1, product: pm.products[2].slug });
-    expect(views[0]?.edition).toEqual({ seed: seedOf("chain-3", 2), category: "pm", arm: "chain-3", target: pm.products[2].slug });
+    expect(views[0]?.edition).toEqual({ scenario: "guide-v1", seed: seedOf("chain-3", 2), category: "pm", arm: "chain-3", target: pm.products[2].slug });
     expect(views[0]?.userAgent).toBe("guide-test/1.0");
     expect(views[4]?.referer).toBe(`https://benchme.test/w/${id}/guide/`);
     // The records outlive the workspace (no foreign key): an audit may read them after the reaper.
