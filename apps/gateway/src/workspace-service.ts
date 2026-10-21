@@ -1,7 +1,7 @@
 import { HmacReceiptSigner, newWorkspaceId, type Pool, type ReceiptSigner, type Workspace, type WorkspaceRepo } from "@benchme/core";
 import { randomBytes } from "node:crypto";
 import type { ScenarioRegistry } from "@benchme/scenarios";
-import type { AppRegistry } from "./app-registry.js";
+import type { AppRegistry, AppTarget } from "./app-registry.js";
 import type { WorkspaceSeeder } from "./seeder.js";
 
 export type WorkspaceUrls = {
@@ -51,15 +51,19 @@ export class WorkspaceService {
     return new HmacReceiptSigner(secret);
   }
 
-  /** What a workspace advertises: listed apps only — an unlisted one is still served at /w/<id>/<app>/, just never named here. */
-  urls(id: string, base = this.d.publicBaseUrl): WorkspaceUrls {
+  /**
+   * What a workspace advertises: the apps its scenario names (`Scenario.apps`, an unlisted one included), else every
+   * listed app. An app it does not advertise is still served at /w/<id>/<app>/, just never named here.
+   */
+  urls(w: Pick<Workspace, "id" | "scenario">, base = this.d.publicBaseUrl): WorkspaceUrls {
+    const { id } = w;
     const root = base.replace(/\/+$/, "");
     const apps: Record<string, string> = {};
     const mcp: Record<string, string> = {};
     const ask: Record<string, string> = {};
     const askMcp: Record<string, string> = {};
     const webmcp: Record<string, string> = {};
-    for (const app of this.d.apps.listed()) {
+    for (const app of this.advertised(w.scenario)) {
       apps[app.name] = `${root}/w/${id}/${app.name}`;
       if (app.mcp) mcp[app.name] = `${root}/w/${id}/${app.name}/mcp`;
       if (app.ask) {
@@ -71,9 +75,20 @@ export class WorkspaceService {
     return { portal: `${root}/w/${id}`, apps, mcp, ask, askMcp, webmcp };
   }
 
+  /** The apps a workspace of `scenario` advertises, in order: the scenario's own list, else every listed app. */
+  advertised(scenario: string): AppTarget[] {
+    const named = this.d.scenarios.has(scenario) ? this.d.scenarios.get(scenario).apps : undefined;
+    if (!named) return this.d.apps.listed();
+    return named.map((name) => this.d.apps.get(name)).filter((app): app is AppTarget => app !== undefined);
+  }
+
   /** Semantic validation, separate from create so a caller can reject BEFORE spending a rate-limit unit. */
   validate(input: CreateInput): { ttl: number } {
     if (!this.d.scenarios.has(input.scenario)) throw new WorkspaceError(422, "UNKNOWN_SCENARIO", `unknown scenario "${input.scenario}"`);
+    const missing = (this.d.scenarios.get(input.scenario).apps ?? []).filter((name) => !this.d.apps.get(name));
+    if (missing.length > 0) {
+      throw new WorkspaceError(422, "SCENARIO_UNAVAILABLE", `scenario "${input.scenario}" needs ${missing.join(", ")}, which this deployment does not serve`);
+    }
     const ttl = input.ttlSeconds ?? this.d.defaultTtlSeconds;
     if (ttl <= 0 || ttl > this.d.maxTtlSeconds) throw new WorkspaceError(422, "BAD_TTL", `ttlSeconds must be 1..${this.d.maxTtlSeconds}`);
     return { ttl };

@@ -144,6 +144,12 @@ apps:
     resources:
       requests: { cpu: 25m, memory: 96Mi }
       limits: { cpu: 300m, memory: 256Mi }
+  # The buyer's guide (apps/guide): advertised only by guide-v1 workspaces; its /internal/* reads the operator key.
+  guide:
+    replicas: 1
+    resources:
+      requests: { cpu: 25m, memory: 96Mi }
+      limits: { cpu: 300m, memory: 256Mi }
 
 verify:
   maxAttemptsPerTask: 20

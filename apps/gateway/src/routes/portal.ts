@@ -63,7 +63,7 @@ export function registerPortal(app: FastifyInstance, d: PortalDeps): void {
   app.get<{ Params: { id: string } }>("/w/:id", async (req, reply) => {
     try {
       const w = await d.service.get(req.params.id);
-      const urls = d.service.urls(w.id);
+      const urls = d.service.urls(w);
       const links = Object.entries(urls.apps)
         .map(([name, url]) => `<li><a href="${url}/">${name}</a></li>`)
         .join("");
