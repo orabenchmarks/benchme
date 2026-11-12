@@ -18,14 +18,12 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    env:
-      NODE_AUTH_TOKEN: ""
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.version && format('v{0}', github.event.inputs.version) || github.ref }}
+          ref: ${{ github.event.inputs.version && format('refs/tags/v{0}', github.event.inputs.version) || github.ref }}
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, registry-url: "https://registry.npmjs.org" }
       # Node 22 bundles npm 10; npm trusted publishing requires npm >=11.5.1.
@@ -55,6 +53,8 @@ jobs:
             }' "$RELEASE_VERSION"
           git diff --stat -- packages/*/package.json
       - name: publish (core → scenarios → site-kit)
+        env:
+          NODE_AUTH_TOKEN: ""
         run: |
           set -euo pipefail
           for p in core scenarios site-kit; do
