@@ -1,9 +1,9 @@
 name: publish
 # Publishes the public @benchme packages to npm on a version tag (vX.Y.Z), with
-# provenance (the repository is public; npm rejects attestations from a private
-# source repo with E422). Needs the NPM_TOKEN repository secret (an npm
-# granular access token with publish rights on the @benchme scope). Apps are
-# never published.
+# provenance from this public repository. Each package must trust GitHub
+# Actions: orabenchmarks/benchme, publish.yml, no environment, npm publish
+# allowed. Authentication uses OIDC without a stored npm token. Apps are never
+# published.
 on:
   push:
     tags: ["v*"]
@@ -19,16 +19,21 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      NODE_AUTH_TOKEN: ""
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.version && format('v{0}', github.event.inputs.version) || github.ref }}
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, registry-url: "https://registry.npmjs.org" }
+      # Node 22 bundles npm 10; npm trusted publishing requires npm >=11.5.1.
+      - run: npm install --global npm@11
       - run: npm ci
       - run: npx tsc -b tsconfig.build.json
       - name: version every package from the tag
+        id: version
         # Plain package.json edits — `npm version -w` re-resolves the workspace
         # graph and looks the OLD @benchme/* versions up in the registry (404 on
         # a first publish), so the versions are written directly: every package
@@ -37,6 +42,9 @@ jobs:
           VERSION: ${{ github.event.inputs.version }}
         run: |
           set -euo pipefail
+          RELEASE_VERSION="${VERSION:-${GITHUB_REF_NAME#v}}"
+          [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Expected a release version x.y.z"; exit 1; }
+          echo "version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
           node -e '
             const fs=require("fs"); const V=process.argv[1];
             for (const p of ["core","scenarios","site-kit"]) {
@@ -44,19 +52,44 @@ jobs:
               j.version=V;
               for (const k of Object.keys(j.dependencies||{})) if (k.startsWith("@benchme/")) j.dependencies[k]=V;
               fs.writeFileSync(f, JSON.stringify(j,null,2)+"\n");
-            }' "${VERSION:-${GITHUB_REF_NAME#v}}"
+            }' "$RELEASE_VERSION"
           git diff --stat -- packages/*/package.json
       - name: publish (core → scenarios → site-kit)
-        if: env.NPM_TOKEN != ''
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           for p in core scenarios site-kit; do
             npm publish -w "packages/$p" --provenance --access public
           done
-      - name: not published — NPM_TOKEN is not configured
-        if: env.NPM_TOKEN == ''
+
+  smoke:
+    name: Install published packages from public npm
+    needs: publish
+    runs-on: ubuntu-latest
+    container: node:22-slim
+    permissions: {}
+    env:
+      VERSION: ${{ needs.publish.outputs.version }}
+    steps:
+      - name: Install and import all three packages without credentials or workspace files
+        shell: bash
         run: |
-          echo "::warning::NPM_TOKEN repository secret is missing — the @benchme packages were versioned and dry-run only. Add the secret and re-run this workflow (workflow_dispatch with the version) to publish."
-          for p in core scenarios site-kit; do npm publish --dry-run -w "packages/$p" --access public; done
+          set -euo pipefail
+          cd "$(mktemp -d)"
+          for attempt in {1..12}; do
+            if npm install --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org \
+              "@benchme/core@$VERSION" "@benchme/scenarios@$VERSION" "@benchme/site-kit@$VERSION"; then
+              break
+            fi
+            [[ "$attempt" -lt 12 ]] || exit 1
+            sleep 30
+          done
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { readFile } from 'node:fs/promises';
+          for (const name of ['core', 'scenarios', 'site-kit']) {
+            const manifest = JSON.parse(await readFile(`node_modules/@benchme/${name}/package.json`, 'utf8'));
+            assert.equal(manifest.version, process.env.VERSION);
+            await import(`@benchme/${name}`);
+            console.log(`Imported @benchme/${name}@${manifest.version} from public npm`);
+          }
+          JS
