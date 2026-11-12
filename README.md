@@ -681,6 +681,30 @@ helm install benchme oci://ghcr.io/orabenchmarks/charts/benchme --version X.Y.Z 
   --set ingress.host=benchme.example.test --set publicBaseUrl=http://benchme.example.test
 ```
 
+### Publishing the npm packages
+
+The `publish.yml` workflow publishes `@benchme/core`, `@benchme/scenarios`, and
+`@benchme/site-kit` on a `vX.Y.Z` tag, or when manually dispatched with an existing
+tag's version. Each package needs its own npm trusted publisher:
+
+| npm field | Value |
+| --- | --- |
+| Publisher | GitHub Actions |
+| Organization or user | `orabenchmarks` |
+| Repository | `benchme` |
+| Workflow filename | `publish.yml` |
+| Environment name | Leave blank |
+| Allowed actions | Enable `npm publish` |
+
+Publishing uses GitHub OIDC with an empty npm token and retains provenance.
+Missing or incorrect trust fails the release; it cannot silently become a dry
+run. A separate job installs and imports all three exact versions from public
+npm before the workflow succeeds. Keep any existing publishing token until the
+first token-free release passes. Newly saved publishers must be used within two
+days; configure them when a release is ready.
+
+See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
+
 ### GitOps deployments (ArgoCD and friends)
 
 Three chart inputs cannot travel through `helm template`:
