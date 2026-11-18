@@ -38,6 +38,19 @@ submitted artifact is ignored; a `json` task by its answer document.
   task is graded by submitting to this verifier after the agent is done.
 - **`intent-tasks.md`** records how every answer was derived. Read it before
   changing a task.
+
+## The webmcp-v1 corpus (`webmcp-*.json`)
+
+The same kind of tasks over a fresh `webmcp-v1` workspace at seed 4242: the
+nine sites from webmcp-tools (README § Sites from webmcp-tools) — hotels,
+flights, dining, pizza, cinema, sports, homes, clinic and events, six task
+kinds each, such as the only option that fits, none fits and the closest, a
+total with fees, a write, the cheapest write that fits, and changing or
+cancelling one of several. Its answer keys are `intent-<kind>-NN.json` files
+like the rest (no id is in both corpora); its public files are
+**`webmcp-tasks.json`**, **`webmcp-corpus.json`** and **`webmcp-tasks.md`**, the
+twins of the three above. `node tools/intent-corpus.mjs` writes both corpora,
+and `node tools/intent-integrity.mjs --scenario webmcp-v1` proves this one.
 - **`tools/intent-corpus.mjs` regenerates all of them.** The first ten tasks
   are `tools/intent-corpus/original.mjs`; every other kind is a TEMPLATE in
   `tools/intent-corpus/templates/` (the contract is in its `index.mjs`),

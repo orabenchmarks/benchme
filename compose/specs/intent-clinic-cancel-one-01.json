@@ -1,0 +1,41 @@
+{
+  "id": "intent-clinic-cancel-one-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "AP-30032-booked",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30032",
+        "expect": {
+          "status": "booked"
+        }
+      },
+      {
+        "name": "AP-30117-booked",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30117",
+        "expect": {
+          "status": "booked"
+        }
+      },
+      {
+        "name": "AP-30156-booked",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30156",
+        "expect": {
+          "status": "booked"
+        }
+      },
+      {
+        "name": "AP-30157-cancelled",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30157",
+        "expect": {
+          "status": "cancelled"
+        }
+      }
+    ]
+  }
+}

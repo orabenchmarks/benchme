@@ -1,0 +1,57 @@
+{
+  "id": "intent-flight-cancel-return-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "BK-10020-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10020",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10069-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10069",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10070-cancelled",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10070",
+        "expect": {
+          "status": "cancelled"
+        }
+      },
+      {
+        "name": "BK-10088-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10088",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10142-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10142",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10150-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10150",
+        "expect": {
+          "status": "confirmed"
+        }
+      }
+    ]
+  }
+}

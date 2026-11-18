@@ -1,0 +1,73 @@
+{
+  "id": "intent-clinic-cancel-one-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "AP-30009-booked",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30009",
+        "expect": {
+          "status": "booked"
+        }
+      },
+      {
+        "name": "AP-30010-cancelled",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30010",
+        "expect": {
+          "status": "cancelled"
+        }
+      },
+      {
+        "name": "AP-30023-booked",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30023",
+        "expect": {
+          "status": "booked"
+        }
+      },
+      {
+        "name": "AP-30047-booked",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30047",
+        "expect": {
+          "status": "booked"
+        }
+      },
+      {
+        "name": "AP-30067-booked",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30067",
+        "expect": {
+          "status": "booked"
+        }
+      },
+      {
+        "name": "AP-30068-booked",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30068",
+        "expect": {
+          "status": "booked"
+        }
+      },
+      {
+        "name": "AP-30075-booked",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30075",
+        "expect": {
+          "status": "booked"
+        }
+      },
+      {
+        "name": "AP-30076-booked",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30076",
+        "expect": {
+          "status": "booked"
+        }
+      }
+    ]
+  }
+}

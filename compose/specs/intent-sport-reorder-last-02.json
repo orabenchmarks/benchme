@@ -1,0 +1,61 @@
+{
+  "id": "intent-sport-reorder-last-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "line-SP-111-BLU-S",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=sable.kowalczyk%40example.org&status=processing",
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "lines": {
+            "sku": "SP-111-BLU-S",
+            "qty": 1
+          }
+        }
+      },
+      {
+        "name": "line-SP-101-BLK-43",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=sable.kowalczyk%40example.org&status=processing",
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "lines": {
+            "sku": "SP-101-BLK-43",
+            "qty": 2
+          }
+        }
+      },
+      {
+        "name": "same-address",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=sable.kowalczyk%40example.org&status=processing",
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "addressCode": "AD-1015",
+          "lineCount": 2
+        }
+      }
+    ]
+  }
+}

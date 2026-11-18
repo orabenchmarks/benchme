@@ -1,0 +1,10 @@
+{
+  "id": "intent-flight-only-match-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "flight": "TF132"
+    }
+  }
+}

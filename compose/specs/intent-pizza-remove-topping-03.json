@@ -1,0 +1,34 @@
+{
+  "id": "intent-pizza-remove-topping-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "PO-10059-line-1",
+        "app": "pizza",
+        "path": "/api/v1/orders/PO-10059",
+        "expect": {
+          "status": "received",
+          "totalCents": 1380,
+          "lines": {
+            "line": 1,
+            "toppingsKey": "feta"
+          }
+        }
+      },
+      {
+        "name": "PO-10105-line-1",
+        "app": "pizza",
+        "path": "/api/v1/orders/PO-10105",
+        "expect": {
+          "status": "received",
+          "lines": {
+            "line": 1,
+            "toppingsKey": "artichoke,feta"
+          }
+        }
+      }
+    ]
+  }
+}

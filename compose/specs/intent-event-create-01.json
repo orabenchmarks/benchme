@@ -1,0 +1,73 @@
+{
+  "id": "intent-event-create-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "created",
+        "app": "events",
+        "path": "/api/v1/events?organiser=lior.ferrante%40staff.example&date=2027-10-01",
+        "where": {
+          "startTime": "11:00",
+          "status": "scheduled"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "title": "Launch rehearsal",
+          "description": "rehearse the launch talk",
+          "roomCode": "KAR-R5",
+          "endTime": "13:00",
+          "registration": "open",
+          "guestCount": 3,
+          "places": 8
+        }
+      },
+      {
+        "name": "guest-quill.mbeki@staff.example",
+        "app": "events",
+        "path": "/api/v1/events?organiser=lior.ferrante%40staff.example&date=2027-10-01",
+        "where": {
+          "startTime": "11:00",
+          "status": "scheduled"
+        },
+        "expect": {
+          "guests": {
+            "email": "quill.mbeki@staff.example"
+          }
+        }
+      },
+      {
+        "name": "guest-sable.halvard@staff.example",
+        "app": "events",
+        "path": "/api/v1/events?organiser=lior.ferrante%40staff.example&date=2027-10-01",
+        "where": {
+          "startTime": "11:00",
+          "status": "scheduled"
+        },
+        "expect": {
+          "guests": {
+            "email": "sable.halvard@staff.example"
+          }
+        }
+      },
+      {
+        "name": "guest-noor.lindqvist@partner.example",
+        "app": "events",
+        "path": "/api/v1/events?organiser=lior.ferrante%40staff.example&date=2027-10-01",
+        "where": {
+          "startTime": "11:00",
+          "status": "scheduled"
+        },
+        "expect": {
+          "guests": {
+            "email": "noor.lindqvist@partner.example"
+          }
+        }
+      }
+    ]
+  }
+}

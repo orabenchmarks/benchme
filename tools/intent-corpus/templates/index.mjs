@@ -25,9 +25,40 @@
  * reads a json task's answer back from the LIVE apps. Neither ships in the
  * corpus: tools/intent-integrity.mjs runs them to prove every oracle bites.
  */
+import { cinemaTemplates } from "./cinema.mjs";
+import { clinicTemplates } from "./clinic.mjs";
 import { companyTemplates } from "./company.mjs";
+import { diningTemplates } from "./dining.mjs";
+import { eventsTemplates } from "./events.mjs";
+import { flightsTemplates } from "./flights.mjs";
 import { helpdeskTemplates } from "./helpdesk.mjs";
+import { homesTemplates } from "./homes.mjs";
+import { hotelTemplates } from "./hotels.mjs";
+import { pizzaTemplates } from "./pizza.mjs";
+import { sportsTemplates } from "./sports.mjs";
 import { vaultTemplates } from "./vault.mjs";
 import { warehouseTemplates } from "./warehouse.mjs";
 
-export const TEMPLATES = [...warehouseTemplates, ...helpdeskTemplates, ...vaultTemplates, ...companyTemplates];
+/**
+ * The templates of each scenario's corpus, by scenario key (tools/intent-corpus/corpus.mjs builds one corpus per
+ * entry). Within a list, append new templates LAST: claims are shared, so a template placed earlier could take rows a
+ * later one already picked.
+ */
+export const TEMPLATES_BY_SCENARIO = {
+  "acme-v1": [...warehouseTemplates, ...helpdeskTemplates, ...vaultTemplates, ...companyTemplates],
+  // The sites from webmcp-tools (README § Sites from webmcp-tools). Each claims only keys of its own, so their order moves no pick.
+  "webmcp-v1": [
+    ...hotelTemplates,
+    ...flightsTemplates,
+    ...diningTemplates,
+    ...pizzaTemplates,
+    ...cinemaTemplates,
+    ...sportsTemplates,
+    ...homesTemplates,
+    ...clinicTemplates,
+    ...eventsTemplates,
+  ],
+};
+
+/** acme-v1's, as before there was more than one corpus. */
+export const TEMPLATES = TEMPLATES_BY_SCENARIO["acme-v1"];

@@ -1,0 +1,10 @@
+{
+  "id": "intent-pizza-cheapest-menu-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "pizza": "PZ-111"
+    }
+  }
+}

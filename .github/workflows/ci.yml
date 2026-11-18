@@ -51,6 +51,8 @@ jobs:
       - run: docker compose -f compose.yaml -f compose.build.yaml up -d --build --wait
         env: { RUNNER_KIND: none }
       - run: node tools/intent-integrity.mjs --base http://localhost:8080
+      # The sites from webmcp-tools: their own scenario and corpus (webmcp-tasks.json).
+      - run: node tools/intent-integrity.mjs --base http://localhost:8080 --scenario webmcp-v1
       # Cards from the wallet stand-in, as agents get theirs: the fixture that pays above its approval runs too.
       - run: node tools/checkout-integrity.mjs --base http://localhost:8080 --fixtures --wallet --suffix-key benchme-local-suffix-key-change-me
       # No Link: every card is the saved card the wallet's card-on-file door shows the run, each read recorded.

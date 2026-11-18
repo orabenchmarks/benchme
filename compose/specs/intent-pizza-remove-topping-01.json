@@ -1,0 +1,46 @@
+{
+  "id": "intent-pizza-remove-topping-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "PO-10136-line-1",
+        "app": "pizza",
+        "path": "/api/v1/orders/PO-10136",
+        "expect": {
+          "status": "received",
+          "totalCents": 1740,
+          "lines": {
+            "line": 1,
+            "toppingsKey": "anchovy,red-onion"
+          }
+        }
+      },
+      {
+        "name": "PO-10100-line-1",
+        "app": "pizza",
+        "path": "/api/v1/orders/PO-10100",
+        "expect": {
+          "status": "received",
+          "lines": {
+            "line": 1,
+            "toppingsKey": "anchovy,meatball,red-onion"
+          }
+        }
+      },
+      {
+        "name": "PO-10135-line-1",
+        "app": "pizza",
+        "path": "/api/v1/orders/PO-10135",
+        "expect": {
+          "status": "received",
+          "lines": {
+            "line": 1,
+            "toppingsKey": "anchovy,meatball,red-onion"
+          }
+        }
+      }
+    ]
+  }
+}

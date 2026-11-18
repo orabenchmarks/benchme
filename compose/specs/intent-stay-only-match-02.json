@@ -1,0 +1,10 @@
+{
+  "id": "intent-stay-only-match-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "hotel": "HT-125"
+    }
+  }
+}

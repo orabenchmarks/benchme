@@ -1,0 +1,31 @@
+{
+  "id": "intent-cinema-book-row-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked-row",
+        "app": "cinema",
+        "path": "/api/v1/bookings?customerEmail=florentyna.ashdown%40film.example",
+        "where": {
+          "showtimeCode": "ST-2091",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "seats": "D1,D2,D3,D4",
+          "ticketCounts": {
+            "adult": 0,
+            "child": 2,
+            "senior": 1,
+            "student": 1
+          }
+        }
+      }
+    ]
+  }
+}

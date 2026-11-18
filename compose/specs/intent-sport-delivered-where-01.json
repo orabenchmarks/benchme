@@ -1,0 +1,11 @@
+{
+  "id": "intent-sport-delivered-where-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "deliveredOn": "2027-01-21",
+      "city": "Velmora"
+    }
+  }
+}

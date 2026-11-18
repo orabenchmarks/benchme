@@ -1,0 +1,36 @@
+{
+  "id": "intent-pizza-custom-order-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ordered-as-built",
+        "app": "pizza",
+        "path": "/api/v1/orders?customerEmail=aurelio.ashdown%40order.example",
+        "where": {
+          "branchCode": "BR-104",
+          "slotDate": "2027-10-20",
+          "slotTime": "13:00",
+          "status": "received"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "fulfilment": "pickup",
+          "lineCount": 1,
+          "lines": {
+            "size": "large",
+            "crust": "thin",
+            "sauce": "tomato",
+            "cheese": "cashew",
+            "toppingsKey": "black-olive,mushroom,pineapple,walnut",
+            "quantity": 1
+          }
+        }
+      }
+    ]
+  }
+}

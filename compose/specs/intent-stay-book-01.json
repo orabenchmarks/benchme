@@ -1,0 +1,30 @@
+{
+  "id": "intent-stay-book-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked",
+        "app": "hotels",
+        "path": "/api/v1/bookings?guestEmail=emeric.fairweather%40travel.example",
+        "where": {
+          "roomCode": "HT-123-DBL",
+          "checkIn": "2027-05-17",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "nights": 3,
+          "adults": 1,
+          "kids": 1,
+          "pets": 0,
+          "lateCheckout": false
+        }
+      }
+    ]
+  }
+}

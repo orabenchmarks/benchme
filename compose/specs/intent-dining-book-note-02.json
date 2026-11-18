@@ -1,0 +1,29 @@
+{
+  "id": "intent-dining-book-note-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "reserved-with-note",
+        "app": "dining",
+        "path": "/api/v1/reservations?guestEmail=benedikt.everleigh%40table.example",
+        "where": {
+          "restaurantCode": "RS-120",
+          "date": "2027-04-22",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "area": "indoor",
+          "time": "18:00",
+          "partySize": 3,
+          "note": "Please seat us together, we may arrive separately"
+        }
+      }
+    ]
+  }
+}

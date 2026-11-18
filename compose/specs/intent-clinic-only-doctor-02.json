@@ -1,0 +1,10 @@
+{
+  "id": "intent-clinic-only-doctor-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "doctor": "DR-203"
+    }
+  }
+}

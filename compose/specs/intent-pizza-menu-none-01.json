@@ -1,0 +1,11 @@
+{
+  "id": "intent-pizza-menu-none-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "exists": false,
+      "closest": "PZ-106"
+    }
+  }
+}

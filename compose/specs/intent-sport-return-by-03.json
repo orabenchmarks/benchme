@@ -1,0 +1,10 @@
+{
+  "id": "intent-sport-return-by-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "lastDay": "2027-06-22"
+    }
+  }
+}

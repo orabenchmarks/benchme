@@ -1,7 +1,7 @@
 /**
  * Runs the template registry over seeded rows.
  *
- *   deriveTemplated(rows, { seed, scale, claimed, taken }) → { problems, specs, tasks, md, solutions, answers }
+ *   deriveTemplated(rows, { seed, scale, claimed, taken, templates }) → { problems, specs, tasks, md, solutions, answers }
  *
  * Each template walks its candidates in its OWN seeded order (streamFor), so
  * the corpus is a pure function of (seed, scale), and a template appended to
@@ -33,12 +33,12 @@ function nextId(stem, taken) {
   }
 }
 
-export function deriveTemplated(rows, { seed, scale = 1, claimed = [], taken = [] }) {
+export function deriveTemplated(rows, { seed, scale = 1, claimed = [], taken = [], templates = TEMPLATES }) {
   const ctx = contextOf(rows);
   const claims = new Set(claimed);
   const ids = new Set(taken);
   const out = { problems: [], specs: [], tasks: [], solutions: {}, answers: {}, sections: [] };
-  for (const template of TEMPLATES) {
+  for (const template of templates) {
     const want = Math.max(1, Math.round(template.count * scale));
     const rng = streamFor(seed, template.key);
     const notes = [];

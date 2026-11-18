@@ -14,6 +14,15 @@ POST /api/workspaces        {"scenario":"acme-v1","seed":4242}   → urls for ev
 /w/<id>/warehouse/          products, stock, orders, transfers (UI · /api/v1 · /mcp)
 /w/<id>/helpdesk/           tickets, comments, SLAs (UI · /api/v1 · /mcp)
 /w/<id>/vaultdocs/          the document vault (UI · /api/v1 · /mcp with resources + prompts)
+/w/<id>/hotels/             Larchmere Stays, a hotel booking site (webmcp-v1; UI · /api/v1 · /mcp)
+/w/<id>/flights/            Tallowmere Flights, flight search and booking (webmcp-v1; UI · /api/v1 · /mcp)
+/w/<id>/dining/             Thistlecombe Tables, restaurant table reservations (webmcp-v1; UI · /api/v1 · /mcp)
+/w/<id>/pizza/              Marlivo Pizza, pizza ordering with a builder (webmcp-v1; UI · /api/v1 · /mcp)
+/w/<id>/cinema/             Orrowen Cinemas, cinema seats and tickets (webmcp-v1; UI · /api/v1 · /mcp)
+/w/<id>/sports/             Brackenford Sports, a store's orders, tracking, returns and reorders (webmcp-v1; UI · /api/v1 · /mcp)
+/w/<id>/homes/              Corvane Homes, home listings and viewing appointments (webmcp-v1; UI · /api/v1 · /mcp)
+/w/<id>/clinic/             Calvenor Clinics, doctors, appointments, coverage, prescription prices (administrative only) (webmcp-v1; UI · /api/v1 · /mcp)
+/w/<id>/events/             Fennick Events, office events, room booking, invitations, registration (webmcp-v1; UI · /api/v1 · /mcp)
 /w/<id>/verify/v1/submit/<taskId>   POST an artifact → verdict + receipt
 /w/<id>/mail/               the workspace inbox (verification codes land here)
 /data/                      the company site (static, generated from the seed)
@@ -27,12 +36,21 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | path | what |
 | --- | --- |
 | `packages/core` | config, http (healthz/readyz), ids, receipts (HMAC), pg + migrations, redis, the workspace model |
-| `packages/scenarios` | seeded generators (`acme-v1`) and the derived ground truths |
+| `packages/scenarios` | seeded generators (`acme-v1`, `shops-v1`, `guide-v1`, `web-v1`, `webmcp-v1`) and the derived ground truths |
 | `apps/gateway` | workspace API, signed reverse proxy, portal + MCP registry, reaper |
 | `packages/site-kit` | what every site shares: the gateway-scope hook, signup/verify/login + sessions + api tokens, the MCP server plumbing, the page shell |
 | `apps/warehouse` | products, stock, orders, transfers: SSR UI, REST v1, a 14-tool MCP server, NLWeb `/ask`, WebMCP |
 | `apps/helpdesk` | tickets, comments, SLAs, assignment: SSR UI, REST v1, an 11-tool MCP server (with a destructive `delete_ticket`), NLWeb `/ask`, WebMCP |
 | `apps/vaultdocs` | ~40 seeded documents as MCP **resources** (`docs://<id>`), `search`/`get_document`/`list_documents` tools, two MCP **prompts**; full-text search UI + REST, NLWeb `/ask`, WebMCP |
+| `apps/hotels` | **Larchmere Stays**, a hotel booking site: ~30 hotels in six cities (the depots' among them), room types with limited rooms, bookings; search by city, dates, party, price and amenities; book and cancel. SSR UI, REST v1, a 9-tool MCP server, WebMCP (see [Hotels](#hotels)) |
+| `apps/flights` | **Tallowmere Flights**: flight search and booking. SSR UI, REST v1, an MCP server, WebMCP (see [Flights](#flights)) |
+| `apps/dining` | **Thistlecombe Tables**: restaurant table reservations. SSR UI, REST v1, an MCP server, WebMCP (see [Restaurants](#restaurants)) |
+| `apps/pizza` | **Marlivo Pizza**: pizza ordering with a builder. SSR UI, REST v1, an MCP server, WebMCP (see [Pizza](#pizza)) |
+| `apps/cinema` | **Orrowen Cinemas**: cinema seats and tickets. SSR UI, REST v1, an MCP server, WebMCP (see [Cinema](#cinema)) |
+| `apps/sports` | **Brackenford Sports**: a store's orders, tracking, returns and reorders. SSR UI, REST v1, an MCP server, WebMCP (see [Sports retailer](#sports-retailer)) |
+| `apps/homes` | **Corvane Homes**: home listings and viewing appointments. SSR UI, REST v1, an MCP server, WebMCP (see [Homes](#homes)) |
+| `apps/clinic` | **Calvenor Clinics**: doctors, appointments, coverage, prescription prices (administrative only). SSR UI, REST v1, an MCP server, WebMCP (see [Clinics](#clinics)) |
+| `apps/events` | **Fennick Events**: office events, room booking, invitations, registration. SSR UI, REST v1, an MCP server, WebMCP (see [Events](#events)) |
 | `apps/verify` | the verifier: json / xlsx / docx / patch / **state** oracles (state reads the app's own REST API after the fact — end state is the evidence, the artifact is ignored), HMAC receipts, attempt log, isolated Kubernetes Job runner; the intent corpus it ships with (generated tasks across the warehouse, helpdesk, vault and company site) is described in [`compose/specs/README.md`](compose/specs/README.md) |
 | `apps/mail` | per-workspace inbox with an internal delivery endpoint |
 | `apps/data` | the generated company site |
@@ -277,6 +295,652 @@ card, an approval for less (declined, then a new approval pays), a card paid
 twice (declined), and a fallback request claimed by its payment or declined
 above its amount.
 
+## Sites from webmcp-tools
+
+Nine sites, the `webmcp-v1` scenario, are shaped on
+[GoogleChromeLabs/webmcp-tools](https://github.com/GoogleChromeLabs/webmcp-tools)
+(Apache-2.0): its demo sites and eval suites that model a business an agent
+uses on someone's behalf. No code or data is copied from it. Each site
+generates its own seeded rows, with invented names, from a random stream of
+its own (`substream(seed, "<app>")`), so adding the sites changed no earlier
+row and no earlier task's answer key. Each has SSR pages, REST `/api/v1`, an
+MCP server and WebMCP (no NLWeb `/ask`), and writes need a session or an api
+token. Each site's rules are pure functions in `packages/scenarios`
+(`stays.ts` for hotels, `sites/<app>/rules.ts` for the others): the site
+applies them on every write, and the intent corpus derives its answer keys
+with them. Each site has six task kinds, three tasks each: 162 tasks, the
+`webmcp-v1` corpus.
+
+```
+POST /api/workspaces        {"scenario":"webmcp-v1","seed":4242}   → urls for the nine sites and the inbox
+/w/<id>/hotels/  /w/<id>/flights/  /w/<id>/dining/  /w/<id>/pizza/  /w/<id>/cinema/
+/w/<id>/sports/  /w/<id>/homes/    /w/<id>/clinic/  /w/<id>/events/  /w/<id>/mail/
+```
+
+The gateway lists the nine in `UNLISTED_APPS`, so only `webmcp-v1`'s
+workspaces advertise them; a workspace of any other scenario seeds them empty.
+The `webmcp-v1` corpus is written beside acme-v1's, with its own public files
+(`compose/specs/webmcp-tasks.json`, `webmcp-corpus.json`, `webmcp-tasks.md`;
+its answer keys are `intent-<kind>-NN.json` like every other), and
+`node tools/intent-integrity.mjs --scenario webmcp-v1` proves it against a
+live benchme.
+Those suites grade the tool calls an agent makes; these tasks grade the answer
+or the site's end state, so any door can be used.
+
+| app | site | what | shaped on |
+| --- | --- | --- | --- |
+| `hotels` | [Larchmere Stays](#hotels) | hotel search and booking | `demos/hotel-chain` |
+| `flights` | [Tallowmere Flights](#flights) | flight search and booking | `demos/react-flightsearch`, the travel eval suite |
+| `dining` | [Thistlecombe Tables](#restaurants) | restaurant table reservations | `demos/french-bistro` |
+| `pizza` | [Marlivo Pizza](#pizza) | pizza ordering with a builder | `demos/pizza-maker` |
+| `cinema` | [Orrowen Cinemas](#cinema) | cinema seats and tickets | `demos/ticket-booking` |
+| `sports` | [Brackenford Sports](#sports-retailer) | a store's orders, tracking, returns and reorders | `demos/sport-shop-angular`, `leather-bag`, `order-tracking`, `coffee-shop`, the commerce eval suites |
+| `homes` | [Corvane Homes](#homes) | home listings and viewing appointments | `demos/real-estate-map`, the real-estate eval suite |
+| `clinic` | [Calvenor Clinics](#clinics) | doctors, appointments, coverage, prescription prices (administrative only) | the healthcare eval suite (no demo site) |
+| `events` | [Fennick Events](#events) | office events, room booking, invitations, registration | the events eval suite (no demo site) |
+
+Left out of the repo: its games (`doors`, `webmcp-maze`, `proxx-lite`), office
+and creative tools (`spreadsheet`, `pixel-art-studio`), dashboards
+(`smart-home`, `analytics-dashboard`) and the demos about WebMCP itself
+(`explainer`, `page-agent`).
+
+### Hotels
+
+`apps/hotels` is **Larchmere Stays**, a hotel booking site in the `webmcp-v1`
+scenario. Its rows come from
+`packages/scenarios/src/sites/hotels/generate.ts`, drawn from a random stream of
+their own (`substream(seed, "hotels")`), so adding the site changed no
+warehouse, helpdesk or vault row, and no existing task's answer key.
+
+- **Hotels:** 4–6 in each of six cities, every depot's city among them. Each has a
+  rating, amenities (`wifi` everywhere; `gym`, `breakfast`, `spa`, `pool`,
+  `free parking`, `washer`, `restaurant`, `airport shuttle`), a pet policy
+  with a fee per stay, and late checkout with a latest time and a fee, or none.
+- **Room types:** 2–3 per hotel (single, double, king, family suite), each with
+  a capacity in adults and children, a nightly price and 1–4 rooms.
+- **Bookings:** ~170 seeded stays between March and June 2027, some
+  cancelled. Some room types are booked out on purpose for a few nights.
+
+**The rules** are pure functions in `packages/scenarios/src/stays.ts`
+(`stayProblem`, `searchStays`, `stayTotalCents`). The site applies them on
+every write, inside the transaction that books the room. The intent corpus
+derives its answer keys with the same functions. Check-in dates are in 2027,
+not counted from today, so a seed means the same stays forever. A stay is 1
+to 14 nights. The party must fit the room. Pets need a hotel that allows
+them, and late checkout a hotel that offers it. A room type must have a room
+free on every night. A total is nights × the nightly price, plus the pet fee
+once per stay, plus the late-checkout fee.
+
+| door | reads | writes (signed in, or `Authorization: Bearer htl_…`) |
+| --- | --- | --- |
+| REST `/api/v1` | `cities`, `hotels?city&amenities&pets`, `hotels/<code>`, `search?city&checkIn&nights&adults&kids&pets&maxPrice&amenities`, `rooms/<code>/availability?checkIn&nights`, `bookings?guestEmail&hotel&status`, `bookings/<no>` | `POST bookings`, `POST bookings/<no>/cancel` |
+| MCP and WebMCP | `list_cities`, `list_hotels`, `get_hotel`, `search_stays`, `check_availability`, `list_bookings`, `get_booking` | `create_booking`, `cancel_booking` |
+| pages | search, results, hotel (with availability for given dates), bookings | book from a hotel page, cancel from a booking page |
+
+Search input money is dollars per night (`maxPrice`); every amount the site
+returns is cents (`nightlyCents`, `totalCents`), as in the warehouse. The site
+has no NLWeb `/ask`.
+
+**Tasks.** `tools/intent-corpus/templates/hotels.mjs` adds six task kinds,
+shaped on the hotel journeys in GoogleChromeLabs/webmcp-tools'
+[webmcp-evals](https://github.com/GoogleChromeLabs/webmcp-tools/tree/main/webmcp-evals)
+(Apache-2.0; no code or data is copied from it). Those suites grade the tool
+calls an agent makes; these grade the answer or the site's end state, so any
+door can be used. The six kinds: name the only hotel that fits every
+requirement, say that none fits and name the closest, price a stay, book a
+named room, book the cheapest room that fits, and cancel one booking out of a
+guest's several. The search tasks are built around a room that would fit if it
+were not booked out, so an agent has to check availability as well as prices.
+
+### Flights
+
+`apps/flights` is **Tallowmere Flights**, a flight search and booking site in
+the `webmcp-v1` scenario: it sells the flights of several carriers between the
+company's cities. Its rows come from
+`packages/scenarios/src/sites/flights/generate.ts`, drawn from a random stream
+of their own (`substream(seed, "flights")`), so adding the site changed no
+other site's row and no existing task's answer key.
+
+- **Airports:** one in each of the six cities, and two hubs that one-stop
+  flights stop at. No flight starts or ends at a hub. A search takes an
+  airport code or a city name.
+- **Carriers:** four, each with a checked-bag fee (per bag, per passenger) and
+  a limit of 1 to 3 checked bags per passenger.
+- **Flights:** 2 to 4 each way between every pair of cities (about 90),
+  nonstop or with one stop at a hub, with a departure time, an arrival time
+  (some the next day) and a duration. Every flight runs daily from 2027-03-01
+  to 2027-06-30.
+- **Cabins:** economy on every flight, premium and business on some, each with
+  a fare per passenger and the seats the site sells on each departure
+  (economy 5–9, premium and business 2–4).
+- **Bookings:** about 150, all departing in March or April 2027, some
+  cancelled, some round trips (the same party out and back, two bookings).
+  Some cabins are sold out on some dates on purpose, and some have one or two
+  seats left. May and June have no seeded booking.
+
+**The rules** are pure functions in
+`packages/scenarios/src/sites/flights/rules.ts` (`flightBookingProblem`,
+`searchFlights`, `flightTotalCents`, `flightSeatsLeft`). The site applies them
+on every write, inside the transaction that books the seats. The intent
+corpus derives its answer keys with the same functions. Departure dates are
+2027-03-01 to 2027-06-30, not counted from today, so a seed means the same
+flights forever. The flight must sell the cabin asked. A booking is one
+flight on one date for 1 to 9 named passengers, each with the same number of
+checked bags, up to the carrier's limit. The cabin must have a seat for every
+passenger on that date: a sold-out cabin is 409 `SOLD_OUT`, too few seats is
+409 `NOT_ENOUGH_SEATS`; other refusals are 422. A total is passengers × the
+fare + passengers × bags × the carrier's bag fee. A round trip is two
+bookings.
+
+| door | reads | writes (signed in, or `Authorization: Bearer flt_…`) |
+| --- | --- | --- |
+| REST `/api/v1` | `airports`, `carriers`, `flights?origin&destination&carrier`, `flights/<no>`, `flights/<no>/seats?date`, `search?origin&destination&date&returnDate&tripType&passengers&cabin&maxStops&carriers&maxPrice&departAfter&departBefore`, `bookings?contactEmail&flightNo&date&status`, `bookings/<no>` | `POST bookings`, `POST bookings/<no>/cancel` |
+| MCP and WebMCP | `list_airports`, `list_carriers`, `list_flights`, `get_flight`, `check_seats`, `search_flights`, `list_bookings`, `get_booking` | `create_booking`, `cancel_booking` |
+| pages | search (one way or round trip, with filters), results (with a clear-filters link), schedule, flight (with seats left on a date), bookings | book from a flight page, cancel from a booking page |
+
+A search returns `{tripType, outbound, inbound}`: the flights with a seat in
+the cabin for every passenger, cheapest first, and the same for the return
+date when one is given. Its filters are `maxStops` (0 for nonstop only),
+`carriers` (codes), `maxPrice` (dollars per passenger) and
+`departAfter`/`departBefore` (`HH:MM`, inclusive). Every amount the site
+returns is cents (`priceCents`, `totalCents`); a search's `totalCents` is the
+fares only, without bags. The site has no NLWeb `/ask`.
+
+**Tasks.** `tools/intent-corpus/templates/flights.mjs` adds six task kinds:
+name the only flight that meets every filter, say that none does and name the
+closest, price a booking with checked bags, book a round trip on two named
+flights, book the cheapest flight with seats for the whole party, and cancel
+the return flight of a traveller's round trip. The search tasks are built
+around a flight that would meet every filter if its cabin had a seat for each
+passenger, so an agent has to check seats as well as fares. They are shaped on
+the flight search demo in GoogleChromeLabs/webmcp-tools
+([`demos/react-flightsearch`](https://github.com/GoogleChromeLabs/webmcp-tools/tree/main/demos/react-flightsearch)
+and the travel suite of its webmcp-evals; Apache-2.0; no code or data is
+copied from them), which grade the tool calls an agent makes; these grade the
+answer or the site's end state, so any door can be used.
+
+### Restaurants
+
+`apps/dining` is **Thistlecombe Tables**, a restaurant reservation site in the
+`webmcp-v1` scenario. Its rows come from
+`packages/scenarios/src/sites/dining/generate.ts`, drawn from a random stream
+of their own (`substream(seed, "dining")`), so adding the site changed no
+other site's row and no existing task's answer key.
+
+- **Restaurants:** 4–6 in each of the six cities. Each has a cuisine, a price
+  level from 1 to 4, dietary menus (`vegetarian`, `vegan`, `gluten-free`, any
+  or none), opening hours per weekday with one closed day (never Friday or
+  Saturday), a deposit per guest (often none), and a private-room fee where it
+  has a private room.
+- **Seating:** per restaurant and area (`indoor` always; `terrace`, `bar`,
+  `private` sometimes), a number of tables and the guests each seats. A private
+  room is one table for 8, 10 or 12.
+- **Reservations:** ~200 seeded between April and May 2027, some cancelled,
+  each with a guest name, email and phone, a party size, an area, a seating
+  time and a special request (often empty). Some areas are fully booked at some
+  times on purpose. Most guests have several reservations.
+
+**The rules** are pure functions in `packages/scenarios/src/sites/dining/rules.ts`
+(`diningReservationProblem`, `diningSearch`, `diningAvailability`,
+`diningDepositCents`). The site applies them on every write, inside the
+transaction that takes the table. The intent corpus derives its answer keys
+with the same functions. Dates are in 2027, not counted from today. A seating
+time is on the hour or the half hour, and a reservation holds one table of its
+area for 2 hours from it, so the last seating is 2 hours before closing. The
+restaurant must be open that weekday, have seating in the area, and have tables
+that seat the party; a party is 1 to 12. A table of the area must be free for
+the whole 2 hours. A deposit is the party × the deposit per guest, plus the
+private-room fee for the private room. A change of date, time, party, area or
+special request is checked against the same rules, the reservation's own table
+not counted against it.
+
+| door | reads | writes (signed in, or `Authorization: Bearer dnr_…`) |
+| --- | --- | --- |
+| REST `/api/v1` | `cities`, `restaurants?city&cuisine&menus&area`, `restaurants/<code>`, `restaurants/<code>/availability?date&partySize`, `search?city&date&time&partySize&area&cuisine&menus&maxPriceLevel`, `reservations?guestEmail&restaurant&date&status`, `reservations/<no>` | `POST reservations`, `POST reservations/<no>/change`, `POST reservations/<no>/cancel` |
+| MCP and WebMCP | `list_cities`, `list_restaurants`, `get_restaurant`, `search_tables`, `check_availability`, `list_reservations`, `get_reservation` | `create_reservation`, `change_reservation`, `cancel_reservation` |
+| pages | search, results, restaurant (hours, seating, free tables for a date and party), reservations | reserve from a restaurant page, change or cancel from a reservation page |
+
+Every amount the site returns is cents (`depositPerGuestCents`,
+`privateRoomFeeCents`, `depositCents`). A malformed value (not a date, not
+HH:MM, an unknown area) answers 400; a request the rules refuse answers 422,
+and a full area 409 (`FULL`). The site has no NLWeb `/ask`.
+
+**Tasks.** `tools/intent-corpus/templates/dining.mjs` adds six task kinds:
+name the only restaurant with a free table in an area that offers a dietary
+menu (and sometimes is within a price level), say that none has one and name
+the first later time that day when one does, the deposit for a private room,
+book a table with a special request entered word for word, book the earliest
+free time from a given one, and change the party size of one reservation out
+of a guest's several. The search tasks are built around an area that would fit
+if its tables were not all taken, so an agent has to check the tables as well
+as the menus and hours.
+
+The site is shaped on the `french-bistro` demo in GoogleChromeLabs/webmcp-tools
+and its webmcp-evals (Apache-2.0; no code or data is copied from it).
+
+### Pizza
+
+`apps/pizza` is **Marlivo Pizza**, a pizza ordering site with a pizza builder
+in the `webmcp-v1` scenario. Its rows come from
+`packages/scenarios/src/sites/pizza/generate.ts`, drawn from a random stream
+of their own (`substream(seed, "pizza")`), so adding the site changed no
+other app's rows and no existing task's answer key.
+
+- **Branches:** two in each of six cities. Each has an address, a number of
+  pizzas it makes per 30-minute slot (4–8), and either delivery with a fee and
+  a free-delivery threshold, or pickup only (three branches).
+- **Builder options:** four sizes (small, medium, large, extra large), each
+  with the number of people it serves and the price of a plain pizza; four
+  crusts (classic, thin, cheese-stuffed from medium up, gluten-free in small and
+  medium only), four sauces (or none), three cheeses (or none), and 19 toppings with a price per size
+  and diet tags (vegetarian, vegan; contains gluten, dairy, nuts or fish).
+- **Menu:** 14 named pizzas, each a base configuration (crust, sauce, cheese,
+  toppings).
+- **Stock:** each branch is out of 0–2 toppings, and a few branches are out of
+  a topping of the cheapest pizza under a common diet filter on purpose. A menu
+  pizza with a topping a branch is out of cannot be ordered there.
+- **Orders:** ~140 seeded orders between 3 and 23 May 2027 (lines of a menu
+  pizza or a built one, with a quantity), statuses `received`, `preparing`,
+  `out_for_delivery`, `delivered` and `cancelled`. Some slots are full on
+  purpose, and the slot after each such run has room for one pizza only. A few
+  customers have the same pizza in several received orders.
+
+**The rules** are pure functions in `packages/scenarios/src/sites/pizza/rules.ts`
+(`pizzaPlaceOrder`, `pizzaChangeLine`, `pizzaQuote`, `pizzaMenuSearch`,
+`pizzaSlots`). The site applies them on every write, inside the transaction
+that takes the slot. The intent corpus derives its answer keys with the same
+functions. Slot dates are in 2027, not counted from today, and slots start every
+30 minutes from 12:00 to 21:30. Every option must exist and the crust must be
+made in the size; a pizza has at most 5 toppings, each once, and needs a sauce,
+a cheese or a topping. An order has 1–6 lines of 1–10 pizzas. Delivery needs an
+address and a branch that delivers. The branch must have every topping. The
+slot must have room for every pizza of the order (cancelled orders hold none).
+A pizza costs the size's base price, plus the crust and cheese surcharges in that
+size, plus each topping's price in that size. The total adds the delivery fee
+unless the subtotal reaches the branch's threshold. An order can be changed or
+cancelled only while it is `received`; a change re-prices the order.
+
+| door | reads | writes (signed in, or `Authorization: Bearer pza_…`) |
+| --- | --- | --- |
+| REST `/api/v1` | `builder`, `branches?city`, `branches/<code>`, `branches/<code>/slots?date&pizzas&from`, `pizzas`, `pizzas/<code>`, `search?size&branch&vegetarian&vegan&without&maxPrice&toppings`, `POST quote`, `orders?customerEmail&branch&status&date`, `orders/<no>` | `POST orders`, `POST orders/<no>/lines/<line>`, `POST orders/<no>/cancel` |
+| MCP and WebMCP | `list_branches`, `get_menu`, `search_menu`, `find_slots`, `quote_order`, `list_orders`, `get_order` | `place_order`, `change_order_line`, `cancel_order` |
+| pages | search, results, menu, pizza, builder (with the price at a branch), branch (with its slots for a date), orders, order | order from the builder, change a line or cancel from an order page |
+
+Search input money is dollars per pizza (`maxPrice`); every amount the site
+returns is cents (`priceCents`, `totalCents`). Each order line carries its
+topping set as one string (`toppingsKey`, the keys sorted and comma-joined) so a
+check can match the exact set. The site has no NLWeb `/ask`.
+
+**Tasks.** `tools/intent-corpus/templates/pizza.mjs` adds six task kinds: order
+a menu pizza changed in the builder (the size for a number of people, another
+crust, one topping off and one on), price a delivered order near the
+free-delivery threshold, name the cheapest menu pizza under a diet filter that
+a branch can make, say that none fits under a cap and name the closest, order
+in the earliest slot from a time that has room for every pizza, and take a
+topping off one of a customer's received orders while leaving the others. The
+menu tasks are built around a pizza that would fit if the branch had all its
+toppings, and the slot task around a slot that is full.
+
+The site is shaped on the `pizza-maker` demo in GoogleChromeLabs/webmcp-tools
+and its webmcp-evals (Apache-2.0); no code or data is copied from it.
+
+### Cinema
+
+`apps/cinema` is **Orrowen Cinemas**, a cinema ticket booking site in the
+`webmcp-v1` scenario: a chain with one cinema in each of the six cities. Its
+rows come from `packages/scenarios/src/sites/cinema/generate.ts`, drawn from a
+random stream of their own (`substream(seed, "cinema")`), so adding the site
+changed no warehouse, helpdesk, vault or hotel row, and no existing task's
+answer key.
+
+- **Cinemas:** one per city. Each has an address, a booking fee per ticket, a
+  surcharge per seat in a premium row, and a price table by format (`2d`,
+  `3d`, `large`) and ticket type (`adult`, `child`, `senior`, `student`).
+- **Screens:** 2–3 per cinema. A standard screen (rows A–F to A–H, 6–9 seats a
+  row, the back row premium) shows 2D and 3D. Three cinemas also have a large
+  screen (rows A–H, 10–12 seats a row, rows G and H premium) that shows large
+  format only.
+- **Films:** 16 invented films in six genres (action, animation, comedy,
+  drama, horror, science fiction), each with an age rating (U, PG, 12, 15,
+  18), a runtime, a language and the formats it is released in.
+- **Showtimes:** 156, from 2027-05-14 to 2027-05-16, four a day on every
+  screen. Each cinema's first film in its programme plays most often.
+- **Bookings:** ~200 seeded, a few cancelled, held by 30 customers, most with
+  several bookings. Five showtimes are sold out on purpose. Twelve have only
+  3–5 single seats left, none side by side; half of those are the first
+  showing of their film at their cinema.
+
+**The rules** are pure functions in
+`packages/scenarios/src/sites/cinema/rules.ts` (`cinemaBookingProblem`,
+`cinemaSearchShowtimes`, `cinemaQuote`). The site applies them on every
+write, inside the transaction that locks the showtime. The intent corpus
+derives its answer keys with the same functions. Showtime dates are fixed in
+2027, not counted from today. A booking takes 1 to 10 seats. Every seat must
+be on the screen's seat map and free. The ticket counts must add up to the
+seats; with no counts, every seat is an adult ticket. Seats get ticket types
+in seat order: adults, then children, seniors, students. Child tickets are
+not sold for films rated 15 or 18. A total is each ticket's price for the
+showtime's format and type, plus the premium surcharge for each premium-row
+seat, plus the booking fee for each ticket. A taken seat or a sold-out
+showtime is refused with 409; every other rule with 422.
+
+| door | reads | writes (signed in, or `Authorization: Bearer cin_…`) |
+| --- | --- | --- |
+| REST `/api/v1` | `cinemas`, `cinemas/<code>`, `films?genre&city`, `films/<code>`, `showtimes?city&cinema&date&genre&film&format&after&seats&together`, `showtimes/<code>` (prices, fees, seat map), `bookings?customerEmail&showtime&film&status`, `bookings/<no>` | `POST bookings`, `POST bookings/<no>/cancel` |
+| MCP and WebMCP | `list_cinemas`, `get_cinema`, `list_films`, `get_film`, `search_showtimes`, `get_showtime`, `list_bookings`, `get_booking` | `create_booking`, `cancel_booking` |
+| pages | showtime search and results, films, film, cinema (prices, screens), showtime (seat map), bookings | book from a showtime page, cancel from a booking page |
+
+Every amount the site returns is cents (`priceCents`, `feesCents`,
+`totalCents`); no search filter takes money. A booking as served carries its
+seats as a list in seat order (`seats: "F4,F5,F6"`), `seatCount`, `together`
+(one row, consecutive numbers) and `ticketCounts`. A showtime result carries
+`freeSeats` and `bestRun`, the most free seats side by side in one row. The
+site has no NLWeb `/ask`.
+
+**Tasks.** `tools/intent-corpus/templates/cinema.mjs` adds six task kinds,
+graded by the answer or the site's end state, so any door can be used: say
+that no showtime fits a city, date, genre, format, start time and party size
+and name the closest one; name the only showtime that fits; book seats side by
+side at the earliest showing of a film that still has them; price named
+premium-row seats for a ticket mix; book the one set of seats side by side in
+a named row; and cancel one booking out of a customer's several. The search
+tasks are built around a showtime that would fit if it were not sold out or
+nearly full, so an agent has to read free seats as well as the programme.
+
+The site is shaped on the `demos/ticket-booking` demo in
+GoogleChromeLabs/webmcp-tools (Apache-2.0): location, genre filter, showtime
+choice and checkout. No code or data is copied from it.
+
+### Sports retailer
+
+`apps/sports` is **Brackenford Sports**, a sports retailer in the `webmcp-v1`
+scenario: a catalog, customer accounts, order history, order tracking,
+returns and reorders. It takes no payments. Its rows come from
+`packages/scenarios/src/sites/sports/generate.ts`, drawn from a random stream
+of their own (`substream(seed, "sports")`), so adding the site changed no
+other row and no existing task's answer key.
+
+- **Catalog:** six categories (running, hiking, cycling, swimming, tennis,
+  climbing), each with its own return window: 14, 21, 30, 45, 60 or 90 days,
+  one per category. 22 products from four invented brands, each with a
+  material. Each product has 2–3 colours in up to 3 sizes (shoes 41–44,
+  clothing S–XL, helmets S–L, racket grips G2–G4, or one size); each variant
+  has its own SKU (`SP-101-BLK-42`), price, weight in grams and stock.
+- **Out of stock on purpose:** one variant in about a third of the products, a
+  few more at random, and six size-and-colour groups in which the cheapest
+  variant under a weight limit is out of stock, the cheapest one in stock under
+  that limit costs more, and a variant cheaper than it but over the limit is in
+  stock.
+- **Shipping:** one fee per order, waived once the subtotal reaches a
+  threshold; both are seeded.
+- **Customers:** 18 accounts, by email, with 1–3 saved addresses each in
+  different cities, one of them the default.
+- **Orders:** ~60 orders placed between 2027-01-04 and 2027-06-15, 1–3 lines
+  each, `processing`, `shipped`, `delivered` or `cancelled`, with the date of
+  each step and a tracking number once shipped. Five customers have two orders
+  processing and one shipped; at least seven others have a latest order that
+  is shipped or cancelled, not delivered. 10 returns were already made, of part or all of a
+  delivered line.
+
+**The rules** are pure functions in
+`packages/scenarios/src/sites/sports/rules.ts` (`sportsOrderProblem`,
+`sportsCancelProblem`, `sportsReturnProblem`, `sportsReturnDeadline`,
+`sportsOrderTotals`, `searchSportsVariants`). The site applies them inside
+each write's transaction. The intent corpus derives its answer keys with the
+same functions. The site's date is fixed at 2027-06-15 (`SPORTS_TODAY`), not
+counted from today: an order placed through the site is dated that day, and a
+return is accepted while that day is within the line's window. An order is
+for a seeded customer, to one of their saved addresses, with 1–8 lines of
+distinct SKUs and 1–10 units each. Every unit must be in stock, and placing
+the order reserves it. Shipping is the fee unless the subtotal reaches the
+threshold. Only a processing order can be cancelled; cancelling gives its
+stock back. A reorder is a new order with the same SKUs and quantities, to the
+same address unless another of the customer's addresses is named. A return is
+of a delivered line, up to and including the delivery date plus the
+category's window, for at most the units bought minus those already returned,
+with one of five reasons. Returns are refunded at the price paid and do not
+restock.
+
+| door | reads | writes (signed in, or `Authorization: Bearer spt_…`) |
+| --- | --- | --- |
+| REST `/api/v1` | `policies`, `products?category&query`, `products/<code>`, `variants/<sku>`, `search?query&category&size&colour&maxPrice&maxWeight&inStock`, `customers?query`, `customers/<email>`, `orders?customerEmail&status&placedFrom&placedTo`, `orders/<no>`, `returns?orderNo&customerEmail` | `POST orders`, `POST orders/<no>/cancel`, `POST orders/<no>/reorder`, `POST returns` |
+| MCP and WebMCP | `get_store_policies`, `search_products`, `get_product`, `get_customer`, `list_orders`, `get_order` | `place_order`, `cancel_order`, `reorder`, `request_return` |
+| pages | search, results, products, product (specifications, variants), policies, customers, customer (addresses, orders), orders (by customer, status and placing dates), order | the order form; cancel, reorder and request a return from an order's page |
+
+Search input money is dollars (`maxPrice`) and weight is grams (`maxWeight`);
+every amount the site returns is cents (`priceCents`, `totalCents`). A domain
+refusal is `{error, message}`: 404 for an unknown customer, SKU or order, 409
+for out of stock or already cancelled, 422 for every other rule. The site has
+no NLWeb `/ask`.
+
+**Tasks.** `tools/intent-corpus/templates/sports.mjs` adds six task kinds:
+the cheapest in-stock variant in a size and colour under a weight limit and
+what a few of it cost with shipping (a cheaper one under the limit is out of
+stock); the last day an item from an order can be returned (the miss counts
+from the order date); the date and city a customer's order was delivered to,
+named by a product in it and the month it was placed (it went to an address
+that is not their default); returning some units of a delivered line with a
+reason; reordering a customer's most recent delivered order when their latest
+order was not delivered; and cancelling the one of a customer's two processing
+orders that holds a named product.
+
+Shaped on four GoogleChromeLabs/webmcp-tools demos, `sport-shop-angular`,
+`leather-bag`, `order-tracking` and `coffee-shop`, and the commerce suites of
+its [webmcp-evals](https://github.com/GoogleChromeLabs/webmcp-tools/tree/main/webmcp-evals)
+(Apache-2.0); no code or data is copied from them.
+
+### Homes
+
+`apps/homes` is **Corvane Homes**, a home listings site with viewing
+appointments, in the `webmcp-v1` scenario. Its rows come from
+`packages/scenarios/src/sites/homes/generate.ts`, drawn from a random stream
+of their own (`substream(seed, "homes")`), so adding the site changed no other
+site's row and no existing task's answer key.
+
+- **Listings:** 15–18 in each of the six cities, in three neighbourhoods per
+  city. Each is a house, apartment or townhouse with an asking price,
+  bedrooms, bathrooms, floor area in m², year built, features (`garage`,
+  `garden`, `pool`, `balcony`, `elevator`, `pets allowed`, `fireplace`,
+  `solar panels`, `air conditioning`, `home office`), a monthly service fee
+  (none for most houses), an annual property tax, a status (`active`,
+  `pending` or `sold`; about a third are not active), a listed date and a
+  listing agent.
+- **Agents:** two per city. Each shows homes on 5–7 days of a fixed window,
+  7 to 19 June 2027 (no Sundays), in set hours cut into 30-minute slots.
+- **Viewings:** ~140 seeded requests, some cancelled; most viewers hold
+  several. Ten agent days are fully booked on purpose.
+
+**The rules** are pure functions in
+`packages/scenarios/src/sites/homes/rules.ts` (`homeViewingProblem`,
+`searchHomeListings`, `homeSlotsOf`, `homeYearlyCostsCents`). The site
+applies them on every request, inside the transaction that takes the slot.
+The intent corpus derives its answer keys with the same functions. Only an
+active listing can be viewed. The date must be in the window, and the time
+must be one of the listing agent's slots that day. The slot must be free: no
+requested viewing holds it, for any of that agent's listings. A viewer cannot
+hold two requested viewings at the same time. A cancelled request holds
+nothing. A search without a status returns pending and sold listings too.
+
+| door | reads | writes (signed in, or `Authorization: Bearer hom_…`) |
+| --- | --- | --- |
+| REST `/api/v1` | `cities`, `listings?city&neighbourhood&type&minPrice&maxPrice&minBeds&minBaths&minArea&minYearBuilt&features&status`, `listings/<code>`, `listings/<code>/slots?from&free`, `agents?city`, `agents/<code>`, `viewings?email&listing&agent&status`, `viewings/<no>` | `POST viewings`, `POST viewings/<no>/cancel` |
+| MCP and WebMCP | `list_cities`, `search_listings`, `get_listing`, `get_agent`, `list_viewing_slots`, `list_viewings`, `get_viewing` | `request_viewing`, `cancel_viewing` |
+| pages | search, results, listing (with its agent's slots, free and taken), agents, agent, viewings, viewing | request a viewing from a listing page, cancel it from its viewing page |
+
+A taken slot is 409 `SLOT_TAKEN`; every other refusal is 422 (`NOT_ACTIVE`,
+`NO_SLOT`, `OUTSIDE_WINDOW`, `VIEWER_BUSY`, `WRONG_AGENT`, …). Search input
+money is dollars (`minPrice`, `maxPrice`); every amount the site returns is
+cents (`priceCents`, `monthlyFeeCents`, `annualTaxCents`). The site has no
+NLWeb `/ask`.
+
+**Tasks.** `tools/intent-corpus/templates/homes.mjs` adds six task kinds:
+name the only active listing that fits a city, type, size, feature and price
+cap; say that no active listing fits and name the closest; total a listing's
+service fee for a year plus its property tax; request a viewing in a named
+slot; request the earliest free slot from a given time, on a day the agent is
+fully booked; and cancel one viewing out of a viewer's several. Each search
+task is built around a pending or sold listing that fits every other
+requirement, so an agent has to check the status as well as the filters.
+The kinds are shaped on the real-estate demo in GoogleChromeLabs/webmcp-tools
+(`demos/real-estate-map` and `webmcp-evals/examples/real-estate`, Apache-2.0;
+no code or data is copied from it), which filters listings by location, type,
+price, bedrooms and features and opens one listing's details; the viewing
+appointments are benchme's own.
+
+### Clinics
+
+`apps/clinic` is **Calvenor Clinics**, a clinic network site in the `webmcp-v1`
+scenario: patients find a doctor, book and cancel appointments, check what a
+visit or a procedure costs under their insurance plan, compare prescription
+prices and request refills. It is administrative only. No page, tool or row
+gives medical advice: there is no symptom triage, no reading of results, no
+judgement about medicines and no urgency decision. Every clinic, doctor, plan,
+procedure and medication is invented, and every page says so. Its rows come
+from `packages/scenarios/src/sites/clinic/generate.ts`, drawn from a random
+stream of their own (`substream(seed, "clinic")`), so adding the site changed
+no other row and no existing task's answer key.
+
+- **Clinics:** 1–2 in each of the six cities, each with a pharmacy, addressed
+  by the clinic's code.
+- **Doctors:** 6–7 per city: three in general practice, two in pediatrics, one
+  in dermatology, sometimes one in cardiology or orthopedics. Each has
+  languages, visit types (in-person, video or both), whether they accept new
+  patients, the plans they are in network for, a fee per visit type, and the
+  weekdays and session (morning or afternoon) they work, in 30-minute slots.
+- **Plans:** 4, each with a copay for an in-person and for a video visit, and a
+  coverage line for each of 8 procedures: covered, covered with prior
+  authorisation, or not covered, with the coinsurance % the patient pays.
+- **Medications:** 8, each with 2–3 dosages, and a price at each pharmacy that
+  stocks it.
+- **Patients:** 30, each with a plan, ~180 appointments between March and May
+  2027 (some cancelled, some days fully booked on purpose, follow-ups with
+  the same doctor), and ~70 prescriptions with refills left. Some patients hold
+  one medication at two dosages; some prescriptions already have a refill
+  requested.
+
+**The rules** are pure functions in `packages/scenarios/src/sites/clinic/rules.ts`
+(`clinicAppointmentProblem`, `clinicRefillProblem`, `clinicFindDoctors`,
+`clinicVisitCostCents`, `clinicProcedureCostCents`, `clinicPrescriptionPrices`).
+The site applies them on every write, inside the write's transaction, and the
+intent corpus derives its answer keys with the same functions. Appointments are
+taken for dates in 2027, not counted from today, so a seed means the same diary
+forever. A booking must be on a day the doctor works, at one of their slot
+times, for a visit type they offer. A doctor not accepting new patients only
+books patients who already have a booked appointment with them. The slot must
+be free (409 `SLOT_TAKEN`), and the patient must have no other appointment at
+that time (409 `PATIENT_BUSY`). A visit costs the plan's copay when the doctor
+is in the plan's network, and the doctor's fee otherwise. A procedure costs the
+coinsurance share of its price when the plan covers it (with or without prior
+authorisation), and the whole price when it does not. A refill needs a refill
+left (422), a pharmacy that stocks that medication at that dosage (422), and no
+refill already requested (409). A request uses one refill.
+
+| door | reads | writes (signed in, or `Authorization: Bearer cln_…`) |
+| --- | --- | --- |
+| REST `/api/v1` | `clinics`, `clinics/<code>`, `doctors?city&specialty&language&visitType&plan&newPatients&date`, `doctors/<code>`, `doctors/<code>/slots?date`, `plans`, `plans/<code>` (with coverage), `procedures`, `coverage?plan&procedure`, `visit-cost?doctor&plan&visitType`, `medications`, `medications/<code>`, `prices?medication&dosage`, `patients/<email>`, `appointments?patientEmail&doctor&date&status`, `appointments/<no>`, `prescriptions?patientEmail`, `prescriptions/<no>`, `refills?patientEmail&rxNo&status` | `POST appointments`, `POST appointments/<no>/cancel`, `POST prescriptions/<no>/refill` |
+| MCP and WebMCP | `list_clinics`, `find_doctors`, `get_doctor`, `get_plan`, `check_visit_cost`, `get_prescription_prices`, `get_patient` | `book_appointment`, `cancel_appointment`, `request_refill` |
+| pages | find a doctor, results, doctor (with a day's slots and the cost under each plan), clinics, plans and coverage, prescription prices, appointments, prescriptions | book from a doctor page, cancel from an appointment page, request a refill from a prescription page |
+
+Every amount the site returns is cents (`inPersonFeeCents`, `costCents`,
+`patientCostCents`, `priceCents`); no input is money. The site has no NLWeb
+`/ask`.
+
+**Tasks.** `tools/intent-corpus/templates/clinic.mjs` adds six task kinds: name
+the only doctor who meets every requirement and has a free slot on a date; say
+that none does and name the closest; total what a patient pays for a visit
+with an out-of-network doctor and a procedure, and whether it needs prior
+authorisation; book a new patient into the earliest free slot with a doctor
+from a given time; cancel one of a patient's appointments when another is with
+the same doctor; and request a refill of one of two dosages of a medication at
+the cheapest pharmacy. The search tasks are built around a doctor who would fit
+if their day were not fully booked, so an agent has to read the diary as well
+as the profile. They are shaped on the healthcare suite in
+GoogleChromeLabs/webmcp-tools'
+[webmcp-evals](https://github.com/GoogleChromeLabs/webmcp-tools/tree/main/webmcp-evals)
+(its tool schemas only; that suite has no demo site; Apache-2.0; no code or
+data is copied from it).
+
+### Events
+
+`apps/events` is **Fennick Events**, an office events site in the `webmcp-v1`
+scenario. Staff book meeting rooms for events, invite guests, and open some
+events to registration with a limited number of places. Its rows come from
+`packages/scenarios/src/sites/events/generate.ts`, drawn from a random stream
+of their own (`substream(seed, "events")`), so adding the site changed no
+other site's row and no existing task's answer key.
+
+- **Offices:** one in each of the six cities, with an address, the days it
+  is open (Monday to Friday, some also Saturday) and opening hours.
+- **Rooms:** 4–6 per office, each with a name, a floor, a capacity (4 to 30
+  people; no two rooms in one office hold the same number), equipment
+  (`projector`, `video conferencing`, `whiteboard`) and step-free access or
+  not.
+- **People:** a staff directory of 36, each with an email, an office and a
+  team.
+- **Events:** ~140 between March and June 2027, each in one room from a start
+  time to an end time, with an organiser from the directory and invited
+  guests by email. An event is invitation only, or open to registration with a
+  place limit. A few are cancelled. Eight rooms are booked from opening to
+  closing on one day on purpose. Four training courses run as three sessions
+  at each of two or three offices, and the earliest session of each course at
+  each office is full.
+- **Registrations:** ~140 for the open events, by staff and visitors, some
+  cancelled. Most people hold several. About twenty open events are full.
+
+**The rules** are pure functions in
+`packages/scenarios/src/sites/events/rules.ts` (`eventDraftProblem`,
+`eventChangeProblem`, `eventCancelProblem`, `eventRegisterProblem`,
+`eventFreeRooms`, `eventPlacesLeft`). The site applies them on every write,
+inside the transaction that holds the room or the event. The intent corpus
+derives its answer keys with the same functions. Dates are in 2027, not
+counted from today. Start and end times are `HH:MM` on the quarter hour, an
+event ends after it starts and lasts at most 8 hours. The office must be open
+that day and for the whole time. The organiser must be in the staff
+directory, and every guest email must be valid. An open event needs at least
+one place, and an invitation-only event has none. The room must hold the
+organiser, every guest and every place. No scheduled event may hold the room
+for any part of the time. Back to back is allowed, and a cancelled event holds
+nothing. Only the organiser can change or cancel an event, and a change cannot
+leave fewer places than people registered. A person can register for a
+scheduled open event with a place left. They cannot register twice for one
+event, or for two scheduled events at overlapping times. A cancelled
+registration holds no place.
+
+| door | reads | writes (signed in, or `Authorization: Bearer evt_…`) |
+| --- | --- | --- |
+| REST `/api/v1` | `offices`, `offices/<code or city>`, `rooms?office&minCapacity&equipment&accessible`, `rooms/<code>`, `free-rooms?office&date&startTime&endTime&people&equipment&accessible`, `people?office&team&name`, `people/<email>`, `events?office&room&date&from&to&organiser&guest&registrant&q&registration&status&hasPlaces`, `events/<code>`, `registrations?email&event&status`, `registrations/<no>` | `POST events`, `POST events/<code>/change`, `POST events/<code>/cancel`, `POST events/<code>/register`, `POST registrations/<no>/cancel` |
+| MCP and WebMCP | `list_offices`, `find_free_rooms`, `list_people`, `list_events`, `get_event` | `create_event`, `change_event`, `cancel_event`, `register_for_event`, `cancel_registration` |
+| pages | room search, free rooms, office (with a day's bookings per room), room (with a day's schedule), events, event, people, person (organising, invited, registered), registrations, registration | create an event from the new-event form, change or cancel it from its page, register from an event page, cancel a registration from its page |
+
+A taken room, a full event, a repeat registration and a second cancel are
+409 (`ROOM_TAKEN`, `FULL`, `ALREADY_REGISTERED`, `ALREADY_CANCELLED`). An
+unknown office, room, event or registration is 404. Every other refusal is
+422 (`OUTSIDE_HOURS`, `OFFICE_CLOSED`, `OVER_CAPACITY`, `UNKNOWN_ORGANISER`,
+`BAD_GUEST_EMAIL`, `NOT_ORGANISER`, `INVITE_ONLY`, `OVERLAP`, …), and a room
+search at a time the office cannot hold anything is 422 with the reason. The
+site has no NLWeb `/ask`.
+
+**Tasks.** `tools/intent-corpus/templates/events.mjs` adds six task kinds:
+
+- create an event exactly as asked, with every field and the exact set of
+  guests checked;
+- name the only room that is free for a slot, holds the people and has the
+  equipment;
+- say that no room fits and name the closest;
+- register a person for the earliest session of a course at one office that
+  still has places;
+- say which session of a course has the most places left, and how many;
+- cancel one of a person's registrations.
+
+Each room task is built around a room that meets every requirement but is
+taken for part of the slot, so an agent has to check the schedule as well as
+the room's facts. The register task's earliest session is full, and a session
+at another office is earlier and has places. The kinds are shaped on the events eval suite in
+GoogleChromeLabs/webmcp-tools (`webmcp-evals/examples/events`, Apache-2.0; no
+code or data is copied from it), which creates a calendar event for a date and
+time at an office with a description and invited guests. The rooms, the
+registrations and the place limits are benchme's own.
+
 ## Guide
 
 `apps/guide` is **Shortlist**, a buyer's guide: four fictional products in one
@@ -389,17 +1053,16 @@ often.
 
 ## WebMCP
 
-`warehouse`, `helpdesk` and `vaultdocs` each embed a small bridge script
+`warehouse`, `helpdesk`, `vaultdocs` and the nine sites from webmcp-tools each embed a small bridge script
 (`webmcpScript` in `@benchme/site-kit`) on every page they render. It
 registers one `navigator.modelContext` tool per entry in the site's own
 `ToolRegistry` — the **same** catalog the site's `/mcp` server exposes, listed
 once and rendered into both surfaces, so a page tool and an MCP tool can never
 disagree. A tool's `execute` is a `fetch` back to the site's own `/mcp`
 (`tools/call`); a browser with no `navigator.modelContext` runs nothing. The
-gateway's `WEBMCP_APPS` env var (`warehouse,helpdesk,vaultdocs` by default,
-same in the chart) only controls what the **portal** advertises as
-WebMCP-capable — the bridge itself is unconditional on every page of the
-three sites above.
+gateway's `WEBMCP_APPS` env var (those twelve apps in compose and the chart)
+only controls what the **portal** advertises as WebMCP-capable — the bridge
+itself is unconditional on every page of the sites above.
 
 ## NLWeb
 

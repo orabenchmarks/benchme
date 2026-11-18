@@ -1,0 +1,10 @@
+{
+  "id": "intent-home-only-match-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "listing": "LS-3169"
+    }
+  }
+}

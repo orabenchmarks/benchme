@@ -1,0 +1,10 @@
+{
+  "id": "intent-cinema-only-showtime-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "showtime": "ST-2120"
+    }
+  }
+}

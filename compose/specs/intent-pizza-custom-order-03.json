@@ -1,0 +1,36 @@
+{
+  "id": "intent-pizza-custom-order-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ordered-as-built",
+        "app": "pizza",
+        "path": "/api/v1/orders?customerEmail=florin.copperfield%40order.example",
+        "where": {
+          "branchCode": "BR-109",
+          "slotDate": "2027-09-17",
+          "slotTime": "18:00",
+          "status": "received"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "fulfilment": "pickup",
+          "lineCount": 1,
+          "lines": {
+            "size": "large",
+            "crust": "thin",
+            "sauce": "bbq",
+            "cheese": "extra",
+            "toppingsKey": "anchovy,meatball,sweetcorn",
+            "quantity": 1
+          }
+        }
+      }
+    ]
+  }
+}

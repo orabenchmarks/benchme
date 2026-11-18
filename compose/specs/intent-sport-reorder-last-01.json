@@ -1,0 +1,61 @@
+{
+  "id": "intent-sport-reorder-last-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "line-SP-113-GRY-XL",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=lior.ferrante%40example.org&status=processing",
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "lines": {
+            "sku": "SP-113-GRY-XL",
+            "qty": 2
+          }
+        }
+      },
+      {
+        "name": "line-SP-115-BLK-S",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=lior.ferrante%40example.org&status=processing",
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "lines": {
+            "sku": "SP-115-BLK-S",
+            "qty": 2
+          }
+        }
+      },
+      {
+        "name": "same-address",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=lior.ferrante%40example.org&status=processing",
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "addressCode": "AD-1033",
+          "lineCount": 2
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "intent-event-room-none-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "exists": false,
+      "closest": "KAR-R3"
+    }
+  }
+}

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# One Dockerfile for every app: `--build-arg APP=<gateway|warehouse|helpdesk|vaultdocs|mail|data|verify|shops|wallet|guide>`.
+# One Dockerfile for every app: `--build-arg APP=<gateway|warehouse|helpdesk|hotels|flights|dining|pizza|cinema|sports|homes|clinic|events|vaultdocs|mail|data|verify|shops|wallet|guide>`.
 # deps → build (tsc, plus the data site render) → runtime (slim, non-root,
 # read-only root fs friendly: nothing writes under /app at run time).
 ARG NODE_IMAGE=node:22-bookworm-slim
@@ -13,6 +13,15 @@ COPY packages/site-kit/package.json packages/site-kit/
 COPY packages/storefront/package.json packages/storefront/
 COPY apps/gateway/package.json apps/gateway/
 COPY apps/helpdesk/package.json apps/helpdesk/
+COPY apps/hotels/package.json apps/hotels/
+COPY apps/flights/package.json apps/flights/
+COPY apps/dining/package.json apps/dining/
+COPY apps/pizza/package.json apps/pizza/
+COPY apps/cinema/package.json apps/cinema/
+COPY apps/sports/package.json apps/sports/
+COPY apps/homes/package.json apps/homes/
+COPY apps/clinic/package.json apps/clinic/
+COPY apps/events/package.json apps/events/
 COPY apps/vaultdocs/package.json apps/vaultdocs/
 COPY apps/warehouse/package.json apps/warehouse/
 COPY apps/mail/package.json apps/mail/

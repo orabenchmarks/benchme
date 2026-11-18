@@ -84,22 +84,24 @@ spec:
             # workspace-scoped door (/w/<id>/wallet/card → <wallet>/workspace/card, the saved card of a run that
             # pays without Link) — the same service the root /wallet/* reaches, which forwards no workspace.
             - name: APP_TARGETS
-              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"vaultdocs\":\"http://%s-vaultdocs\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\",\"verify\":\"http://%s-verify\",\"wrenfield\":\"http://%s-shops/s/wrenfield\",\"halden\":\"http://%s-shops/s/halden\",\"quillfeather\":\"http://%s-shops/s/quillfeather\",\"paylantern\":\"http://%s-shops/s/paylantern\",\"wallet\":\"http://%s-wallet/workspace\",\"guide\":\"http://%s-guide\",\"web\":\"http://%s-guide/web\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
+              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"vaultdocs\":\"http://%s-vaultdocs\",\"hotels\":\"http://%s-hotels\",\"flights\":\"http://%s-flights\",\"dining\":\"http://%s-dining\",\"pizza\":\"http://%s-pizza\",\"cinema\":\"http://%s-cinema\",\"sports\":\"http://%s-sports\",\"homes\":\"http://%s-homes\",\"clinic\":\"http://%s-clinic\",\"events\":\"http://%s-events\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\",\"verify\":\"http://%s-verify\",\"wrenfield\":\"http://%s-shops/s/wrenfield\",\"halden\":\"http://%s-shops/s/halden\",\"quillfeather\":\"http://%s-shops/s/quillfeather\",\"paylantern\":\"http://%s-shops/s/paylantern\",\"wallet\":\"http://%s-wallet/workspace\",\"guide\":\"http://%s-guide\",\"web\":\"http://%s-guide/web\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
             # Routed like any app, but left out of a workspace's urls (and the portal, the registry, robots.txt) —
-            # guide and web included: only the guide-v1 / web-v1 scenario's workspaces advertise them (Scenario.apps).
+            # guide and web included: only the guide-v1 / web-v1 scenario's workspaces advertise them (Scenario.apps), and the
+            # sites from webmcp-tools (hotels … events) only webmcp-v1's.
             - name: UNLISTED_APPS
-              value: "paylantern,wallet,guide,web"
+              value: "paylantern,wallet,guide,web,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events"
             # Served at the root, outside any workspace: /wallet/* (link-cli's LINK_API_BASE_URL = <public>/wallet/api).
             - name: SERVICE_TARGETS
               value: {{ printf "{\"wallet\":\"http://%s-wallet\"}" $root.Release.Name | quote }}
             - name: SEEDED_APPS
-              value: "warehouse,helpdesk,vaultdocs,mail,verify"
+              value: "warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events,mail,verify"
             - name: MCP_APPS
-              value: "warehouse,helpdesk,vaultdocs"
+              value: "warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events"
+            # hotels and the other errand sites have no NLWeb /ask.
             - name: ASK_APPS
               value: "warehouse,helpdesk,vaultdocs"
             - name: WEBMCP_APPS
-              value: "warehouse,helpdesk,vaultdocs"
+              value: "warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events"
             - name: WORKSPACE_TTL_SECONDS
               value: {{ $root.Values.workspaces.ttlSeconds | quote }}
             - name: WORKSPACE_MAX_TTL_SECONDS
@@ -107,7 +109,7 @@ spec:
             - name: RATE_CREATE_PER_HOUR
               value: {{ $root.Values.workspaces.rateCreatePerHour | quote }}
             {{- end }}
-            {{- if or (eq $app "warehouse") (eq $app "helpdesk") (eq $app "shops") }}
+            {{- if or (eq $app "warehouse") (eq $app "helpdesk") (eq $app "hotels") (eq $app "flights") (eq $app "dining") (eq $app "pizza") (eq $app "cinema") (eq $app "sports") (eq $app "homes") (eq $app "clinic") (eq $app "events") (eq $app "shops") }}
             - name: MAIL_URL
               value: http://{{ $root.Release.Name }}-mail
             {{- end }}
@@ -199,7 +201,7 @@ spec:
               value: /specs
             # The `state` oracle reads a workspace's live app state straight from these (never through the gateway proxy).
             - name: APP_TARGETS
-              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"vaultdocs\":\"http://%s-vaultdocs\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
+              value: {{ printf "{\"warehouse\":\"http://%s-warehouse\",\"helpdesk\":\"http://%s-helpdesk\",\"vaultdocs\":\"http://%s-vaultdocs\",\"hotels\":\"http://%s-hotels\",\"flights\":\"http://%s-flights\",\"dining\":\"http://%s-dining\",\"pizza\":\"http://%s-pizza\",\"cinema\":\"http://%s-cinema\",\"sports\":\"http://%s-sports\",\"homes\":\"http://%s-homes\",\"clinic\":\"http://%s-clinic\",\"events\":\"http://%s-events\",\"mail\":\"http://%s-mail\",\"data\":\"http://%s-data\"}" $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name $root.Release.Name | quote }}
             - name: MAX_ATTEMPTS_PER_TASK
               value: {{ $root.Values.verify.maxAttemptsPerTask | quote }}
             - name: MAX_ARTIFACT_BYTES

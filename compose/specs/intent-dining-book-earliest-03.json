@@ -1,0 +1,28 @@
+{
+  "id": "intent-dining-book-earliest-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "reserved-earliest",
+        "app": "dining",
+        "path": "/api/v1/reservations?guestEmail=cosima.calloway%40table.example",
+        "where": {
+          "restaurantCode": "RS-124",
+          "date": "2027-04-12",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "area": "terrace",
+          "time": "15:00",
+          "partySize": 2
+        }
+      }
+    ]
+  }
+}

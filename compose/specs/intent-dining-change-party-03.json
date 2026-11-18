@@ -1,0 +1,63 @@
+{
+  "id": "intent-dining-change-party-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "RV-10073-party-3",
+        "app": "dining",
+        "path": "/api/v1/reservations/RV-10073",
+        "expect": {
+          "status": "confirmed",
+          "partySize": 3
+        }
+      },
+      {
+        "name": "RV-10074-party-6",
+        "app": "dining",
+        "path": "/api/v1/reservations/RV-10074",
+        "expect": {
+          "status": "confirmed",
+          "partySize": 6
+        }
+      },
+      {
+        "name": "RV-10077-party-1",
+        "app": "dining",
+        "path": "/api/v1/reservations/RV-10077",
+        "expect": {
+          "status": "confirmed",
+          "partySize": 1
+        }
+      },
+      {
+        "name": "RV-10188-party-3",
+        "app": "dining",
+        "path": "/api/v1/reservations/RV-10188",
+        "expect": {
+          "status": "confirmed",
+          "partySize": 3
+        }
+      },
+      {
+        "name": "RV-10199-party-3",
+        "app": "dining",
+        "path": "/api/v1/reservations/RV-10199",
+        "expect": {
+          "status": "confirmed",
+          "partySize": 3
+        }
+      },
+      {
+        "name": "RV-10203-party-2",
+        "app": "dining",
+        "path": "/api/v1/reservations/RV-10203",
+        "expect": {
+          "status": "confirmed",
+          "partySize": 2
+        }
+      }
+    ]
+  }
+}

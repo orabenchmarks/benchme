@@ -1,0 +1,14 @@
+{
+  "id": "intent-clinic-visit-cost-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "total": {
+        "value": 303,
+        "tolerance": 0.01
+      },
+      "priorAuthorisation": true
+    }
+  }
+}

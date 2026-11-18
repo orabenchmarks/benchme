@@ -1,0 +1,12 @@
+{
+  "id": "intent-dining-no-match-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "exists": false,
+      "restaurant": "RS-115",
+      "time": "15:00"
+    }
+  }
+}

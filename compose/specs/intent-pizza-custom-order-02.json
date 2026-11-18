@@ -1,0 +1,36 @@
+{
+  "id": "intent-pizza-custom-order-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ordered-as-built",
+        "app": "pizza",
+        "path": "/api/v1/orders?customerEmail=caspian.brightwater%40order.example",
+        "where": {
+          "branchCode": "BR-112",
+          "slotDate": "2027-10-20",
+          "slotTime": "12:30",
+          "status": "received"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "fulfilment": "pickup",
+          "lineCount": 1,
+          "lines": {
+            "size": "medium",
+            "crust": "stuffed",
+            "sauce": "bbq",
+            "cheese": "regular",
+            "toppingsKey": "feta,walnut",
+            "quantity": 1
+          }
+        }
+      }
+    ]
+  }
+}

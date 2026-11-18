@@ -1,0 +1,49 @@
+{
+  "id": "intent-cinema-cancel-one-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "TK-30019-confirmed",
+        "app": "cinema",
+        "path": "/api/v1/bookings/TK-30019",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "TK-30025-confirmed",
+        "app": "cinema",
+        "path": "/api/v1/bookings/TK-30025",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "TK-30062-cancelled",
+        "app": "cinema",
+        "path": "/api/v1/bookings/TK-30062",
+        "expect": {
+          "status": "cancelled"
+        }
+      },
+      {
+        "name": "TK-30066-confirmed",
+        "app": "cinema",
+        "path": "/api/v1/bookings/TK-30066",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "TK-30139-confirmed",
+        "app": "cinema",
+        "path": "/api/v1/bookings/TK-30139",
+        "expect": {
+          "status": "confirmed"
+        }
+      }
+    ]
+  }
+}

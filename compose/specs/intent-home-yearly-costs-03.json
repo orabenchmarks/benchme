@@ -1,0 +1,13 @@
+{
+  "id": "intent-home-yearly-costs-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "total": {
+        "value": 13487,
+        "tolerance": 0.01
+      }
+    }
+  }
+}

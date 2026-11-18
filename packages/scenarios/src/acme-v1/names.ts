@@ -33,3 +33,6 @@ export function companyName(rng: Rng): string {
 }
 
 export const CATEGORY_LIST: readonly string[] = CATEGORIES;
+export const CITY_LIST: readonly string[] = CITIES;
+export const FIRST_NAMES: readonly string[] = FIRST;
+export const LAST_NAMES: readonly string[] = LAST;

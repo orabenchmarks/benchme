@@ -3,7 +3,10 @@
  * intent-integrity — prove every intent task's oracle BITES, against a live
  * benchme whose verifier serves this checkout's compose/specs.
  *
- *   node tools/intent-integrity.mjs --base http://localhost:8080 [--seed 4242] [--scale 1] [--operator-key <key>]
+ *   node tools/intent-integrity.mjs --base http://localhost:8080 [--scenario acme-v1] [--seed 4242] [--scale 1] [--operator-key <key>]
+ *
+ * --scenario picks the corpus (tools/intent-corpus/corpus.mjs CORPORA): acme-v1
+ * (the default) or webmcp-v1, the sites from webmcp-tools.
  *
  * One fresh workspace at the corpus seed, signed in to every app that has
  * accounts (sign-up → the code from the workspace inbox → verify → log in, as
@@ -28,10 +31,11 @@ const option = (name, fallback) => {
 const BASE = option("base", "http://localhost:8080").replace(/\/$/, "");
 const SEED = Number(option("seed", 4242));
 const SCALE = Number(option("scale", 1));
+const SCENARIO = option("scenario", "acme-v1");
 const OPERATOR_KEY = option("operator-key");
 const EMAIL = "integrity@example.com";
 
-const corpus = buildCorpus({ seed: SEED, scale: SCALE });
+const corpus = buildCorpus({ seed: SEED, scale: SCALE, scenario: SCENARIO });
 if (corpus.problems.length) throw new Error(corpus.problems.join("; "));
 
 async function http(method, url, { body, form, cookies, headers = {} } = {}) {
@@ -49,7 +53,7 @@ async function http(method, url, { body, form, cookies, headers = {} } = {}) {
 }
 
 async function mint() {
-  const res = await http("POST", `${BASE}/api/workspaces`, { body: { scenario: "acme-v1", seed: SEED }, headers: OPERATOR_KEY ? { "x-benchme-operator-key": OPERATOR_KEY } : {} });
+  const res = await http("POST", `${BASE}/api/workspaces`, { body: { scenario: SCENARIO, seed: SEED }, headers: OPERATOR_KEY ? { "x-benchme-operator-key": OPERATOR_KEY } : {} });
   if (!res.ok) throw new Error(`workspace mint answered ${res.status}: ${await res.text()}`);
   return (await res.json()).id;
 }
@@ -146,7 +150,7 @@ const passed = (label, checked) => {
   console.log(`${label}: ${checked} checked, ${n === 0 ? "all as expected" : `${n} surprise(s)`}`);
 };
 
-console.log(`workspace ${ws} — ${state.length} state + ${json.length} json tasks`);
+console.log(`workspace ${ws} (${SCENARIO}) — ${state.length} state + ${json.length} json tasks`);
 
 for (const t of state) {
   const r = await submit(ws, t.id, {});

@@ -1,0 +1,31 @@
+{
+  "id": "intent-cinema-book-row-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked-row",
+        "app": "cinema",
+        "path": "/api/v1/bookings?customerEmail=dagny.ashdown%40film.example",
+        "where": {
+          "showtimeCode": "ST-2058",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "seats": "B1,B2,B3,B4",
+          "ticketCounts": {
+            "adult": 0,
+            "child": 0,
+            "senior": 3,
+            "student": 1
+          }
+        }
+      }
+    ]
+  }
+}

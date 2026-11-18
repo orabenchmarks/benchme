@@ -1,0 +1,14 @@
+{
+  "id": "intent-sport-cheapest-fit-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "sku": "SP-115-BLU-L",
+      "total": {
+        "value": 82.94,
+        "tolerance": 0.01
+      }
+    }
+  }
+}

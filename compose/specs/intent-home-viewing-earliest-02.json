@@ -1,0 +1,26 @@
+{
+  "id": "intent-home-viewing-earliest-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "requested-earliest",
+        "app": "homes",
+        "path": "/api/v1/viewings?email=benedikt.elsworth%40homebuyer.example",
+        "where": {
+          "status": "requested"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "listingCode": "LS-3133",
+          "date": "2027-06-18",
+          "time": "10:00"
+        }
+      }
+    ]
+  }
+}

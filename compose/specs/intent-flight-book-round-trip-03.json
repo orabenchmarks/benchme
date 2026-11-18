@@ -1,0 +1,97 @@
+{
+  "id": "intent-flight-book-round-trip-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "outbound-passenger-1",
+        "app": "flights",
+        "path": "/api/v1/bookings?contactEmail=dagny.bracknell%40travel.example",
+        "where": {
+          "flightNo": "TF253",
+          "date": "2027-05-24",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "cabin": "premium",
+          "passengerCount": 2,
+          "bags": 1,
+          "passengers": {
+            "name": "Dagny Bracknell"
+          }
+        }
+      },
+      {
+        "name": "outbound-passenger-2",
+        "app": "flights",
+        "path": "/api/v1/bookings?contactEmail=dagny.bracknell%40travel.example",
+        "where": {
+          "flightNo": "TF253",
+          "date": "2027-05-24",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "cabin": "premium",
+          "passengerCount": 2,
+          "bags": 1,
+          "passengers": {
+            "name": "Greer Bracknell"
+          }
+        }
+      },
+      {
+        "name": "return-passenger-1",
+        "app": "flights",
+        "path": "/api/v1/bookings?contactEmail=dagny.bracknell%40travel.example",
+        "where": {
+          "flightNo": "QE802",
+          "date": "2027-05-28",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "cabin": "premium",
+          "passengerCount": 2,
+          "bags": 1,
+          "passengers": {
+            "name": "Dagny Bracknell"
+          }
+        }
+      },
+      {
+        "name": "return-passenger-2",
+        "app": "flights",
+        "path": "/api/v1/bookings?contactEmail=dagny.bracknell%40travel.example",
+        "where": {
+          "flightNo": "QE802",
+          "date": "2027-05-28",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "cabin": "premium",
+          "passengerCount": 2,
+          "bags": 1,
+          "passengers": {
+            "name": "Greer Bracknell"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "id": "intent-stay-cancel-one-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "BK-10044-confirmed",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10044",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10045-confirmed",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10045",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10055-confirmed",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10055",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10062-cancelled",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10062",
+        "expect": {
+          "status": "cancelled"
+        }
+      },
+      {
+        "name": "BK-10112-confirmed",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10112",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10141-confirmed",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10141",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10159-confirmed",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10159",
+        "expect": {
+          "status": "confirmed"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "intent-pizza-quote-delivery-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "total": {
+        "value": 46.8,
+        "tolerance": 0.01
+      }
+    }
+  }
+}

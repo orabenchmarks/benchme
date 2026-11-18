@@ -1,0 +1,72 @@
+{
+  "id": "intent-event-create-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "created",
+        "app": "events",
+        "path": "/api/v1/events?organiser=bram.mbeki%40staff.example&date=2027-10-12",
+        "where": {
+          "startTime": "10:00",
+          "status": "scheduled"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "title": "Supplier review",
+          "description": "go through the open supplier issues",
+          "roomCode": "QUI-R6",
+          "endTime": "11:00",
+          "registration": "invite-only",
+          "guestCount": 3
+        }
+      },
+      {
+        "name": "guest-teodor.mbeki@staff.example",
+        "app": "events",
+        "path": "/api/v1/events?organiser=bram.mbeki%40staff.example&date=2027-10-12",
+        "where": {
+          "startTime": "10:00",
+          "status": "scheduled"
+        },
+        "expect": {
+          "guests": {
+            "email": "teodor.mbeki@staff.example"
+          }
+        }
+      },
+      {
+        "name": "guest-danae.voss@staff.example",
+        "app": "events",
+        "path": "/api/v1/events?organiser=bram.mbeki%40staff.example&date=2027-10-12",
+        "where": {
+          "startTime": "10:00",
+          "status": "scheduled"
+        },
+        "expect": {
+          "guests": {
+            "email": "danae.voss@staff.example"
+          }
+        }
+      },
+      {
+        "name": "guest-rue.selwyn@partner.example",
+        "app": "events",
+        "path": "/api/v1/events?organiser=bram.mbeki%40staff.example&date=2027-10-12",
+        "where": {
+          "startTime": "10:00",
+          "status": "scheduled"
+        },
+        "expect": {
+          "guests": {
+            "email": "rue.selwyn@partner.example"
+          }
+        }
+      }
+    ]
+  }
+}

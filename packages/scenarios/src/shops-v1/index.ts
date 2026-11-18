@@ -1,5 +1,6 @@
 import { acmeV1 } from "../acme-v1/index.js";
 import type { Scenario, ScenarioRows } from "../scenario.js";
+import { noSiteRows } from "../sites/rows.js";
 
 /**
  * shops-v1: the consumer stores. Each store owns its catalogue (apps/shops),
@@ -15,6 +16,7 @@ export const shopsV1: Scenario = {
       warehouse: { products: [], locations: [], stock: [], customers: [], orders: [], orderLines: [], transfers: [] },
       helpdesk: { agents: [], tickets: [], comments: [], slaPolicies: [] },
       vault: { documents: [] },
+      ...noSiteRows(),
     };
   },
 };
