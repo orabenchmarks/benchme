@@ -1,0 +1,33 @@
+{
+  "id": "intent-home-viewing-cancel-one-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "VW-1061-cancelled",
+        "app": "homes",
+        "path": "/api/v1/viewings/VW-1061",
+        "expect": {
+          "status": "cancelled"
+        }
+      },
+      {
+        "name": "VW-1098-requested",
+        "app": "homes",
+        "path": "/api/v1/viewings/VW-1098",
+        "expect": {
+          "status": "requested"
+        }
+      },
+      {
+        "name": "VW-1139-requested",
+        "app": "homes",
+        "path": "/api/v1/viewings/VW-1139",
+        "expect": {
+          "status": "requested"
+        }
+      }
+    ]
+  }
+}

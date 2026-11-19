@@ -1,0 +1,25 @@
+{
+  "id": "intent-stay-cancel-one-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "BK-10093-confirmed",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10093",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10176-cancelled",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10176",
+        "expect": {
+          "status": "cancelled"
+        }
+      }
+    ]
+  }
+}

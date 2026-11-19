@@ -1,0 +1,26 @@
+{
+  "id": "intent-home-viewing-book-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "requested",
+        "app": "homes",
+        "path": "/api/v1/viewings?email=rhoswen.fanshawe%40homebuyer.example",
+        "where": {
+          "status": "requested"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "listingCode": "LS-3158",
+          "date": "2027-06-10",
+          "time": "14:00"
+        }
+      }
+    ]
+  }
+}

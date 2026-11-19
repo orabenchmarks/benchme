@@ -1,0 +1,41 @@
+{
+  "id": "intent-clinic-refill-cheapest-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "refill-requested",
+        "app": "clinic",
+        "path": "/api/v1/refills?rxNo=RX-60004",
+        "where": {
+          "status": "requested"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "pharmacyCode": "CL-11"
+        }
+      },
+      {
+        "name": "refills-left",
+        "app": "clinic",
+        "path": "/api/v1/prescriptions/RX-60004",
+        "expect": {
+          "refillsLeft": 0
+        }
+      },
+      {
+        "name": "RX-60064-untouched",
+        "app": "clinic",
+        "path": "/api/v1/prescriptions/RX-60064",
+        "expect": {
+          "refillsLeft": 2,
+          "refillPending": false
+        }
+      }
+    ]
+  }
+}

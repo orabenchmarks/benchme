@@ -1,3 +1,12 @@
+import type { ClinicRows } from "./sites/clinic/types.js";
+import type { EventRows } from "./sites/events/types.js";
+import type { PizzaRows } from "./sites/pizza/types.js";
+import type { SportsRows } from "./sites/sports/types.js";
+import type { CinemaRows } from "./sites/cinema/types.js";
+import type { FlightRows } from "./sites/flights/types.js";
+import type { DiningRows } from "./sites/dining/types.js";
+import type { HomeRows } from "./sites/homes/types.js";
+
 /**
  * Row shapes carry NATURAL keys (sku, code, orderNo) and no database ids, so
  * every app can insert them under any workspace_id.
@@ -32,6 +41,46 @@ export type SlaPolicy = { priority: TicketPriority; respondHours: number; resolv
 export type DocumentKind = "policy" | "datasheet" | "memo" | "meeting-notes" | "faq";
 export type Document = { id: string; title: string; kind: DocumentKind; body: string; tags: string[]; updatedAt: string };
 
+/**
+ * The hotel booking site (apps/hotels). Prices are per room per night; a
+ * stay's total adds the hotel's pet fee (once per stay, when pets come) and
+ * its late-checkout fee (when the guest asks for it). Rules: ./stays.ts.
+ */
+export type Hotel = {
+  code: string;
+  name: string;
+  city: string;
+  rating: number;
+  description: string;
+  amenities: string[];
+  petsAllowed: boolean;
+  /** One fee per stay with any number of pets; null where pets are not allowed. */
+  petFeeCents: number | null;
+  /** The latest checkout a guest can ask for, "HH:MM"; null where late checkout is not offered. */
+  lateCheckoutUntil: string | null;
+  lateCheckoutFeeCents: number | null;
+};
+export type RoomType = { hotelCode: string; code: string; name: string; maxAdults: number; maxKids: number; nightlyCents: number; rooms: number };
+export type BookingStatus = "confirmed" | "cancelled";
+export type Booking = {
+  bookingNo: string;
+  hotelCode: string;
+  roomCode: string;
+  guestName: string;
+  guestEmail: string;
+  /** The first night, "YYYY-MM-DD". */
+  checkIn: string;
+  nights: number;
+  adults: number;
+  kids: number;
+  pets: number;
+  lateCheckout: boolean;
+  status: BookingStatus;
+  totalCents: number;
+  createdAt: string;
+};
+export type HotelRows = { hotels: Hotel[]; rooms: RoomType[]; bookings: Booking[] };
+
 export type CompanyFacts = {
   name: string;
   founded: number;
@@ -60,6 +109,15 @@ export type ScenarioRows = {
   vault: {
     documents: Document[];
   };
+  hotels: HotelRows;
+  homes: HomeRows;
+  dining: DiningRows;
+  flights: FlightRows;
+  cinema: CinemaRows;
+  sports: SportsRows;
+  pizza: PizzaRows;
+  events: EventRows;
+  clinic: ClinicRows;
 };
 
 /** A scenario is a pure function of its seed: same seed, byte-identical rows. */

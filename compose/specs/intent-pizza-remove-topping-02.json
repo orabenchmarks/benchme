@@ -1,0 +1,58 @@
+{
+  "id": "intent-pizza-remove-topping-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "PO-10093-line-1",
+        "app": "pizza",
+        "path": "/api/v1/orders/PO-10093",
+        "expect": {
+          "status": "received",
+          "totalCents": 1630,
+          "lines": {
+            "line": 1,
+            "toppingsKey": "vegan-sausage"
+          }
+        }
+      },
+      {
+        "name": "PO-10008-line-1",
+        "app": "pizza",
+        "path": "/api/v1/orders/PO-10008",
+        "expect": {
+          "status": "received",
+          "lines": {
+            "line": 1,
+            "toppingsKey": "vegan-sausage,walnut"
+          }
+        }
+      },
+      {
+        "name": "PO-10024-line-1",
+        "app": "pizza",
+        "path": "/api/v1/orders/PO-10024",
+        "expect": {
+          "status": "received",
+          "lines": {
+            "line": 1,
+            "toppingsKey": "vegan-sausage,walnut"
+          }
+        }
+      },
+      {
+        "name": "PO-10111-line-1",
+        "app": "pizza",
+        "path": "/api/v1/orders/PO-10111",
+        "expect": {
+          "status": "received",
+          "lines": {
+            "line": 1,
+            "toppingsKey": "vegan-sausage,walnut"
+          }
+        }
+      }
+    ]
+  }
+}

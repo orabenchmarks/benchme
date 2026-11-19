@@ -1,0 +1,41 @@
+{
+  "id": "intent-stay-cancel-one-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "BK-10021-cancelled",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10021",
+        "expect": {
+          "status": "cancelled"
+        }
+      },
+      {
+        "name": "BK-10087-confirmed",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10087",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10098-confirmed",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10098",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10132-confirmed",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10132",
+        "expect": {
+          "status": "confirmed"
+        }
+      }
+    ]
+  }
+}

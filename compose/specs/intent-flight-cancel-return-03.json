@@ -1,0 +1,33 @@
+{
+  "id": "intent-flight-cancel-return-03",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "BK-10049-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10049",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10075-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10075",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10076-cancelled",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10076",
+        "expect": {
+          "status": "cancelled"
+        }
+      }
+    ]
+  }
+}

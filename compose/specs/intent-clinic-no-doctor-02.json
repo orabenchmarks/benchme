@@ -1,0 +1,11 @@
+{
+  "id": "intent-clinic-no-doctor-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "exists": false,
+      "closest": "DR-237"
+    }
+  }
+}

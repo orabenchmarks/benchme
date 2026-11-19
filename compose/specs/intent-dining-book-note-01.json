@@ -1,0 +1,29 @@
+{
+  "id": "intent-dining-book-note-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "reserved-with-note",
+        "app": "dining",
+        "path": "/api/v1/reservations?guestEmail=elodie.ashcombe%40table.example",
+        "where": {
+          "restaurantCode": "RS-113",
+          "date": "2027-04-08",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "area": "bar",
+          "time": "16:30",
+          "partySize": 2,
+          "note": "One guest has a severe nut allergy"
+        }
+      }
+    ]
+  }
+}

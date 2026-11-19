@@ -1,5 +1,6 @@
 import { acmeV1 } from "../acme-v1/index.js";
 import type { Scenario, ScenarioRows } from "../scenario.js";
+import { noSiteRows } from "../sites/rows.js";
 
 /**
  * web-v1: the site network (apps/guide, under /web) — a start page listing four fictional products of one category,
@@ -18,6 +19,7 @@ export const webV1: Scenario = {
       warehouse: { products: [], locations: [], stock: [], customers: [], orders: [], orderLines: [], transfers: [] },
       helpdesk: { agents: [], tickets: [], comments: [], slaPolicies: [] },
       vault: { documents: [] },
+      ...noSiteRows(),
     };
   },
 };

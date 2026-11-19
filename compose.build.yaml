@@ -8,6 +8,24 @@ services:
     build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: warehouse } }
   helpdesk:
     build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: helpdesk } }
+  hotels:
+    build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: hotels } }
+  flights:
+    build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: flights } }
+  dining:
+    build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: dining } }
+  pizza:
+    build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: pizza } }
+  cinema:
+    build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: cinema } }
+  sports:
+    build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: sports } }
+  homes:
+    build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: homes } }
+  clinic:
+    build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: clinic } }
+  events:
+    build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: events } }
   vaultdocs:
     build: { context: ., dockerfile: docker/app.Dockerfile, args: { APP: vaultdocs } }
   mail:

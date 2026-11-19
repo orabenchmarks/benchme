@@ -1,0 +1,11 @@
+{
+  "id": "intent-cinema-no-showtime-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "exists": false,
+      "closest": "ST-2044"
+    }
+  }
+}

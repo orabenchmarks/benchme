@@ -1,0 +1,11 @@
+{
+  "id": "intent-sport-delivered-where-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "deliveredOn": "2027-04-04",
+      "city": "Tessalind"
+    }
+  }
+}

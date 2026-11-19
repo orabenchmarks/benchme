@@ -1,0 +1,73 @@
+{
+  "id": "intent-event-create-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "created",
+        "app": "events",
+        "path": "/api/v1/events?organiser=sable.halvard%40staff.example&date=2027-11-23",
+        "where": {
+          "startTime": "16:00",
+          "status": "scheduled"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "title": "Launch rehearsal",
+          "description": "rehearse the launch talk",
+          "roomCode": "KAR-R2",
+          "endTime": "16:45",
+          "registration": "open",
+          "guestCount": 3,
+          "places": 4
+        }
+      },
+      {
+        "name": "guest-danae.sandoval@staff.example",
+        "app": "events",
+        "path": "/api/v1/events?organiser=sable.halvard%40staff.example&date=2027-11-23",
+        "where": {
+          "startTime": "16:00",
+          "status": "scheduled"
+        },
+        "expect": {
+          "guests": {
+            "email": "danae.sandoval@staff.example"
+          }
+        }
+      },
+      {
+        "name": "guest-ilsa.voss@staff.example",
+        "app": "events",
+        "path": "/api/v1/events?organiser=sable.halvard%40staff.example&date=2027-11-23",
+        "where": {
+          "startTime": "16:00",
+          "status": "scheduled"
+        },
+        "expect": {
+          "guests": {
+            "email": "ilsa.voss@staff.example"
+          }
+        }
+      },
+      {
+        "name": "guest-rue.selwyn@partner.example",
+        "app": "events",
+        "path": "/api/v1/events?organiser=sable.halvard%40staff.example&date=2027-11-23",
+        "where": {
+          "startTime": "16:00",
+          "status": "scheduled"
+        },
+        "expect": {
+          "guests": {
+            "email": "rue.selwyn@partner.example"
+          }
+        }
+      }
+    ]
+  }
+}

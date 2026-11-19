@@ -1,0 +1,224 @@
+import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signWorkspaceHeader, type Pool } from "@benchme/core";
+import {
+  webmcpV1,
+  addDays,
+  clinicFindDoctors,
+  clinicFreeSlots,
+  clinicPrescriptionPrices,
+  clinicSlotTimes,
+  clinicVisitCostCents,
+  scenarios,
+  type ClinicDoctor,
+  type ClinicRows,
+} from "@benchme/scenarios";
+import type { Mailer } from "@benchme/site-kit";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import type { FastifyInstance, InjectOptions } from "fastify";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { buildClinic } from "./build-app.js";
+
+const DB = process.env.DATABASE_URL;
+const SECRET = "gateway-secret-for-tests";
+const here = dirname(fileURLToPath(import.meta.url));
+
+class CapturingMailer implements Mailer {
+  sent: { ws: string; to: string; subject: string; body: string }[] = [];
+  async deliver(ws: string, msg: { to: string; subject: string; body: string }) {
+    this.sent.push({ ws, ...msg });
+  }
+}
+
+let pool: Pool;
+let app: FastifyInstance;
+let mailer: CapturingMailer;
+let ws: string;
+let rows: ClinicRows;
+let bearer = "";
+let cookie = "";
+let baseUrl = "";
+const scoped = (o: InjectOptions & { url: string }, wsId = ws): InjectOptions => ({
+  ...o,
+  headers: { ...(o.headers ?? {}), [WORKSPACE_HEADER]: wsId, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, wsId), "x-forwarded-prefix": `/w/${wsId}/clinic` },
+});
+const get = async (url: string) => (await app.inject(scoped({ method: "GET", url }))).json();
+const post = (url: string, payload: unknown, auth = true) => app.inject(scoped({ method: "POST", url, payload: payload as Record<string, unknown>, headers: auth ? { authorization: `Bearer ${bearer}` } : {} }));
+const formPost = (url: string, body: Record<string, string>) => app.inject(scoped({ method: "POST", url, payload: new URLSearchParams(body).toString(), headers: { "content-type": "application/x-www-form-urlencoded", cookie } }));
+
+async function signIn(wsId: string, email: string): Promise<{ token: string; cookie: string }> {
+  const before = mailer.sent.length;
+  const enc = encodeURIComponent(email);
+  const fh = { "content-type": "application/x-www-form-urlencoded" };
+  await app.inject(scoped({ method: "POST", url: "/signup", payload: `name=T&email=${enc}&password=correct-horse-9`, headers: fh }, wsId));
+  const code = /code is (\d{6})/.exec(mailer.sent[before]!.body)![1]!;
+  await app.inject(scoped({ method: "POST", url: "/verify", payload: `email=${enc}&code=${code}`, headers: fh }, wsId));
+  const login = await app.inject(scoped({ method: "POST", url: "/login", payload: `email=${enc}&password=correct-horse-9`, headers: fh }, wsId));
+  const session = `cl_session=${login.cookies.find((c) => c.name === "cl_session")!.value}`;
+  await app.inject(scoped({ method: "POST", url: "/account/token", headers: { cookie: session } }, wsId));
+  const token = /cln_[0-9a-f]+/.exec((await app.inject(scoped({ url: "/account", headers: { cookie: session } }, wsId))).body)![0];
+  return { token, cookie: session };
+}
+
+beforeAll(async () => {
+  if (!DB) return;
+  pool = createPool(DB, 4);
+  await migrate(pool, "core", join(here, "..", "..", "gateway", "migrations"));
+  await migrate(pool, "clinic", join(here, "..", "migrations"));
+  mailer = new CapturingMailer();
+  app = await buildClinic({ pool, scenarios, mailer, gatewaySecret: SECRET, sessionTtlSeconds: 3600, logLevel: "silent" });
+  await app.listen({ port: 0, host: "127.0.0.1" });
+  const addr = app.server.address();
+  baseUrl = `http://127.0.0.1:${typeof addr === "object" && addr ? addr.port : 0}`;
+  rows = webmcpV1.generate(4242).clinic;
+  ws = newWorkspaceId();
+  await pool.query("INSERT INTO core.workspaces (id, scenario, seed, expires_at) VALUES ($1, 'webmcp-v1', 4242, now() + interval '1 hour')", [ws]);
+  expect((await app.inject(scoped({ method: "POST", url: `/internal/workspaces/${ws}/seed`, payload: { scenario: "webmcp-v1", seed: 4242 } }))).statusCode).toBe(201);
+  ({ token: bearer, cookie } = await signIn(ws, "booker@example.com"));
+});
+afterAll(async () => {
+  await app?.close();
+  await pool?.end();
+});
+
+/** The first day from `from` the doctor sees patients. Autumn is empty: no seeded appointment is after June. */
+const workingDay = (d: ClinicDoctor, from = "2027-10-04") => {
+  let day = from;
+  while (clinicSlotTimes(d, day).length === 0) day = addDays(day, 1);
+  return day;
+};
+/** A doctor's day with every slot booked in the seed rows. */
+const fullDay = () => {
+  for (const d of rows.doctors) for (let i = 0; i < 61; i++) {
+    const date = addDays("2027-03-01", i);
+    if (clinicSlotTimes(d, date).length && clinicFreeSlots(d, rows.appointments, date).length === 0) return { doctor: d, date };
+  }
+  throw new Error("no fully booked day");
+};
+
+describe.skipIf(!DB)("clinic (real Postgres)", () => {
+  it("serves the WebMCP bridge with the full catalog, and says on every page that it is fictional and gives no medical advice", async () => {
+    for (const url of ["/", "/login", "/plans"]) {
+      const res = await app.inject(scoped({ method: "GET", url }));
+      expect(res.body).toContain('data-webmcp="bridge"');
+      expect(res.body).toContain('"name":"find_doctors"');
+      expect(res.body).toContain("It gives no medical advice.");
+    }
+  });
+
+  it("serves the seeded rows as the generator made them", async () => {
+    expect(await get("/api/v1/clinics")).toEqual(rows.clinics);
+    const d = rows.doctors[0]!;
+    expect(await get(`/api/v1/doctors/${d.code}`)).toMatchObject({ ...d });
+    const plan = await get(`/api/v1/plans/${rows.plans[0]!.code}`);
+    expect(plan).toMatchObject({ ...rows.plans[0] });
+    expect(plan.coverage).toHaveLength(rows.procedures.length);
+    const a = rows.appointments[0]!;
+    expect(await get(`/api/v1/appointments/${a.appointmentNo}`)).toMatchObject({ ...a });
+    const mine = await get(`/api/v1/appointments?patientEmail=${encodeURIComponent(a.patientEmail.toUpperCase())}&limit=200`);
+    expect(mine.items.map((x: { appointmentNo: string }) => x.appointmentNo)).toEqual(rows.appointments.filter((x) => x.patientEmail === a.patientEmail).map((x) => x.appointmentNo).sort());
+    const rx = rows.prescriptions[0]!;
+    expect(await get(`/api/v1/prescriptions/${rx.rxNo}`)).toMatchObject({ ...rx });
+    const med = rows.medications[0]!;
+    expect(await get(`/api/v1/prices?medication=${encodeURIComponent(med.name)}&dosage=${encodeURIComponent(med.dosages[0]!)}`)).toEqual(clinicPrescriptionPrices(rows, med.name, med.dosages[0]));
+  });
+
+  it("answers every doctor search the way clinicFindDoctors does, a fully booked day included", async () => {
+    const { doctor, date } = fullDay();
+    const city = rows.clinics.find((c) => c.code === doctor.clinicCode)!.city;
+    expect((await get(`/api/v1/doctors/${doctor.code}/slots?date=${date}`)).free).toEqual([]);
+    const queries = [
+      { city, specialty: doctor.specialty, date },
+      { city, specialty: doctor.specialty },
+      { language: "polish", visitType: "video" as const, planCode: rows.plans[1]!.code, newPatients: true },
+      { city, date: "2027-10-06", newPatients: true },
+    ];
+    for (const q of queries) {
+      const qs = new URLSearchParams(Object.entries(q).map(([k, v]) => [k === "planCode" ? "plan" : k, String(v)]));
+      expect(await get(`/api/v1/doctors?${qs}`)).toEqual(clinicFindDoctors(rows, q));
+    }
+    expect(clinicFindDoctors(rows, queries[0]!).map((d) => d.code)).not.toContain(doctor.code);
+    expect(clinicFindDoctors(rows, queries[1]!).map((d) => d.code)).toContain(doctor.code);
+    expect((await app.inject(scoped({ method: "GET", url: `/api/v1/doctors?date=2027-02-30` }))).statusCode).toBe(400);
+  });
+
+  it("books, refuses what the rules refuse, and cancels once", async () => {
+    const doctor = rows.doctors.find((d) => d.acceptingNewPatients && d.visitTypes.includes("in-person") && !d.visitTypes.includes("video"))!;
+    const date = workingDay(doctor);
+    const plan = rows.plans.find((p) => !doctor.networkPlans.includes(p.code))!;
+    const time = clinicSlotTimes(doctor, date)[0]!;
+    const visit = { doctorCode: doctor.code, date, time, visitType: "in-person", planCode: plan.code, patientName: "Ilsa Voss", patientEmail: "Ilsa.Voss@Example.com" };
+    expect((await post("/api/v1/appointments", visit, false)).statusCode).toBe(401);
+    const made = await post("/api/v1/appointments", visit);
+    expect(made.statusCode).toBe(201);
+    expect(made.json()).toMatchObject({ doctorCode: doctor.code, date, time, status: "booked", patientEmail: "ilsa.voss@example.com", costCents: clinicVisitCostCents(doctor, plan, "in-person") });
+    const refused = async (body: object) => {
+      const r = await post("/api/v1/appointments", { ...visit, ...body });
+      return [r.statusCode, r.json().error];
+    };
+    expect(await refused({ patientEmail: "someone.else@example.com" })).toEqual([409, "SLOT_TAKEN"]);
+    const other = rows.doctors.find((d) => d.acceptingNewPatients && d.session === doctor.session && d.visitTypes.includes("in-person") && d.workDays.some((w) => doctor.workDays.includes(w)) && d !== doctor)!;
+    const both = workingDay({ ...doctor, workDays: doctor.workDays.filter((w) => other.workDays.includes(w)) }, addDays(date, 1));
+    expect((await post("/api/v1/appointments", { ...visit, date: both })).statusCode).toBe(201);
+    expect(await refused({ doctorCode: other.code, date: both })).toEqual([409, "PATIENT_BUSY"]);
+    expect(await refused({ visitType: "video", time: clinicSlotTimes(doctor, date)[1] })).toEqual([422, "VISIT_TYPE_NOT_OFFERED"]);
+    expect(await refused({ time: "12:15" })).toEqual([422, "NO_SUCH_SLOT"]);
+    expect(await refused({ date: addDays(date, [1, 2, 3, 4, 5, 6].find((n) => clinicSlotTimes(doctor, addDays(date, n)).length === 0)!) })).toEqual([422, "NOT_WORKING"]);
+    expect(await refused({ date: "2028-01-03" })).toEqual([422, "OUTSIDE_WINDOW"]);
+    const closed = rows.doctors.find((d) => !d.acceptingNewPatients && d.visitTypes.includes("in-person"))!;
+    expect(await refused({ doctorCode: closed.code, date: workingDay(closed), time: clinicSlotTimes(closed, workingDay(closed))[0] })).toEqual([422, "NOT_ACCEPTING_NEW_PATIENTS"]);
+    expect((await post("/api/v1/appointments", { ...visit, planCode: "PL-99" })).statusCode).toBe(422);
+    const no = made.json().appointmentNo;
+    expect((await post(`/api/v1/appointments/${no}/cancel`, {})).json().status).toBe("cancelled");
+    expect((await post(`/api/v1/appointments/${no}/cancel`, {})).statusCode).toBe(409);
+    expect((await post("/api/v1/appointments", { ...visit, patientEmail: "someone.else@example.com" })).statusCode).toBe(201);
+  });
+
+  it("requests a refill once, and refuses one with no refills left or at a pharmacy that does not stock it", async () => {
+    const stocks = (rx: { medicationCode: string; dosage: string }) => rows.prices.filter((p) => p.medicationCode === rx.medicationCode && p.dosage === rx.dosage).map((p) => p.clinicCode);
+    const open = new Set(rows.refills.filter((r) => r.status === "requested").map((r) => r.rxNo));
+    const rx = rows.prescriptions.find((p) => p.refillsLeft > 0 && !open.has(p.rxNo) && stocks(p).length > 0 && stocks(p).length < rows.clinics.length)!;
+    const at = stocks(rx)[0]!;
+    expect((await post(`/api/v1/prescriptions/${rx.rxNo}/refill`, { pharmacyCode: rows.clinics.find((c) => !stocks(rx).includes(c.code))!.code })).json().error).toBe("NOT_STOCKED");
+    const made = await post(`/api/v1/prescriptions/${rx.rxNo}/refill`, { pharmacyCode: at });
+    expect([made.statusCode, made.json().status, made.json().pharmacyCode]).toEqual([201, "requested", at]);
+    expect(await get(`/api/v1/prescriptions/${rx.rxNo}`)).toMatchObject({ refillsLeft: rx.refillsLeft - 1, refillPending: true });
+    const again = await post(`/api/v1/prescriptions/${rx.rxNo}/refill`, { pharmacyCode: at });
+    expect([again.statusCode, again.json().error]).toEqual([409, "ALREADY_REQUESTED"]);
+    const empty = rows.prescriptions.find((p) => p.refillsLeft === 0)!;
+    expect((await post(`/api/v1/prescriptions/${empty.rxNo}/refill`, { pharmacyCode: at })).json().error).toBe("NO_REFILLS_LEFT");
+    expect((await get(`/api/v1/refills?rxNo=${rx.rxNo}&status=requested`)).map((r: { refillNo: string }) => r.refillNo)).toEqual([made.json().refillNo]);
+  });
+
+  it("books through the page form, shows a refusal's reason on the page, and cancels from the appointment page", async () => {
+    const doctor = rows.doctors.find((d) => d.acceptingNewPatients && d.visitTypes.includes("video"))!;
+    const date = workingDay(doctor, "2027-11-01");
+    const body = { doctorCode: doctor.code, date, time: clinicSlotTimes(doctor, date)[2]!, visitType: "video", planCode: "", patientName: "Page Patient", patientEmail: "page.patient@example.com" };
+    const made = await formPost("/appointments", body);
+    expect(made.statusCode).toBe(303);
+    const page = await app.inject(scoped({ method: "GET", url: made.headers.location!.replace(`/w/${ws}/clinic`, ""), headers: { cookie } }));
+    expect(page.body).toContain("booked");
+    const taken = await formPost("/appointments", { ...body, patientEmail: "late.patient@example.com" });
+    expect(taken.statusCode).toBe(409);
+    expect(taken.body).toContain(`slot on ${date} is taken`);
+    const no = made.headers.location!.split("/").pop()!;
+    expect((await formPost(`/appointments/${no}/cancel`, {})).statusCode).toBe(303);
+    expect((await get(`/api/v1/appointments/${no}`)).status).toBe("cancelled");
+  });
+
+  it("exposes the same tools over MCP", async () => {
+    const client = new Client({ name: "test", version: "0" });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));
+    try {
+      const names = (await client.listTools()).tools.map((t) => t.name).sort();
+      expect(names).toEqual(["book_appointment", "cancel_appointment", "check_visit_cost", "find_doctors", "get_doctor", "get_patient", "get_plan", "get_prescription_prices", "list_clinics", "request_refill"]);
+      const { doctor, date } = fullDay();
+      const city = rows.clinics.find((c) => c.code === doctor.clinicCode)!.city;
+      const res = (await client.callTool({ name: "find_doctors", arguments: { city, date } })) as { content: { text: string }[] };
+      expect(JSON.parse(res.content[0]!.text)).toEqual(clinicFindDoctors(rows, { city, date }));
+    } finally {
+      await client.close();
+    }
+  });
+});

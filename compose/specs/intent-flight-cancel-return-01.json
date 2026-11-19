@@ -1,0 +1,105 @@
+{
+  "id": "intent-flight-cancel-return-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "BK-10037-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10037",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10055-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10055",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10056-cancelled",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10056",
+        "expect": {
+          "status": "cancelled"
+        }
+      },
+      {
+        "name": "BK-10063-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10063",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10064-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10064",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10071-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10071",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10072-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10072",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10079-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10079",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10104-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10104",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10131-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10131",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10133-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10133",
+        "expect": {
+          "status": "confirmed"
+        }
+      },
+      {
+        "name": "BK-10141-confirmed",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10141",
+        "expect": {
+          "status": "confirmed"
+        }
+      }
+    ]
+  }
+}

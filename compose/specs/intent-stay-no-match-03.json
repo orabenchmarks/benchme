@@ -1,0 +1,11 @@
+{
+  "id": "intent-stay-no-match-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "exists": false,
+      "closest": "HT-118"
+    }
+  }
+}

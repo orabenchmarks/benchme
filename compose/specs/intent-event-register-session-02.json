@@ -1,0 +1,40 @@
+{
+  "id": "intent-event-register-session-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "registered",
+        "app": "events",
+        "path": "/api/v1/registrations?email=ilsa.kowalczyk%40staff.example",
+        "where": {
+          "eventCode": "EV-1079",
+          "status": "registered"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "email": "ilsa.kowalczyk@staff.example"
+        }
+      },
+      {
+        "name": "only-one-new",
+        "app": "events",
+        "path": "/api/v1/registrations?email=ilsa.kowalczyk%40staff.example",
+        "where": {
+          "status": "registered"
+        },
+        "count": {
+          "min": 2,
+          "max": 2
+        },
+        "expect": {
+          "email": "ilsa.kowalczyk@staff.example"
+        }
+      }
+    ]
+  }
+}

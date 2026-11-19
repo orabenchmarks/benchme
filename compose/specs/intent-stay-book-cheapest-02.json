@@ -1,0 +1,29 @@
+{
+  "id": "intent-stay-book-cheapest-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked-cheapest",
+        "app": "hotels",
+        "path": "/api/v1/bookings?guestEmail=corin.castellan%40travel.example",
+        "where": {
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "hotelCode": "HT-104",
+          "roomCode": "HT-104-FAM",
+          "checkIn": "2027-04-20",
+          "nights": 3,
+          "adults": 1,
+          "kids": 1
+        }
+      }
+    ]
+  }
+}

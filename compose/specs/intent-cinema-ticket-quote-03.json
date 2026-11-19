@@ -1,0 +1,13 @@
+{
+  "id": "intent-cinema-ticket-quote-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "total": {
+        "value": 57.75,
+        "tolerance": 0.01
+      }
+    }
+  }
+}

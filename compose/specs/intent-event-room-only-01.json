@@ -1,0 +1,10 @@
+{
+  "id": "intent-event-room-only-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "room": "KAR-R3"
+    }
+  }
+}

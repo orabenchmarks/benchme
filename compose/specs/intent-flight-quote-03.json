@@ -1,0 +1,13 @@
+{
+  "id": "intent-flight-quote-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "total": {
+        "value": 920,
+        "tolerance": 0.01
+      }
+    }
+  }
+}

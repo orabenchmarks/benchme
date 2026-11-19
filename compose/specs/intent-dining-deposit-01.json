@@ -1,0 +1,13 @@
+{
+  "id": "intent-dining-deposit-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "deposit": {
+        "value": 95,
+        "tolerance": 0.01
+      }
+    }
+  }
+}

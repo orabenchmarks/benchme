@@ -1,0 +1,25 @@
+{
+  "id": "intent-event-cancel-registration-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "RG-3094-cancelled",
+        "app": "events",
+        "path": "/api/v1/registrations/RG-3094",
+        "expect": {
+          "status": "cancelled"
+        }
+      },
+      {
+        "name": "RG-3126-registered",
+        "app": "events",
+        "path": "/api/v1/registrations/RG-3126",
+        "expect": {
+          "status": "registered"
+        }
+      }
+    ]
+  }
+}

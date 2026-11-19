@@ -1,0 +1,14 @@
+{
+  "id": "intent-sport-cheapest-fit-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "sku": "SP-101-BLK-42",
+      "total": {
+        "value": 428.97,
+        "tolerance": 0.01
+      }
+    }
+  }
+}

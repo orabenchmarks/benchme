@@ -23,6 +23,33 @@
       "path": "apps/helpdesk"
     },
     {
+      "path": "apps/hotels"
+    },
+    {
+      "path": "apps/homes"
+    },
+    {
+      "path": "apps/dining"
+    },
+    {
+      "path": "apps/flights"
+    },
+    {
+      "path": "apps/cinema"
+    },
+    {
+      "path": "apps/sports"
+    },
+    {
+      "path": "apps/pizza"
+    },
+    {
+      "path": "apps/events"
+    },
+    {
+      "path": "apps/clinic"
+    },
+    {
       "path": "apps/vaultdocs"
     },
     {

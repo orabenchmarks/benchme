@@ -1,7 +1,11 @@
 # syntax=docker/dockerfile:1.7
-# One Dockerfile for every app: `--build-arg APP=<gateway|warehouse|helpdesk|vaultdocs|mail|data|verify|shops|wallet|guide>`.
+# One Dockerfile for every app: `--build-arg APP=<gateway|warehouse|helpdesk|hotels|flights|dining|pizza|cinema|sports|homes|clinic|events|vaultdocs|mail|data|verify|shops|wallet|guide>`.
 # deps → build (tsc, plus the data site render) → runtime (slim, non-root,
 # read-only root fs friendly: nothing writes under /app at run time).
+# Only the runtime stage reads APP. The deps and build stages are the same for
+# every app, so one compose build of all the images (CI's intent-integrity job,
+# 19 images with bake) runs npm ci and tsc once and shares them; with APP in
+# the build stage, 19 concurrent tsc runs starved the runner's memory.
 ARG NODE_IMAGE=node:22-bookworm-slim
 
 FROM ${NODE_IMAGE} AS deps
@@ -13,6 +17,15 @@ COPY packages/site-kit/package.json packages/site-kit/
 COPY packages/storefront/package.json packages/storefront/
 COPY apps/gateway/package.json apps/gateway/
 COPY apps/helpdesk/package.json apps/helpdesk/
+COPY apps/hotels/package.json apps/hotels/
+COPY apps/flights/package.json apps/flights/
+COPY apps/dining/package.json apps/dining/
+COPY apps/pizza/package.json apps/pizza/
+COPY apps/cinema/package.json apps/cinema/
+COPY apps/sports/package.json apps/sports/
+COPY apps/homes/package.json apps/homes/
+COPY apps/clinic/package.json apps/clinic/
+COPY apps/events/package.json apps/events/
 COPY apps/vaultdocs/package.json apps/vaultdocs/
 COPY apps/warehouse/package.json apps/warehouse/
 COPY apps/mail/package.json apps/mail/
@@ -24,7 +37,6 @@ COPY apps/guide/package.json apps/guide/
 RUN npm ci --no-audit --no-fund
 
 FROM deps AS build
-ARG APP
 COPY packages ./packages
 COPY apps ./apps
 # Compile from the sources alone. A checkout's own build outputs (dist/, *.tsbuildinfo:
@@ -32,9 +44,11 @@ COPY apps ./apps
 # would make `tsc -b` answer "up to date" and ship them as they are, files of
 # since-deleted sources included. .dockerignore keeps them (and node_modules, caches,
 # reports) out of the context; the rm below is the backstop should one get through.
+# The data site is rendered for every image (a few files, seconds); only the data
+# image's runtime stage copies it.
 RUN find packages apps -mindepth 2 -maxdepth 2 \( -name dist -o -name '*.tsbuildinfo' \) -exec rm -rf {} + \
  && npx tsc -b tsconfig.build.json \
- && if [ "$APP" = "data" ]; then node apps/data/dist/build.js; fi \
+ && node apps/data/dist/build.js \
  && npm prune --omit=dev --no-audit --no-fund
 
 FROM ${NODE_IMAGE} AS runtime

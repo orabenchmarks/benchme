@@ -1,0 +1,33 @@
+{
+  "id": "intent-sport-cancel-one-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ORD-10043-shipped",
+        "app": "sports",
+        "path": "/api/v1/orders/ORD-10043",
+        "expect": {
+          "status": "shipped"
+        }
+      },
+      {
+        "name": "ORD-10051-processing",
+        "app": "sports",
+        "path": "/api/v1/orders/ORD-10051",
+        "expect": {
+          "status": "processing"
+        }
+      },
+      {
+        "name": "ORD-10056-cancelled",
+        "app": "sports",
+        "path": "/api/v1/orders/ORD-10056",
+        "expect": {
+          "status": "cancelled"
+        }
+      }
+    ]
+  }
+}

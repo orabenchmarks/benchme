@@ -1,0 +1,28 @@
+{
+  "id": "intent-clinic-book-earliest-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked-earliest",
+        "app": "clinic",
+        "path": "/api/v1/appointments?patientEmail=gideon.abernathy%40patient.example",
+        "where": {
+          "status": "booked"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "doctorCode": "DR-204",
+          "date": "2027-04-15",
+          "time": "11:30",
+          "visitType": "video",
+          "planCode": "PL-13"
+        }
+      }
+    ]
+  }
+}

@@ -18,6 +18,18 @@ export function minstd(seed: number): Rng {
   };
 }
 
+/**
+ * A stream of its own for one part of a scenario: same (seed, key) → same
+ * sequence, and drawing from it never moves a value drawn from `minstd(seed)`.
+ * Lets a scenario grow a part (acme-v1's hotels) without changing a single
+ * row it generated before.
+ */
+export function substream(seed: number, key: string): Rng {
+  let h = 2166136261;
+  for (const ch of `${seed}:${key}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  return minstd((h % 2147483646) + 1);
+}
+
 /** Integer in [min, max] inclusive. */
 export function int(rng: Rng, min: number, max: number): number {
   return min + Math.floor(rng() * (max - min + 1));

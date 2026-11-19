@@ -110,12 +110,75 @@ services:
     depends_on:
       migrate-helpdesk:
         condition: service_completed_successfully
+  migrate-hotels:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/hotels:${BENCHME_VERSION:-0.9.0}
+    command: ["node", "apps/hotels/dist/migrate.js"]
+    depends_on:
+      migrate-vaultdocs:
+        condition: service_completed_successfully
+  migrate-flights:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/flights:${BENCHME_VERSION:-0.9.0}
+    command: ["node", "apps/flights/dist/migrate.js"]
+    depends_on:
+      migrate-hotels:
+        condition: service_completed_successfully
+  migrate-dining:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/dining:${BENCHME_VERSION:-0.9.0}
+    command: ["node", "apps/dining/dist/migrate.js"]
+    depends_on:
+      migrate-flights:
+        condition: service_completed_successfully
+  migrate-pizza:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/pizza:${BENCHME_VERSION:-0.9.0}
+    command: ["node", "apps/pizza/dist/migrate.js"]
+    depends_on:
+      migrate-dining:
+        condition: service_completed_successfully
+  migrate-cinema:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/cinema:${BENCHME_VERSION:-0.9.0}
+    command: ["node", "apps/cinema/dist/migrate.js"]
+    depends_on:
+      migrate-pizza:
+        condition: service_completed_successfully
+  migrate-sports:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/sports:${BENCHME_VERSION:-0.9.0}
+    command: ["node", "apps/sports/dist/migrate.js"]
+    depends_on:
+      migrate-cinema:
+        condition: service_completed_successfully
+  migrate-homes:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/homes:${BENCHME_VERSION:-0.9.0}
+    command: ["node", "apps/homes/dist/migrate.js"]
+    depends_on:
+      migrate-sports:
+        condition: service_completed_successfully
+  migrate-clinic:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/clinic:${BENCHME_VERSION:-0.9.0}
+    command: ["node", "apps/clinic/dist/migrate.js"]
+    depends_on:
+      migrate-homes:
+        condition: service_completed_successfully
+  migrate-events:
+    <<: *migrate
+    image: ghcr.io/orabenchmarks/events:${BENCHME_VERSION:-0.9.0}
+    command: ["node", "apps/events/dist/migrate.js"]
+    depends_on:
+      migrate-clinic:
+        condition: service_completed_successfully
   migrate-mail:
     <<: *migrate
     image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.9.0}
     command: ["node", "apps/mail/dist/migrate.js"]
     depends_on:
-      migrate-vaultdocs:
+      migrate-events:
         condition: service_completed_successfully
   migrate-verify:
     <<: *migrate
@@ -166,17 +229,19 @@ services:
       # The store sites are one app (shops) serving each site under /s/<site>. wallet: the wallet's
       # workspace-scoped door (/w/<id>/wallet/card → wallet:3000/workspace/card, the saved card of a run that
       # pays without Link) — the same service the root /wallet/* reaches, which forwards no workspace.
-      APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000","verify":"http://verify:3000","wrenfield":"http://shops:3000/s/wrenfield","halden":"http://shops:3000/s/halden","quillfeather":"http://shops:3000/s/quillfeather","paylantern":"http://shops:3000/s/paylantern","wallet":"http://wallet:3000/workspace","guide":"http://guide:3000","web":"http://guide:3000/web"}'
+      APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","hotels":"http://hotels:3000","flights":"http://flights:3000","dining":"http://dining:3000","pizza":"http://pizza:3000","cinema":"http://cinema:3000","sports":"http://sports:3000","homes":"http://homes:3000","clinic":"http://clinic:3000","events":"http://events:3000","mail":"http://mail:3000","data":"http://data:3000","verify":"http://verify:3000","wrenfield":"http://shops:3000/s/wrenfield","halden":"http://shops:3000/s/halden","quillfeather":"http://shops:3000/s/quillfeather","paylantern":"http://shops:3000/s/paylantern","wallet":"http://wallet:3000/workspace","guide":"http://guide:3000","web":"http://guide:3000/web"}'
       # Routed like any app, but left out of a workspace's urls (and the portal, the registry, robots.txt) — guide
       # and web included: only the guide-v1 / web-v1 scenario's workspaces advertise them (Scenario.apps). web is
-      # the site network, which the guide's own service serves under /web.
-      UNLISTED_APPS: paylantern,wallet,guide,web
+      # the site network, which the guide's own service serves under /web. The sites from webmcp-tools (hotels …
+      # events) likewise: only webmcp-v1's workspaces advertise them.
+      UNLISTED_APPS: paylantern,wallet,guide,web,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events
       # Served at the root, outside any workspace: /wallet/* (link-cli's LINK_API_BASE_URL = <public>/wallet/api).
       SERVICE_TARGETS: '{"wallet":"http://wallet:3000"}'
-      SEEDED_APPS: warehouse,helpdesk,vaultdocs,mail,verify
-      MCP_APPS: warehouse,helpdesk,vaultdocs
+      SEEDED_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events,mail,verify
+      MCP_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events
       ASK_APPS: warehouse,helpdesk,vaultdocs
-      WEBMCP_APPS: warehouse,helpdesk,vaultdocs
+      # hotels and the other errand sites have no NLWeb /ask (they are not in ASK_APPS).
+      WEBMCP_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events
       WORKSPACE_TTL_SECONDS: ${WORKSPACE_TTL_SECONDS:-86400}
       WORKSPACE_MAX_TTL_SECONDS: ${WORKSPACE_MAX_TTL_SECONDS:-604800}
       # Your own machine: no need to throttle yourself.
@@ -200,6 +265,78 @@ services:
     <<: *app
     image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.9.0}
     environment: *common-env
+
+  # Larchmere Stays, the hotel booking site (README § Hotels).
+  hotels:
+    <<: *app
+    image: ghcr.io/orabenchmarks/hotels:${BENCHME_VERSION:-0.9.0}
+    environment:
+      <<: *common-env
+      MAIL_URL: http://mail:3000
+
+  # the flight booking site (README § Sites from webmcp-tools).
+  flights:
+    <<: *app
+    image: ghcr.io/orabenchmarks/flights:${BENCHME_VERSION:-0.9.0}
+    environment:
+      <<: *common-env
+      MAIL_URL: http://mail:3000
+
+  # the restaurant reservation site (README § Sites from webmcp-tools).
+  dining:
+    <<: *app
+    image: ghcr.io/orabenchmarks/dining:${BENCHME_VERSION:-0.9.0}
+    environment:
+      <<: *common-env
+      MAIL_URL: http://mail:3000
+
+  # the pizza ordering site (README § Sites from webmcp-tools).
+  pizza:
+    <<: *app
+    image: ghcr.io/orabenchmarks/pizza:${BENCHME_VERSION:-0.9.0}
+    environment:
+      <<: *common-env
+      MAIL_URL: http://mail:3000
+
+  # the cinema ticket site (README § Sites from webmcp-tools).
+  cinema:
+    <<: *app
+    image: ghcr.io/orabenchmarks/cinema:${BENCHME_VERSION:-0.9.0}
+    environment:
+      <<: *common-env
+      MAIL_URL: http://mail:3000
+
+  # the sports retailer (README § Sites from webmcp-tools).
+  sports:
+    <<: *app
+    image: ghcr.io/orabenchmarks/sports:${BENCHME_VERSION:-0.9.0}
+    environment:
+      <<: *common-env
+      MAIL_URL: http://mail:3000
+
+  # the real estate listings site (README § Sites from webmcp-tools).
+  homes:
+    <<: *app
+    image: ghcr.io/orabenchmarks/homes:${BENCHME_VERSION:-0.9.0}
+    environment:
+      <<: *common-env
+      MAIL_URL: http://mail:3000
+
+  # the clinic network site (README § Sites from webmcp-tools).
+  clinic:
+    <<: *app
+    image: ghcr.io/orabenchmarks/clinic:${BENCHME_VERSION:-0.9.0}
+    environment:
+      <<: *common-env
+      MAIL_URL: http://mail:3000
+
+  # the events site (README § Sites from webmcp-tools).
+  events:
+    <<: *app
+    image: ghcr.io/orabenchmarks/events:${BENCHME_VERSION:-0.9.0}
+    environment:
+      <<: *common-env
+      MAIL_URL: http://mail:3000
 
   mail:
     <<: *app
@@ -283,7 +420,7 @@ services:
       SPECS_DIR: /specs
       MAX_ATTEMPTS_PER_TASK: ${MAX_ATTEMPTS_PER_TASK:-20}
       # The `state` oracle reads a workspace's live app state straight from these (never through the gateway proxy).
-      APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","mail":"http://mail:3000","data":"http://data:3000"}'
+      APP_TARGETS: '{"warehouse":"http://warehouse:3000","helpdesk":"http://helpdesk:3000","vaultdocs":"http://vaultdocs:3000","hotels":"http://hotels:3000","flights":"http://flights:3000","dining":"http://dining:3000","pizza":"http://pizza:3000","cinema":"http://cinema:3000","sports":"http://sports:3000","homes":"http://homes:3000","clinic":"http://clinic:3000","events":"http://events:3000","mail":"http://mail:3000","data":"http://data:3000"}'
       RUNNER_KIND: ${RUNNER_KIND:-docker}
       DOCKER_HOST: unix:///var/run/docker.sock
       RUNNER_CPU: ${RUNNER_CPU:-2}

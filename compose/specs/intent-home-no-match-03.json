@@ -1,0 +1,11 @@
+{
+  "id": "intent-home-no-match-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "exists": false,
+      "closest": "LS-3192"
+    }
+  }
+}

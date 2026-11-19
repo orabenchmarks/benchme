@@ -1,0 +1,49 @@
+{
+  "id": "intent-event-cancel-registration-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "RG-3015-registered",
+        "app": "events",
+        "path": "/api/v1/registrations/RG-3015",
+        "expect": {
+          "status": "registered"
+        }
+      },
+      {
+        "name": "RG-3048-registered",
+        "app": "events",
+        "path": "/api/v1/registrations/RG-3048",
+        "expect": {
+          "status": "registered"
+        }
+      },
+      {
+        "name": "RG-3064-cancelled",
+        "app": "events",
+        "path": "/api/v1/registrations/RG-3064",
+        "expect": {
+          "status": "cancelled"
+        }
+      },
+      {
+        "name": "RG-3091-registered",
+        "app": "events",
+        "path": "/api/v1/registrations/RG-3091",
+        "expect": {
+          "status": "registered"
+        }
+      },
+      {
+        "name": "RG-3125-registered",
+        "app": "events",
+        "path": "/api/v1/registrations/RG-3125",
+        "expect": {
+          "status": "registered"
+        }
+      }
+    ]
+  }
+}

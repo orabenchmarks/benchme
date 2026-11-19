@@ -1,0 +1,11 @@
+{
+  "id": "intent-event-most-places-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "event": "EV-1070",
+      "placesLeft": 3
+    }
+  }
+}

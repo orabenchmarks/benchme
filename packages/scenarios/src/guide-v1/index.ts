@@ -1,5 +1,6 @@
 import { acmeV1 } from "../acme-v1/index.js";
 import type { Scenario, ScenarioRows } from "../scenario.js";
+import { noSiteRows } from "../sites/rows.js";
 
 /**
  * guide-v1: the buyer's guide (apps/guide). The guide's pages are a pure function of the workspace's seed, which
@@ -17,6 +18,7 @@ export const guideV1: Scenario = {
       warehouse: { products: [], locations: [], stock: [], customers: [], orders: [], orderLines: [], transfers: [] },
       helpdesk: { agents: [], tickets: [], comments: [], slaPolicies: [] },
       vault: { documents: [] },
+      ...noSiteRows(),
     };
   },
 };

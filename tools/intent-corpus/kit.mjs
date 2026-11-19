@@ -57,6 +57,10 @@ export function contextOf(rows) {
     pendingFrom: (sku, locationCode) => w.transfers.some((t) => t.status === "pending" && t.sku === sku && t.fromCode === locationCode),
     depotsHolding: (sku) => w.stock.filter((s) => s.sku === sku && s.qty > 0),
     ticketsBy: (requester) => h.tickets.filter((t) => t.requester === requester),
+    hotel: new Map(rows.hotels.hotels.map((x) => [x.code, x])),
+    room: new Map(rows.hotels.rooms.map((r) => [r.code, r])),
+    roomsOf: (hotelCode) => rows.hotels.rooms.filter((r) => r.hotelCode === hotelCode),
+    bookingsOf: (guestEmail) => rows.hotels.bookings.filter((b) => b.guestEmail === guestEmail),
   };
 }
 

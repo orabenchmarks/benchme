@@ -1,0 +1,14 @@
+{
+  "id": "intent-sport-cheapest-fit-03",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "sku": "SP-103-BLU-43",
+      "total": {
+        "value": 440.97,
+        "tolerance": 0.01
+      }
+    }
+  }
+}

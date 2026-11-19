@@ -1,5 +1,6 @@
 import { minstd } from "../prng.js";
 import type { Scenario, ScenarioRows } from "../scenario.js";
+import { noSiteRows } from "../sites/rows.js";
 import { city, companyName } from "./names.js";
 import { documents } from "./documents.js";
 import { agents, slaPolicies, tickets } from "./helpdesk.js";
@@ -9,7 +10,8 @@ import { customers, locations, orders, products, stock, transfers } from "./ware
  * acme-v1: a small industrial-supply company. Sizes are fixed so tasks can
  * assume them; every value is derived from the seed through ONE rng stream in a
  * fixed order (changing that order changes every downstream fixture — bump the
- * scenario key instead).
+ * scenario key instead). The sites from webmcp-tools are not part of it: they
+ * are webmcp-v1's, and an acme-v1 workspace seeds them empty.
  */
 export const ACME_V1_SIZES = { products: 120, customers: 40, orders: 300, transfers: 60, agents: 8, tickets: 150 } as const;
 
@@ -47,6 +49,7 @@ export const acmeV1: Scenario = {
       warehouse: { products: items, locations: sites, stock: stockRows, customers: custs, orders: orderRows, orderLines: lines, transfers: transferRows },
       helpdesk: { agents: ag, tickets: hd.tickets, comments: hd.comments, slaPolicies: slaPolicies() },
       vault: { documents: docs },
+      ...noSiteRows(),
     };
   },
 };

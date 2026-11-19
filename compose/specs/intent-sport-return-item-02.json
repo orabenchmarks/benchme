@@ -1,0 +1,25 @@
+{
+  "id": "intent-sport-return-item-02",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "returned",
+        "app": "sports",
+        "path": "/api/v1/returns?orderNo=ORD-10018",
+        "where": {
+          "sku": "SP-116-GRY-S"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "expect": {
+          "qty": 1,
+          "reason": "too large"
+        }
+      }
+    ]
+  }
+}
