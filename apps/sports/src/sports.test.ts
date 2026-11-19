@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildSports } from "./build-app.js";
+import { ordersList } from "./ui/order-pages.js";
 
 const DB = process.env.DATABASE_URL;
 const SECRET = "gateway-secret-for-tests";
@@ -213,6 +214,24 @@ describe.skipIf(!DB)("sports (real Postgres)", () => {
     expect((await get(`/api/v1/orders/${no}`)).status).toBe("cancelled");
     const again = await form(`/orders/${no}/cancel`, {});
     expect([again.statusCode, again.body.includes("already cancelled")]).toEqual([409, true]);
+  });
+
+  it("carries only the orders page's own filters into its Next link, encoded, and never a query key the request made up", async () => {
+    const delivered = rows.orders.filter((o) => o.status === "delivered").map((o) => o.orderNo).sort();
+    expect(delivered.length).toBeGreaterThan(25);
+    const hostile = `a"><script>alert(9471)</script>`;
+    const res = await app.inject(scoped({ method: "GET", url: `/orders?status=delivered&${encodeURIComponent(hostile)}=1&placedFrom=2027-01-01` }));
+    expect(res.statusCode).toBe(200);
+    expect(res.body).not.toContain("<script>alert(9471)");
+    expect(res.body).not.toContain("9471");
+    const href = /<nav class="pager"><a href="([^"]*)">Next page/.exec(res.body)?.[1];
+    expect(href).toBe(`/w/${ws}/sports/orders?cursor=${delivered[24]}&status=delivered&placedFrom=2027-01-01`);
+    const next = await app.inject(scoped({ method: "GET", url: href!.replace(`/w/${ws}/sports`, "") }));
+    expect([...next.body.matchAll(/<td><a href="[^"]*">(ORD-\d+)<\/a>/g)].map((m) => m[1])).toEqual(delivered.slice(25));
+    // The page itself, whatever it is handed: a value is encoded, a key that is not a filter is left out.
+    const html = ordersList("/p", [], "ORD-1", { customerEmail: `a&b"<i>@example.com`, placedTo: "2027-06-30", cursor: "ORD-0", limit: "5", 'x"><b>': "1" });
+    expect(/<nav class="pager"><a href="([^"]*)">/.exec(html)?.[1]).toBe(`/p/orders?cursor=ORD-1&customerEmail=${encodeURIComponent(`a&b"<i>@example.com`)}&placedTo=2027-06-30`);
+    expect(html).not.toContain("<b>");
   });
 
   it("exposes the same tools over MCP", async () => {

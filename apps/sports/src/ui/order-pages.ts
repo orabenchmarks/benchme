@@ -34,8 +34,11 @@ function ordersTable(p: string, orders: OrderView[]): string {
   return `<table><tr><th>Order</th><th>Customer</th><th>Placed</th><th>Status</th><th>Delivered</th><th>Ships to</th><th>Items</th><th>Total</th></tr>${rows || "<tr><td colspan=8>None.</td></tr>"}</table>`;
 }
 
+/** The orders page's own filters: the only query keys its Next link carries on, so a key the request made up never reaches the page. */
+const ORDER_FILTERS: readonly string[] = ["customerEmail", "status", "placedFrom", "placedTo"];
+
 export function ordersList(p: string, orders: OrderView[], nextCursor: string | null, f: F): string {
-  const keep = Object.entries(f).filter(([, v]) => v).map(([k, v]) => `&${k}=${enc(String(v))}`).join("");
+  const keep = Object.entries(f).filter(([k, v]) => v && ORDER_FILTERS.includes(k)).map(([k, v]) => `&${enc(k)}=${enc(String(v))}`).join("");
   const next = nextCursor ? `<nav class="pager"><a href="${p}/orders?cursor=${esc(nextCursor)}${keep}">Next page →</a></nav>` : "";
   const status = STATUSES.map((s) => ({ value: s, label: s }));
   return `<h1>Orders</h1><form method="get" action="${p}/orders" style="margin-bottom:1rem"><input name="customerEmail" placeholder="customer email" value="${esc(f.customerEmail ?? "")}" style="width:16rem;display:inline">
