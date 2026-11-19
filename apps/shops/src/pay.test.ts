@@ -1151,9 +1151,13 @@ describe.skipIf(!DB)("paying (real Postgres, fake payments)", () => {
       expect(paid.headers.location).toMatch(/\/complete\?payment_intent=pi_fake_[0-9a-z]+$/);
       const no = orderNoOf(await get("quillfeather", unprefixed(paid, w, "quillfeather"), w), w, "quillfeather");
       expect((await repos.orders.get(w, no))?.chargedCents).toBe(before() + 777);
-      // Two tabs' intent calls at once: neither gets a payment to confirm.
+      // Two tabs' intent calls at once: neither gets a payment to confirm. Each carries the total its page shows,
+      // as pay.js does on every attempt (shownCents): whichever reaches the store second — overlapping the first
+      // or just after it — still shows the old total. Without it, a second call that read the checkout after the
+      // first had recorded the update got a payment, so the test depended on the two overlapping.
       const t = await atPayment("quillfeather", [HUILA], "fixture-price");
-      const both = await Promise.all([postJson("quillfeather", `/checkout/${t.tok}/payment/intent`, {}, t.w), postJson("quillfeather", `/checkout/${t.tok}/payment/intent`, {}, t.w)]);
+      const intent = () => postJson("quillfeather", `/checkout/${t.tok}/payment/intent`, { shownCents: before() }, t.w);
+      const both = await Promise.all([intent(), intent()]);
       for (const r of both) {
         expect(r.statusCode).toBe(200);
         expect(r.json()).toMatchObject({ priceUpdated: { oldCents: before(), newCents: before() + 777 } });
