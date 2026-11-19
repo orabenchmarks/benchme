@@ -7,8 +7,11 @@ import { z } from "zod";
  * dollars (`minPrice`, `maxPrice`); money the site returns is cents
  * (`priceCents`, `monthlyFeeCents`, `annualTaxCents`).
  */
-export const date = z.string().refine(isDate, "a date as YYYY-MM-DD");
-export const time = z.string().refine(isHomeTime, "a time as HH:MM (24-hour)");
+// A fresh instance per call, for the MCP tools: one schema object shared by two fields of a tool becomes a "$ref" in its JSON Schema, which some agent clients cannot follow.
+export const dateOf = () => z.string().refine(isDate, "a date as YYYY-MM-DD");
+export const timeOf = () => z.string().refine(isHomeTime, "a time as HH:MM (24-hour)");
+export const date = dateOf();
+export const time = timeOf();
 /** "YYYY-MM-DDTHH:MM": a slot's date and start time together. */
 export const moment = z.string().refine((s) => s.length === 16 && s[10] === "T" && isDate(s.slice(0, 10)) && isHomeTime(s.slice(11)), "a moment as YYYY-MM-DDTHH:MM");
 /** A query string or a JSON body sends "" for a field left empty: read it as not given before zod sees it, so it is no filter (or the default), not a bad value. */

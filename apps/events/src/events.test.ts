@@ -81,6 +81,7 @@ describe.skipIf(!DB)("events (real Postgres)", () => {
     const res = await app.inject(scoped({ method: "GET", url: "/" }));
     expect(res.body).toContain('data-webmcp="bridge"');
     expect(res.body).toContain('"name":"find_free_rooms"');
+    expect(res.body).not.toContain('"$ref"');
   });
 
   it("serves the seeded offices, rooms, people, events and registrations as the generator made them", async () => {

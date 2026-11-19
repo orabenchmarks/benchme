@@ -7,8 +7,11 @@ import type { FlightsRepo } from "../db/flights-repo.js";
  * same thing. Money a person types is dollars (`maxPrice`, per passenger);
  * money the site returns is cents (`priceCents`, `totalCents`).
  */
-export const date = z.string().refine(isDate, "a date as YYYY-MM-DD");
-export const time = z.string().refine(isFlightTime, "a time as HH:MM");
+// A fresh instance per call, for the MCP tools: one schema object shared by two fields of a tool becomes a "$ref" in its JSON Schema, which some agent clients cannot follow.
+export const dateOf = () => z.string().refine(isDate, "a date as YYYY-MM-DD");
+export const timeOf = () => z.string().refine(isFlightTime, "a time as HH:MM");
+export const date = dateOf();
+export const time = timeOf();
 export const cabinClass = z.enum(["economy", "premium", "business"]);
 export const passengerCount = z.coerce.number().int().min(1).max(FLIGHT_MAX_PASSENGERS);
 /** "QE,SZ", ["QE", "SZ"] or one repeated query param — whichever the door sends. */

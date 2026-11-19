@@ -1,7 +1,7 @@
 import { HOME_FEATURES, HOME_LISTING_STATUSES, HOME_TYPES } from "@benchme/scenarios";
 import { DomainError, ToolRegistry } from "@benchme/site-kit";
 import { z } from "zod";
-import { date, moment, time, toQuery } from "../api/inputs.js";
+import { dateOf, moment, timeOf, toQuery } from "../api/inputs.js";
 import type { HomesRepo } from "../db/homes-repo.js";
 
 export type ToolContext = { workspaceId: string; homes: HomesRepo };
@@ -9,7 +9,8 @@ export type ToolContext = { workspaceId: string; homes: HomesRepo };
 const notFound = (what: string) => {
   throw new DomainError("NOT_FOUND", `${what} not found`, 404);
 };
-const count = z.number().int().min(0).max(20).optional();
+// A fresh instance per field: one shared by minBeds and minBaths becomes a "$ref" in the tool's JSON Schema, which some agent clients cannot follow.
+const count = () => z.number().int().min(0).max(20).optional();
 
 /** The home site's MCP surface (and, through the bridge, its WebMCP tools): search listings, read one, find a slot, request and cancel a viewing. */
 export function homeTools(): ToolRegistry<ToolContext> {
@@ -30,8 +31,8 @@ export function homeTools(): ToolRegistry<ToolContext> {
         types: z.array(z.enum(HOME_TYPES)).optional().describe("Any of these home types"),
         minPrice: z.number().nonnegative().optional(),
         maxPrice: z.number().positive().optional(),
-        minBeds: count,
-        minBaths: count,
+        minBeds: count(),
+        minBaths: count(),
         minArea: z.number().nonnegative().optional(),
         minYearBuilt: z.number().int().optional(),
         features: z.array(z.enum(HOME_FEATURES)).optional().describe("Features every listing must have"),
@@ -88,7 +89,7 @@ export function homeTools(): ToolRegistry<ToolContext> {
       name: "request_viewing",
       description:
         "Request a viewing of a listing in one of its agent's slots (date + start time, 24-hour HH:MM). Fails if the listing is not active, the date is outside the viewing window, the agent has no slot then, the slot is taken, or the viewer already has a viewing at that time.",
-      input: { listingCode: z.string(), agentCode: z.string().optional(), date, time, viewerName: z.string(), viewerEmail: z.string().email() },
+      input: { listingCode: z.string(), agentCode: z.string().optional(), date: dateOf(), time: timeOf(), viewerName: z.string(), viewerEmail: z.string().email() },
       handler: (a, c) => c.homes.requestViewing(c.workspaceId, a),
     })
     .register({

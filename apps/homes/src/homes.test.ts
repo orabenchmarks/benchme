@@ -85,6 +85,7 @@ describe.skipIf(!DB)("homes (real Postgres)", () => {
     const res = await app.inject(scoped({ method: "GET", url: "/" }));
     expect(res.body).toContain('data-webmcp="bridge"');
     expect(res.body).toContain('"name":"search_listings"');
+    expect(res.body).not.toContain('"$ref"');
   });
 
   it("serves the seeded listings, agents and viewings as the generator made them", async () => {

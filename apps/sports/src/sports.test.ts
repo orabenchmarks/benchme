@@ -84,6 +84,7 @@ describe.skipIf(!DB)("sports (real Postgres)", () => {
     const res = await app.inject(scoped({ method: "GET", url: "/" }));
     expect(res.body).toContain('data-webmcp="bridge"');
     expect(res.body).toContain('"name":"search_products"');
+    expect(res.body).not.toContain('"$ref"');
     expect(res.body).toContain("Brackenford Sports");
   });
 

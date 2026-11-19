@@ -1,6 +1,6 @@
 import { DomainError, ToolRegistry } from "@benchme/site-kit";
 import { z } from "zod";
-import { STATUSES, date, toOrderFilter, toSearch } from "../api/inputs.js";
+import { STATUSES, dateOf, toOrderFilter, toSearch } from "../api/inputs.js";
 import type { CatalogRepo } from "../db/catalog-repo.js";
 import type { OrdersRepo } from "../db/orders-repo.js";
 
@@ -54,8 +54,8 @@ export function sportsTools(): ToolRegistry<ToolContext> {
       input: {
         customerEmail: z.string().optional(),
         status: z.enum(STATUSES).optional(),
-        placedFrom: date.optional(),
-        placedTo: date.optional(),
+        placedFrom: dateOf().optional(),
+        placedTo: dateOf().optional(),
         cursor: z.string().optional(),
         limit: z.number().int().min(1).max(100).optional(),
       },
