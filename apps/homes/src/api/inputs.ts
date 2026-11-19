@@ -11,6 +11,8 @@ export const date = z.string().refine(isDate, "a date as YYYY-MM-DD");
 export const time = z.string().refine(isHomeTime, "a time as HH:MM (24-hour)");
 /** "YYYY-MM-DDTHH:MM": a slot's date and start time together. */
 export const moment = z.string().refine((s) => s.length === 16 && s[10] === "T" && isDate(s.slice(0, 10)) && isHomeTime(s.slice(11)), "a moment as YYYY-MM-DDTHH:MM");
+/** A query string or a JSON body sends "" for a field left empty: read it as not given before zod sees it, so it is no filter (or the default), not a bad value. */
+export const given = <T extends z.ZodTypeAny>(schema: T) => z.preprocess((v) => (v === "" ? undefined : v), schema);
 
 /** "a,b", ["a", "b"] or one repeated query param — whichever the door sends — each checked against the allowed values. */
 const listOf = (allowed: readonly string[], what: string) =>
@@ -56,7 +58,7 @@ export const toQuery = (s: SearchInput): HomeListingQuery => ({
 
 export const viewingInput = {
   listingCode: z.string().min(1),
-  agentCode: z.string().min(1).optional(),
+  agentCode: given(z.string().min(1).optional()),
   date,
   time,
   viewerName: z.string().min(1),
