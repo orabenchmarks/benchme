@@ -4,7 +4,7 @@ import { AppRegistry } from "./app-registry.js";
 import { buildGateway } from "./build-app.js";
 import { readConfig } from "./config.js";
 import { RedisRateLimiter } from "./rate-limit.js";
-import { HttpWorkspaceSeeder } from "./seeder.js";
+import { HttpWorkspaceSeeder, seedTargetsFor } from "./seeder.js";
 
 const cfg = readConfig();
 const pool = createPool(cfg.DATABASE_URL);
@@ -15,7 +15,7 @@ const { app } = await buildGateway({
   pool,
   scenarios,
   apps,
-  seeder: new HttpWorkspaceSeeder(apps.seeded(), cfg.GATEWAY_SECRET),
+  seeder: new HttpWorkspaceSeeder(seedTargetsFor(apps, scenarios), cfg.GATEWAY_SECRET),
   receipts: new HmacReceiptSigner(cfg.RECEIPT_SECRET),
   limiter: new RedisRateLimiter(redis, cfg.RATE_CREATE_PER_HOUR, 3600),
   gatewaySecret: cfg.GATEWAY_SECRET,

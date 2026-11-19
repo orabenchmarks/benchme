@@ -2,8 +2,9 @@
  * The apps the gateway fronts. Registry, not a switch: an app is data from
  * config (APP_TARGETS), and the proxy + workspace URLs derive from it. A
  * target may carry a path ("http://shops:3000/s/halden"): /w/:id/<app>/x then
- * lands on that path + /x. An UNLISTED app is routed and seeded like any other
- * but never advertised — see listed().
+ * lands on that path + /x. An UNLISTED app is routed like any other but never
+ * advertised (see listed()), and seeded only for the scenarios that name it
+ * (see seededFor()).
  */
 export type AppTarget = { name: string; baseUrl: string; seeded: boolean; mcp: boolean; ask: boolean; webmcp: boolean; listed: boolean };
 
@@ -62,6 +63,15 @@ export class AppRegistry {
 
   seeded(): AppTarget[] {
     return this.list().filter((a) => a.seeded);
+  }
+
+  /**
+   * The seeded apps ONE workspace needs rows in: every listed one, and an unlisted one only when the workspace's
+   * scenario names it (`Scenario.apps`, passed as `named`). An unlisted app belongs to the scenarios that name it, so
+   * a workspace of any other scenario neither waits on it nor fails to be created while it is down or unmigrated.
+   */
+  seededFor(named: readonly string[] | undefined): AppTarget[] {
+    return this.seeded().filter((a) => a.listed || (named?.includes(a.name) ?? false));
   }
 
   /** Apps that expose an MCP server at /w/:id/<app>/mcp. */
