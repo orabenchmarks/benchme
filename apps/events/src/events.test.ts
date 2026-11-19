@@ -213,6 +213,39 @@ describe.skipIf(!DB)("events (real Postgres)", () => {
     expect((await get(`/api/v1/registrations/${regNo}`)).status).toBe("cancelled");
   });
 
+  it("reads a blank optional query parameter as not given, and still needs the required ones", async () => {
+    const office = rows.offices[0]!.code;
+    const free = (o: Record<string, string> = {}) => `/api/v1/free-rooms?${new URLSearchParams({ office, date: QUIET, startTime: "10:00", endTime: "11:00", people: "2", ...o })}`;
+    const status = async (url: string) => (await app.inject(scoped({ method: "GET", url }))).statusCode;
+    // One blank parameter per case, then every one at once: [the query with blanks, the same query without them].
+    const same: [string, string][] = [
+      ...["date", "from", "to", "status", "registration", "hasPlaces", "limit"].map((p): [string, string] => [`/api/v1/events?${p}=`, "/api/v1/events"]),
+      ["/api/v1/events?office=&room=&date=&from=&to=&organiser=&guest=&registrant=&q=&registration=&status=&hasPlaces=&cursor=&limit=", "/api/v1/events"],
+      ["/api/v1/events?status=cancelled&date=&hasPlaces=&limit=", "/api/v1/events?status=cancelled"],
+      ["/api/v1/rooms?minCapacity=", "/api/v1/rooms"],
+      ["/api/v1/rooms?accessible=", "/api/v1/rooms"],
+      ["/api/v1/rooms?office=&minCapacity=&equipment=&accessible=", "/api/v1/rooms"],
+      ["/api/v1/registrations?status=", "/api/v1/registrations"],
+      ["/api/v1/registrations?limit=", "/api/v1/registrations"],
+      ["/api/v1/registrations?email=&event=&status=&cursor=&limit=", "/api/v1/registrations"],
+      ["/api/v1/people?office=&team=&name=", "/api/v1/people"],
+      [free({ accessible: "" }), free()],
+      [free({ equipment: "", accessible: "" }), free()],
+      [free({ accessible: "" }).replace("/api/v1", ""), free().replace("/api/v1", "")],
+    ];
+    const got: Record<string, number> = {};
+    for (const [blank] of same) got[blank] = await status(blank);
+    expect(got).toEqual(Object.fromEntries(same.map(([blank]) => [blank, 200])));
+    for (const [blank, bare] of same) expect((await app.inject(scoped({ method: "GET", url: blank }))).body).toBe((await app.inject(scoped({ method: "GET", url: bare }))).body);
+    // The default page, not everything: a blank limit is the default limit.
+    expect((await get("/api/v1/events?limit=")).items).toHaveLength(50);
+    expect((await get("/api/v1/registrations?limit=")).items).toHaveLength(50);
+    // Every room, the ones without step-free access included: a blank flag is no filter.
+    expect((await get("/api/v1/rooms?minCapacity=&accessible=")).length).toBe(rows.rooms.length);
+    const bad = [free({ office: "" }), free({ date: "" }), free({ startTime: "" }), free({ endTime: "" }), free({ people: "" }), free({ accessible: "yes" }), "/api/v1/events?limit=0", "/api/v1/events?status=done", "/api/v1/events?date=2027-02-30", "/api/v1/events?hasPlaces=yes", "/api/v1/rooms?minCapacity=0", "/api/v1/registrations?status=done"];
+    for (const url of bad) expect([url, await status(url)]).toEqual([url, 400]);
+  });
+
   it("exposes the same tools over MCP", async () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));

@@ -10,6 +10,8 @@ import { z } from "zod";
  */
 export const date = z.string().refine(isDate, "a date as YYYY-MM-DD");
 export const time = z.string().refine(isEventTime, "a time as HH:MM (24-hour) on the quarter hour");
+/** A query string sends "" for a parameter left empty: read it as not given before zod sees it, so it is no filter (or the default), not a bad value. */
+export const given = <T extends z.ZodTypeAny>(schema: T) => z.preprocess((v) => (v === "" ? undefined : v), schema);
 const list = (split: RegExp) =>
   z
     .union([z.string(), z.array(z.string())])
@@ -31,7 +33,7 @@ export const freeRoomInput = {
   people: people.describe("how many people the room must hold, the organiser included"),
   equipment: equipmentList.describe('equipment every room must have, e.g. ["projector", "video conferencing"]'),
 };
-export const freeRoomSchema = z.object({ ...freeRoomInput, accessible: z.enum(["true", "false"]).optional() });
+export const freeRoomSchema = z.object({ ...freeRoomInput, accessible: given(z.enum(["true", "false"]).optional()) });
 
 export const eventInput = {
   title: z.string().min(1),
