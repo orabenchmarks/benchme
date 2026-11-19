@@ -108,6 +108,32 @@ describe.skipIf(!DB)("hotels (real Postgres)", () => {
     expect([blank.statusCode, blank.body.includes("hotel(s) with a room that fits")]).toEqual([200, true]);
   });
 
+  it("reads a blank optional query field as not given, and a given one as before", async () => {
+    const status = async (url: string) => (await app.inject(scoped({ method: "GET", url }))).statusCode;
+    // One blank field per request, each read as the same request without it.
+    const blanks = ["/api/v1/hotels?pets=", "/api/v1/bookings?status=", "/api/v1/bookings?limit="];
+    const statuses: Record<string, number> = {};
+    for (const url of blanks) statuses[url] = await status(url);
+    expect(statuses).toEqual(Object.fromEntries(blanks.map((url) => [url, 200])));
+    const hotels = await get("/api/v1/hotels");
+    expect(hotels.length).toBe(rows.hotels.length);
+    expect(await get("/api/v1/hotels?pets=")).toEqual(hotels);
+    const bookings = await get("/api/v1/bookings");
+    // The default page holds both statuses and is not the whole list, so a filter or another limit would show.
+    expect([bookings.items.length, new Set(bookings.items.map((b: { status: string }) => b.status)).size, bookings.nextCursor !== null]).toEqual([50, 2, true]);
+    expect(await get("/api/v1/bookings?status=")).toEqual(bookings);
+    expect(await get("/api/v1/bookings?limit=")).toEqual(bookings);
+    // A given value filters as it did, and a malformed one is still the caller's to fix.
+    expect((await get("/api/v1/hotels?pets=true")).map((h: { code: string }) => h.code)).toEqual(rows.hotels.filter((h) => h.petsAllowed).map((h) => h.code));
+    expect((await get("/api/v1/bookings?status=cancelled&limit=200")).items.map((b: { bookingNo: string }) => b.bookingNo)).toEqual(rows.bookings.filter((b) => b.status === "cancelled").map((b) => b.bookingNo).sort());
+    expect((await get("/api/v1/bookings?limit=3")).items.length).toBe(3);
+    for (const url of ["/api/v1/hotels?pets=yes", "/api/v1/bookings?status=open", "/api/v1/bookings?limit=0"]) expect([url, await status(url)]).toEqual([url, 400]);
+    // A blank required field is still missing.
+    const room = rows.rooms[0]!.code;
+    for (const url of [`/api/v1/search?city=&checkIn=${QUIET.checkIn}&nights=2`, `/api/v1/search?city=${rows.hotels[0]!.city}&checkIn=${QUIET.checkIn}&nights=`, `/api/v1/rooms/${room}/availability?checkIn=&nights=2`, `/api/v1/rooms/${room}/availability?checkIn=${QUIET.checkIn}&nights=`])
+      expect([url, await status(url)]).toEqual([url, 400]);
+  });
+
   it("refuses a stay longer than the site books before computing its nights, on the hotel page and in the repo", async () => {
     const h = rows.hotels[0]!;
     const page = (qs: string) => app.inject(scoped({ method: "GET", url: `/hotels/${h.code}?${qs}` }));

@@ -9,8 +9,8 @@ import { z } from "zod";
 export const date = z.string().refine(isDate, "a date as YYYY-MM-DD");
 export const nights = z.coerce.number().int().min(1).max(MAX_NIGHTS);
 const count = (min: number) => z.coerce.number().int().min(min).max(20);
-/** A form sends a field left empty as "": read it as not given, so its default (or no cap) applies instead of 0. */
-const given = <T extends z.ZodTypeAny>(schema: T) => z.preprocess((v) => (v === "" ? undefined : v), schema);
+/** A form or query string sends a field left empty as "": read it as not given, so its default (or no cap, no filter) applies instead of 0 or a 400. */
+export const given = <T extends z.ZodTypeAny>(schema: T) => z.preprocess((v) => (v === "" ? undefined : v), schema);
 /** "gym,spa", ["gym", "spa"] or one repeated query param — whichever the door sends. */
 export const amenityList = z
   .union([z.string(), z.array(z.string())])
