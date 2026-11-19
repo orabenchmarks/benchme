@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildHotels } from "./build-app.js";
+import { PgHotelsRepo } from "./db/hotels-repo.js";
 
 const DB = process.env.DATABASE_URL;
 const SECRET = "gateway-secret-for-tests";
@@ -105,6 +106,33 @@ describe.skipIf(!DB)("hotels (real Postgres)", () => {
     // The search form sends the fields a person leaves empty as "": no cap, the default party — not a 400.
     const blank = await app.inject(scoped({ method: "GET", url: `/search?city=${city}&checkIn=${QUIET.checkIn}&nights=2&adults=1&kids=&pets=&maxPrice=` }));
     expect([blank.statusCode, blank.body.includes("hotel(s) with a room that fits")]).toEqual([200, true]);
+  });
+
+  it("refuses a stay longer than the site books before computing its nights, on the hotel page and in the repo", async () => {
+    const h = rows.hotels[0]!;
+    const page = (qs: string) => app.inject(scoped({ method: "GET", url: `/hotels/${h.code}?${qs}` }));
+    const started = Date.now();
+    const huge = await page("checkIn=2027-01-01&nights=10000000");
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect([huge.statusCode, huge.body.includes("a stay is 1 to 14 nights"), huge.body.includes("<th>Free ")]).toEqual([400, true, false]);
+    // One night past the cap is refused the same way; the cap itself is answered, as is every stay the site books.
+    const over = await page("checkIn=2027-01-01&nights=15");
+    expect([over.statusCode, over.body.includes("a stay is 1 to 14 nights"), over.body.includes("<th>Free ")]).toEqual([400, true, false]);
+    const most = await page("checkIn=2027-01-01&nights=14");
+    expect([most.statusCode, most.body.includes("a stay is 1 to 14 nights"), most.body.includes("<th>Free 2027-01-01, 14 night(s)</th>")]).toEqual([200, false, true]);
+    // No stay asked — no nights, or the field left blank — is the plain page, not a refusal.
+    for (const qs of ["", "checkIn=2027-01-01", "checkIn=2027-01-01&nights="]) {
+      const plain = await page(qs);
+      expect([qs, plain.statusCode, plain.body.includes("a stay is 1 to 14 nights"), plain.body.includes("<th>Free ")]).toEqual([qs, 200, false, false]);
+    }
+    // The repo holds the cap itself, whatever door calls it.
+    const repo = new PgHotelsRepo(pool);
+    const room = rows.rooms.find((r) => r.hotelCode === h.code)!;
+    const asked = Date.now();
+    await expect(repo.availability(ws, room.code, "2027-01-01", 10_000_000)).rejects.toMatchObject({ code: "BAD_NIGHTS", status: 422 });
+    await expect(repo.availability(ws, room.code, "2027-01-01", 15)).rejects.toMatchObject({ code: "BAD_NIGHTS", status: 422 });
+    expect(Date.now() - asked).toBeLessThan(2000);
+    expect(await repo.availability(ws, room.code, "2027-01-01", 14)).toEqual({ roomCode: room.code, checkIn: "2027-01-01", nights: 14, roomsLeft: roomsLeft(room, rows.bookings, "2027-01-01", 14) });
   });
 
   it("books, refuses what the rules refuse, and cancels once", async () => {
