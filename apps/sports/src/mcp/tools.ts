@@ -16,7 +16,7 @@ export function sportsTools(): ToolRegistry<ToolContext> {
   return new ToolRegistry<ToolContext>()
     .register({
       name: "get_store_policies",
-      description: "The store's rules: each category's return window in days (counted from the day an order was delivered), the shipping fee and the subtotal from which shipping is free (cents), the accepted return reasons, and the site's current date.",
+      description: "The store's rules: each category's return window in days (the last day to return is the delivery date plus that many days: delivered on 1 March with a 30-day window, 31 March), the shipping fee and the subtotal from which shipping is free (cents), the accepted return reasons, and the site's current date.",
       input: {},
       handler: (_a, c) => c.catalog.policies(c.workspaceId),
     })
@@ -89,7 +89,7 @@ export function sportsTools(): ToolRegistry<ToolContext> {
     .register({
       name: "request_return",
       description:
-        "Request the return of some units of one line of a delivered order, with a reason from the store's list. Refused once the line's return window (its category's days after delivery) has passed, or for more units than were bought minus those already returned.",
+        "Request the return of some units of one line of a delivered order, with a reason from the store's list. Refused after the line's last return day (the delivery date plus its category's return window in days), or for more units than were bought minus those already returned.",
       input: { orderNo: z.string(), sku: z.string(), qty: z.number().int(), reason: z.string().describe('one of "too small", "too large", "defective", "not as described", "no longer needed"') },
       handler: (a, c) => c.orders.requestReturn(c.workspaceId, a),
     });
