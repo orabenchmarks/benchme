@@ -135,7 +135,7 @@ export function sportsReturnProblem(
   return null;
 }
 
-/** What a reorder asks for: the same SKUs and quantities, to the same address unless another is given. */
+/** What a reorder asks for: the same SKUs and quantities, to the same address unless another is given. A blank address code is one not given. */
 export function sportsReorderRequest(order: SportOrder, lines: readonly SportOrderLine[], addressCode?: string): SportsOrderRequest {
-  return { customerEmail: order.customerEmail, addressCode: addressCode ?? order.addressCode, lines: lines.filter((l) => l.orderNo === order.orderNo).map((l) => ({ sku: l.sku, qty: l.qty })) };
+  return { customerEmail: order.customerEmail, addressCode: addressCode?.trim() ? addressCode : order.addressCode, lines: lines.filter((l) => l.orderNo === order.orderNo).map((l) => ({ sku: l.sku, qty: l.qty })) };
 }

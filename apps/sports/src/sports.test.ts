@@ -169,6 +169,34 @@ describe.skipIf(!DB)("sports (real Postgres)", () => {
     expect((await post(`/api/v1/orders/ORD-1/reorder`, {})).statusCode).toBe(404);
   });
 
+  it("reads a blank address code on a reorder as the earlier order's own address, at every door", async () => {
+    const inStock = async (no: string) => (await Promise.all(linesOf(no).map(async (l) => (await get(`/api/v1/variants/${l.sku}`)).stock >= l.qty))).every(Boolean);
+    const second = (o: { customerEmail: string; addressCode: string }) => rows.addresses.find((a) => a.customerEmail === o.customerEmail && a.code !== o.addressCode);
+    let source = rows.orders[0]!;
+    for (const o of rows.orders) if (second(o) && (await inStock(o.orderNo))) { source = o; break; }
+    const other = second(source)!;
+    const foreign = rows.addresses.find((a) => a.customerEmail !== source.customerEmail)!;
+    const client = new Client({ name: "test", version: "0" });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));
+    /** One reorder, [refusal, the address it ships to]; the new order is cancelled so the next one finds the same stock. */
+    const shipsTo = async (made: { error?: string; orderNo?: string; addressCode?: string }) => {
+      if (made.orderNo) expect((await post(`/api/v1/orders/${made.orderNo}/cancel`, {})).json().status).toBe("cancelled");
+      return [made.error, made.addressCode];
+    };
+    const tool = async (addressCode?: string) => JSON.parse(((await client.callTool({ name: "reorder", arguments: { orderNo: source.orderNo, ...(addressCode === undefined ? {} : { addressCode }) } })) as { content: { text: string }[] }).content[0]!.text);
+    try {
+      expect(await shipsTo(await tool())).toEqual([undefined, source.addressCode]);
+      expect(await shipsTo(await tool(""))).toEqual([undefined, source.addressCode]);
+      expect(await shipsTo(await tool("  "))).toEqual([undefined, source.addressCode]);
+      expect(await shipsTo((await post(`/api/v1/orders/${source.orderNo}/reorder`, { addressCode: "" })).json())).toEqual([undefined, source.addressCode]);
+      // A code that is given still decides: another of their addresses is used, someone else's is refused.
+      expect(await shipsTo(await tool(other.code))).toEqual([undefined, other.code]);
+      expect(await shipsTo(await tool(foreign.code))).toEqual(["NOT_THEIR_ADDRESS", undefined]);
+    } finally {
+      await client.close();
+    }
+  });
+
   it("takes a return within the window, and refuses too many units, a closed window, an undelivered order and an unknown reason", async () => {
     const open = rows.orders
       .filter((o) => o.status === "delivered")
