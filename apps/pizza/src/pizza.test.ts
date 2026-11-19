@@ -127,6 +127,23 @@ describe.skipIf(!DB)("pizza (real Postgres)", () => {
     }
   });
 
+  it("reads a search field the home form left blank as not given, not as a bad value", async () => {
+    // What a browser sends for the untouched form: both selects, the empty price box, and no unchecked checkbox.
+    expect((await app.inject(scoped({ method: "GET", url: "/" }))).body).toContain('<input name="maxPrice" value=""');
+    const all = pizzaMenuSearch(rows, { size: "medium" });
+    expect(all.length).toBeGreaterThan(0);
+    const page = await app.inject(scoped({ method: "GET", url: "/search?size=medium&branch=&maxPrice=" }));
+    expect(page.statusCode).toBe(200);
+    expect(page.body).toContain(`${all.length} menu pizza(s) meet every filter`);
+    for (const o of all) expect(page.body).toContain(`<code>${o.pizzaCode}</code>`);
+    const rest = await app.inject(scoped({ method: "GET", url: "/api/v1/search?size=medium&branch=&vegetarian=&vegan=&maxPrice=" }));
+    expect([rest.statusCode, rest.json()]).toEqual([200, all]);
+    // A blank beside a real filter leaves that filter alone, and a value that is given but wrong is still refused.
+    expect(await get("/api/v1/search?size=medium&vegetarian=true&maxPrice=")).toEqual(pizzaMenuSearch(rows, { size: "medium", vegetarian: true }));
+    expect(await get("/api/v1/search?size=medium&vegan=&maxPrice=14")).toEqual(pizzaMenuSearch(rows, { size: "medium", maxPriceCents: 1400 }));
+    for (const bad of ["maxPrice=0", "maxPrice=cheap", "vegan=yes", "size="]) expect((await app.inject(scoped({ method: "GET", url: `/api/v1/search?size=medium&${bad}` }))).statusCode, bad).toBe(400);
+  });
+
   it("places, refuses what the rules refuse, changes a received order, and cancels once", async () => {
     const b = rows.branches.find((x) => x.delivers && !rows.stockouts.some((s) => s.branchCode === x.code))!;
     const pizza = rows.pizzas.find((p) => p.toppings.length >= 2)!;

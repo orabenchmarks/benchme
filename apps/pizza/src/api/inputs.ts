@@ -18,7 +18,9 @@ export const keyList = z
   .optional()
   .transform((v) => (v === undefined ? [] : (Array.isArray(v) ? v : v.split(",")).map((a) => a.trim().toLowerCase()).filter(Boolean)));
 const allergenList = keyList.refine((v) => v.every((a) => (PIZZA_ALLERGENS as readonly string[]).includes(a)), `allergens are ${PIZZA_ALLERGENS.join(", ")}`);
-const flag = z.enum(["true", "false"]).optional();
+/** A form sends a field left empty as "": read it as not given, so no cap or flag applies instead of a 400. */
+const given = <T extends z.ZodTypeAny>(schema: T) => z.preprocess((v) => (v === "" ? undefined : v), schema);
+const flag = given(z.enum(["true", "false"]).optional());
 export const statusEnum = z.enum(PIZZA_STATUSES as unknown as [PizzaOrderStatus, ...PizzaOrderStatus[]]);
 const quantity = () => z.coerce.number().int().min(1).max(99);
 
@@ -68,7 +70,7 @@ export const searchQuery = z.object({
   vegetarian: flag,
   vegan: flag,
   without: allergenList,
-  maxPrice: z.coerce.number().positive().optional(),
+  maxPrice: given(z.coerce.number().positive().optional()),
   toppings: keyList,
 });
 export type SearchQuery = z.infer<typeof searchQuery>;
