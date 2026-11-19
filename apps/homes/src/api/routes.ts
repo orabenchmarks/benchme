@@ -3,19 +3,19 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { HomesRepo } from "../db/homes-repo.js";
 import { SESSION_COOKIE } from "../ui/routes.js";
-import { filled, moment, searchSchema, toQuery, viewingSchema } from "./inputs.js";
+import { filled, given, moment, searchSchema, toQuery, viewingSchema } from "./inputs.js";
 
 export type ApiDeps = { homes: HomesRepo; auth: AuthService };
 
 const agentsQuery = z.object({ city: z.string().optional() });
-const slotsQuery = z.object({ from: moment.optional(), free: z.enum(["true", "false"]).optional() });
+const slotsQuery = z.object({ from: given(moment.optional()), free: given(z.enum(["true", "false"]).optional()) });
 const viewingsQuery = z.object({
   email: z.string().optional(),
   listing: z.string().optional(),
   agent: z.string().optional(),
-  status: z.enum(["requested", "cancelled"]).optional(),
+  status: given(z.enum(["requested", "cancelled"]).optional()),
   cursor: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(200).default(50),
+  limit: given(z.coerce.number().int().min(1).max(200).default(50)),
 });
 
 /** REST under /api/v1. Reads are open inside the workspace; requesting and cancelling a viewing need a bearer token or a session. */

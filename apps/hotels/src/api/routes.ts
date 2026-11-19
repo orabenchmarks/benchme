@@ -3,12 +3,12 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { HotelsRepo } from "../db/hotels-repo.js";
 import { SESSION_COOKIE } from "../ui/routes.js";
-import { amenityList, bookingSchema, date, nights, searchSchema, toQuery } from "./inputs.js";
+import { amenityList, bookingSchema, date, given, nights, searchSchema, toQuery } from "./inputs.js";
 
 export type ApiDeps = { hotels: HotelsRepo; auth: AuthService };
 
-const hotelsQuery = z.object({ city: z.string().optional(), amenities: amenityList, pets: z.enum(["true", "false"]).optional() });
-const bookingsQuery = z.object({ guestEmail: z.string().optional(), hotel: z.string().optional(), status: z.enum(["confirmed", "cancelled"]).optional(), cursor: z.string().optional(), limit: z.coerce.number().int().min(1).max(200).default(50) });
+const hotelsQuery = z.object({ city: z.string().optional(), amenities: amenityList, pets: given(z.enum(["true", "false"]).optional()) });
+const bookingsQuery = z.object({ guestEmail: z.string().optional(), hotel: z.string().optional(), status: given(z.enum(["confirmed", "cancelled"]).optional()), cursor: z.string().optional(), limit: given(z.coerce.number().int().min(1).max(200).default(50)) });
 const availabilityQuery = z.object({ checkIn: date, nights });
 
 /** REST under /api/v1. Reads are open inside the workspace; booking and cancelling need a bearer token or a session. */

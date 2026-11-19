@@ -304,8 +304,11 @@ uses on someone's behalf. No code or data is copied from it. Each site
 generates its own seeded rows, with invented names, from a random stream of
 its own (`substream(seed, "<app>")`), so adding the sites changed no earlier
 row and no earlier task's answer key. Each has SSR pages, REST `/api/v1`, an
-MCP server and WebMCP (no NLWeb `/ask`), and writes need a session or an api
-token. Each site's rules are pure functions in `packages/scenarios`
+MCP server and WebMCP (no NLWeb `/ask`). A write through the pages or REST
+needs a session or an api token; a write through an MCP or WebMCP tool needs
+neither, as on the warehouse and the helpdesk: a tool call is scoped by its
+workspace alone. A comparison of doors therefore includes the sign-up (and the
+inbox code) that only the pages and REST ask for. Each site's rules are pure functions in `packages/scenarios`
 (`stays.ts` for hotels, `sites/<app>/rules.ts` for the others): the site
 applies them on every write, and the intent corpus derives its answer keys
 with them. Each site has six task kinds, three tasks each: 162 tasks, the
@@ -318,7 +321,8 @@ POST /api/workspaces        {"scenario":"webmcp-v1","seed":4242}   → urls for 
 ```
 
 The gateway lists the nine in `UNLISTED_APPS`, so only `webmcp-v1`'s
-workspaces advertise them; a workspace of any other scenario seeds them empty.
+workspaces advertise them, and only those are seeded in them: a workspace of
+any other scenario holds no rows there and does not wait on them to be created.
 The `webmcp-v1` corpus is written beside acme-v1's, with its own public files
 (`compose/specs/webmcp-tasks.json`, `webmcp-corpus.json`, `webmcp-tasks.md`;
 its answer keys are `intent-<kind>-NN.json` like every other), and
@@ -371,7 +375,7 @@ them, and late checkout a hotel that offers it. A room type must have a room
 free on every night. A total is nights × the nightly price, plus the pet fee
 once per stay, plus the late-checkout fee.
 
-| door | reads | writes (signed in, or `Authorization: Bearer htl_…`) |
+| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer htl_…`; MCP and WebMCP: no sign-in) |
 | --- | --- | --- |
 | REST `/api/v1` | `cities`, `hotels?city&amenities&pets`, `hotels/<code>`, `search?city&checkIn&nights&adults&kids&pets&maxPrice&amenities`, `rooms/<code>/availability?checkIn&nights`, `bookings?guestEmail&hotel&status`, `bookings/<no>` | `POST bookings`, `POST bookings/<no>/cancel` |
 | MCP and WebMCP | `list_cities`, `list_hotels`, `get_hotel`, `search_stays`, `check_availability`, `list_bookings`, `get_booking` | `create_booking`, `cancel_booking` |
@@ -432,7 +436,7 @@ passenger on that date: a sold-out cabin is 409 `SOLD_OUT`, too few seats is
 fare + passengers × bags × the carrier's bag fee. A round trip is two
 bookings.
 
-| door | reads | writes (signed in, or `Authorization: Bearer flt_…`) |
+| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer flt_…`; MCP and WebMCP: no sign-in) |
 | --- | --- | --- |
 | REST `/api/v1` | `airports`, `carriers`, `flights?origin&destination&carrier`, `flights/<no>`, `flights/<no>/seats?date`, `search?origin&destination&date&returnDate&tripType&passengers&cabin&maxStops&carriers&maxPrice&departAfter&departBefore`, `bookings?contactEmail&flightNo&date&status`, `bookings/<no>` | `POST bookings`, `POST bookings/<no>/cancel` |
 | MCP and WebMCP | `list_airports`, `list_carriers`, `list_flights`, `get_flight`, `check_seats`, `search_flights`, `list_bookings`, `get_booking` | `create_booking`, `cancel_booking` |
@@ -494,7 +498,7 @@ private-room fee for the private room. A change of date, time, party, area or
 special request is checked against the same rules, the reservation's own table
 not counted against it.
 
-| door | reads | writes (signed in, or `Authorization: Bearer dnr_…`) |
+| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer dnr_…`; MCP and WebMCP: no sign-in) |
 | --- | --- | --- |
 | REST `/api/v1` | `cities`, `restaurants?city&cuisine&menus&area`, `restaurants/<code>`, `restaurants/<code>/availability?date&partySize`, `search?city&date&time&partySize&area&cuisine&menus&maxPriceLevel`, `reservations?guestEmail&restaurant&date&status`, `reservations/<no>` | `POST reservations`, `POST reservations/<no>/change`, `POST reservations/<no>/cancel` |
 | MCP and WebMCP | `list_cities`, `list_restaurants`, `get_restaurant`, `search_tables`, `check_availability`, `list_reservations`, `get_reservation` | `create_reservation`, `change_reservation`, `cancel_reservation` |
@@ -560,7 +564,7 @@ size, plus each topping's price in that size. The total adds the delivery fee
 unless the subtotal reaches the branch's threshold. An order can be changed or
 cancelled only while it is `received`; a change re-prices the order.
 
-| door | reads | writes (signed in, or `Authorization: Bearer pza_…`) |
+| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer pza_…`; MCP and WebMCP: no sign-in) |
 | --- | --- | --- |
 | REST `/api/v1` | `builder`, `branches?city`, `branches/<code>`, `branches/<code>/slots?date&pizzas&from`, `pizzas`, `pizzas/<code>`, `search?size&branch&vegetarian&vegan&without&maxPrice&toppings`, `POST quote`, `orders?customerEmail&branch&status&date`, `orders/<no>` | `POST orders`, `POST orders/<no>/lines/<line>`, `POST orders/<no>/cancel` |
 | MCP and WebMCP | `list_branches`, `get_menu`, `search_menu`, `find_slots`, `quote_order`, `list_orders`, `get_order` | `place_order`, `change_order_line`, `cancel_order` |
@@ -624,7 +628,7 @@ showtime's format and type, plus the premium surcharge for each premium-row
 seat, plus the booking fee for each ticket. A taken seat or a sold-out
 showtime is refused with 409; every other rule with 422.
 
-| door | reads | writes (signed in, or `Authorization: Bearer cin_…`) |
+| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer cin_…`; MCP and WebMCP: no sign-in) |
 | --- | --- | --- |
 | REST `/api/v1` | `cinemas`, `cinemas/<code>`, `films?genre&city`, `films/<code>`, `showtimes?city&cinema&date&genre&film&format&after&seats&together`, `showtimes/<code>` (prices, fees, seat map), `bookings?customerEmail&showtime&film&status`, `bookings/<no>` | `POST bookings`, `POST bookings/<no>/cancel` |
 | MCP and WebMCP | `list_cinemas`, `get_cinema`, `list_films`, `get_film`, `search_showtimes`, `get_showtime`, `list_bookings`, `get_booking` | `create_booking`, `cancel_booking` |
@@ -701,7 +705,7 @@ category's window, for at most the units bought minus those already returned,
 with one of five reasons. Returns are refunded at the price paid and do not
 restock.
 
-| door | reads | writes (signed in, or `Authorization: Bearer spt_…`) |
+| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer spt_…`; MCP and WebMCP: no sign-in) |
 | --- | --- | --- |
 | REST `/api/v1` | `policies`, `products?category&query`, `products/<code>`, `variants/<sku>`, `search?query&category&size&colour&maxPrice&maxWeight&inStock`, `customers?query`, `customers/<email>`, `orders?customerEmail&status&placedFrom&placedTo`, `orders/<no>`, `returns?orderNo&customerEmail` | `POST orders`, `POST orders/<no>/cancel`, `POST orders/<no>/reorder`, `POST returns` |
 | MCP and WebMCP | `get_store_policies`, `search_products`, `get_product`, `get_customer`, `list_orders`, `get_order` | `place_order`, `cancel_order`, `reorder`, `request_return` |
@@ -761,7 +765,7 @@ requested viewing holds it, for any of that agent's listings. A viewer cannot
 hold two requested viewings at the same time. A cancelled request holds
 nothing. A search without a status returns pending and sold listings too.
 
-| door | reads | writes (signed in, or `Authorization: Bearer hom_…`) |
+| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer hom_…`; MCP and WebMCP: no sign-in) |
 | --- | --- | --- |
 | REST `/api/v1` | `cities`, `listings?city&neighbourhood&type&minPrice&maxPrice&minBeds&minBaths&minArea&minYearBuilt&features&status`, `listings/<code>`, `listings/<code>/slots?from&free`, `agents?city`, `agents/<code>`, `viewings?email&listing&agent&status`, `viewings/<no>` | `POST viewings`, `POST viewings/<no>/cancel` |
 | MCP and WebMCP | `list_cities`, `search_listings`, `get_listing`, `get_agent`, `list_viewing_slots`, `list_viewings`, `get_viewing` | `request_viewing`, `cancel_viewing` |
@@ -835,7 +839,7 @@ authorisation), and the whole price when it does not. A refill needs a refill
 left (422), a pharmacy that stocks that medication at that dosage (422), and no
 refill already requested (409). A request uses one refill.
 
-| door | reads | writes (signed in, or `Authorization: Bearer cln_…`) |
+| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer cln_…`; MCP and WebMCP: no sign-in) |
 | --- | --- | --- |
 | REST `/api/v1` | `clinics`, `clinics/<code>`, `doctors?city&specialty&language&visitType&plan&newPatients&date`, `doctors/<code>`, `doctors/<code>/slots?date`, `plans`, `plans/<code>` (with coverage), `procedures`, `coverage?plan&procedure`, `visit-cost?doctor&plan&visitType`, `medications`, `medications/<code>`, `prices?medication&dosage`, `patients/<email>`, `appointments?patientEmail&doctor&date&status`, `appointments/<no>`, `prescriptions?patientEmail`, `prescriptions/<no>`, `refills?patientEmail&rxNo&status` | `POST appointments`, `POST appointments/<no>/cancel`, `POST prescriptions/<no>/refill` |
 | MCP and WebMCP | `list_clinics`, `find_doctors`, `get_doctor`, `get_plan`, `check_visit_cost`, `get_prescription_prices`, `get_patient` | `book_appointment`, `cancel_appointment`, `request_refill` |
@@ -906,7 +910,7 @@ scheduled open event with a place left. They cannot register twice for one
 event, or for two scheduled events at overlapping times. A cancelled
 registration holds no place.
 
-| door | reads | writes (signed in, or `Authorization: Bearer evt_…`) |
+| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer evt_…`; MCP and WebMCP: no sign-in) |
 | --- | --- | --- |
 | REST `/api/v1` | `offices`, `offices/<code or city>`, `rooms?office&minCapacity&equipment&accessible`, `rooms/<code>`, `free-rooms?office&date&startTime&endTime&people&equipment&accessible`, `people?office&team&name`, `people/<email>`, `events?office&room&date&from&to&organiser&guest&registrant&q&registration&status&hasPlaces`, `events/<code>`, `registrations?email&event&status`, `registrations/<no>` | `POST events`, `POST events/<code>/change`, `POST events/<code>/cancel`, `POST events/<code>/register`, `POST registrations/<no>/cancel` |
 | MCP and WebMCP | `list_offices`, `find_free_rooms`, `list_people`, `list_events`, `get_event` | `create_event`, `change_event`, `cancel_event`, `register_for_event`, `cancel_registration` |
@@ -1294,6 +1298,21 @@ docker compose down -v               # stop and drop the database volume
 
 ## Release
 
+_Chart 0.10.0: the sites from webmcp-tools (scenario `webmcp-v1`, § Sites
+from webmcp-tools) — nine new images (`hotels`, `flights`, `dining`, `pizza`,
+`cinema`, `sports`, `homes`, `clinic`, `events`; make each package public),
+nine new migrations in the migrate Job (one schema per app, `001_<app>`), and
+no new secret. The gateway routes the nine as unlisted apps (only `webmcp-v1`
+workspaces advertise them) with MCP and WebMCP on, and the verifier's `state`
+oracle reads them directly. The corpus (162 tasks) is
+`compose/specs/webmcp-corpus.json`. A cluster whose verifier mounts an
+out-of-band specs ConfigMap (`verify.existingSpecsConfigMap`) grades the 81
+`state` tasks only once that ConfigMap also carries their answer keys:
+`tools/build-specs.mjs --public compose/specs` adds them. The gateway seeds a
+workspace in the apps its scenario needs (an unlisted app only for a scenario
+that names it), so no other scenario's workspaces depend on the nine sites,
+and it no longer proxies an app's `/internal/workspaces/*`._
+
 _Chart 0.9.0: the site network (scenario `web-v1`, served by the guide's
 image under `/web`; the gateway routes the new unlisted `web` app there). It
 adds one migration (`guide` `002_sites`: a nullable `site` column on
@@ -1393,10 +1412,16 @@ Three chart inputs cannot travel through `helm template`:
   own and mounts yours at `/specs`):
 
   ```bash
-  node tools/build-specs.mjs --hidden ../benchme-hidden \
+  node tools/build-specs.mjs --hidden ../benchme-hidden --public compose/specs \
     --configmap benchme-task-specs-hidden --namespace benchme --out specs-cm.yaml
-  kubectl -n benchme apply -f specs-cm.yaml     # re-run after every hidden-tasks change
+  kubectl -n benchme apply -f specs-cm.yaml     # re-run after every hidden-tasks change, and every release that changes compose/specs
   ```
+
+  `--public compose/specs` adds the intent corpora's answer keys (the files
+  `docker compose` mounts into its verifier). Without it the cluster's verifier
+  holds the hidden tasks alone and answers 404 `UNKNOWN_TASK` for every intent
+  task, so no `state` task can be graded there. The verifier reads a spec when
+  a task is submitted: added or changed specs need no restart.
 - **Hidden store scenarios.** Never commit them either. Build the stores'
   scenario file as a ConfigMap (key `shops-scenarios.json`), apply it
   out-of-band and name it in `shops.existingScenariosConfigMap`. The chart

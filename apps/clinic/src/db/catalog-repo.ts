@@ -113,11 +113,11 @@ export class PgCatalogRepo implements CatalogRepo {
   }
 
   async getPlan(ws: string, code: string) {
-    const p = await one<PlRow>(this.pool, "SELECT * FROM clinic.plans WHERE workspace_id = $1 AND code = $2", [ws, code]);
-    if (!p) return null;
-    const plan = toPlan(p);
+    // Found through plan(), so a plan's page, its coverage and a visit's cost all read a code the same way: "pl-14" is PL-14.
+    const plan = await this.plan(this.pool, ws, code);
+    if (!plan) return null;
     const procedures = await this.procedures(ws);
-    const cov = (await all<CovRow>(this.pool, "SELECT * FROM clinic.coverage WHERE workspace_id = $1 AND plan_code = $2", [ws, code])).map(toCoverage);
+    const cov = (await all<CovRow>(this.pool, "SELECT * FROM clinic.coverage WHERE workspace_id = $1 AND plan_code = $2", [ws, plan.code])).map(toCoverage);
     return { ...plan, coverage: procedures.map((pr) => this.line(plan, pr, cov.find((c) => c.procedureCode === pr.code) ?? null)) };
   }
 

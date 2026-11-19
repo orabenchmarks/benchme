@@ -1,6 +1,7 @@
+import { MAX_NIGHTS } from "@benchme/scenarios";
 import { DomainError, registerAuthRoutes, requireSession, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { bookingSchema, searchSchema, toQuery } from "../api/inputs.js";
+import { bookingSchema, nights, searchSchema, toQuery } from "../api/inputs.js";
 import type { HotelsRepo } from "../db/hotels-repo.js";
 import type { ToolContext } from "../mcp/tools.js";
 import * as pages from "./pages.js";
@@ -38,16 +39,19 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
     const c = await ctx(req, flash);
     const h = await d.hotels.getHotel(req.workspaceId, code);
     if (!h) return { status: 404, body: shell(c, "Not found", "<h1>No such hotel</h1>") };
-    const nights = Number(stay.nights);
+    // The stay's length is held to the schema REST and MCP hold it to before anything is computed from it: a blank field asks nothing, a bad one is refused on the page.
+    const asked = stay.checkIn && stay.nights ? nights.safeParse(stay.nights) : null;
     let left: Map<string, number> | null = null;
-    if (stay.checkIn && Number.isInteger(nights) && nights >= 1) {
+    if (asked?.success) {
       try {
-        left = new Map(await Promise.all(h.rooms.map(async (r) => [r.code, (await d.hotels.availability(req.workspaceId, r.code, stay.checkIn as string, nights)).roomsLeft] as const)));
+        left = new Map(await Promise.all(h.rooms.map(async (r) => [r.code, (await d.hotels.availability(req.workspaceId, r.code, stay.checkIn as string, asked.data)).roomsLeft] as const)));
       } catch {
         left = null;
       }
     }
-    return { status: 200, body: shell(c, h.name, pages.hotelDetail(req.prefix, h, stay, left, !!c.user)) };
+    const refused = asked !== null && !asked.success;
+    const shown = refused ? { ...c, flash: c.flash ?? `Check the stay: a stay is 1 to ${MAX_NIGHTS} nights` } : c;
+    return { status: refused ? 400 : 200, body: shell(shown, h.name, pages.hotelDetail(req.prefix, h, stay, left, !!c.user)) };
   };
 
   app.get("/", async (req, reply) => html(reply, shell(await ctx(req), "Find a stay", pages.home(req.prefix, await d.hotels.cities(req.workspaceId)))));

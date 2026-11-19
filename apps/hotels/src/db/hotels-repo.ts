@@ -1,5 +1,5 @@
 import { withTx, type Pool, type PoolClient } from "@benchme/core";
-import { checkOutOf, roomsLeft, searchStays, stayProblem, stayTotalCents, type Booking, type BookingStatus, type Hotel, type RoomType, type Stay, type StayOffer, type StayQuery } from "@benchme/scenarios";
+import { MAX_NIGHTS, checkOutOf, roomsLeft, searchStays, stayProblem, stayTotalCents, type Booking, type BookingStatus, type Hotel, type RoomType, type Stay, type StayOffer, type StayQuery } from "@benchme/scenarios";
 import { DomainError } from "@benchme/site-kit";
 
 export type BookingRow = Booking & { checkOut: string; cancelledAt: string | null };
@@ -94,6 +94,8 @@ export class PgHotelsRepo implements HotelsRepo {
   }
 
   async availability(ws: string, roomCode: string, checkIn: string, nights: number): Promise<Availability> {
+    // The count walks the stay night by night, so its length is held to the rules' cap here, whatever the door let through.
+    if (!Number.isInteger(nights) || nights < 1 || nights > MAX_NIGHTS) throw new DomainError("BAD_NIGHTS", `a stay is 1 to ${MAX_NIGHTS} nights`, 422);
     const room = (await this.pool.query<RRow>("SELECT * FROM hotels.room_types WHERE workspace_id = $1 AND code = $2", [ws, roomCode])).rows[0];
     if (!room) throw new DomainError("UNKNOWN_ROOM", `no room type ${roomCode}`, 404);
     return { roomCode, checkIn, nights, roomsLeft: roomsLeft(toRoom(room), await this.confirmedFor(this.pool, ws, [roomCode]), checkIn, nights) };

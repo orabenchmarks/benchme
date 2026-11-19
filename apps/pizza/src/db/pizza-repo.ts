@@ -157,9 +157,15 @@ export class PgPizzaRepo implements PizzaRepo {
       const world = { ...(await this.catalog(c, ws)), orders: await this.dayOrders(c, ws, order.branchCode, order.slotDate) };
       const r = pizzaChangeLine(world, order, line, change);
       if ("problem" in r) return refuse(r.problem);
-      await c.query("UPDATE pizza.orders SET subtotal_cents = $3, delivery_fee_cents = $4, total_cents = $5, updated_at = now() WHERE workspace_id = $1 AND order_no = $2", [
+      // The order was read above without its row locked, and a cancel takes no branch lock: this write is the one that holds the rule, so a cancel landing in between wins.
+      const w = await c.query("UPDATE pizza.orders SET subtotal_cents = $3, delivery_fee_cents = $4, total_cents = $5, updated_at = now() WHERE workspace_id = $1 AND order_no = $2 AND status = 'received'", [
         ws, no, r.order.subtotalCents, r.order.deliveryFeeCents, r.order.totalCents,
       ]);
+      if (!w.rowCount) {
+        const now = await this.orderIn(c, ws, no);
+        if (!now) return refuse({ code: "UNKNOWN_ORDER", message: `no order ${no}` });
+        return refuse(pizzaLockProblem(now) ?? { code: "ORDER_LOCKED", message: `order ${no} cannot be changed` });
+      }
       await c.query("DELETE FROM pizza.order_lines WHERE workspace_id = $1 AND order_no = $2", [ws, no]);
       await this.writeLines(c, ws, no, r.order.lines);
     });

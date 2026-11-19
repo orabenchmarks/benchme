@@ -8,7 +8,9 @@ import { z } from "zod";
  */
 /** A form or query string sends "" for a field left empty: that is "not given", not an empty value. */
 const blank = (v: unknown) => (v === "" ? undefined : v);
-const optional = <S extends z.ZodTypeAny>(s: S) => z.preprocess(blank, s.optional());
+export const optional = <S extends z.ZodTypeAny>(s: S) => z.preprocess(blank, s.optional());
+/** The same for a field with a default: left empty, it takes the default (`optional` would leave it undefined). */
+export const defaulted = <S extends z.ZodTypeAny>(s: S) => z.preprocess(blank, s);
 
 export const date = z.string().refine(isDate, "a date as YYYY-MM-DD");
 export const time = z.string().regex(/^\d{2}:\d{2}$/, "a slot start time as HH:MM");
@@ -57,7 +59,7 @@ export const appointmentsQuery = z.object({
   date: optional(date),
   status: optional(z.enum(["booked", "cancelled"])),
   cursor: optional(z.string()),
-  limit: z.coerce.number().int().min(1).max(200).default(50),
+  limit: defaulted(z.coerce.number().int().min(1).max(200).default(50)),
 });
 export type AppointmentsQuery = z.infer<typeof appointmentsQuery>;
 export const toAppointmentFilter = (f: AppointmentsQuery) => ({

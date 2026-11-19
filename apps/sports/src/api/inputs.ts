@@ -8,7 +8,9 @@ import { z } from "zod";
  * checked here (400); quantities, reasons, stock and windows are the rules'
  * to refuse (404 / 409 / 422).
  */
-export const date = z.string().refine(isDate, "a date as YYYY-MM-DD");
+// A fresh instance per call, for the MCP tools: one schema object shared by two fields of a tool becomes a "$ref" in its JSON Schema, which some agent clients cannot follow.
+export const dateOf = () => z.string().refine(isDate, "a date as YYYY-MM-DD");
+export const date = dateOf();
 /** A checkbox, a query string or JSON: "true", "1", "on" or true. */
 export const flag = z.union([z.boolean(), z.enum(["true", "false", "1", "0", "on", "off"])]).transform((v) => v === true || v === "true" || v === "1" || v === "on");
 export const STATUSES = ["processing", "shipped", "delivered", "cancelled"] as const;

@@ -1,9 +1,10 @@
 import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, signWorkspaceHeader, type Workspace } from "@benchme/core";
-import type { AppTarget } from "./app-registry.js";
+import type { ScenarioRegistry } from "@benchme/scenarios";
+import type { AppRegistry, AppTarget } from "./app-registry.js";
 
 /**
- * Asks every seeded app to materialise a workspace's rows. Apps own their
- * schema; the gateway only orchestrates and rolls back on any failure.
+ * Asks the seeded apps a workspace needs to materialise its rows. Apps own
+ * their schema; the gateway only orchestrates and rolls back on any failure.
  */
 export interface WorkspaceSeeder {
   seed(workspace: Workspace): Promise<void>;
@@ -20,15 +21,28 @@ export class SeedFailedError extends Error {
   }
 }
 
+/** The apps to seed for one workspace. */
+export type SeedTargets = (workspace: Pick<Workspace, "scenario">) => readonly AppTarget[];
+
+/**
+ * A workspace is seeded in the apps its scenario needs (`AppRegistry.seededFor`): a listed app for every scenario, an
+ * unlisted one only for the scenarios that name it. Seeding every app for every scenario made each unlisted site a
+ * dependency of every workspace: one of them down, or not yet migrated, failed every creation with SEED_FAILED.
+ */
+export const seedTargetsFor =
+  (apps: AppRegistry, scenarios: ScenarioRegistry): SeedTargets =>
+  (workspace) =>
+    apps.seededFor(scenarios.has(workspace.scenario) ? scenarios.get(workspace.scenario).apps : undefined);
+
 export class HttpWorkspaceSeeder implements WorkspaceSeeder {
   constructor(
-    private readonly apps: readonly AppTarget[],
+    private readonly targets: SeedTargets,
     private readonly gatewaySecret: string,
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
   async seed(workspace: Workspace): Promise<void> {
-    for (const app of this.apps) {
+    for (const app of this.targets(workspace)) {
       const res = await this.fetchImpl(`${app.baseUrl}/internal/workspaces/${workspace.id}/seed`, {
         method: "POST",
         headers: {

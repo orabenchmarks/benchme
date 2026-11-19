@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildSports } from "./build-app.js";
+import { ordersList } from "./ui/order-pages.js";
 
 const DB = process.env.DATABASE_URL;
 const SECRET = "gateway-secret-for-tests";
@@ -83,6 +84,7 @@ describe.skipIf(!DB)("sports (real Postgres)", () => {
     const res = await app.inject(scoped({ method: "GET", url: "/" }));
     expect(res.body).toContain('data-webmcp="bridge"');
     expect(res.body).toContain('"name":"search_products"');
+    expect(res.body).not.toContain('"$ref"');
     expect(res.body).toContain("Brackenford Sports");
   });
 
@@ -168,6 +170,34 @@ describe.skipIf(!DB)("sports (real Postgres)", () => {
     expect((await post(`/api/v1/orders/ORD-1/reorder`, {})).statusCode).toBe(404);
   });
 
+  it("reads a blank address code on a reorder as the earlier order's own address, at every door", async () => {
+    const inStock = async (no: string) => (await Promise.all(linesOf(no).map(async (l) => (await get(`/api/v1/variants/${l.sku}`)).stock >= l.qty))).every(Boolean);
+    const second = (o: { customerEmail: string; addressCode: string }) => rows.addresses.find((a) => a.customerEmail === o.customerEmail && a.code !== o.addressCode);
+    let source = rows.orders[0]!;
+    for (const o of rows.orders) if (second(o) && (await inStock(o.orderNo))) { source = o; break; }
+    const other = second(source)!;
+    const foreign = rows.addresses.find((a) => a.customerEmail !== source.customerEmail)!;
+    const client = new Client({ name: "test", version: "0" });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));
+    /** One reorder, [refusal, the address it ships to]; the new order is cancelled so the next one finds the same stock. */
+    const shipsTo = async (made: { error?: string; orderNo?: string; addressCode?: string }) => {
+      if (made.orderNo) expect((await post(`/api/v1/orders/${made.orderNo}/cancel`, {})).json().status).toBe("cancelled");
+      return [made.error, made.addressCode];
+    };
+    const tool = async (addressCode?: string) => JSON.parse(((await client.callTool({ name: "reorder", arguments: { orderNo: source.orderNo, ...(addressCode === undefined ? {} : { addressCode }) } })) as { content: { text: string }[] }).content[0]!.text);
+    try {
+      expect(await shipsTo(await tool())).toEqual([undefined, source.addressCode]);
+      expect(await shipsTo(await tool(""))).toEqual([undefined, source.addressCode]);
+      expect(await shipsTo(await tool("  "))).toEqual([undefined, source.addressCode]);
+      expect(await shipsTo((await post(`/api/v1/orders/${source.orderNo}/reorder`, { addressCode: "" })).json())).toEqual([undefined, source.addressCode]);
+      // A code that is given still decides: another of their addresses is used, someone else's is refused.
+      expect(await shipsTo(await tool(other.code))).toEqual([undefined, other.code]);
+      expect(await shipsTo(await tool(foreign.code))).toEqual(["NOT_THEIR_ADDRESS", undefined]);
+    } finally {
+      await client.close();
+    }
+  });
+
   it("takes a return within the window, and refuses too many units, a closed window, an undelivered order and an unknown reason", async () => {
     const open = rows.orders
       .filter((o) => o.status === "delivered")
@@ -213,6 +243,24 @@ describe.skipIf(!DB)("sports (real Postgres)", () => {
     expect((await get(`/api/v1/orders/${no}`)).status).toBe("cancelled");
     const again = await form(`/orders/${no}/cancel`, {});
     expect([again.statusCode, again.body.includes("already cancelled")]).toEqual([409, true]);
+  });
+
+  it("carries only the orders page's own filters into its Next link, encoded, and never a query key the request made up", async () => {
+    const delivered = rows.orders.filter((o) => o.status === "delivered").map((o) => o.orderNo).sort();
+    expect(delivered.length).toBeGreaterThan(25);
+    const hostile = `a"><script>alert(9471)</script>`;
+    const res = await app.inject(scoped({ method: "GET", url: `/orders?status=delivered&${encodeURIComponent(hostile)}=1&placedFrom=2027-01-01` }));
+    expect(res.statusCode).toBe(200);
+    expect(res.body).not.toContain("<script>alert(9471)");
+    expect(res.body).not.toContain("9471");
+    const href = /<nav class="pager"><a href="([^"]*)">Next page/.exec(res.body)?.[1];
+    expect(href).toBe(`/w/${ws}/sports/orders?cursor=${delivered[24]}&status=delivered&placedFrom=2027-01-01`);
+    const next = await app.inject(scoped({ method: "GET", url: href!.replace(`/w/${ws}/sports`, "") }));
+    expect([...next.body.matchAll(/<td><a href="[^"]*">(ORD-\d+)<\/a>/g)].map((m) => m[1])).toEqual(delivered.slice(25));
+    // The page itself, whatever it is handed: a value is encoded, a key that is not a filter is left out.
+    const html = ordersList("/p", [], "ORD-1", { customerEmail: `a&b"<i>@example.com`, placedTo: "2027-06-30", cursor: "ORD-0", limit: "5", 'x"><b>': "1" });
+    expect(/<nav class="pager"><a href="([^"]*)">/.exec(html)?.[1]).toBe(`/p/orders?cursor=ORD-1&customerEmail=${encodeURIComponent(`a&b"<i>@example.com`)}&placedTo=2027-06-30`);
+    expect(html).not.toContain("<b>");
   });
 
   it("exposes the same tools over MCP", async () => {

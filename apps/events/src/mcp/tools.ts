@@ -1,6 +1,6 @@
 import { DomainError, ToolRegistry } from "@benchme/site-kit";
 import { z } from "zod";
-import { date, time } from "../api/inputs.js";
+import { dateOf, timeOf } from "../api/inputs.js";
 import type { EventsRepo } from "../db/events-repo.js";
 import type { OfficesRepo } from "../db/offices-repo.js";
 import type { RegistrationsRepo } from "../db/registrations-repo.js";
@@ -31,9 +31,9 @@ export function eventTools(): ToolRegistry<ToolContext> {
         "Rooms in one office that are free for the whole time, hold the number of people, and have every piece of equipment asked (projector, video conferencing, whiteboard) — smallest first. Fails with the reason when the office is closed that day or at that time.",
       input: {
         office,
-        date: date.describe("YYYY-MM-DD"),
-        startTime: time.describe("HH:MM, 24-hour"),
-        endTime: time.describe("HH:MM, 24-hour"),
+        date: dateOf().describe("YYYY-MM-DD"),
+        startTime: timeOf().describe("HH:MM, 24-hour"),
+        endTime: timeOf().describe("HH:MM, 24-hour"),
         people: z.number().int().min(1).describe("how many people the room must hold, the organiser included"),
         equipment: z.array(z.string()).optional(),
         accessible: z.boolean().optional().describe("only rooms with step-free access"),
@@ -51,7 +51,7 @@ export function eventTools(): ToolRegistry<ToolContext> {
       description:
         "Events, earliest first, each with its room, organiser, guests, place limit and places left. Filter by office, room, one date or a from/to range, organiser, invited guest, a person registered for it (registrantEmail), title text, invite-only|open, scheduled|cancelled, or only open events with places left. Paginated via cursor.",
       input: {
-        office: office.optional(), roomCode: z.string().optional(), date: date.optional(), from: date.optional(), to: date.optional(), organiserEmail: z.string().optional(), guestEmail: z.string().optional(),
+        office: office.optional(), roomCode: z.string().optional(), date: dateOf().optional(), from: dateOf().optional(), to: dateOf().optional(), organiserEmail: z.string().optional(), guestEmail: z.string().optional(),
         registrantEmail: z.string().optional(), title: z.string().optional().describe("text the title contains"), registration: mode.optional(), status: z.enum(["scheduled", "cancelled"]).optional(),
         hasPlaces: z.boolean().optional(), cursor: z.string().optional(), limit: z.number().int().min(1).max(100).optional(),
       },
@@ -73,7 +73,7 @@ export function eventTools(): ToolRegistry<ToolContext> {
       description:
         "Book a room for an event. The organiser must be in the staff directory. Fails if the date is outside 2027, the office is closed that day or at that time, times are not on the quarter hour, a guest email is not valid, the room cannot hold the organiser + guests + places, or the room is taken for any part of the time. An open event needs places; an invite-only one has none.",
       input: {
-        title: z.string(), description: z.string().default(""), date, startTime: time, endTime: time, roomCode: z.string(), organiserEmail: z.string().email(),
+        title: z.string(), description: z.string().default(""), date: dateOf(), startTime: timeOf(), endTime: timeOf(), roomCode: z.string(), organiserEmail: z.string().email(),
         guestEmails: emails("emails of the invited guests"), registration: mode.default("invite-only"), places: z.number().int().min(1).optional().describe("places open to registration (open events only)"),
       },
       handler: (a, c) => c.events.createEvent(c.workspaceId, { ...a, guestEmails: a.guestEmails ?? [], places: a.places ?? null }),
@@ -83,7 +83,7 @@ export function eventTools(): ToolRegistry<ToolContext> {
       description:
         "Change an event: only its organiser can (organiserEmail). Fields left out stay as they are; guestEmails replaces the guest list, addGuestEmails/removeGuestEmails edit it. Held to the same rules as create_event, and never fewer places than people registered.",
       input: {
-        eventCode: z.string(), organiserEmail: z.string().email(), title: z.string().optional(), description: z.string().optional(), date: date.optional(), startTime: time.optional(), endTime: time.optional(),
+        eventCode: z.string(), organiserEmail: z.string().email(), title: z.string().optional(), description: z.string().optional(), date: dateOf().optional(), startTime: timeOf().optional(), endTime: timeOf().optional(),
         roomCode: z.string().optional(), guestEmails: emails("the whole new guest list"), addGuestEmails: emails("guests to add"), removeGuestEmails: emails("guests to remove"), registration: mode.optional(),
         places: z.number().int().min(1).nullable().optional(),
       },

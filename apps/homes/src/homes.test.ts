@@ -85,6 +85,7 @@ describe.skipIf(!DB)("homes (real Postgres)", () => {
     const res = await app.inject(scoped({ method: "GET", url: "/" }));
     expect(res.body).toContain('data-webmcp="bridge"');
     expect(res.body).toContain('"name":"search_listings"');
+    expect(res.body).not.toContain('"$ref"');
   });
 
   it("serves the seeded listings, agents and viewings as the generator made them", async () => {
@@ -161,6 +162,40 @@ describe.skipIf(!DB)("homes (real Postgres)", () => {
     const no = made.headers.location!.split("/").pop();
     expect((await form(`/viewings/${no}/cancel`, {})).statusCode).toBe(303);
     expect((await get(`/api/v1/viewings/${no}`)).status).toBe("cancelled");
+  });
+
+  it("reads a blank optional query parameter as not given, and still refuses a bad value", async () => {
+    const slots = `/api/v1/listings/${rows.listings.find((l) => l.status === "active")!.code}/slots`;
+    const status = async (url: string) => (await app.inject(scoped({ method: "GET", url }))).statusCode;
+    // One blank parameter per case, then every one at once: [the query with blanks, the same query without them].
+    const same: [string, string][] = [
+      [`${slots}?from=`, slots],
+      [`${slots}?free=`, slots],
+      [`${slots}?from=&free=true`, `${slots}?free=true`],
+      ["/api/v1/viewings?status=", "/api/v1/viewings"],
+      ["/api/v1/viewings?limit=", "/api/v1/viewings"],
+      ["/api/v1/viewings?email=&listing=&agent=&status=&cursor=&limit=", "/api/v1/viewings"],
+      ["/api/v1/agents?city=", "/api/v1/agents"],
+      ["/api/v1/listings?city=&maxPrice=&minBeds=&status=", "/api/v1/listings"],
+    ];
+    const got: Record<string, number> = {};
+    for (const [blank] of same) got[blank] = await status(blank);
+    expect(got).toEqual(Object.fromEntries(same.map(([blank]) => [blank, 200])));
+    for (const [blank, bare] of same) expect(await get(blank)).toEqual(await get(bare));
+    // The default page, not everything: a blank limit is the default limit.
+    expect((await get("/api/v1/viewings?limit=")).items).toHaveLength(50);
+    for (const bad of ["/api/v1/viewings?limit=0", "/api/v1/viewings?limit=many", "/api/v1/viewings?status=open", `${slots}?free=yes`, `${slots}?from=tomorrow`]) expect([bad, await status(bad)]).toEqual([bad, 400]);
+  });
+
+  it("takes a viewing whose optional agentCode is blank in the JSON body, and still needs every required field", async () => {
+    const listing = freeDays(2)[0]![0];
+    // The listing's free slots as they are now: the tests above took and cancelled some.
+    const [slot] = (await get(`/api/v1/listings/${listing.code}/slots?free=true`)) as HomeSlot[];
+    const ask = { listingCode: listing.code, agentCode: "", date: slot!.date, time: slot!.time, viewerName: "Nell Arkwright", viewerEmail: "nell.arkwright@example.com" };
+    const made = await post("/api/v1/viewings", ask);
+    expect([made.statusCode, made.json().agentCode]).toEqual([201, listing.agentCode]);
+    expect((await post(`/api/v1/viewings/${made.json().viewingNo}/cancel`, {})).statusCode).toBe(200);
+    for (const required of ["listingCode", "date", "time", "viewerName", "viewerEmail"]) expect([required, (await post("/api/v1/viewings", { ...ask, [required]: "" })).statusCode]).toEqual([required, 400]);
   });
 
   it("exposes the same tools over MCP", async () => {

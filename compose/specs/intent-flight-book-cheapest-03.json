@@ -19,7 +19,8 @@
           "flightNo": "TF132",
           "date": "2027-03-22",
           "cabin": "premium",
-          "passengerCount": 2
+          "passengerCount": 2,
+          "bags": 0
         }
       }
     ]

@@ -85,9 +85,9 @@ Whether any flight on a route and date has seats in a cabin for a party, meets o
 
 ### flight-quote (json, flights) — 3 tasks
 
-What a named booking costs in total: two to four passengers in one cabin of a named flight, each with one or more checked bags. passengers × the cabin's fare + passengers × bags × the carrier's bag fee (`flightTotalCents`), ±0.01. Fares do not change by date. The miss charges the bags once for the whole booking instead of for each passenger.
+What a named booking costs in total: two to four passengers, never more than the cabin seats, in one cabin of a named flight, each with one or more checked bags. passengers × the cabin's fare + passengers × bags × the carrier's bag fee (`flightTotalCents`), ±0.01. Fares do not change by date. The miss charges the bags once for the whole booking instead of for each passenger.
 
-- **intent-flight-quote-01** — TF522 business $410.00 × 3 + TF bag fee $45.00 × 1 × 3 → $1365.00
+- **intent-flight-quote-01** — TF522 business $410.00 × 2 + TF bag fee $45.00 × 1 × 2 → $910.00
 - **intent-flight-quote-02** — QE130 economy $175.00 × 2 + QE bag fee $40.00 × 1 × 2 → $430.00
 - **intent-flight-quote-03** — SZ214 business $425.00 × 2 + SZ bag fee $35.00 × 1 × 2 → $920.00
 
@@ -101,7 +101,7 @@ Book a round trip on two named flights for a new traveller and a companion (name
 
 ### flight-book-cheapest (state, flights) — 3 tasks
 
-Book, for a new traveller and their party, the cheapest flight on a route and date that has seats in a cabin for all of them, sometimes with one filter (nonstop, a departure window, or one of two carriers): `searchFlights`' first offer, strictly cheaper than the next. A cheaper flight that meets the filter has fewer seats left in that cabin than the party. The check: exactly one confirmed booking for the contact, of that flight on that date, in that cabin, for the whole party. The miss books the cheapest flight that ignores the filter, or the second-cheapest when there is no filter.
+Book, for a new traveller and their party, the cheapest flight on a route and date that has seats in a cabin for all of them, sometimes with one filter (nonstop, a departure window, or one of two carriers): `searchFlights`' first offer, strictly cheaper than the next. A cheaper flight that meets the filter has fewer seats left in that cabin than the party. The check: exactly one confirmed booking for the contact, of that flight on that date, in that cabin, for the whole party, with no checked bag (the intent says so). The miss books the cheapest flight that ignores the filter, or the second-cheapest when there is no filter.
 
 - **intent-flight-book-cheapest-01** — OND→KAO 2027-03-05, business × 2 → TF341 at $315.00; EM702 at $220.00 has 0 seat(s) left; miss QE737
 - **intent-flight-book-cheapest-02** — VEO→OND 2027-04-14, business × 2, is nonstop → SZ203 at $425.00; TF243 at $360.00 has 0 seat(s) left; miss QE121

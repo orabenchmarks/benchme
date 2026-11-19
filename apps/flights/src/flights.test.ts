@@ -88,6 +88,7 @@ describe.skipIf(!DB)("flights (real Postgres)", () => {
     const res = await app.inject(scoped({ method: "GET", url: "/" }));
     expect(res.body).toContain('data-webmcp="bridge"');
     expect(res.body).toContain('"name":"search_flights"');
+    expect(res.body).not.toContain('"$ref"');
   });
 
   it("serves the seeded airports, carriers, flights and bookings as the generator made them", async () => {

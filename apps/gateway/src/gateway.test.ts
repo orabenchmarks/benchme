@@ -11,7 +11,7 @@ import { buildGateway } from "./build-app.js";
 import { readConfig } from "./config.js";
 import { checkServiceNames } from "./routes/services.js";
 import { MemoryRateLimiter } from "./rate-limit.js";
-import { HttpWorkspaceSeeder, type WorkspaceSeeder } from "./seeder.js";
+import { HttpWorkspaceSeeder, seedTargetsFor, type WorkspaceSeeder } from "./seeder.js";
 import type { WorkspaceService } from "./workspace-service.js";
 
 const DB = process.env.DATABASE_URL;
@@ -114,7 +114,7 @@ beforeAll(async () => {
     ["paylantern", "wallet", "guide", "web"],
   );
   limiter = new MemoryRateLimiter(2, 3600);
-  const seeder: WorkspaceSeeder = new HttpWorkspaceSeeder(apps.seeded(), SECRET);
+  const seeder: WorkspaceSeeder = new HttpWorkspaceSeeder(seedTargetsFor(apps, scenarios), SECRET);
   ({ app: gateway, service } = await buildGateway({
     pool,
     scenarios,
@@ -304,6 +304,29 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     expect(empty.json().body).toEqual({});
   });
 
+  it("never proxies an app's /internal/workspaces/* (the gateway's own seed door), however the path is written", async () => {
+    const minted = (await gateway.inject({ method: "POST", url: "/api/workspaces", headers: OPERATOR, payload: { scenario: "acme-v1", seed: 5 } })).json();
+    const port = await listening();
+    const seededBefore = stub.seeds.length;
+    const door = `internal/workspaces/${minted.id}/seed`;
+    const post = (path: string) => gateway.inject({ method: "POST", url: path, payload: { scenario: "acme-v1", seed: 9 } });
+    // As written; under a path-based target (/s/halden/internal/…); through the shared alias's own id.
+    for (const path of [`/w/${minted.id}/warehouse/${door}`, `/w/${minted.id}/halden/${door}`, `/w/${minted.id}/warehouse/internal/workspaces`]) {
+      const res = await post(path);
+      expect(res.statusCode, path).toBe(404);
+      expect(res.json(), path).toMatchObject({ error: "NOT_FOUND" });
+    }
+    // Escaped, behind dot segments (plain and escaped), and behind a doubled slash: read as the app would route them.
+    for (const rest of [`%69nternal/workspaces/${minted.id}/seed`, `x/../${door}`, `x/%2e%2e/${door}`, `/${door}`, `INTERNAL/workspaces/${minted.id}/seed`]) {
+      expect((await rawFetch(port, `/w/${minted.id}/warehouse/${rest}`)).status, rest).toBe(404);
+    }
+    expect(stub.seeds.length).toBe(seededBefore);
+    // An app's other /internal/* pages (the guide's operator-keyed records) are still proxied.
+    const records = await gateway.inject(`/w/${minted.id}/guide/internal/records?workspace=${minted.id}`);
+    expect(records.statusCode).toBe(200);
+    expect(records.json().path).toBe(`/internal/records?workspace=${minted.id}`);
+  });
+
   it("advertises only the apps a scenario names — an unlisted one included — in its urls and on its portal page", async () => {
     const minted = await gateway.inject({ method: "POST", url: "/api/workspaces", headers: OPERATOR, payload: { scenario: "guide-v1", seed: 104_729 } });
     expect(minted.statusCode).toBe(201);
@@ -483,6 +506,50 @@ describe("app registry and config (no database)", () => {
     expect(reg.get("paylantern")?.baseUrl).toBe("http://shops:3000/s/paylantern");
     expect(reg.listed().map((a) => a.name)).toEqual(["halden"]);
     expect(reg.seeded().map((a) => a.name)).toEqual(["paylantern"]);
+  });
+
+  // The lists the chart renders (charts/benchme/templates/apps.yaml): the nine webmcp-v1 sites are seeded AND unlisted.
+  const SITES = ["hotels", "flights", "dining", "pizza", "cinema", "sports", "homes", "clinic", "events"];
+  const BEFORE_THE_SITES = ["warehouse", "helpdesk", "vaultdocs", "mail", "verify"];
+  const deployed = () =>
+    new AppRegistry(
+      Object.fromEntries([...BEFORE_THE_SITES, ...SITES, "data", "guide", "web", "paylantern", "wallet"].map((name) => [name, `http://${name}`])),
+      ["warehouse", "helpdesk", "vaultdocs", ...SITES, "mail", "verify"],
+      [],
+      [],
+      [],
+      ["paylantern", "wallet", "guide", "web", ...SITES],
+    );
+
+  it("seeds a listed app for every scenario, an unlisted one only for a scenario that names it", () => {
+    const reg = new AppRegistry({ warehouse: "http://w", mail: "http://m", hotels: "http://h", guide: "http://g" }, ["warehouse", "mail", "hotels"], [], [], [], ["hotels", "guide"]);
+    const names = (named: readonly string[] | undefined) => reg.seededFor(named).map((a) => a.name);
+    expect(names(undefined)).toEqual(["warehouse", "mail"]);
+    expect(names(["guide"])).toEqual(["warehouse", "mail"]);
+    expect(names(["hotels", "mail"])).toEqual(["warehouse", "mail", "hotels"]);
+  });
+
+  it("seeds exactly the apps seeded before the webmcp-v1 sites for every other scenario, and the nine sites for webmcp-v1 alone", () => {
+    const targets = seedTargetsFor(deployed(), scenarios);
+    for (const scenario of scenarios.list().map((s) => s.key).filter((key) => key !== "webmcp-v1")) {
+      expect(targets({ scenario }).map((a) => a.name).sort(), scenario).toEqual([...BEFORE_THE_SITES].sort());
+    }
+    expect(targets({ scenario: "webmcp-v1" }).map((a) => a.name).sort()).toEqual([...BEFORE_THE_SITES, ...SITES].sort());
+  });
+
+  it("creates a workspace of another scenario while a webmcp-v1 site is down; a webmcp-v1 one fails on it", async () => {
+    const called: string[] = [];
+    const fetchImpl = (async (url: Parameters<typeof fetch>[0]) => {
+      const host = new URL(String(url)).host;
+      called.push(host);
+      if (host === "hotels") throw new Error("connect ECONNREFUSED");
+      return new Response("{}", { status: 201 });
+    }) as typeof fetch;
+    const seeder = new HttpWorkspaceSeeder(seedTargetsFor(deployed(), scenarios), SECRET, fetchImpl);
+    const workspace = (scenario: string) => ({ id: "ws_0123456789ab", scenario, seed: 1, createdAt: new Date(), expiresAt: new Date(), finalizedAt: null }) as never;
+    await seeder.seed(workspace("acme-v1"));
+    expect(called.sort()).toEqual([...BEFORE_THE_SITES].sort());
+    await expect(seeder.seed(workspace("webmcp-v1"))).rejects.toThrow(/ECONNREFUSED/);
   });
 
   it("refuses an UNLISTED_APPS name that is not in APP_TARGETS", () => {

@@ -5,16 +5,16 @@ import type { AppointmentsRepo } from "../db/appointments-repo.js";
 import type { CatalogRepo } from "../db/catalog-repo.js";
 import type { PrescriptionsRepo } from "../db/prescriptions-repo.js";
 import { SESSION_COOKIE } from "../ui/shell.js";
-import { appointmentSchema, appointmentsQuery, date, doctorQuerySchema, refillSchema, toAppointmentFilter, toDoctorQuery, visitType } from "./inputs.js";
+import { appointmentSchema, appointmentsQuery, date, defaulted, doctorQuerySchema, optional, refillSchema, toAppointmentFilter, toDoctorQuery, visitType } from "./inputs.js";
 
 export type ApiDeps = { catalog: CatalogRepo; appointments: AppointmentsRepo; prescriptions: PrescriptionsRepo; auth: AuthService };
 
 const slotsQuery = z.object({ date });
 const coverageQuery = z.object({ plan: z.string().min(1), procedure: z.string().min(1) });
-const visitCostQuery = z.object({ doctor: z.string().min(1), plan: z.string().min(1).optional(), visitType: visitType.default("in-person") });
-const pricesQuery = z.object({ medication: z.string().min(1), dosage: z.string().min(1).optional() });
+const visitCostQuery = z.object({ doctor: z.string().min(1), plan: optional(z.string().min(1)), visitType: defaulted(visitType.default("in-person")) });
+const pricesQuery = z.object({ medication: z.string().min(1), dosage: optional(z.string().min(1)) });
 const rxQuery = z.object({ patientEmail: z.string().optional() });
-const refillsQuery = z.object({ patientEmail: z.string().optional(), rxNo: z.string().optional(), status: z.enum(["requested", "collected"]).optional() });
+const refillsQuery = z.object({ patientEmail: z.string().optional(), rxNo: z.string().optional(), status: optional(z.enum(["requested", "collected"])) });
 
 /** REST under /api/v1. Reads are open inside the workspace; booking, cancelling and refill requests need a bearer token or a session. */
 export function registerApi(app: FastifyInstance, d: ApiDeps): void {

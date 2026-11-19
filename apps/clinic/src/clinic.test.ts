@@ -207,6 +207,60 @@ describe.skipIf(!DB)("clinic (real Postgres)", () => {
     expect((await get(`/api/v1/appointments/${no}`)).status).toBe("cancelled");
   });
 
+  it("reads a blank optional query parameter as not given, and still needs the required ones", async () => {
+    const doctor = rows.doctors.find((d) => d.visitTypes.includes("in-person"))!;
+    const med = encodeURIComponent(rows.medications[0]!.name);
+    const cost = `/api/v1/visit-cost?doctor=${doctor.code}`;
+    const status = async (url: string) => (await app.inject(scoped({ method: "GET", url }))).statusCode;
+    // One blank parameter per case, then every one at once: [the query with blanks, the same query without them].
+    const same: [string, string][] = [
+      [`${cost}&plan=`, cost],
+      [`${cost}&visitType=`, cost],
+      [`/api/v1/prices?medication=${med}&dosage=`, `/api/v1/prices?medication=${med}`],
+      ["/api/v1/refills?status=", "/api/v1/refills"],
+      ["/api/v1/refills?patientEmail=&rxNo=&status=", "/api/v1/refills"],
+      ["/api/v1/appointments?limit=", "/api/v1/appointments"],
+      ["/api/v1/appointments?patientEmail=&doctor=&date=&status=&cursor=&limit=", "/api/v1/appointments"],
+      ["/api/v1/prescriptions?patientEmail=", "/api/v1/prescriptions"],
+      ["/api/v1/doctors?city=&specialty=&language=&visitType=&plan=&newPatients=&date=", "/api/v1/doctors"],
+    ];
+    const got: Record<string, number> = {};
+    for (const [blank] of same) got[blank] = await status(blank);
+    expect(got).toEqual(Object.fromEntries(same.map(([blank]) => [blank, 200])));
+    for (const [blank, bare] of same) expect(await get(blank)).toEqual(await get(bare));
+    // No plan is the self-pay price: the doctor's own fee, no copay.
+    expect(await get(`${cost}&plan=`)).toMatchObject({ planCode: null, visitType: "in-person", inNetwork: false, copayCents: null, costCents: doctor.inPersonFeeCents });
+    // The default page, not everything: a blank limit is the default limit.
+    expect((await get("/api/v1/appointments?limit=")).items).toHaveLength(50);
+    const bad = ["/api/v1/visit-cost?doctor=", "/api/v1/prices?medication=&dosage=", `/api/v1/coverage?plan=&procedure=${rows.procedures[0]!.code}`, `/api/v1/doctors/${doctor.code}/slots?date=`, "/api/v1/appointments?limit=0", "/api/v1/refills?status=lost", `${cost}&visitType=phone`];
+    for (const url of bad) expect([url, await status(url)]).toEqual([url, 400]);
+  });
+
+  it("reads a plan code the same way at every door: any letter case, spaces trimmed", async () => {
+    const plan = rows.plans.at(-1)!;
+    const typed = encodeURIComponent(` ${plan.code.toLowerCase()} `);
+    const doctor = rows.doctors.find((d) => d.visitTypes.includes("in-person") && d.networkPlans.includes(plan.code))!;
+    const procedure = rows.procedures[0]!.code;
+    // [the door with the code as a person types it, the same door with the code as stored]
+    const doors: [string, string][] = [
+      [`/api/v1/plans/${plan.code.toLowerCase()}`, `/api/v1/plans/${plan.code}`],
+      [`/api/v1/plans/${typed}`, `/api/v1/plans/${plan.code}`],
+      [`/api/v1/coverage?plan=${typed}&procedure=${procedure}`, `/api/v1/coverage?plan=${plan.code}&procedure=${procedure}`],
+      [`/api/v1/visit-cost?doctor=${doctor.code}&plan=${typed}`, `/api/v1/visit-cost?doctor=${doctor.code}&plan=${plan.code}`],
+      [`/plans/${plan.code.toLowerCase()}`, `/plans/${plan.code}`],
+    ];
+    const status = async (url: string) => (await app.inject(scoped({ method: "GET", url }))).statusCode;
+    const got: Record<string, number> = {};
+    for (const [typedUrl] of doors) got[typedUrl] = await status(typedUrl);
+    expect(got).toEqual(Object.fromEntries(doors.map(([typedUrl]) => [typedUrl, 200])));
+    for (const [typedUrl, stored] of doors) expect((await app.inject(scoped({ method: "GET", url: typedUrl }))).body).toBe((await app.inject(scoped({ method: "GET", url: stored }))).body);
+    // The plan itself with its own coverage, not an empty shell: every line is the plan's, under its stored code.
+    const detail = await get(`/api/v1/plans/${plan.code.toLowerCase()}`);
+    expect(detail).toMatchObject({ ...plan });
+    expect(detail.coverage.map((c: { planCode: string; status: string }) => [c.planCode, c.status])).toEqual(rows.procedures.map((pr) => [plan.code, rows.coverage.find((c) => c.planCode === plan.code && c.procedureCode === pr.code)?.status ?? "not-covered"]));
+    for (const unknown of ["/api/v1/plans/pl-99", `/api/v1/coverage?plan=pl-99&procedure=${procedure}`]) expect([unknown, await status(unknown)]).toEqual([unknown, 404]);
+  });
+
   it("exposes the same tools over MCP", async () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));
@@ -217,6 +271,8 @@ describe.skipIf(!DB)("clinic (real Postgres)", () => {
       const city = rows.clinics.find((c) => c.code === doctor.clinicCode)!.city;
       const res = (await client.callTool({ name: "find_doctors", arguments: { city, date } })) as { content: { text: string }[] };
       expect(JSON.parse(res.content[0]!.text)).toEqual(clinicFindDoctors(rows, { city, date }));
+      const plan = (await client.callTool({ name: "get_plan", arguments: { planCode: rows.plans[0]!.code.toLowerCase() } })) as { content: { text: string }[] };
+      expect(JSON.parse(plan.content[0]!.text)).toEqual(await get(`/api/v1/plans/${rows.plans[0]!.code}`));
     } finally {
       await client.close();
     }

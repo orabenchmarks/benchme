@@ -5,7 +5,7 @@
     "kind": "json",
     "expect": {
       "total": {
-        "value": 1365,
+        "value": 910,
         "tolerance": 0.01
       }
     }

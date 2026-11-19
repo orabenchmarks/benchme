@@ -5,19 +5,19 @@ import type { EventsRepo } from "../db/events-repo.js";
 import type { OfficesRepo } from "../db/offices-repo.js";
 import type { RegistrationsRepo } from "../db/registrations-repo.js";
 import { SESSION_COOKIE } from "../ui/shell.js";
-import { changeSchema, date, equipmentList, eventSchema, freeRoomSchema, organiserSchema, registerSchema, registrationMode } from "./inputs.js";
+import { changeSchema, date, equipmentList, eventSchema, freeRoomSchema, given, organiserSchema, registerSchema, registrationMode } from "./inputs.js";
 
 export type ApiDeps = { offices: OfficesRepo; events: EventsRepo; registrations: RegistrationsRepo; auth: AuthService };
 
-const flag = z.enum(["true", "false"]).optional();
-const roomsQuery = z.object({ office: z.string().optional(), minCapacity: z.coerce.number().int().min(1).optional(), equipment: equipmentList, accessible: flag });
+const flag = given(z.enum(["true", "false"]).optional());
+const roomsQuery = z.object({ office: z.string().optional(), minCapacity: given(z.coerce.number().int().min(1).optional()), equipment: equipmentList, accessible: flag });
 const peopleQuery = z.object({ office: z.string().optional(), team: z.string().optional(), name: z.string().optional() });
-const page = { cursor: z.string().optional(), limit: z.coerce.number().int().min(1).max(200).default(50) };
+const page = { cursor: z.string().optional(), limit: given(z.coerce.number().int().min(1).max(200).default(50)) };
 const eventsQuery = z.object({
-  office: z.string().optional(), room: z.string().optional(), date: date.optional(), from: date.optional(), to: date.optional(), organiser: z.string().optional(), guest: z.string().optional(),
-  registrant: z.string().optional(), q: z.string().optional(), registration: registrationMode.optional(), status: z.enum(["scheduled", "cancelled"]).optional(), hasPlaces: flag, ...page,
+  office: z.string().optional(), room: z.string().optional(), date: given(date.optional()), from: given(date.optional()), to: given(date.optional()), organiser: z.string().optional(), guest: z.string().optional(),
+  registrant: z.string().optional(), q: z.string().optional(), registration: given(registrationMode.optional()), status: given(z.enum(["scheduled", "cancelled"]).optional()), hasPlaces: flag, ...page,
 });
-const registrationsQuery = z.object({ email: z.string().optional(), event: z.string().optional(), status: z.enum(["registered", "cancelled"]).optional(), ...page });
+const registrationsQuery = z.object({ email: z.string().optional(), event: z.string().optional(), status: given(z.enum(["registered", "cancelled"]).optional()), ...page });
 /** Drops the keys a query left out, so a filter object never carries `undefined`. */
 const defined = <T extends Record<string, unknown>>(o: T) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== "")) as T;
 

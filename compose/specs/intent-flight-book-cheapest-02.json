@@ -19,7 +19,8 @@
           "flightNo": "SZ203",
           "date": "2027-04-14",
           "cabin": "business",
-          "passengerCount": 2
+          "passengerCount": 2,
+          "bags": 0
         }
       }
     ]
