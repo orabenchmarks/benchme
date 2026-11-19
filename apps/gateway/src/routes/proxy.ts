@@ -45,6 +45,23 @@ function decodable(url: string): boolean {
   }
 }
 
+/**
+ * Whether a request would land on an app's `/internal/workspaces/*`: the gateway's OWN door to the app (its seed
+ * call), made on the app's address when a workspace is created. It is never proxied: forwarded with the signed
+ * workspace header like any page, it let anyone holding a workspace's URL wipe and re-seed a site, with any scenario
+ * and seed. Read off the path as the app will route it: dot segments resolved, escapes decoded, repeated slashes
+ * collapsed, and wherever a path-based target mounts it (`/s/<site>/internal/workspaces/…`). An address that cannot
+ * be read is refused too.
+ */
+function isInternalWorkspaceDoor(source: string): boolean {
+  try {
+    const path = decodeURIComponent(new URL(source).pathname).replace(/[\\/]+/g, "/");
+    return /(^|\/)internal\/workspaces(\/|$)/i.test(path);
+  } catch {
+    return true;
+  }
+}
+
 /** What every per-run page answers with, whatever app serves it: no search index, no link followed (robots.ts). */
 export const PER_RUN_ROBOTS = "noindex, nofollow";
 
@@ -83,6 +100,7 @@ export async function registerProxy(app: FastifyInstance, d: ProxyDeps): Promise
     // reply-from decodes the URL before forwarding it (its path-traversal check), and an escape that is not
     // UTF-8 ("%FF", "%C3%28", a lone surrogate, a bare "%") throws there: the client's mistake, said as such.
     if (!decodable(source)) return reply.code(400).send({ error: "BAD_URL", message: "the address has a malformed percent-escape" });
+    if (isInternalWorkspaceDoor(source)) return reply.code(404).send({ error: "NOT_FOUND", message: "no such page" });
     const perRun = !req.params.id.startsWith("shared-");
     return reply.from(source, {
       ...(perRun ? { rewriteHeaders: (headers: Record<string, unknown>) => ({ ...headers, "x-robots-tag": PER_RUN_ROBOTS }) } : {}),
