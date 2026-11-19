@@ -6,7 +6,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import type { FastifyInstance, InjectOptions } from "fastify";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildPizza } from "./build-app.js";
 
 const DB = process.env.DATABASE_URL;
@@ -172,6 +172,34 @@ describe.skipIf(!DB)("pizza (real Postgres)", () => {
     expect((await post(`/api/v1/orders/${no}/cancel`, {})).json().status).toBe("cancelled");
     expect((await post(`/api/v1/orders/${no}/cancel`, {})).json().error).toBe("ALREADY_CANCELLED");
     expect((await post(`/api/v1/orders/${no}/lines/1`, { quantity: 2 })).statusCode).toBe(409);
+  });
+
+  it("never rewrites an order a cancel reached first: a change that read it while it was still received is refused", async () => {
+    const b = rows.branches.find((x) => !rows.stockouts.some((s) => s.branchCode === x.code))!;
+    const pizza = rows.pizzas.find((p) => p.toppings.length >= 2)!;
+    const made = (await post("/api/v1/orders", offer(b.code, { slotTime: "20:00", lines: [{ pizzaCode: pizza.code, size: "medium", quantity: 1 }] }))).json();
+    expect(made.status).toBe("received");
+    // The change reads the order, then the catalog, then writes. Holding one catalog table stops it between its read and its write; a cancel reads nothing from that table.
+    const side = createPool(DB!, 1);
+    const gate = await side.connect();
+    let change: ReturnType<typeof post> | undefined;
+    try {
+      await gate.query("BEGIN");
+      await gate.query("LOCK TABLE pizza.stockouts IN ACCESS EXCLUSIVE MODE");
+      change = post(`/api/v1/orders/${made.orderNo}/lines/1`, { removeToppings: [pizza.toppings[0]] });
+      await vi.waitFor(async () => {
+        const waiting = await gate.query("SELECT 1 FROM pg_locks WHERE NOT granted AND relation = 'pizza.stockouts'::regclass AND database = (SELECT oid FROM pg_database WHERE datname = current_database())");
+        expect(waiting.rowCount).toBe(1);
+      }, { timeout: 5000, interval: 10 });
+      expect((await post(`/api/v1/orders/${made.orderNo}/cancel`, {})).json().status).toBe("cancelled");
+    } finally {
+      await gate.query("ROLLBACK");
+      gate.release();
+      await side.end();
+    }
+    const res = await change;
+    expect([res.statusCode, res.json().error]).toEqual([409, "ALREADY_CANCELLED"]);
+    expect(await get(`/api/v1/orders/${made.orderNo}`)).toMatchObject({ status: "cancelled", totalCents: made.totalCents, lines: made.lines, updatedAt: null });
   });
 
   it("places an order through the builder form, shows a refusal on the page, and cancels from the order page", async () => {
