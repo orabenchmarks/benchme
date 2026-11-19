@@ -28,6 +28,9 @@ jobs:
       - run: npm test
       # The intent corpus's answer keys ARE the generator's output — never hand-edited.
       - run: node tools/intent-corpus.mjs --check
+      # No MCP tool advertises a "$ref" (two fields of one tool sharing a zod schema instance): some agent clients
+      # cannot follow one. Reads the dist that typecheck built.
+      - run: node tools/mcp-tool-schemas.mjs
       # The compose stack is a supported way to run benchme: keep it parseable.
       - run: docker compose -f compose.yaml -f compose.build.yaml config -q
 
