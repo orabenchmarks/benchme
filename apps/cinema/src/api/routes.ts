@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { CinemaRepo } from "../db/cinema-repo.js";
 import { SESSION_COOKIE } from "../ui/routes.js";
-import { bookingSchema, searchSchema, toNewBooking, toQuery } from "./inputs.js";
+import { blankless, bookingSchema, searchSchema, toNewBooking, toQuery } from "./inputs.js";
 
 export type ApiDeps = { cinema: CinemaRepo; auth: AuthService };
 
@@ -41,6 +41,8 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
     return null;
   };
   const notFound = (reply: FastifyReply) => reply.code(404).send({ error: "NOT_FOUND" });
+  /** A query string as the schemas read it: a param left blank ("?date=") is one not given. */
+  const query = (req: FastifyRequest) => blankless((req.query ?? {}) as Record<string, unknown>);
 
   app.get("/api/v1/cinemas", async (req) => d.cinema.listCinemas(req.workspaceId));
   app.get<{ Params: { code: string } }>("/api/v1/cinemas/:code", async (req, reply) => (await d.cinema.getCinema(req.workspaceId, req.params.code)) ?? notFound(reply));
@@ -51,13 +53,13 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
   });
   app.get<{ Params: { code: string } }>("/api/v1/films/:code", async (req, reply) => (await d.cinema.getFilm(req.workspaceId, req.params.code)) ?? notFound(reply));
   app.get("/api/v1/showtimes", async (req, reply) => {
-    const s = parse(searchSchema, req.query, reply);
+    const s = parse(searchSchema, query(req), reply);
     if (!s) return;
     return d.cinema.search(req.workspaceId, toQuery(s));
   });
   app.get<{ Params: { code: string } }>("/api/v1/showtimes/:code", async (req, reply) => (await d.cinema.getShowtime(req.workspaceId, req.params.code)) ?? notFound(reply));
   app.get("/api/v1/bookings", async (req, reply) => {
-    const f = parse(bookingsQuery, req.query, reply);
+    const f = parse(bookingsQuery, query(req), reply);
     if (!f) return;
     return d.cinema.listBookings(req.workspaceId, f);
   });

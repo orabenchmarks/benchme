@@ -127,6 +127,19 @@ describe.skipIf(!DB)("cinema (real Postgres)", () => {
     for (const bad of ["date=2027-02-30", "after=7pm", "format=4d", "seats=11"]) expect((await app.inject(scoped({ method: "GET", url: `/api/v1/showtimes?${bad}` }))).statusCode).toBe(400);
   });
 
+  it("reads a query param left blank as not given, on showtimes and bookings alike", async () => {
+    const blank = await app.inject(scoped({ method: "GET", url: "/api/v1/showtimes?date=" }));
+    expect([blank.statusCode, blank.json()]).toEqual([200, offers()]);
+    const full = soldOut();
+    expect(await get(`/api/v1/showtimes?city=${encodeURIComponent(full.city)}&cinema=&date=&genre=&film=&format=&after=&seats=&together=`)).toEqual(cinemaSearchShowtimes(rows, { city: full.city }));
+    expect(await get(`/api/v1/showtimes?city=&date=${full.date}&seats=1`)).toEqual(cinemaSearchShowtimes(rows, { date: full.date, seats: 1 }));
+    const b = rows.bookings[0]!;
+    const mine = await app.inject(scoped({ method: "GET", url: `/api/v1/bookings?customerEmail=${encodeURIComponent(b.customerEmail)}&showtime=&film=&status=&cursor=&limit=` }));
+    expect([mine.statusCode, mine.json().items?.map((x: { bookingNo: string }) => x.bookingNo)]).toEqual([200, rows.bookings.filter((x) => x.customerEmail === b.customerEmail).map((x) => x.bookingNo).sort()]);
+    // A value that is given and wrong is still the caller's to fix.
+    for (const bad of ["showtimes?date=2027-02-30", "showtimes?seats=0", "showtimes?together=maybe", "bookings?status=held", "bookings?limit=0"]) expect((await app.inject(scoped({ method: "GET", url: `/api/v1/${bad}` }))).statusCode, bad).toBe(400);
+  });
+
   it("books, refuses what the rules refuse, and cancels once", async () => {
     const s = empty();
     const seats = ["C3", "C4", "C5"];
