@@ -1294,6 +1294,18 @@ docker compose down -v               # stop and drop the database volume
 
 ## Release
 
+_Chart 0.10.0: the sites from webmcp-tools (scenario `webmcp-v1`, § Sites
+from webmcp-tools) — nine new images (`hotels`, `flights`, `dining`, `pizza`,
+`cinema`, `sports`, `homes`, `clinic`, `events`; make each package public),
+nine new migrations in the migrate Job (one schema per app, `001_<app>`), and
+no new secret. The gateway routes the nine as unlisted apps (only `webmcp-v1`
+workspaces advertise them) with MCP and WebMCP on, and the verifier's `state`
+oracle reads them directly. The corpus (162 tasks) is
+`compose/specs/webmcp-corpus.json`. A cluster whose verifier mounts an
+out-of-band specs ConfigMap (`verify.existingSpecsConfigMap`) grades the 81
+`state` tasks only once that ConfigMap also carries their answer keys
+(`compose/specs/intent-<kind>-NN.json`)._
+
 _Chart 0.9.0: the site network (scenario `web-v1`, served by the guide's
 image under `/web`; the gateway routes the new unlisted `web` app there). It
 adds one migration (`guide` `002_sites`: a nullable `site` column on

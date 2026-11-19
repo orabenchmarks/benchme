@@ -84,126 +84,126 @@ services:
   # The chart's migrate Job: one app after another, in this order.
   migrate-gateway:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/gateway/dist/migrate.js"]
     depends_on:
       postgres:
         condition: service_healthy
   migrate-warehouse:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/warehouse/dist/migrate.js"]
     depends_on:
       migrate-gateway:
         condition: service_completed_successfully
   migrate-helpdesk:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/helpdesk/dist/migrate.js"]
     depends_on:
       migrate-warehouse:
         condition: service_completed_successfully
   migrate-vaultdocs:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/vaultdocs/dist/migrate.js"]
     depends_on:
       migrate-helpdesk:
         condition: service_completed_successfully
   migrate-hotels:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/hotels:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/hotels:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/hotels/dist/migrate.js"]
     depends_on:
       migrate-vaultdocs:
         condition: service_completed_successfully
   migrate-flights:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/flights:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/flights:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/flights/dist/migrate.js"]
     depends_on:
       migrate-hotels:
         condition: service_completed_successfully
   migrate-dining:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/dining:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/dining:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/dining/dist/migrate.js"]
     depends_on:
       migrate-flights:
         condition: service_completed_successfully
   migrate-pizza:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/pizza:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/pizza:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/pizza/dist/migrate.js"]
     depends_on:
       migrate-dining:
         condition: service_completed_successfully
   migrate-cinema:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/cinema:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/cinema:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/cinema/dist/migrate.js"]
     depends_on:
       migrate-pizza:
         condition: service_completed_successfully
   migrate-sports:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/sports:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/sports:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/sports/dist/migrate.js"]
     depends_on:
       migrate-cinema:
         condition: service_completed_successfully
   migrate-homes:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/homes:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/homes:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/homes/dist/migrate.js"]
     depends_on:
       migrate-sports:
         condition: service_completed_successfully
   migrate-clinic:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/clinic:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/clinic:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/clinic/dist/migrate.js"]
     depends_on:
       migrate-homes:
         condition: service_completed_successfully
   migrate-events:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/events:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/events:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/events/dist/migrate.js"]
     depends_on:
       migrate-clinic:
         condition: service_completed_successfully
   migrate-mail:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/mail/dist/migrate.js"]
     depends_on:
       migrate-events:
         condition: service_completed_successfully
   migrate-verify:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/verify/dist/migrate.js"]
     depends_on:
       migrate-mail:
         condition: service_completed_successfully
   migrate-shops:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/shops:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/shops:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/shops/dist/migrate.js"]
     depends_on:
       migrate-verify:
         condition: service_completed_successfully
   migrate-wallet:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/wallet:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/wallet:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/wallet/dist/migrate.js"]
     depends_on:
       migrate-shops:
         condition: service_completed_successfully
   migrate-guide:
     <<: *migrate
-    image: ghcr.io/orabenchmarks/guide:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/guide:${BENCHME_VERSION:-0.10.0}
     command: ["node", "apps/guide/dist/migrate.js"]
     depends_on:
       migrate-wallet:
@@ -211,7 +211,7 @@ services:
 
   gateway:
     <<: *app
-    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.10.0}
     ports:
       - "${BENCHME_PORT:-8080}:3000"
     depends_on:
@@ -249,27 +249,27 @@ services:
 
   warehouse:
     <<: *app
-    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/warehouse:${BENCHME_VERSION:-0.10.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
 
   helpdesk:
     <<: *app
-    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/helpdesk:${BENCHME_VERSION:-0.10.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
 
   vaultdocs:
     <<: *app
-    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/vaultdocs:${BENCHME_VERSION:-0.10.0}
     environment: *common-env
 
   # Larchmere Stays, the hotel booking site (README § Hotels).
   hotels:
     <<: *app
-    image: ghcr.io/orabenchmarks/hotels:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/hotels:${BENCHME_VERSION:-0.10.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
@@ -277,7 +277,7 @@ services:
   # the flight booking site (README § Sites from webmcp-tools).
   flights:
     <<: *app
-    image: ghcr.io/orabenchmarks/flights:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/flights:${BENCHME_VERSION:-0.10.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
@@ -285,7 +285,7 @@ services:
   # the restaurant reservation site (README § Sites from webmcp-tools).
   dining:
     <<: *app
-    image: ghcr.io/orabenchmarks/dining:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/dining:${BENCHME_VERSION:-0.10.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
@@ -293,7 +293,7 @@ services:
   # the pizza ordering site (README § Sites from webmcp-tools).
   pizza:
     <<: *app
-    image: ghcr.io/orabenchmarks/pizza:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/pizza:${BENCHME_VERSION:-0.10.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
@@ -301,7 +301,7 @@ services:
   # the cinema ticket site (README § Sites from webmcp-tools).
   cinema:
     <<: *app
-    image: ghcr.io/orabenchmarks/cinema:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/cinema:${BENCHME_VERSION:-0.10.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
@@ -309,7 +309,7 @@ services:
   # the sports retailer (README § Sites from webmcp-tools).
   sports:
     <<: *app
-    image: ghcr.io/orabenchmarks/sports:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/sports:${BENCHME_VERSION:-0.10.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
@@ -317,7 +317,7 @@ services:
   # the real estate listings site (README § Sites from webmcp-tools).
   homes:
     <<: *app
-    image: ghcr.io/orabenchmarks/homes:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/homes:${BENCHME_VERSION:-0.10.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
@@ -325,7 +325,7 @@ services:
   # the clinic network site (README § Sites from webmcp-tools).
   clinic:
     <<: *app
-    image: ghcr.io/orabenchmarks/clinic:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/clinic:${BENCHME_VERSION:-0.10.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
@@ -333,19 +333,19 @@ services:
   # the events site (README § Sites from webmcp-tools).
   events:
     <<: *app
-    image: ghcr.io/orabenchmarks/events:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/events:${BENCHME_VERSION:-0.10.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
 
   mail:
     <<: *app
-    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/mail:${BENCHME_VERSION:-0.10.0}
     environment: *common-env
 
   data:
     <<: *app
-    image: ghcr.io/orabenchmarks/data:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/data:${BENCHME_VERSION:-0.10.0}
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
 
@@ -353,7 +353,7 @@ services:
   # paylantern page, all from one app under /s/<site>.
   shops:
     <<: *app
-    image: ghcr.io/orabenchmarks/shops:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/shops:${BENCHME_VERSION:-0.10.0}
     environment:
       <<: *common-env
       MAIL_URL: http://mail:3000
@@ -377,7 +377,7 @@ services:
   # calls, at <public>/wallet/api and <public>/wallet/auth through the gateway.
   wallet:
     <<: *app
-    image: ghcr.io/orabenchmarks/wallet:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/wallet:${BENCHME_VERSION:-0.10.0}
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: postgres://benchme:${POSTGRES_PASSWORD:-benchme-local-postgres}@postgres:5432/benchme
@@ -400,7 +400,7 @@ services:
   # each workspace was served (/internal/*, behind the operator key).
   guide:
     <<: *app
-    image: ghcr.io/orabenchmarks/guide:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/guide:${BENCHME_VERSION:-0.10.0}
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: postgres://benchme:${POSTGRES_PASSWORD:-benchme-local-postgres}@postgres:5432/benchme
@@ -409,7 +409,7 @@ services:
 
   verify:
     <<: *app
-    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/verify:${BENCHME_VERSION:-0.10.0}
     # The Docker socket's group so the non-root verifier may use it:
     # Linux → `stat -c %g /var/run/docker.sock`; Docker Desktop → 0.
     group_add:
@@ -431,7 +431,7 @@ services:
 
   # The chart's reaper CronJob: expired workspaces are dropped every hour.
   reaper:
-    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.9.0}
+    image: ghcr.io/orabenchmarks/gateway:${BENCHME_VERSION:-0.10.0}
     restart: unless-stopped
     depends_on:
       migrate-guide:
