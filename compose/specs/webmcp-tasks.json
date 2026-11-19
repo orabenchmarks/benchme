@@ -270,9 +270,9 @@
       "tools"
     ],
     "app": "flights",
-    "intent": "On the flight booking site, what would it cost in total to book 3 passengers in business on flight TF522 from Velmora to Quillhaven on 2027-06-06, each passenger with 1 checked bag? Answer as JSON: {\"total\": <dollars>}.",
+    "intent": "On the flight booking site, what would it cost in total to book 2 passengers in business on flight TF522 from Velmora to Quillhaven on 2027-06-06, each passenger with 1 checked bag? Answer as JSON: {\"total\": <dollars>}.",
     "oracle": "json",
-    "summary": "3 business fares on TF522, plus the carrier's bag fee for every bag of every passenger."
+    "summary": "2 business fares on TF522, plus the carrier's bag fee for every bag of every passenger."
   },
   {
     "id": "intent-flight-quote-02",

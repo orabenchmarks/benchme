@@ -19,7 +19,8 @@
           "flightNo": "TF341",
           "date": "2027-03-05",
           "cabin": "business",
-          "passengerCount": 2
+          "passengerCount": 2,
+          "bags": 0
         }
       }
     ]
