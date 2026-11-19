@@ -122,6 +122,58 @@ describe.skipIf(!DB)("dining (real Postgres)", () => {
     expect((await app.inject(scoped({ method: "GET", url: `/api/v1/search?city=${r.city}&date=${QUIET}&time=7pm&partySize=2` }))).statusCode).toBe(400);
   });
 
+  it("reads a blank optional query field as not given, and still requires the required ones", async () => {
+    const status = async (url: string) => (await app.inject(scoped({ method: "GET", url }))).statusCode;
+    const r = rows.restaurants.find((x) => diningSeatingTimes(x, QUIET).includes("19:00"))!;
+    const q = { city: r.city, date: QUIET, time: "19:00", partySize: 2 };
+    const search = `/api/v1/search?${searchQs(q)}`;
+    const day = `/api/v1/restaurants/${r.code}/availability?date=${QUIET}`;
+    // One blank field per request, each read as the same request without it.
+    const blanks: [string, string][] = [
+      [`${search}&area=`, search],
+      [`${search}&cuisine=`, search],
+      [`${search}&maxPriceLevel=`, search],
+      ["/api/v1/restaurants?area=", "/api/v1/restaurants"],
+      ["/api/v1/reservations?date=", "/api/v1/reservations"],
+      ["/api/v1/reservations?status=", "/api/v1/reservations"],
+      ["/api/v1/reservations?limit=", "/api/v1/reservations"],
+      [`${day}&partySize=`, `${day}&partySize=2`],
+    ];
+    const statuses: Record<string, number> = {};
+    for (const [blank] of blanks) statuses[blank] = await status(blank);
+    expect(statuses).toEqual(Object.fromEntries(blanks.map(([blank]) => [blank, 200])));
+    for (const [blank, plain] of blanks) expect([blank, await get(blank)]).toEqual([blank, await get(plain)]);
+    // What "the same request without it" answers: every offer, every restaurant, the default page of both statuses, a party of 2.
+    expect(await get(search)).toEqual(diningSearch(rows, q));
+    expect((await get("/api/v1/restaurants")).length).toBe(rows.restaurants.length);
+    const page = await get("/api/v1/reservations");
+    expect([page.items.length, new Set(page.items.map((b: { status: string }) => b.status)).size, new Set(page.items.map((b: { date: string }) => b.date)).size > 1, page.nextCursor !== null]).toEqual([50, 2, true, true]);
+    expect(await get(`${day}&partySize=`)).toMatchObject({ partySize: 2, slots: diningAvailability(r, rows, QUIET, 2) });
+    // A given value filters as it did.
+    expect(await get(`${search}&cuisine=${r.cuisine}`)).toEqual(diningSearch(rows, { ...q, cuisine: r.cuisine }));
+    expect((await get(`${search}&cuisine=${r.cuisine}`)).length).toBeLessThan((await get(search)).length);
+    const on = rows.reservations[0]!.date;
+    expect((await get(`/api/v1/reservations?date=${on}&limit=200`)).items.map((b: { reservationNo: string }) => b.reservationNo)).toEqual(rows.reservations.filter((b) => b.date === on).map((b) => b.reservationNo).sort());
+    expect((await get("/api/v1/reservations?status=cancelled&limit=200")).items.map((b: { reservationNo: string }) => b.reservationNo)).toEqual(rows.reservations.filter((b) => b.status === "cancelled").map((b) => b.reservationNo).sort());
+    expect((await get("/api/v1/reservations?limit=3")).items.length).toBe(3);
+    // A malformed value is still the caller's to fix, and a blank required field is still missing.
+    const refused = [
+      `${search}&area=rooftop`,
+      `${search}&maxPriceLevel=9`,
+      "/api/v1/restaurants?area=rooftop",
+      "/api/v1/reservations?date=tomorrow",
+      "/api/v1/reservations?status=open",
+      "/api/v1/reservations?limit=0",
+      `${day}&partySize=0`,
+      `/api/v1/search?${searchQs({ ...q, city: "" })}`,
+      `/api/v1/search?${searchQs({ ...q, date: "" })}`,
+      `/api/v1/search?${searchQs({ ...q, time: "" })}`,
+      `/api/v1/search?city=${r.city}&date=${QUIET}&time=19:00&partySize=`,
+      `/api/v1/restaurants/${r.code}/availability?date=`,
+    ];
+    for (const url of refused) expect([url, await status(url)]).toEqual([url, 400]);
+  });
+
   it("reserves, refuses what the rules refuse, changes, and cancels once", async () => {
     const s = rows.seating.find((x) => x.area === "terrace" && x.tables === 1 && x.seats === 4 && diningSeatingTimes(restaurantOf(x.restaurantCode), QUIET).includes("19:00"))!;
     const r = restaurantOf(s.restaurantCode);

@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { DiningRepo } from "../db/dining-repo.js";
 import { SESSION_COOKIE } from "../ui/kit.js";
-import { area, changeSchema, date, menuList, partySize, reservationSchema, searchSchema, toQuery } from "./inputs.js";
+import { area, changeSchema, date, filled, menuList, partySize, reservationSchema, searchSchema, toQuery } from "./inputs.js";
 
 export type ApiDeps = { dining: DiningRepo; auth: AuthService };
 
@@ -42,26 +42,28 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
     return null;
   };
   const notFound = (reply: FastifyReply) => reply.code(404).send({ error: "NOT_FOUND" });
+  /** A query string without its blank fields: `?area=` is no area filter, as on the pages. Bodies are parsed as sent — a change's `note: ""` clears the note. */
+  const query = (req: FastifyRequest) => filled((req.query ?? {}) as Record<string, unknown>);
 
   app.get("/api/v1/cities", async (req) => d.dining.cities(req.workspaceId));
   app.get("/api/v1/restaurants", async (req, reply) => {
-    const f = parse(restaurantsQuery, req.query, reply);
+    const f = parse(restaurantsQuery, query(req), reply);
     if (!f) return;
     return d.dining.listRestaurants(req.workspaceId, { ...(f.city ? { city: f.city } : {}), ...(f.cuisine ? { cuisine: f.cuisine } : {}), menus: f.menus, ...(f.area ? { area: f.area } : {}) });
   });
   app.get<{ Params: { code: string } }>("/api/v1/restaurants/:code", async (req, reply) => (await d.dining.getRestaurant(req.workspaceId, req.params.code)) ?? notFound(reply));
   app.get<{ Params: { code: string } }>("/api/v1/restaurants/:code/availability", async (req, reply) => {
-    const a = parse(availabilityQuery, req.query, reply);
+    const a = parse(availabilityQuery, query(req), reply);
     if (!a) return;
     return run(reply, () => d.dining.availability(req.workspaceId, req.params.code, a.date, a.partySize));
   });
   app.get("/api/v1/search", async (req, reply) => {
-    const s = parse(searchSchema, req.query, reply);
+    const s = parse(searchSchema, query(req), reply);
     if (!s) return;
     return d.dining.search(req.workspaceId, toQuery(s));
   });
   app.get("/api/v1/reservations", async (req, reply) => {
-    const f = parse(reservationsQuery, req.query, reply);
+    const f = parse(reservationsQuery, query(req), reply);
     if (!f) return;
     return d.dining.listReservations(req.workspaceId, {
       ...(f.guestEmail ? { guestEmail: f.guestEmail } : {}),
