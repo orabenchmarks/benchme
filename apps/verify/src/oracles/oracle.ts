@@ -1,8 +1,12 @@
 import type { Verdict } from "@benchme/core";
 import type { OracleSpec, TaskSpec } from "../specs/spec.js";
 
-/** One named check inside a verdict. */
-export type CheckResult = { name: string; ok: boolean; note?: string };
+/**
+ * One named check inside a verdict. `at` is when what satisfied it happened:
+ * the time of a ledger entry, for a state check that stands on one. Never the
+ * time the check ran.
+ */
+export type CheckResult = { name: string; ok: boolean; note?: string; at?: string };
 
 export type OracleResult = { verdict: Verdict; checks: CheckResult[] };
 

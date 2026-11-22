@@ -1,3 +1,4 @@
+import { DOORS, LEDGER_OUTCOMES } from "@benchme/site-kit";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
@@ -70,53 +71,194 @@ export const patchSpec = z.object({
 type ExpectValue = string | number | boolean | { [key: string]: ExpectValue };
 const expectValue: z.ZodType<ExpectValue> = z.lazy(() => z.union([z.string(), z.number(), z.boolean(), z.record(z.string(), expectValue)]));
 
-export const stateSpec = z.object({
-  kind: z.literal("state"),
+/**
+ * A ROW check: today's kind, and the one a check without a `kind` is. It reads
+ * one app's live REST state for this workspace (never the submitted artifact —
+ * end state is the evidence) and must find at least one row that survives
+ * `where` and satisfies `expect`.
+ */
+const rowCheck = z.object({
+  kind: z.literal("row").optional(),
+  name: z.string().min(1),
+  /** APP_TARGETS key of the app to read (e.g. "warehouse", "helpdesk"). */
+  app: z.string().min(1),
+  /** A REST list or detail path on that app, e.g. "/api/v1/orders" or "/api/v1/orders/SO-1". */
+  path: z.string().min(1),
   /**
-   * Each check reads one app's live REST state for this workspace (never the
-   * submitted artifact — end state is the evidence) and must find at least
-   * one row that survives `where` and satisfies `expect`.
+   * Every field here must equal the row's field (case-insensitive for
+   * strings); see `ExpectValue`. An EMPTY `expect` is rejected at load:
+   * it is satisfied by any row at all, so the check would silently
+   * degrade to "something exists here" and pass a wrong submission.
    */
-  checks: z.array(
-    z.object({
-      name: z.string().min(1),
-      /** APP_TARGETS key of the app to read (e.g. "warehouse", "helpdesk"). */
-      app: z.string().min(1),
-      /** A REST list or detail path on that app, e.g. "/api/v1/orders" or "/api/v1/orders/SO-1". */
-      path: z.string().min(1),
-      /**
-       * Every field here must equal the row's field (case-insensitive for
-       * strings); see `ExpectValue`. An EMPTY `expect` is rejected at load:
-       * it is satisfied by any row at all, so the check would silently
-       * degrade to "something exists here" and pass a wrong submission.
-       */
-      expect: z.record(z.string(), expectValue).refine((o) => Object.keys(o).length > 0, "expect must name at least one field"),
-      /** Narrows a list response to matching rows before `expect`/`count`/`rowPath` apply. */
-      where: z.record(z.string(), z.string()).optional(),
-      /** Bounds on how many rows survive `where` (e.g. max:1 catches a duplicate). */
-      count: z.object({ min: z.number().int().min(0).optional(), max: z.number().int().min(0).optional() }).optional(),
-      /**
-       * Optional per-row detail fetch. For each `where`-matched LIST row (up
-       * to MAX_ROW_FETCHES), `{field}` placeholders are substituted from
-       * that row's own fields and the resulting path is fetched; `expect`
-       * is then evaluated against the fetched detail row, with the list
-       * row's fields merged underneath (so `expect` can still name a field
-       * that only exists on the list row). Lets a check reach a field (e.g.
-       * nested line items) that only exists on a detail route addressed by
-       * a value the list row carries (e.g. an order number) — without the
-       * task having to predict that value up front.
-       */
-      rowPath: z.string().optional(),
-    }),
-  ).min(1),
+  expect: z.record(z.string(), expectValue).refine((o) => Object.keys(o).length > 0, "expect must name at least one field"),
+  /** Narrows a list response to matching rows before `expect`/`count`/`rowPath` apply. */
+  where: z.record(z.string(), z.string()).optional(),
+  /** Bounds on how many rows survive `where` (e.g. max:1 catches a duplicate). */
+  count: z.object({ min: z.number().int().min(0).optional(), max: z.number().int().min(0).optional() }).optional(),
+  /**
+   * Optional per-row detail fetch. For each `where`-matched LIST row (up
+   * to MAX_ROW_FETCHES), `{field}` placeholders are substituted from
+   * that row's own fields and the resulting path is fetched; `expect`
+   * is then evaluated against the fetched detail row, with the list
+   * row's fields merged underneath (so `expect` can still name a field
+   * that only exists on the list row). Lets a check reach a field (e.g.
+   * nested line items) that only exists on a detail route addressed by
+   * a value the list row carries (e.g. an order number) — without the
+   * task having to predict that value up front.
+   */
+  rowPath: z.string().optional(),
+  /**
+   * The row's entity in the site's change ledger, `id` with `{field}`
+   * placeholders filled from the row that satisfied the check (e.g.
+   * `{ "type": "booking", "id": "{bookingNo}" }`). With it, a passing check
+   * reports `at`: the time of the last successful write the ledger holds for
+   * that entity, the change that made the row what it is. Without it, or when
+   * the ledger holds no such write (a seeded row nobody touched), there is no
+   * `at`.
+   */
+  entity: z.object({ type: z.string().min(1), id: z.string().min(1) }).strict().optional(),
 });
 
-export const taskSpecSchema = z.object({
-  id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,63}$/),
-  /** Blind receipts (hard tier): details carry counts only, never names. */
-  blind: z.boolean().default(false),
-  oracle: z.discriminatedUnion("kind", [jsonSpec, xlsxSpec, docxSpec, patchSpec, stateSpec]),
+/**
+ * An ABSENT check: no row matches. It reads rows as a row check does; a row
+ * matches when it survives `where` and, if given, satisfies `expect`; the
+ * check passes when none does. With neither, it passes only on an empty list.
+ * A read that could not be finished proves no absence, and fails.
+ */
+const absentCheck = z
+  .object({
+    kind: z.literal("absent"),
+    name: z.string().min(1),
+    app: z.string().min(1),
+    path: z.string().min(1),
+    where: z.record(z.string(), z.string()).optional(),
+    expect: z.record(z.string(), expectValue).refine((o) => Object.keys(o).length > 0, "expect must name at least one field").optional(),
+  })
+  .strict();
+
+/**
+ * What picks entries out of one app's change ledger: every field given must
+ * equal the entry's (strings case-insensitively, as rows are compared). `app`
+ * is the ledger to read; at least one other field must narrow it, or the match
+ * is "anything at all happened there". A read is `action: "read"`; `actor:
+ * null` is an entry made by nobody signed in.
+ */
+const ledgerMatch = z
+  .object({
+    app: z.string().min(1),
+    entity: z.object({ type: z.string().min(1), id: z.string().min(1).optional() }).strict().optional(),
+    action: z.string().min(1).optional(),
+    outcome: z.enum(LEDGER_OUTCOMES).optional(),
+    /** The site's reason code of a refused entry. */
+    code: z.string().min(1).optional(),
+    door: z.enum(DOORS).optional(),
+    actor: z.string().min(1).nullable().optional(),
+  })
+  .strict()
+  .refine((m) => Object.keys(m).some((k) => k !== "app"), "a ledger match must name more than the app");
+export type LedgerMatch = z.infer<typeof ledgerMatch>;
+
+/**
+ * A LEDGER check: an entry matches. `match` is one matcher, or several of
+ * which any one will do (an impossible task's "looked at the thing, or was
+ * refused with the expected reason"). `after` names an earlier check of the
+ * task: only entries later than the one that satisfied it count. The entry's
+ * time is the check's `at`; of several that match, the earliest.
+ */
+const ledgerCheck = z
+  .object({
+    kind: z.literal("ledger"),
+    name: z.string().min(1),
+    match: z.union([ledgerMatch, z.array(ledgerMatch).min(1)]),
+    after: z.string().min(1).optional(),
+  })
+  .strict();
+
+/**
+ * An UNCHANGED check: the ledger holds no successful write in a scope. The
+ * scope is the ledgers of `apps` (one site, or every site of the scenario for
+ * a whole workspace), optionally only what one `actor` wrote (`null`: what
+ * nobody signed in wrote) and only one `entity` type or one entity. `except`
+ * names the writes that are allowed, as ledger matchers. A sign-up or sign-in
+ * is an `auth` entry and never counts as a write.
+ */
+const unchangedCheck = z
+  .object({
+    kind: z.literal("unchanged"),
+    name: z.string().min(1),
+    scope: z
+      .object({
+        apps: z.array(z.string().min(1)).min(1),
+        actor: z.string().min(1).nullable().optional(),
+        entity: z.object({ type: z.string().min(1), id: z.string().min(1).optional() }).strict().optional(),
+      })
+      .strict(),
+    except: z.array(ledgerMatch).optional(),
+  })
+  .strict();
+
+/**
+ * The kinds of check a state oracle runs, by name. A registry on both sides: a
+ * kind is one schema here and one `StateCheck` in oracles/state/, never a
+ * branch in the oracle.
+ */
+const CHECK_SCHEMAS = { row: rowCheck, absent: absentCheck, ledger: ledgerCheck, unchanged: unchangedCheck } as const;
+export type StateCheckKind = keyof typeof CHECK_SCHEMAS;
+export type StateCheckSpec = { [K in StateCheckKind]: z.infer<(typeof CHECK_SCHEMAS)[K]> }[StateCheckKind];
+export type StateCheckSpecOf<K extends StateCheckKind> = z.infer<(typeof CHECK_SCHEMAS)[K]>;
+
+/** A check's kind: the one it names, or `row` for a check that names none (every check written before there were kinds). */
+export const checkKindOf = (check: { kind?: string | undefined }): string => check.kind ?? "row";
+
+/**
+ * One check, parsed by its own kind's schema. Dispatching by hand rather than
+ * with a union keeps each kind's own errors (a union reports every member's),
+ * and keeps a check without a `kind` exactly as it was written: nothing is
+ * added to it, so a spec that parsed before parses to the same value.
+ */
+const stateCheck = z.unknown().transform((value, ctx): StateCheckSpec => {
+  const kind = checkKindOf((value ?? {}) as { kind?: string });
+  if (!Object.hasOwn(CHECK_SCHEMAS, kind)) {
+    ctx.addIssue({ code: "custom", message: `unknown check kind "${kind}"; there is ${Object.keys(CHECK_SCHEMAS).join(", ")}` });
+    return z.NEVER;
+  }
+  const parsed = CHECK_SCHEMAS[kind as StateCheckKind].safeParse(value);
+  if (parsed.success) return parsed.data;
+  for (const issue of parsed.error.issues) ctx.addIssue(issue);
+  return z.NEVER;
 });
+
+/** The names an `after` may point at are the checks before it; a name two of them share points at neither. */
+export function afterProblems(checks: readonly StateCheckSpec[], earlier: readonly string[] = []): string[] {
+  const seen = [...earlier];
+  const problems: string[] = [];
+  for (const check of checks) {
+    if (check.kind === "ledger" && check.after !== undefined) {
+      const named = seen.filter((name) => name === check.after).length;
+      if (named !== 1) problems.push(`check "${check.name}" comes after "${check.after}", which ${named === 0 ? "no earlier check is called" : "more than one earlier check is called"}`);
+    }
+    seen.push(check.name);
+  }
+  return problems;
+}
+
+export const stateSpec = z.object({
+  kind: z.literal("state"),
+  /** At least one check; each is a `row` check unless it names another kind. */
+  checks: z.array(stateCheck).min(1),
+});
+
+export const taskSpecSchema = z
+  .object({
+    id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,63}$/),
+    /** Blind receipts (hard tier): details carry counts only, never names. */
+    blind: z.boolean().default(false),
+    oracle: z.discriminatedUnion("kind", [jsonSpec, xlsxSpec, docxSpec, patchSpec, stateSpec]),
+  })
+  .superRefine((spec, ctx) => {
+    if (spec.oracle.kind !== "state") return;
+    for (const message of afterProblems(spec.oracle.checks)) ctx.addIssue({ code: "custom", path: ["oracle", "checks"], message });
+  });
 
 export type TaskSpec = z.infer<typeof taskSpecSchema>;
 export type OracleSpec = TaskSpec["oracle"];
