@@ -6,7 +6,8 @@
  *   node tools/intent-integrity.mjs --base http://localhost:8080 [--scenario acme-v1] [--seed 4242] [--scale 1] [--operator-key <key>]
  *
  * --scenario picks the corpus (tools/intent-corpus/corpus.mjs CORPORA): acme-v1
- * (the default) or webmcp-v1, the sites from webmcp-tools.
+ * (the default), webmcp-v1, the sites from webmcp-tools, or cuj-v1, whose
+ * proof is tools/intent-integrity/cuj.mjs (levels measured, steps in order).
  *
  * One fresh workspace at the corpus seed, signed in to every app that has
  * accounts (sign-up → the code from the workspace inbox → verify → log in, as
@@ -26,6 +27,7 @@
  * Exits 1 on any surprise, naming the task and the verifier's own words.
  */
 import { buildCorpus } from "./intent-corpus/corpus.mjs";
+import { liveBenchme, perturb } from "./intent-integrity/live.mjs";
 
 const argv = process.argv.slice(2);
 const option = (name, fallback) => {
@@ -39,88 +41,19 @@ const SCENARIO = option("scenario", "acme-v1");
 const OPERATOR_KEY = option("operator-key");
 const EMAIL = "integrity@example.com";
 
+// cuj-v1's tasks have areas, levels and steps: their proof is its own (tools/intent-integrity/cuj.mjs).
+if (SCENARIO === "cuj-v1") {
+  const { runCujIntegrity } = await import("./intent-integrity/cuj.mjs");
+  process.exit(await runCujIntegrity({ base: BASE, seed: SEED, scale: SCALE, operatorKey: OPERATOR_KEY }));
+}
+
 const corpus = buildCorpus({ seed: SEED, scale: SCALE, scenario: SCENARIO });
 if (corpus.problems.length) throw new Error(corpus.problems.join("; "));
 
-async function http(method, url, { body, form, cookies, headers = {} } = {}) {
-  const res = await fetch(url, {
-    method,
-    redirect: "manual",
-    headers: {
-      ...headers,
-      ...(cookies?.length ? { cookie: cookies.join("; ") } : {}),
-      ...(form ? { "content-type": "application/x-www-form-urlencoded" } : body !== undefined ? { "content-type": "application/json" } : {}),
-    },
-    body: form ? new URLSearchParams(form).toString() : body !== undefined ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined,
-  });
-  return res;
-}
-
-async function mint() {
-  const res = await http("POST", `${BASE}/api/workspaces`, { body: { scenario: SCENARIO, seed: SEED }, headers: OPERATOR_KEY ? { "x-benchme-operator-key": OPERATOR_KEY } : {} });
-  if (!res.ok) throw new Error(`workspace mint answered ${res.status}: ${await res.text()}`);
-  return (await res.json()).id;
-}
-
-/** Session cookies for one app, or [] for an app without accounts (the vault, the data site). */
-async function signIn(ws, app) {
-  const root = `${BASE}/w/${ws}/${app}`;
-  const password = `pw-${Math.random().toString(36).slice(2)}-X9`;
-  const signup = await http("POST", `${root}/signup`, { form: { email: EMAIL, password, name: "Integrity" } });
-  if (signup.status === 404) return [];
-  if (signup.status >= 400) throw new Error(`${app} signup answered ${signup.status}: ${await signup.text()}`);
-  const mail = await (await http("GET", `${BASE}/w/${ws}/mail/api/v1/messages`)).json();
-  const code = mail.filter((m) => m.to === EMAIL && String(m.from).includes(app)).map((m) => /\b(\d{6})\b/.exec(m.body)?.[1]).filter(Boolean).at(-1);
-  if (!code) throw new Error(`no verification code for ${app} in the workspace inbox`);
-  const verify = await http("POST", `${root}/verify`, { form: { email: EMAIL, code } });
-  if (verify.status >= 400) throw new Error(`${app} verify answered ${verify.status}`);
-  const login = await http("POST", `${root}/login`, { form: { email: EMAIL, password } });
-  const cookies = login.headers.getSetCookie().map((c) => c.split(";")[0]);
-  if (login.status !== 303 || cookies.length === 0) throw new Error(`${app} login answered ${login.status} with ${cookies.length} cookies`);
-  return cookies;
-}
-
-/** One JSON-RPC request to an app's MCP server, as an MCP client sends it: the result, and the session id an `initialize` answers with. */
-async function mcp(ws, app, method, params, session) {
-  const res = await http("POST", `${BASE}/w/${ws}/${app}/mcp`, { body: { jsonrpc: "2.0", id: 1, method, params }, headers: { accept: "application/json, text/event-stream", ...(session ? { "mcp-session-id": session } : {}) } });
-  const text = await res.text();
-  if (!res.ok) throw Object.assign(new Error(`${app} mcp ${method} answered ${res.status}: ${text.slice(0, 300)}`), { status: res.status });
-  const line = text.split("\n").filter((l) => l.startsWith("data:")).pop();
-  const message = JSON.parse(line ? line.slice(5) : text);
-  if (message.error) throw new Error(`${app} mcp ${method}: ${JSON.stringify(message.error).slice(0, 300)}`);
-  return { result: message.result, session: res.headers.get("mcp-session-id") };
-}
-
-/** A tool's answer: the JSON it printed, or a throw with the tool's own words when it refused. */
-async function tool(ws, app, name, args, session) {
-  const { result } = await mcp(ws, app, "tools/call", { name, arguments: args }, session);
-  const said = JSON.parse(result.content[0].text);
-  if (result.isError) throw new Error(`${app} ${name} refused: ${JSON.stringify(said).slice(0, 300)}`);
-  return said;
-}
-
-/**
- * The sign-in of `signIn`, through MCP tools alone: sign_up, the mailed code
- * read with the inbox's own tools, verify_email, sign_in, and the site's word
- * for who the connection now is. False for an app whose tools do not sign in.
- */
-async function signInThroughTools(ws, app, email) {
-  // An app with no MCP server at all (the company's static site) has no tools to sign in with.
-  const listed = await mcp(ws, app, "tools/list", {}).catch((err) => (err.status === 404 ? null : Promise.reject(err)));
-  if (!listed?.result.tools.some((t) => t.name === "sign_in")) return false;
-  const { session } = await mcp(ws, app, "initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "intent-integrity", version: "0" } });
-  if (!session) throw new Error(`${app} gave an initializing client no Mcp-Session-Id to stay signed in with`);
-  const password = `pw-${Math.random().toString(36).slice(2)}-X9`;
-  await tool(ws, app, "sign_up", { name: "Integrity", email, password }, session);
-  const mail = await tool(ws, "mail", "list_messages", { to: email });
-  const code = mail.filter((m) => String(m.from).includes(app)).map((m) => /\b(\d{6})\b/.exec(m.body)?.[1]).filter(Boolean).at(0);
-  if (!code) throw new Error(`no verification code for ${app} in the inbox, read through its tools`);
-  await tool(ws, app, "verify_email", { email, code }, session);
-  await tool(ws, app, "sign_in", { email, password }, session);
-  const who = await tool(ws, app, "whoami", {}, session);
-  if (who.signedIn !== true || who.email !== email) throw new Error(`${app} says the connection is ${JSON.stringify(who)} after sign_in`);
-  return true;
-}
+const live = liveBenchme({ base: BASE, operatorKey: OPERATOR_KEY });
+const { http, signInThroughTools, submit } = live;
+const mint = () => live.mint(SCENARIO, SEED);
+const signIn = (ws, app) => live.signIn(ws, app, { email: EMAIL });
 
 function apiFor(ws, sessions) {
   const url = (app, path) => `${BASE}/w/${ws}/${app}${path}`;
@@ -158,23 +91,6 @@ function apiFor(ws, sessions) {
     },
   };
   return api;
-}
-
-async function submit(ws, id, artifact) {
-  const res = await http("POST", `${BASE}/w/${ws}/verify/v1/submit/${id}`, { body: JSON.stringify(artifact) });
-  const body = await res.json().catch(() => ({}));
-  if (!body.verdict) throw new Error(`verifier answered ${res.status} for ${id}: ${JSON.stringify(body).slice(0, 300)}`);
-  return body;
-}
-
-/** A wrong answer of the same shape: every field moved off its key. */
-function perturb(expect) {
-  return Object.fromEntries(
-    Object.entries(expect).map(([field, v]) => [
-      field,
-      typeof v === "object" ? v.value + v.tolerance * 10 + 1 : typeof v === "number" ? v + 1 : typeof v === "boolean" ? !v : `${v}-not-it`,
-    ]),
-  );
 }
 
 const ws = await mint();
