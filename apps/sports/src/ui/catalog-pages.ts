@@ -59,7 +59,7 @@ export function productDetail(p: string, x: ProductDetail, pol: Policies): strin
 }
 
 export function policiesPage(p: string, pol: Policies): string {
-  return `<h1>Store policies</h1><h2>Returns</h2><p>A line of a delivered order can be returned up to and including the day its category's window ends, counted from the day the order was delivered. You can return at most the units bought, minus any already returned. Returned items are refunded at the price paid and do not go back into stock.</p>
+  return `<h1>Store policies</h1><h2>Returns</h2><p>A line of a delivered order can be returned up to and including its last return day: the delivery date plus the days of its category's window. Delivered on 1 March with a 30-day window, the last day is 31 March. You can return at most the units bought, minus any already returned. Returned items are refunded at the price paid and do not go back into stock.</p>
 <table><tr><th>Category</th><th>Return window</th></tr>${pol.categories.map((c) => `<tr><td><a href="${p}/products?category=${esc(c.key)}">${esc(c.name)}</a></td><td>${c.returnWindowDays} days</td></tr>`).join("")}</table>
 <p>Accepted reasons: ${pol.returnReasons.map(tag).join(" ")}</p>
 <h2>Shipping</h2><p>${money(pol.shipping.feeCents)} per order, free when the order's subtotal is ${money(pol.shipping.freeFromCents)} or more.</p>
