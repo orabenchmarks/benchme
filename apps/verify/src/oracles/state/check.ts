@@ -6,9 +6,10 @@ import type { WorkspaceStateReader } from "../state-reader.js";
 /**
  * What one check found, beyond pass or fail: the ledger entry that satisfied
  * it, when one did. Its time is the check's `at`; its place in its ledger is
- * what a later check's `after` is measured from.
+ * what a later check's `after` is measured from; its entity is what a later
+ * check's `@<check name>` id stands for.
  */
-export type CheckOutcome = CheckResult & { entry?: Pick<LedgerEntry, "app" | "seq" | "at"> };
+export type CheckOutcome = CheckResult & { entry?: Pick<LedgerEntry, "app" | "seq" | "at" | "entity"> };
 
 /** What a check works with: the workspace, the two readers, and the checks already run. */
 export type CheckEnv = {

@@ -143,8 +143,15 @@ const absentCheck = z
  * is "anything at all happened there". A read is `action: "read"`; `actor:
  * null` is an entry made by nobody signed in.
  */
-/** An entity, or a subject, by type and (optionally) id. */
+/**
+ * An entity, or a subject, by type and (optionally) id. An id `@<check name>`
+ * is the entity id of the entry an earlier check of the task stood on: the
+ * booking a row check found, the order a ledger check matched. It lets a later
+ * step speak of what an earlier one made, whose id nobody knew beforehand.
+ */
 const entityRef = () => z.object({ type: z.string().min(1), id: z.string().min(1).optional() }).strict();
+/** The earlier check an `@<check name>` id names, or undefined for an id that is a plain id. */
+export const referencedCheck = (id: string | undefined): string | undefined => (id !== undefined && id.startsWith("@") && id.length > 1 ? id.slice(1) : undefined);
 
 const ledgerMatch = z
   .object({
@@ -241,15 +248,29 @@ const stateCheck = z.unknown().transform((value, ctx): StateCheckSpec => {
   return z.NEVER;
 });
 
-/** The names an `after` may point at are the checks before it; a name two of them share points at neither. */
+/** The `@<check name>` ids a check gives, in its matchers and scopes. */
+function referencesOf(check: StateCheckSpec): string[] {
+  const refs = (things: readonly { entity?: { id?: string | undefined } | undefined; subject?: { id?: string | undefined } | undefined }[]) =>
+    things.flatMap((t) => [referencedCheck(t.entity?.id), referencedCheck(t.subject?.id)]).filter((name): name is string => name !== undefined);
+  if (check.kind === "ledger") return refs(Array.isArray(check.match) ? check.match : [check.match]);
+  if (check.kind === "unchanged") return refs([...(Array.isArray(check.scope) ? check.scope : [check.scope]), ...(check.except ?? [])]);
+  return [];
+}
+
+/**
+ * The names an `after` or an `@<check name>` id may point at are the checks
+ * before it; a name two of them share points at neither.
+ */
 export function afterProblems(checks: readonly StateCheckSpec[], earlier: readonly string[] = []): string[] {
   const seen = [...earlier];
   const problems: string[] = [];
+  const named = (name: string) => seen.filter((n) => n === name).length;
+  const which = (n: number) => (n === 0 ? "no earlier check is called" : "more than one earlier check is called");
   for (const check of checks) {
-    if ((check.kind === "ledger" || check.kind === "unchanged") && check.after !== undefined) {
-      const named = seen.filter((name) => name === check.after).length;
-      if (named !== 1) problems.push(`check "${check.name}" comes after "${check.after}", which ${named === 0 ? "no earlier check is called" : "more than one earlier check is called"}`);
+    if ((check.kind === "ledger" || check.kind === "unchanged") && check.after !== undefined && named(check.after) !== 1) {
+      problems.push(`check "${check.name}" comes after "${check.after}", which ${which(named(check.after))}`);
     }
+    for (const ref of referencesOf(check)) if (named(ref) !== 1) problems.push(`check "${check.name}" names the entity of "${ref}", which ${which(named(ref))}`);
     seen.push(check.name);
   }
   return problems;

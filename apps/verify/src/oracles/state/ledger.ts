@@ -1,6 +1,7 @@
 import { ledgerPageSchema, ledgerPath, type LedgerEntry } from "@benchme/site-kit";
-import type { LedgerMatch } from "../../specs/spec.js";
+import { referencedCheck, type LedgerMatch } from "../../specs/spec.js";
 import type { WorkspaceStateReader } from "../state-reader.js";
+import type { CheckEnv } from "./check.js";
 import { fieldEquals } from "./rows.js";
 
 const PAGE_SIZE = 1000;
@@ -55,6 +56,38 @@ export function entryMatches(entry: LedgerEntry, m: LedgerMatch): boolean {
   if (m.door !== undefined && entry.door !== m.door) return false;
   if (m.actor !== undefined && (m.actor === null ? entry.actor !== null : !same(entry.actor, m.actor))) return false;
   return true;
+}
+
+type Narrowing = { entity?: { type: string; id?: string | undefined } | undefined; subject?: { type: string; id?: string | undefined } | undefined };
+
+/**
+ * A matcher or a scope with each `@<check name>` id replaced by the entity id
+ * of the entry that check stood on, or why one cannot be: the check did not
+ * pass, or passed on no entry that names an entity. A later step's check of
+ * "the booking made in step 1" then reads that booking and no other.
+ */
+export function resolveReferences<T extends Narrowing>(m: T, earlier: CheckEnv["earlier"]): T | { unresolved: string } {
+  let out = m;
+  for (const key of ["entity", "subject"] as const) {
+    const ref = m[key];
+    const name = referencedCheck(ref?.id);
+    if (!ref || name === undefined) continue;
+    const id = earlier(name)?.entry?.entity.id;
+    if (!id) return { unresolved: `"${name}" did not pass on a ledger entry for an entity, so ${ref.id} names nothing` };
+    out = { ...out, [key]: { ...ref, id } };
+  }
+  return out;
+}
+
+/** Every one of a list resolved, or the first reason one could not be. */
+export function resolveAll<T extends Narrowing>(list: readonly T[], earlier: CheckEnv["earlier"]): T[] | { unresolved: string } {
+  const out: T[] = [];
+  for (const m of list) {
+    const r = resolveReferences(m, earlier);
+    if ("unresolved" in r) return r;
+    out.push(r);
+  }
+  return out;
 }
 
 /** A write that changed something: made, not refused, and not a sign-up or sign-in. */

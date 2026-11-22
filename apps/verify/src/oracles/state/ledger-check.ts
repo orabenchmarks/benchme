@@ -1,20 +1,22 @@
 import type { LedgerEntry } from "@benchme/site-kit";
 import type { StateCheckSpecOf } from "../../specs/spec.js";
 import type { CheckEnv, CheckOutcome, StateCheck } from "./check.js";
-import { entryMatches, isAfter } from "./ledger.js";
+import { entryMatches, isAfter, resolveAll } from "./ledger.js";
 
 /**
  * An entry of a site's change ledger matches: something was read, written,
  * refused or signed in, by someone, through some door. Several matchers are
  * alternatives. With `after`, only entries later than the one that satisfied
- * the named earlier check count. Of the entries that match, the earliest is
- * the one the check stands on, and its time is the check's.
+ * the named earlier check count, and an `@<check name>` id is the entity that
+ * check stood on. Of the entries that match, the earliest is the one the check
+ * stands on, and its time is the check's.
  */
 export class LedgerCheck implements StateCheck<"ledger"> {
   readonly kind = "ledger" as const;
 
   async run(c: StateCheckSpecOf<"ledger">, env: CheckEnv): Promise<CheckOutcome> {
-    const matchers = Array.isArray(c.match) ? c.match : [c.match];
+    const matchers = resolveAll(Array.isArray(c.match) ? c.match : [c.match], env.earlier);
+    if ("unresolved" in matchers) return { name: c.name, ok: false, note: matchers.unresolved };
     let entries: LedgerEntry[];
     try {
       entries = (await Promise.all([...new Set(matchers.map((m) => m.app))].map((app) => env.ledger(app)))).flat();

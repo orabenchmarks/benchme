@@ -124,6 +124,12 @@ schema of each, `apps/verify/src/oracles/state/` the code). A check without a
 { "kind": "unchanged", "name": "nothing done about the order", "after": "looked at it",
   "scope": [ { "apps": ["sports"], "entity": { "type": "order", "id": "SO-1042" } },
              { "apps": ["sports"], "subject": { "type": "order", "id": "SO-1042" } } ] }
+
+// An entity or subject id "@<check name>" is the entity of the entry an earlier check stood on: the reservation a
+// row check found (its `entity`), or the one a ledger check matched. A later step can then speak of what an earlier
+// step made, whose id nobody knew when the task was written. It fails when that check passed on no entity.
+{ "kind": "ledger", "name": "party changed", "after": "booked",
+  "match": { "app": "dining", "entity": { "type": "reservation", "id": "@booked" }, "action": "change", "outcome": "ok" } }
 ```
 
 The ledger is what README § The change ledger describes: the nine sites keep
@@ -174,8 +180,9 @@ or `state`. The verifier is asked once, after the last step:
   record, never the time of the submission, so a change can be placed in the
   turn it was made in. A check that nothing satisfied, or that says what did
   not happen (`absent`, `unchanged`), has none.
-- A later step's check may come `after` an earlier step's, and each check is
-  named once in the task.
+- A later step's check may come `after` an earlier step's, or name the
+  entity one stood on (`"id": "@<check name>"`), and each check is named once
+  in the task.
 - The submission reads current state only and may be repeated.
 - A blind task's steps carry `passed` and `failed` counts in place of
   `checks`.
