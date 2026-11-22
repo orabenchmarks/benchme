@@ -1392,6 +1392,22 @@ docker compose down -v               # stop and drop the database volume
 
 ## Release
 
+_Chart 0.11.0: the `cuj-v1` scenario (docs/scenarios/cuj-v1.md) — 120
+critical-user-journey tasks over the nine sites in ten focus areas and four
+levels (easy, medium, hard with a `veryHard` subset, impossible), 26 of them
+with follow-up steps, every step with its own check and rubric. The corpus is
+`compose/specs/cuj-corpus.json` (`cuj-tasks.json` without answer keys). Every
+site now keeps a change ledger (§ The change ledger; new migrations
+`002_ledger` and `003_ledger_subject` per site, applied by the migrate Job like
+any other) and asks the same sign-in on every door (§ The same sign-in on every
+door). Behaviour change for `webmcp-v1`: an MCP or WebMCP write tool called
+without signing in now answers `UNAUTHORIZED`, tool lists carry `sign_up`,
+`verify_email`, `sign_in`, `sign_out` and `whoami`, and `initialize` returns an
+`Mcp-Session-Id`. The verifier's state oracle gains `absent`, `ledger` and
+`unchanged` checks, and answers per step for a spec with `steps`; a spec
+without `steps` is answered exactly as before. No new image and no new
+secret._
+
 _Chart 0.10.0: the sites from webmcp-tools (scenario `webmcp-v1`, § Sites
 from webmcp-tools) — nine new images (`hotels`, `flights`, `dining`, `pizza`,
 `cinema`, `sports`, `homes`, `clinic`, `events`; make each package public),
