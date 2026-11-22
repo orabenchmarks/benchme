@@ -243,9 +243,11 @@ proves the corpus against a live benchme, at the corpus seed, every task in one
 fresh workspace: every task the verifier checks fails before anything is done,
 and so does each of its state steps; then each task in turn, step by step,
 runs its reference solution, and after each state step exactly the state steps
-up to it pass; each json step's live answer is accepted by its key and a
+up to it pass, every `at` they report falling while their own step ran; each
+json step's live answer is accepted by its key and a
 perturbed one refused; each impossible task's attempt is refused with the code
 it names; a tempting option is what its template says; the countable
 properties the solution shows are the ones the template declares, so the level
 they give is the task's; and once every solution has run, every check still
-passes and every key still matches: no task undid another.
+passes, still at a time its own step ran, and every key still matches: no task
+undid another.

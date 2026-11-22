@@ -9,16 +9,18 @@
  *      so does each of its state steps: no check passes vacuously, and a run
  *      that does nothing fails every impossible task;
  *   2. each task in turn, step by step: a state step's reference solution runs
- *      and then exactly the state steps up to it pass (a change made in step 3
- *      does not pass step 2); a json step's live answer is accepted by its key
+ *      and then exactly the state steps up to it pass, and every time its
+ *      checks report (`at`) falls while that step ran (a change made in step 3
+ *      does not pass step 2, nor is it placed there); a json step's live answer is accepted by its key
  *      and a perturbed one refused; an impossible task's attempt is refused
  *      with the code it names, and a very hard one meets the refusal it
  *      recovers from; a tempting option is what its template says, live; and
  *      the countable properties the reference solution shows (sites touched
  *      per step, reads, writes, a sign-up, a refusal recovered from) are the
  *      ones the template declares, so the level they give is the task's;
- *   3. once every solution has run, every check still passes and every key
- *      still matches the live sites: no task undid another.
+ *   3. once every solution has run, every check still passes, still at a time
+ *      its own step ran, and every key still matches the live sites: no task
+ *      undid another, and no later write moved an earlier step's time.
  *
  *   runCujIntegrity({ base, seed, scale, operatorKey }) → exit code (0 or 1)
  */
@@ -165,6 +167,11 @@ const judge = async (answer, oracle) => json.check(Buffer.from(JSON.stringify(an
 const notes = (r) => r.checks.filter((c) => !c.ok).map((c) => `${c.name}: ${c.note ?? "failed"}`).join("; ");
 const stepSaid = (s) => `${s.verdict} ${JSON.stringify(s.checks ?? []).slice(0, 400)}`;
 const levelText = (lv) => (lv ? `${lv.level}${lv.veryHard ? " (very hard)" : ""}` : "no level");
+/** The sites' clock and this one's are the same machine's or near it: a time this close to a step's window is in it. */
+const SKEW_MS = 250;
+/** The checks of a state step whose time falls outside the window its reference solution ran in. */
+const misplaced = (s, window) =>
+  (s.checks ?? []).filter((c) => c.at && (Date.parse(c.at) < window.from - SKEW_MS || Date.parse(c.at) > window.to + SKEW_MS)).map((c) => `${c.name} at ${c.at}`);
 
 export async function runCujIntegrity({ base, seed = 4242, scale = 1, operatorKey }) {
   const corpus = buildCorpus({ seed, scale, scenario: "cuj-v1" });
@@ -206,6 +213,7 @@ export async function runCujIntegrity({ base, seed = 4242, scale = 1, operatorKe
   passed("pass 1 — every task the verifier checks, and each of its state steps, fails on a fresh workspace", specOf.size);
 
   const solved = new Set();
+  const windowsOf = {};
   for (const r of corpus.corpus) {
     const { built, props: declared } = corpus.plans[r.id];
     const spec = specOf.get(r.id);
@@ -218,11 +226,13 @@ export async function runCujIntegrity({ base, seed = 4242, scale = 1, operatorKe
     }
     const meter = new Meter();
     const api = apiFor(live, ws, sessions, meter);
+    const windows = (windowsOf[r.id] = {});
     let ok = true;
     for (const [i, step] of built.steps.entries()) {
       const n = i + 1;
       meter.step();
       if (step.kind === "state") {
+        const from = Date.now();
         try {
           await step.solve(api);
         } catch (err) {
@@ -230,11 +240,17 @@ export async function runCujIntegrity({ base, seed = 4242, scale = 1, operatorKe
           ok = false;
           break;
         }
+        windows[n] = { from, to: Date.now() };
         const res = await live.submit(ws, r.id, {});
         for (const s of res.steps ?? []) {
           const want = s.step <= n ? "OK" : "FAIL";
           if (s.verdict !== want) {
             surprise(r.id, `after step ${n}'s reference solution, step ${s.step} is ${s.verdict}, not ${want} — ${stepSaid(s)}`);
+            ok = false;
+          }
+          const off = s.step <= n ? misplaced(s, windows[s.step]) : [];
+          if (off.length) {
+            surprise(r.id, `after step ${n}, step ${s.step}'s checks stand on writes made outside it: ${off.join(", ")}`);
             ok = false;
           }
         }
@@ -275,6 +291,10 @@ export async function runCujIntegrity({ base, seed = 4242, scale = 1, operatorKe
     if (specOf.has(r.id) && r.stateChecked) {
       const res = await live.submit(ws, r.id, {});
       if (res.verdict !== "OK") surprise(r.id, `passed, then failed once every other solution ran — ${(res.steps ?? []).filter((s) => s.verdict !== "OK").map(stepSaid).join(" | ")}`);
+      for (const s of res.steps ?? []) {
+        const off = misplaced(s, windowsOf[r.id][s.step]);
+        if (off.length) surprise(r.id, `once every solution ran, step ${s.step}'s checks stand on writes made outside it: ${off.join(", ")}`);
+      }
     }
     const api = apiFor(live, ws, sessions, null);
     for (const [i, step] of built.steps.entries()) {
