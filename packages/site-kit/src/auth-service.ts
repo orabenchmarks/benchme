@@ -103,7 +103,11 @@ export class AuthService {
 }
 
 async function hash(password: string): Promise<string> {
-  const salt = randomBytes(16).toString("hex");
+  return hashPassword(password, randomBytes(16).toString("hex"));
+}
+
+/** A password as the users table keeps it: `salt:key`, the key scrypt's of the password with that salt. */
+export async function hashPassword(password: string, salt: string): Promise<string> {
   const key = (await scrypt(password, salt, 32)) as Buffer;
   return `${salt}:${key.toString("hex")}`;
 }

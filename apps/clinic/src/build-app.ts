@@ -2,7 +2,7 @@ import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
 import { createApp, transactions, type Pool } from "@benchme/core";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
-import { AuthService, PgLedger, PgUsersRepo, registerDoors, registerMcp, registerWorkspaceScope, type Mailer } from "@benchme/site-kit";
+import { AuthService, PgLedger, PgUsersRepo, registerDoors, registerMcp, registerWorkspaceScope, seedAccounts, type Mailer } from "@benchme/site-kit";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { registerApi } from "./api/routes.js";
@@ -57,6 +57,7 @@ export async function buildClinic(d: BuildDeps): Promise<FastifyInstance> {
     try {
       const rows = d.scenarios.get(body.scenario).generate(body.seed);
       await seedClinic(d.pool, req.workspaceId, rows);
+      await seedAccounts(d.pool, "clinic", req.workspaceId, rows.accounts?.clinic ?? []);
       return reply.code(201).send({ ok: true, doctors: rows.clinic.doctors.length, appointments: rows.clinic.appointments.length, prescriptions: rows.clinic.prescriptions.length });
     } catch (err) {
       if (err instanceof UnknownScenarioError) return reply.code(422).send({ error: "UNKNOWN_SCENARIO", message: err.message });

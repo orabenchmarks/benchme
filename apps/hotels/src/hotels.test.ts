@@ -1,5 +1,5 @@
 import { VERIFIER_SIG_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signVerifierHeader, signWorkspaceHeader, type Pool } from "@benchme/core";
-import { webmcpV1, roomsLeft, scenarios, searchStays, type HotelRows } from "@benchme/scenarios";
+import { cujV1, webmcpV1, roomsLeft, scenarios, searchStays, type HotelRows } from "@benchme/scenarios";
 import { SIGN_IN_TOOLS, type LedgerEntry, type Mailer } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -231,6 +231,25 @@ describe.skipIf(!DB)("hotels (real Postgres)", () => {
     const res = await post("/api/v1/bookings", { roomCode: room, checkIn: "2028-01-02", nights: 1, adults: 1, kids: 0, pets: 0, lateCheckout: false, guestName: "Subject Test", guestEmail: "subject@example.com" });
     expect([res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 400, res.json().error]).toEqual([true, "OUTSIDE_WINDOW"]);
     expect((await ledger(from)).map((e) => [e.kind, e.entity, e.subject, e.outcome, e.code])).toEqual([["write", { type: "booking", id: null }, { type: "room", id: room }, "refused", "OUTSIDE_WINDOW"]]);
+  });
+
+  it("starts a cuj-v1 workspace with its accounts signed up and verified: their owners sign in with their password", async () => {
+    const cuj = newWorkspaceId();
+    await pool.query("INSERT INTO core.workspaces (id, scenario, seed, expires_at) VALUES ($1, 'cuj-v1', 4242, now() + interval '1 hour')", [cuj]);
+    expect((await app.inject(scoped({ method: "POST", url: `/internal/workspaces/${cuj}/seed`, payload: { scenario: "cuj-v1", seed: 4242 } }, cuj))).statusCode).toBe(201);
+    const [owner, other] = cujV1.generate(4242).accounts!.hotels!;
+    const login = (email: string, password: string) => app.inject(scoped({ method: "POST", url: "/login", payload: `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`, headers: { "content-type": "application/x-www-form-urlencoded" } }, cuj));
+    const ok = await login(owner!.email, owner!.password);
+    expect([ok.statusCode, ok.cookies.some((c) => c.name === "ht_session")]).toEqual([303, true]);
+    // Each account takes its own password only, and an account of one workspace is no account in another.
+    expect((await login(owner!.email, other!.password)).statusCode).toBe(401);
+    expect((await app.inject(scoped({ method: "POST", url: "/login", payload: `email=${encodeURIComponent(owner!.email)}&password=${encodeURIComponent(owner!.password)}`, headers: { "content-type": "application/x-www-form-urlencoded" } }))).statusCode).toBe(401);
+    // The same seed, the same rows: a second workspace keeps the same password hash for the same account.
+    const again = newWorkspaceId();
+    await pool.query("INSERT INTO core.workspaces (id, scenario, seed, expires_at) VALUES ($1, 'cuj-v1', 4242, now() + interval '1 hour')", [again]);
+    await app.inject(scoped({ method: "POST", url: `/internal/workspaces/${again}/seed`, payload: { scenario: "cuj-v1", seed: 4242 } }, again));
+    const hashes = await pool.query<{ password_hash: string }>("SELECT password_hash FROM hotels.users WHERE workspace_id = ANY($1) AND email = $2", [[cuj, again], owner!.email]);
+    expect(hashes.rows.map((r) => r.password_hash)).toEqual([hashes.rows[0]!.password_hash, hashes.rows[0]!.password_hash]);
   });
 
   it("exposes the same tools over MCP", async () => {

@@ -534,12 +534,13 @@ describe("app registry and config (no database)", () => {
     expect(names(["hotels", "mail"])).toEqual(["warehouse", "mail", "hotels"]);
   });
 
-  it("seeds exactly the apps seeded before the webmcp-v1 sites for every other scenario, and the nine sites for webmcp-v1 alone", () => {
+  it("seeds exactly the apps seeded before the webmcp-v1 sites for every other scenario, and the nine sites for the scenarios that name them (webmcp-v1, cuj-v1)", () => {
     const targets = seedTargetsFor(deployed(), scenarios);
-    for (const scenario of scenarios.list().map((s) => s.key).filter((key) => key !== "webmcp-v1")) {
+    const naming = ["webmcp-v1", "cuj-v1"];
+    for (const scenario of scenarios.list().map((s) => s.key).filter((key) => !naming.includes(key))) {
       expect(targets({ scenario }).map((a) => a.name).sort(), scenario).toEqual([...BEFORE_THE_SITES].sort());
     }
-    expect(targets({ scenario: "webmcp-v1" }).map((a) => a.name).sort()).toEqual([...BEFORE_THE_SITES, ...SITES].sort());
+    for (const scenario of naming) expect(targets({ scenario }).map((a) => a.name).sort(), scenario).toEqual([...BEFORE_THE_SITES, ...SITES].sort());
   });
 
   it("creates a workspace of another scenario while a webmcp-v1 site is down; a webmcp-v1 one fails on it", async () => {

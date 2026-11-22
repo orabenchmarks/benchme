@@ -89,6 +89,11 @@ export type CompanyFacts = {
   fiscalYearRevenueCents: number;
 };
 
+/** An account a site already has when a workspace starts: signed up and verified, with the password its owner types. */
+export type SiteAccount = { email: string; name: string; password: string };
+/** Accounts by site app (hotels, flights …); a site with none is left out. */
+export type SiteAccounts = Partial<Record<"hotels" | "flights" | "dining" | "pizza" | "cinema" | "sports" | "homes" | "clinic" | "events", SiteAccount[]>>;
+
 export type ScenarioRows = {
   company: CompanyFacts;
   warehouse: {
@@ -118,6 +123,8 @@ export type ScenarioRows = {
   pizza: PizzaRows;
   events: EventRows;
   clinic: ClinicRows;
+  /** Accounts the sites start with (cuj-v1); absent where a scenario seeds none, as every other does. */
+  accounts?: SiteAccounts;
 };
 
 /** A scenario is a pure function of its seed: same seed, byte-identical rows. */

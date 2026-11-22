@@ -1,5 +1,5 @@
 export { registerWorkspaceScope, header } from "./workspace-scope.js";
-export { MemoryUsersRepo, PgUsersRepo, type UserRow, type UsersRepo } from "./users-repo.js";
+export { MemoryUsersRepo, PgUsersRepo, seedAccounts, type SeedAccount, type UserRow, type UsersRepo } from "./users-repo.js";
 export { AuthError, AuthService, type AuthDeps, type Mailer, type VerificationCopy } from "./auth-service.js";
 export { HttpMailer } from "./http-mailer.js";
 export { ToolRegistry, type ToolDef } from "./tool-registry.js";
