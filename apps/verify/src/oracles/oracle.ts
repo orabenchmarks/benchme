@@ -10,7 +10,16 @@ export type CheckResult = { name: string; ok: boolean; note?: string; at?: strin
 
 export type OracleResult = { verdict: Verdict; checks: CheckResult[] };
 
-export type OracleContext = { workspaceId: string; taskId: string };
+export type OracleContext = {
+  workspaceId: string;
+  taskId: string;
+  /**
+   * One object per submission, when the submission asks an oracle more than
+   * once (a task's steps). An oracle may keep what it learned under it, so a
+   * later step can stand on an earlier one and nothing is read twice.
+   */
+  submission?: object;
+};
 
 /**
  * An oracle judges one artifact kind against its spec. Registry (Strategy):
@@ -31,8 +40,12 @@ export class OracleRegistry {
   }
 
   for(spec: TaskSpec): Oracle {
-    const o = this.byKind.get(spec.oracle.kind);
-    if (!o) throw new Error(`no oracle for kind ${spec.oracle.kind}`);
+    return this.forKind(spec.oracle.kind);
+  }
+
+  forKind(kind: OracleSpec["kind"]): Oracle {
+    const o = this.byKind.get(kind);
+    if (!o) throw new Error(`no oracle for kind ${kind}`);
     return o;
   }
 
@@ -46,7 +59,7 @@ export function verdictOf(checks: CheckResult[]): Verdict {
 }
 
 /** Easy/medium receipts name the failing checks; hard (blind) receipts carry counts only. */
-export function detailsFor(spec: TaskSpec, result: OracleResult): unknown[] {
+export function detailsFor(spec: TaskSpec, result: Pick<OracleResult, "checks">): unknown[] {
   if (spec.blind) {
     const failed = result.checks.filter((c) => !c.ok).length;
     return [{ passed: result.checks.length - failed, failed }];

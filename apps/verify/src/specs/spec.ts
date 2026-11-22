@@ -248,16 +248,45 @@ export const stateSpec = z.object({
   checks: z.array(stateCheck).min(1),
 });
 
+/** A follow-up step's oracle: an answer (`json`, graded by whoever holds the reply) or the sites' state. */
+const stepSpec = z.object({ oracle: z.discriminatedUnion("kind", [jsonSpec, stateSpec]) }).strict();
+/** The most follow-up steps a task may have: eight steps with its own. */
+export const MAX_FOLLOW_UP_STEPS = 7;
+
 export const taskSpecSchema = z
   .object({
     id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,63}$/),
     /** Blind receipts (hard tier): details carry counts only, never names. */
     blind: z.boolean().default(false),
+    /** The task's own oracle: step 1 of a task that has steps. */
     oracle: z.discriminatedUnion("kind", [jsonSpec, xlsxSpec, docxSpec, patchSpec, stateSpec]),
+    /**
+     * The task's FOLLOW-UP steps, in order: step 2 is `steps[0]`. A task is
+     * done in one conversation, each step a further prompt, and the verifier
+     * is asked once, after the last. A spec that declares `steps` (an empty
+     * list for a task of one step) is answered step by step; one that does not
+     * is answered as it always was.
+     */
+    steps: z.array(stepSpec).max(MAX_FOLLOW_UP_STEPS).optional(),
   })
   .superRefine((spec, ctx) => {
-    if (spec.oracle.kind !== "state") return;
-    for (const message of afterProblems(spec.oracle.checks)) ctx.addIssue({ code: "custom", path: ["oracle", "checks"], message });
+    const stepped = spec.steps !== undefined;
+    if (stepped && spec.oracle.kind !== "json" && spec.oracle.kind !== "state") {
+      ctx.addIssue({ code: "custom", path: ["steps"], message: `a task with steps has a json or state oracle, not ${spec.oracle.kind}` });
+      return;
+    }
+    // Every state step's checks, in the order they run: an `after` may reach back into an earlier step.
+    const seen: string[] = [];
+    for (const [i, oracle] of [spec.oracle, ...(spec.steps ?? []).map((s) => s.oracle)].entries()) {
+      if (oracle.kind !== "state") continue;
+      const path = i === 0 ? ["oracle", "checks"] : ["steps", i - 1, "oracle", "checks"];
+      for (const message of afterProblems(oracle.checks, seen)) ctx.addIssue({ code: "custom", path, message });
+      // A stepped answer names every check: two of one name could not be told apart, in the answer or by an `after`.
+      for (const check of oracle.checks) {
+        if (stepped && seen.includes(check.name)) ctx.addIssue({ code: "custom", path, message: `check "${check.name}" is named twice in the task; a task with steps names each check once` });
+        seen.push(check.name);
+      }
+    }
   });
 
 export type TaskSpec = z.infer<typeof taskSpecSchema>;

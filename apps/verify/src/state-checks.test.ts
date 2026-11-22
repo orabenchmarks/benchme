@@ -1,51 +1,14 @@
-import { ledgerPath, type LedgerEntry } from "@benchme/site-kit";
+import type { LedgerEntry } from "@benchme/site-kit";
 import type { z } from "zod";
 import { describe, expect, it } from "vitest";
 import { StateOracle, defaultStateChecks } from "./oracles/state-oracle.js";
-import type { WorkspaceStateReader } from "./oracles/state-reader.js";
 import { stateSpec, taskSpecSchema } from "./specs/spec.js";
+import { FakeSites, T } from "./testing/fake-sites.js";
 
 type Spec = z.infer<typeof stateSpec>;
 const WS = "ws_0123456789ab";
 const ctx = { workspaceId: WS, taskId: "state-checks-test" };
 
-/**
- * The sites as the verifier reads them: rows by "app path", and each app's
- * ledger behind its own route, paged as the sites page it. An app never given
- * a ledger answers its route with nothing (a 404), as an app without one does.
- */
-class FakeSites implements WorkspaceStateReader {
-  private readonly rows = new Map<string, unknown>();
-  private readonly ledgers = new Map<string, LedgerEntry[]>();
-  down = new Set<string>();
-  ledgerReads = 0;
-
-  seed(app: string, path: string, data: unknown): this {
-    this.rows.set(`${app} ${path}`, data);
-    return this;
-  }
-  ledger(app: string, entries: Partial<LedgerEntry>[]): this {
-    this.ledgers.set(app, entries.map((e, i) => entry({ app, seq: i + 1, ...e })));
-    return this;
-  }
-  async get(_ws: string, app: string, path: string): Promise<unknown> {
-    if (this.down.has(app)) throw new Error("connection refused");
-    if (!path.startsWith(ledgerPath(WS))) return this.rows.get(`${app} ${path}`) ?? null;
-    const all = this.ledgers.get(app);
-    if (!all) return null;
-    this.ledgerReads++;
-    const q = new URLSearchParams(path.split("?")[1] ?? "");
-    const after = all.filter((e) => e.seq > Number(q.get("cursor") ?? 0));
-    const items = after.slice(0, Number(q.get("limit") ?? 500));
-    return { items, nextCursor: after.length > items.length ? String(items.at(-1)!.seq) : null };
-  }
-}
-
-const T = (minute: number, ms = 0) => new Date(Date.UTC(2027, 2, 1, 10, minute, 0, ms)).toISOString();
-/** A ledger entry: by default Ilsa cancelling order SO-7 through MCP, made, at 10:02. One field is varied per case. */
-function entry(over: Partial<LedgerEntry> = {}): LedgerEntry {
-  return { seq: 1, at: T(2), app: "sports", kind: "write", entity: { type: "order", id: "SO-7" }, action: "cancel", door: "mcp", actor: "ilsa@example.com", outcome: "ok", code: null, ...over };
-}
 const read = (over: Partial<LedgerEntry> = {}): Partial<LedgerEntry> => ({ kind: "read", action: "read", ...over });
 const refused = (code: string, over: Partial<LedgerEntry> = {}): Partial<LedgerEntry> => ({ outcome: "refused", code, ...over });
 
