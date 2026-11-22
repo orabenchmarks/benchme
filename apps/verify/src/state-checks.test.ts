@@ -447,3 +447,32 @@ describe("an id that names the entity an earlier check stood on", () => {
     expect(() => taskSpecSchema.parse({ ...stepped, oracle: { kind: "state", checks: [changed] }, steps: [{ oracle: { kind: "state", checks: [booked] } }] })).toThrow(/names the entity of .*booked/);
   });
 });
+
+// A step that booked what a later step changes is placed by the booking, not by the change.
+describe("a row check placed by the write that made its entity", () => {
+  const rows = [{ reservationNo: "RS-7", guestEmail: "ilsa@example.com", status: "confirmed", partySize: 4 }];
+  const check = { name: "booked", app: "dining", path: "/api/v1/reservations", where: { guestEmail: "ilsa@example.com" }, expect: { status: "confirmed" }, entity: { type: "reservation", id: "{reservationNo}", at: "first" } };
+  const reservation = (over: Partial<LedgerEntry>) => ({ entity: { type: "reservation", id: "RS-7" }, ...over });
+  const sites = (entries: Partial<LedgerEntry>[]) => new FakeSites().seed("dining", "/api/v1/reservations", rows).ledger("dining", entries);
+  const history = [reservation({ action: "create", at: T(1) }), reservation({ action: "change", at: T(4) }), reservation({ action: "change", at: T(6) })];
+
+  it("reports the first successful write, where the default reports the last", async () => {
+    expect(await one(sites(history), check)).toEqual({ name: "booked", ok: true, at: T(1) });
+    expect(await one(sites(history), { ...check, entity: { type: "reservation", id: "{reservationNo}" } })).toEqual({ name: "booked", ok: true, at: T(6) });
+    expect(await one(sites(history), { ...check, entity: { type: "reservation", id: "{reservationNo}", at: "last" } })).toEqual({ name: "booked", ok: true, at: T(6) });
+  });
+
+  it("is not moved by a refused write before the one that made it, nor by another reservation's", async () => {
+    const before = [reservation({ action: "create", at: T(0), outcome: "refused", code: "FULL" }), { entity: { type: "reservation", id: "RS-9" }, action: "create", at: T(1) }, reservation({ action: "create", at: T(2) })];
+    expect((await one(sites(before), check)).at).toBe(T(2));
+  });
+
+  it("is what a later step's `after` counts from: a change after the booking, in a later step", async () => {
+    const changed = { kind: "ledger", name: "party changed", match: { app: "dining", entity: { type: "reservation", id: "@booked" }, action: "change", outcome: "ok" }, after: "booked" };
+    expect((await run(sites(history), [check, changed])).checks).toEqual([{ name: "booked", ok: true, at: T(1) }, { name: "party changed", ok: true, at: T(4) }]);
+  });
+
+  it("is refused at load with any other value", () => {
+    expect(() => stateSpec.parse({ kind: "state", checks: [{ ...check, entity: { ...check.entity, at: "middle" } }] })).toThrow();
+  });
+});

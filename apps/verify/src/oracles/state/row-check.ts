@@ -1,6 +1,6 @@
 import type { StateCheckSpecOf } from "../../specs/spec.js";
 import type { CheckEnv, CheckOutcome, StateCheck } from "./check.js";
-import { lastWriteOf } from "./ledger.js";
+import { firstWriteOf, lastWriteOf } from "./ledger.js";
 import { MAX_PAGES, asRows, fillPlaceholders, firstMismatch, matchesWhere, readAllRows, type Row } from "./rows.js";
 
 type Check = StateCheckSpecOf<"row">;
@@ -82,7 +82,9 @@ async function checkRows(rows: Row[], c: Check, truncated: boolean, fetchRow: (p
  * At least one row survives `where` and satisfies `expect`: the END STATE of
  * a workspace app (an order shipped, a ticket resolved), read through that
  * app's own REST API. With `entity`, a passing check also says when the row
- * became what it is: the last successful write the ledger holds for it.
+ * became what it is: the last successful write the ledger holds for it, or
+ * with `at: "first"` the first one, when it was made (a reservation booked in
+ * one step and changed in later ones was still booked in the first).
  */
 export class RowCheck implements StateCheck<"row"> {
   readonly kind = "row" as const;
@@ -97,7 +99,8 @@ export class RowCheck implements StateCheck<"row"> {
     }
     if (!found.outcome.ok || !found.row || !c.entity) return found.outcome;
     try {
-      const entry = lastWriteOf(await env.ledger(c.app), c.entity.type, fillPlaceholders(c.entity.id, found.row));
+      const writes = c.entity.at === "first" ? firstWriteOf : lastWriteOf;
+      const entry = writes(await env.ledger(c.app), c.entity.type, fillPlaceholders(c.entity.id, found.row));
       return entry ? { ...found.outcome, entry } : found.outcome;
     } catch (err) {
       return { name: c.name, ok: false, note: `the row is there, but ${c.app}'s ledger could not say when it was written: ${(err as Error).message}` };

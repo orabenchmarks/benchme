@@ -95,7 +95,8 @@ schema of each, `apps/verify/src/oracles/state/` the code). A check without a
 ```jsonc
 // row: at least one row survives `where` and satisfies `expect` (count, rowPath as before).
 // `entity` is optional: the row's entity in the site's ledger, its id filled from the row. With it, a passing
-// check reports when the row was last written.
+// check reports when the row was last written; with "at": "first", when it was first written (made): a step that
+// booked what a later step changes is then placed by the booking.
 { "name": "cancelled", "app": "hotels", "path": "/api/v1/bookings?guestEmail=ilsa%40example.com",
   "where": { "bookingNo": "BK-10001" }, "expect": { "status": "cancelled" },
   "entity": { "type": "booking", "id": "{bookingNo}" } }
@@ -176,7 +177,8 @@ or `state`. The verifier is asked once, after the last step:
   `NO_STATE_STEP`).
 - `at` is when what satisfied the check happened: the time of the ledger
   entry a `ledger` check stood on, or of the last write of the row a `row`
-  check found (when the check names its `entity`). It is the site's own
+  check found (when the check names its `entity`; the first, with `"at":
+  "first"`). It is the site's own
   record, never the time of the submission, so a change can be placed in the
   turn it was made in. A check that nothing satisfied, or that says what did
   not happen (`absent`, `unchanged`), has none.

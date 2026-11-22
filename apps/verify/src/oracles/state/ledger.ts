@@ -98,6 +98,11 @@ export function lastWriteOf(entries: readonly LedgerEntry[], type: string, id: s
   return entries.filter((e) => isSuccessfulWrite(e) && same(e.entity.type, type) && same(e.entity.id, id)).at(-1);
 }
 
+/** The first successful write a ledger holds for one entity: the one that made it, when it was made here. */
+export function firstWriteOf(entries: readonly LedgerEntry[], type: string, id: string): LedgerEntry | undefined {
+  return entries.find((e) => isSuccessfulWrite(e) && same(e.entity.type, type) && same(e.entity.id, id));
+}
+
 /**
  * Whether `entry` came after `ref`. Within one app the ledger's own order
  * decides. Across apps only the time can (one database clock stamps every

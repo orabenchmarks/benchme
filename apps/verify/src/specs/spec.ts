@@ -112,11 +112,13 @@ const rowCheck = z.object({
    * placeholders filled from the row that satisfied the check (e.g.
    * `{ "type": "booking", "id": "{bookingNo}" }`). With it, a passing check
    * reports `at`: the time of the last successful write the ledger holds for
-   * that entity, the change that made the row what it is. Without it, or when
-   * the ledger holds no such write (a seeded row nobody touched), there is no
-   * `at`.
+   * that entity, the change that made the row what it is. With `at: "first"`
+   * it is the first one instead, the write that made the entity: a step that
+   * booked what a later step changes is placed by the booking. Without
+   * `entity`, or when the ledger holds no such write (a seeded row nobody
+   * touched), there is no `at`.
    */
-  entity: z.object({ type: z.string().min(1), id: z.string().min(1) }).strict().optional(),
+  entity: z.object({ type: z.string().min(1), id: z.string().min(1), at: z.enum(["last", "first"]).optional() }).strict().optional(),
 });
 
 /**
