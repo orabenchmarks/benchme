@@ -51,6 +51,19 @@ like the rest (no id is in both corpora); its public files are
 **`webmcp-tasks.json`**, **`webmcp-corpus.json`** and **`webmcp-tasks.md`**, the
 twins of the three above. `node tools/intent-corpus.mjs` writes both corpora,
 and `node tools/intent-integrity.mjs --scenario webmcp-v1` proves this one.
+
+## The cuj-v1 corpus (`cuj-*.json`)
+
+Critical-user-journey tasks over a fresh `cuj-v1` workspace at seed 4242 (the
+same nine sites, with accounts some of their people already have), in ten
+focus areas and four levels, some over several steps:
+**`cuj-corpus.json`** (each record with its answer key), **`cuj-tasks.json`**
+(the records without), **`cuj-tasks.md`** (how each was derived), and a
+**`cuj-<template>-NN.json`** answer key for every task with a state step or
+only one step. Its records have their own shape, described with the levels and
+checks in `docs/scenarios/cuj-v1.md`; its templates are in
+`tools/intent-corpus/cuj/templates/`, and
+`node tools/intent-integrity.mjs --scenario cuj-v1` proves it.
 - **`tools/intent-corpus.mjs` regenerates all of them.** The first ten tasks
   are `tools/intent-corpus/original.mjs`; every other kind is a TEMPLATE in
   `tools/intent-corpus/templates/` (the contract is in its `index.mjs`),

@@ -36,7 +36,7 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | path | what |
 | --- | --- |
 | `packages/core` | config, http (healthz/readyz), ids, receipts (HMAC), pg + migrations, redis, the workspace model |
-| `packages/scenarios` | seeded generators (`acme-v1`, `shops-v1`, `guide-v1`, `web-v1`, `webmcp-v1`) and the derived ground truths |
+| `packages/scenarios` | seeded generators (`acme-v1`, `shops-v1`, `guide-v1`, `web-v1`, `webmcp-v1`, `cuj-v1`) and the derived ground truths |
 | `apps/gateway` | workspace API, signed reverse proxy, portal + MCP registry, reaper |
 | `packages/site-kit` | what every site shares: the gateway-scope hook, signup/verify/login + sessions + api tokens, the MCP server plumbing, the page shell, the doors and the change ledger (see [The change ledger](#the-change-ledger)) |
 | `apps/warehouse` | products, stock, orders, transfers: SSR UI, REST v1, a 14-tool MCP server, NLWeb `/ask`, WebMCP |
@@ -318,9 +318,10 @@ POST /api/workspaces        {"scenario":"webmcp-v1","seed":4242}   → urls for 
 /w/<id>/sports/  /w/<id>/homes/    /w/<id>/clinic/  /w/<id>/events/  /w/<id>/mail/
 ```
 
-The gateway lists the nine in `UNLISTED_APPS`, so only `webmcp-v1`'s
-workspaces advertise them, and only those are seeded in them: a workspace of
-any other scenario holds no rows there and does not wait on them to be created.
+The gateway lists the nine in `UNLISTED_APPS`, so only `webmcp-v1`'s and
+`cuj-v1`'s workspaces advertise them, and only those are seeded in them: a
+workspace of any other scenario holds no rows there and does not wait on them
+to be created.
 The `webmcp-v1` corpus is written beside acme-v1's, with its own public files
 (`compose/specs/webmcp-tasks.json`, `webmcp-corpus.json`, `webmcp-tasks.md`;
 its answer keys are `intent-<kind>-NN.json` like every other), and
@@ -328,6 +329,15 @@ its answer keys are `intent-<kind>-NN.json` like every other), and
 live benchme.
 Those suites grade the tool calls an agent makes; these tasks grade the answer
 or the site's end state, so any door can be used.
+
+The same nine sites, with the same rows, are the `cuj-v1` scenario's, which
+adds the accounts some of their people already have. Its corpus is 120
+critical-user-journey tasks in ten focus areas and four levels, some over
+several prompts of one conversation, each step checked by its reply or by the
+sites' rows and change ledger (`compose/specs/cuj-corpus.json`,
+`cuj-tasks.json`, `cuj-tasks.md`): see [docs/scenarios/cuj-v1.md](docs/scenarios/cuj-v1.md).
+`node tools/intent-integrity.mjs --scenario cuj-v1` proves it, step by step and
+level by level, against a live benchme.
 
 | app | site | what | shaped on |
 | --- | --- | --- | --- |
