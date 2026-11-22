@@ -1,0 +1,156 @@
+{
+  "id": "cuj-conv-party-limit-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked",
+        "app": "dining",
+        "path": "/api/v1/reservations?guestEmail=sorrel.fairbanks.91613%40journeys.example",
+        "expect": {
+          "status": "confirmed"
+        },
+        "where": {
+          "restaurantCode": "RS-121",
+          "date": "2027-11-19"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "reservation",
+          "id": "{reservationNo}",
+          "at": "first"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "unchanged",
+            "name": "nothing changed",
+            "scope": [
+              {
+                "apps": [
+                  "dining"
+                ],
+                "entity": {
+                  "type": "reservation",
+                  "id": "@booked"
+                }
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "subject": {
+                  "type": "reservation",
+                  "id": "@booked"
+                }
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "entity": {
+                  "type": "restaurant",
+                  "id": "RS-121"
+                }
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "subject": {
+                  "type": "restaurant",
+                  "id": "RS-121"
+                }
+              }
+            ],
+            "after": "booked"
+          },
+          {
+            "kind": "ledger",
+            "name": "looked or was refused",
+            "match": [
+              {
+                "app": "dining",
+                "entity": {
+                  "type": "reservation",
+                  "id": "@booked"
+                },
+                "action": "read",
+                "outcome": "ok"
+              },
+              {
+                "app": "dining",
+                "entity": {
+                  "type": "restaurant",
+                  "id": "RS-121"
+                },
+                "action": "read",
+                "outcome": "ok"
+              },
+              {
+                "app": "dining",
+                "entity": {
+                  "type": "reservation",
+                  "id": "@booked"
+                },
+                "outcome": "refused",
+                "code": "PARTY_LIMIT"
+              },
+              {
+                "app": "dining",
+                "subject": {
+                  "type": "reservation",
+                  "id": "@booked"
+                },
+                "outcome": "refused",
+                "code": "PARTY_LIMIT"
+              },
+              {
+                "app": "dining",
+                "entity": {
+                  "type": "restaurant",
+                  "id": "RS-121"
+                },
+                "outcome": "refused",
+                "code": "PARTY_LIMIT"
+              },
+              {
+                "app": "dining",
+                "subject": {
+                  "type": "restaurant",
+                  "id": "RS-121"
+                },
+                "outcome": "refused",
+                "code": "PARTY_LIMIT"
+              }
+            ],
+            "after": "booked"
+          },
+          {
+            "name": "still for four",
+            "app": "dining",
+            "path": "/api/v1/reservations?guestEmail=sorrel.fairbanks.91613%40journeys.example",
+            "expect": {
+              "partySize": 4
+            },
+            "where": {
+              "restaurantCode": "RS-121",
+              "date": "2027-11-19",
+              "status": "confirmed"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "id": "cuj-book-sports-order-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ordered",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=danae.ferrante%40example.org",
+        "expect": {
+          "addressCode": "AD-1021",
+          "lineCount": 1,
+          "lines": {
+            "sku": "SP-113-RED-M",
+            "qty": 1
+          }
+        },
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "order",
+          "id": "{orderNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

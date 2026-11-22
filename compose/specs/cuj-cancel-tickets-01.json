@@ -1,0 +1,145 @@
+{
+  "id": "cuj-cancel-tickets-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "cancelled",
+        "app": "cinema",
+        "path": "/api/v1/bookings/TK-30026",
+        "expect": {
+          "status": "cancelled"
+        },
+        "entity": {
+          "type": "booking",
+          "id": "TK-30026"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "others left alone",
+        "scope": [
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "TK-30024"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "TK-30031"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "TK-30037"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "TK-30046"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "TK-30060"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "TK-30072"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "TK-30088"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "TK-30104"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "TK-30115"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "TK-30118"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "TK-30123"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "TK-30157"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "TK-30199"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

@@ -1,0 +1,70 @@
+{
+  "id": "cuj-self-cancel-locked-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "kind": "unchanged",
+        "name": "nothing changed",
+        "scope": [
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10048"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "subject": {
+              "type": "order",
+              "id": "PO-10048"
+            }
+          }
+        ]
+      },
+      {
+        "kind": "ledger",
+        "name": "looked or was refused, signed in as them",
+        "match": [
+          {
+            "app": "pizza",
+            "entity": {
+              "type": "order",
+              "id": "PO-10048"
+            },
+            "action": "read",
+            "outcome": "ok",
+            "actor": "maren.okonjo3@example.org"
+          },
+          {
+            "app": "pizza",
+            "entity": {
+              "type": "order",
+              "id": "PO-10048"
+            },
+            "outcome": "refused",
+            "code": "ORDER_LOCKED",
+            "actor": "maren.okonjo3@example.org"
+          },
+          {
+            "app": "pizza",
+            "subject": {
+              "type": "order",
+              "id": "PO-10048"
+            },
+            "outcome": "refused",
+            "code": "ORDER_LOCKED",
+            "actor": "maren.okonjo3@example.org"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

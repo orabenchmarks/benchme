@@ -1,0 +1,30 @@
+{
+  "id": "cuj-best-showing-earliest-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked",
+        "app": "cinema",
+        "path": "/api/v1/bookings?customerEmail=pascal.juniper.56458%40journeys.example",
+        "expect": {
+          "showtimeCode": "ST-2002",
+          "seats": "E1,E2"
+        },
+        "where": {
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

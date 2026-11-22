@@ -1,0 +1,11 @@
+{
+  "id": "cuj-fit-room-sleeps-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "room": "HT-116-FAM"
+    }
+  },
+  "steps": []
+}

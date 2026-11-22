@@ -1,0 +1,66 @@
+{
+  "id": "cuj-reorder-latest-delivered-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "one new order",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=sable.kowalczyk%40example.org&status=processing",
+        "expect": {
+          "addressCode": "AD-1015",
+          "lineCount": 2
+        },
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "order",
+          "id": "{orderNo}"
+        }
+      },
+      {
+        "name": "SP-111-BLU-S × 1",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=sable.kowalczyk%40example.org&status=processing",
+        "expect": {
+          "lines": {
+            "sku": "SP-111-BLU-S",
+            "qty": 1
+          }
+        },
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        }
+      },
+      {
+        "name": "SP-101-BLK-43 × 2",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=sable.kowalczyk%40example.org&status=processing",
+        "expect": {
+          "lines": {
+            "sku": "SP-101-BLK-43",
+            "qty": 2
+          }
+        },
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        }
+      }
+    ]
+  },
+  "steps": []
+}

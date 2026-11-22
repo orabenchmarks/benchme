@@ -1,0 +1,67 @@
+{
+  "id": "cuj-cancel-shipped-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "kind": "unchanged",
+        "name": "nothing changed",
+        "scope": [
+          {
+            "apps": [
+              "sports"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "ORD-10042"
+            }
+          },
+          {
+            "apps": [
+              "sports"
+            ],
+            "subject": {
+              "type": "order",
+              "id": "ORD-10042"
+            }
+          }
+        ]
+      },
+      {
+        "kind": "ledger",
+        "name": "looked or was refused",
+        "match": [
+          {
+            "app": "sports",
+            "entity": {
+              "type": "order",
+              "id": "ORD-10042"
+            },
+            "action": "read",
+            "outcome": "ok"
+          },
+          {
+            "app": "sports",
+            "entity": {
+              "type": "order",
+              "id": "ORD-10042"
+            },
+            "outcome": "refused",
+            "code": "NOT_CANCELLABLE"
+          },
+          {
+            "app": "sports",
+            "subject": {
+              "type": "order",
+              "id": "ORD-10042"
+            },
+            "outcome": "refused",
+            "code": "NOT_CANCELLABLE"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

@@ -1,0 +1,59 @@
+{
+  "id": "cuj-change-party-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "party changed",
+        "app": "dining",
+        "path": "/api/v1/reservations/RV-10117",
+        "expect": {
+          "status": "confirmed",
+          "partySize": 2,
+          "time": "13:00",
+          "date": "2027-05-19",
+          "area": "terrace"
+        },
+        "entity": {
+          "type": "reservation",
+          "id": "RV-10117"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "other reservations untouched",
+        "scope": [
+          {
+            "apps": [
+              "dining"
+            ],
+            "entity": {
+              "type": "reservation",
+              "id": "RV-10003"
+            }
+          },
+          {
+            "apps": [
+              "dining"
+            ],
+            "entity": {
+              "type": "reservation",
+              "id": "RV-10046"
+            }
+          },
+          {
+            "apps": [
+              "dining"
+            ],
+            "entity": {
+              "type": "reservation",
+              "id": "RV-10050"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

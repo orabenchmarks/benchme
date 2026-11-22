@@ -1,0 +1,60 @@
+{
+  "id": "cuj-self-signup-tickets-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "kind": "ledger",
+        "name": "account confirmed",
+        "match": {
+          "app": "cinema",
+          "entity": {
+            "type": "account",
+            "id": "imogen.corrigan.41855@journeys.example"
+          },
+          "action": "verify",
+          "outcome": "ok"
+        }
+      },
+      {
+        "name": "booked",
+        "app": "cinema",
+        "path": "/api/v1/bookings?customerEmail=imogen.corrigan.41855%40journeys.example",
+        "expect": {
+          "seats": "A1,A2"
+        },
+        "where": {
+          "showtimeCode": "ST-2040",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      },
+      {
+        "kind": "ledger",
+        "name": "booked as them",
+        "match": {
+          "app": "cinema",
+          "entity": {
+            "type": "booking"
+          },
+          "subject": {
+            "type": "showtime",
+            "id": "ST-2040"
+          },
+          "action": "create",
+          "outcome": "ok",
+          "actor": "imogen.corrigan.41855@journeys.example"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

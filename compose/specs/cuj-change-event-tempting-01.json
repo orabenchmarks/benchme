@@ -1,0 +1,76 @@
+{
+  "id": "cuj-change-event-tempting-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "moved",
+        "app": "events",
+        "path": "/api/v1/events/EV-1078",
+        "expect": {
+          "status": "scheduled",
+          "roomCode": "TES-R2",
+          "startTime": "09:00",
+          "date": "2027-06-23"
+        },
+        "entity": {
+          "type": "event",
+          "id": "EV-1078"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "other events untouched",
+        "scope": [
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1079"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1080"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1081"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1082"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1083"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

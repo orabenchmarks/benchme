@@ -1,0 +1,179 @@
+{
+  "id": "cuj-conv-pizza-long-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ordered",
+        "app": "pizza",
+        "path": "/api/v1/orders?customerEmail=dorian.fairbanks.87330%40journeys.example",
+        "expect": {
+          "status": "received"
+        },
+        "where": {
+          "branchCode": "BR-105",
+          "slotDate": "2027-10-22"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "order",
+          "id": "{orderNo}",
+          "at": "first"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "second made large",
+            "match": {
+              "app": "pizza",
+              "entity": {
+                "type": "order",
+                "id": "@ordered"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "ordered"
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "topping added",
+            "match": {
+              "app": "pizza",
+              "entity": {
+                "type": "order",
+                "id": "@ordered"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "second made large"
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "budget kept",
+            "match": {
+              "app": "pizza",
+              "entity": {
+                "type": "order",
+                "id": "@ordered"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "topping added"
+          },
+          {
+            "name": "second back to medium",
+            "app": "pizza",
+            "path": "/api/v1/orders?customerEmail=dorian.fairbanks.87330%40journeys.example",
+            "expect": {
+              "lines": {
+                "line": 2,
+                "size": "medium"
+              }
+            },
+            "where": {
+              "branchCode": "BR-105",
+              "slotDate": "2027-10-22",
+              "status": "received"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "topping off",
+            "match": {
+              "app": "pizza",
+              "entity": {
+                "type": "order",
+                "id": "@ordered"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "budget kept"
+          },
+          {
+            "name": "as it stands",
+            "app": "pizza",
+            "path": "/api/v1/orders?customerEmail=dorian.fairbanks.87330%40journeys.example",
+            "expect": {
+              "lineCount": 2,
+              "lines": {
+                "line": 1,
+                "size": "medium",
+                "quantity": 1,
+                "toppingsKey": "artichoke,feta"
+              }
+            },
+            "where": {
+              "branchCode": "BR-105",
+              "slotDate": "2027-10-22",
+              "status": "received"
+            }
+          },
+          {
+            "name": "second as it stands",
+            "app": "pizza",
+            "path": "/api/v1/orders?customerEmail=dorian.fairbanks.87330%40journeys.example",
+            "expect": {
+              "lines": {
+                "line": 2,
+                "size": "medium",
+                "quantity": 1
+              }
+            },
+            "where": {
+              "branchCode": "BR-105",
+              "slotDate": "2027-10-22",
+              "status": "received"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "total": {
+            "value": 34.2,
+            "tolerance": 0.01
+          }
+        }
+      }
+    }
+  ]
+}

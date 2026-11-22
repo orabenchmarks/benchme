@@ -1,0 +1,121 @@
+{
+  "id": "cuj-self-evening-steps-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "kind": "ledger",
+        "name": "cinema account confirmed",
+        "match": {
+          "app": "cinema",
+          "entity": {
+            "type": "account",
+            "id": "keira.holloway.71977@journeys.example"
+          },
+          "action": "verify",
+          "outcome": "ok"
+        }
+      },
+      {
+        "name": "film booked",
+        "app": "cinema",
+        "path": "/api/v1/bookings?customerEmail=keira.holloway.71977%40journeys.example",
+        "expect": {
+          "showtimeCode": "ST-2091",
+          "seatCount": 3,
+          "together": true
+        },
+        "where": {
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      },
+      {
+        "kind": "ledger",
+        "name": "film booked as them",
+        "match": {
+          "app": "cinema",
+          "entity": {
+            "type": "booking"
+          },
+          "subject": {
+            "type": "showtime",
+            "id": "ST-2091"
+          },
+          "action": "create",
+          "outcome": "ok",
+          "actor": "keira.holloway.71977@journeys.example"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "dining account confirmed",
+            "match": {
+              "app": "dining",
+              "entity": {
+                "type": "account",
+                "id": "keira.holloway.71977@journeys.example"
+              },
+              "action": "verify",
+              "outcome": "ok"
+            }
+          },
+          {
+            "name": "dinner booked",
+            "app": "dining",
+            "path": "/api/v1/reservations?guestEmail=keira.holloway.71977%40journeys.example",
+            "expect": {
+              "partySize": 3,
+              "time": "21:30"
+            },
+            "where": {
+              "restaurantCode": "RS-119",
+              "date": "2027-05-15",
+              "status": "confirmed"
+            },
+            "count": {
+              "min": 1,
+              "max": 1
+            },
+            "entity": {
+              "type": "reservation",
+              "id": "{reservationNo}"
+            }
+          },
+          {
+            "kind": "ledger",
+            "name": "dinner booked as them",
+            "match": {
+              "app": "dining",
+              "entity": {
+                "type": "reservation"
+              },
+              "subject": {
+                "type": "restaurant",
+                "id": "RS-119"
+              },
+              "action": "create",
+              "outcome": "ok",
+              "actor": "keira.holloway.71977@journeys.example"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

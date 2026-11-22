@@ -1,0 +1,60 @@
+{
+  "id": "cuj-self-cancel-route-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "cancelled",
+        "app": "flights",
+        "path": "/api/v1/bookings/BK-10028",
+        "expect": {
+          "status": "cancelled"
+        },
+        "entity": {
+          "type": "booking",
+          "id": "BK-10028"
+        }
+      },
+      {
+        "kind": "ledger",
+        "name": "cancelled as them",
+        "match": {
+          "app": "flights",
+          "entity": {
+            "type": "booking",
+            "id": "BK-10028"
+          },
+          "action": "cancel",
+          "outcome": "ok",
+          "actor": "sable.voss3@example.com"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "others left alone",
+        "scope": [
+          {
+            "apps": [
+              "flights"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "BK-10003"
+            }
+          },
+          {
+            "apps": [
+              "flights"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "BK-10106"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

@@ -1,0 +1,50 @@
+{
+  "id": "cuj-self-table-party-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked",
+        "app": "dining",
+        "path": "/api/v1/reservations?guestEmail=quill.voss8%40example.com",
+        "expect": {
+          "time": "19:30",
+          "partySize": 6,
+          "area": "indoor"
+        },
+        "where": {
+          "restaurantCode": "RS-104",
+          "date": "2027-10-29",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "reservation",
+          "id": "{reservationNo}"
+        }
+      },
+      {
+        "kind": "ledger",
+        "name": "booked as them",
+        "match": {
+          "app": "dining",
+          "entity": {
+            "type": "reservation"
+          },
+          "subject": {
+            "type": "restaurant",
+            "id": "RS-104"
+          },
+          "action": "create",
+          "outcome": "ok",
+          "actor": "quill.voss8@example.com"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

@@ -1,0 +1,48 @@
+{
+  "id": "cuj-reorder-named-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "one new order",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=danae.halvard%40example.org&status=processing",
+        "expect": {
+          "addressCode": "AD-1022",
+          "lineCount": 1
+        },
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "order",
+          "id": "{orderNo}"
+        }
+      },
+      {
+        "name": "SP-107-RED-XL × 3",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=danae.halvard%40example.org&status=processing",
+        "expect": {
+          "lines": {
+            "sku": "SP-107-RED-XL",
+            "qty": 3
+          }
+        },
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        }
+      }
+    ]
+  },
+  "steps": []
+}

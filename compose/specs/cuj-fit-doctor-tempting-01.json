@@ -1,0 +1,11 @@
+{
+  "id": "cuj-fit-doctor-tempting-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "doctor": "DR-223"
+    }
+  },
+  "steps": []
+}

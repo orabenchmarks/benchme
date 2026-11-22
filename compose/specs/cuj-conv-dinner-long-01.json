@@ -1,0 +1,168 @@
+{
+  "id": "cuj-conv-dinner-long-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked",
+        "app": "dining",
+        "path": "/api/v1/reservations?guestEmail=benedikt.fairbanks.97752%40journeys.example",
+        "expect": {
+          "status": "confirmed"
+        },
+        "where": {
+          "restaurantCode": "RS-122",
+          "date": "2027-11-12"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "reservation",
+          "id": "{reservationNo}",
+          "at": "first"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "made six",
+            "match": {
+              "app": "dining",
+              "entity": {
+                "type": "reservation",
+                "id": "@booked"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "booked"
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "moved",
+            "match": {
+              "app": "dining",
+              "entity": {
+                "type": "reservation",
+                "id": "@booked"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "made six"
+          },
+          {
+            "name": "in the private room",
+            "app": "dining",
+            "path": "/api/v1/reservations?guestEmail=benedikt.fairbanks.97752%40journeys.example",
+            "expect": {
+              "area": "private"
+            },
+            "where": {
+              "restaurantCode": "RS-122",
+              "date": "2027-11-12",
+              "status": "confirmed"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "pushed back",
+            "match": {
+              "app": "dining",
+              "entity": {
+                "type": "reservation",
+                "id": "@booked"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "moved"
+          },
+          {
+            "name": "at the latest time that still fits",
+            "app": "dining",
+            "path": "/api/v1/reservations?guestEmail=benedikt.fairbanks.97752%40journeys.example",
+            "expect": {
+              "time": "20:00"
+            },
+            "where": {
+              "restaurantCode": "RS-122",
+              "date": "2027-11-12",
+              "status": "confirmed"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "four again",
+            "match": {
+              "app": "dining",
+              "entity": {
+                "type": "reservation",
+                "id": "@booked"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "pushed back"
+          },
+          {
+            "name": "as it stands",
+            "app": "dining",
+            "path": "/api/v1/reservations?guestEmail=benedikt.fairbanks.97752%40journeys.example",
+            "expect": {
+              "partySize": 4,
+              "area": "private",
+              "time": "20:00"
+            },
+            "where": {
+              "restaurantCode": "RS-122",
+              "date": "2027-11-12",
+              "status": "confirmed"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "deposit": {
+            "value": 230,
+            "tolerance": 0.01
+          }
+        }
+      }
+    }
+  ]
+}

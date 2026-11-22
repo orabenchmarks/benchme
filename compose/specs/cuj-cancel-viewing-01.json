@@ -1,0 +1,82 @@
+{
+  "id": "cuj-cancel-viewing-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "cancelled",
+        "app": "homes",
+        "path": "/api/v1/viewings/VW-1134",
+        "expect": {
+          "status": "cancelled"
+        },
+        "entity": {
+          "type": "viewing",
+          "id": "VW-1134"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "others left alone",
+        "scope": [
+          {
+            "apps": [
+              "homes"
+            ],
+            "entity": {
+              "type": "viewing",
+              "id": "VW-1019"
+            }
+          },
+          {
+            "apps": [
+              "homes"
+            ],
+            "entity": {
+              "type": "viewing",
+              "id": "VW-1047"
+            }
+          },
+          {
+            "apps": [
+              "homes"
+            ],
+            "entity": {
+              "type": "viewing",
+              "id": "VW-1058"
+            }
+          },
+          {
+            "apps": [
+              "homes"
+            ],
+            "entity": {
+              "type": "viewing",
+              "id": "VW-1081"
+            }
+          },
+          {
+            "apps": [
+              "homes"
+            ],
+            "entity": {
+              "type": "viewing",
+              "id": "VW-1112"
+            }
+          },
+          {
+            "apps": [
+              "homes"
+            ],
+            "entity": {
+              "type": "viewing",
+              "id": "VW-1125"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

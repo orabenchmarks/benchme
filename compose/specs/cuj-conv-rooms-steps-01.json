@@ -1,0 +1,113 @@
+{
+  "id": "cuj-conv-rooms-steps-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "our room booked",
+        "app": "hotels",
+        "path": "/api/v1/bookings?guestEmail=keira.ingram.35061%40journeys.example",
+        "expect": {
+          "status": "confirmed",
+          "nights": 3,
+          "adults": 2
+        },
+        "where": {
+          "roomCode": "HT-119-KNG",
+          "checkIn": "2027-11-15"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}",
+          "at": "first"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "their room booked",
+            "app": "hotels",
+            "path": "/api/v1/bookings?guestEmail=keira.ingram.35061%40journeys.example",
+            "expect": {
+              "nights": 3,
+              "adults": 2
+            },
+            "where": {
+              "roomCode": "HT-119-DBL",
+              "checkIn": "2027-11-15"
+            },
+            "count": {
+              "min": 1,
+              "max": 1
+            },
+            "entity": {
+              "type": "booking",
+              "id": "{bookingNo}",
+              "at": "first"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "their room cancelled",
+            "app": "hotels",
+            "path": "/api/v1/bookings?guestEmail=keira.ingram.35061%40journeys.example",
+            "expect": {
+              "status": "cancelled"
+            },
+            "where": {
+              "roomCode": "HT-119-DBL",
+              "checkIn": "2027-11-15"
+            },
+            "entity": {
+              "type": "booking",
+              "id": "{bookingNo}"
+            }
+          },
+          {
+            "kind": "unchanged",
+            "name": "our room kept",
+            "scope": {
+              "apps": [
+                "hotels"
+              ],
+              "entity": {
+                "type": "booking",
+                "id": "@our room booked"
+              }
+            },
+            "after": "our room booked"
+          },
+          {
+            "name": "our room still booked",
+            "app": "hotels",
+            "path": "/api/v1/bookings?guestEmail=keira.ingram.35061%40journeys.example",
+            "expect": {
+              "nights": 3
+            },
+            "where": {
+              "roomCode": "HT-119-KNG",
+              "checkIn": "2027-11-15",
+              "status": "confirmed"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

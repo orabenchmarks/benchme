@@ -1,0 +1,112 @@
+{
+  "id": "cuj-price-child-rated-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "kind": "unchanged",
+        "name": "nothing changed",
+        "scope": [
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "showtime",
+              "id": "ST-2051"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "subject": {
+              "type": "showtime",
+              "id": "ST-2051"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "film",
+              "id": "FM-103"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "subject": {
+              "type": "film",
+              "id": "FM-103"
+            }
+          }
+        ]
+      },
+      {
+        "kind": "ledger",
+        "name": "looked or was refused",
+        "match": [
+          {
+            "app": "cinema",
+            "entity": {
+              "type": "showtime",
+              "id": "ST-2051"
+            },
+            "action": "read",
+            "outcome": "ok"
+          },
+          {
+            "app": "cinema",
+            "entity": {
+              "type": "film",
+              "id": "FM-103"
+            },
+            "action": "read",
+            "outcome": "ok"
+          },
+          {
+            "app": "cinema",
+            "entity": {
+              "type": "showtime",
+              "id": "ST-2051"
+            },
+            "outcome": "refused",
+            "code": "CHILD_NOT_ALLOWED"
+          },
+          {
+            "app": "cinema",
+            "subject": {
+              "type": "showtime",
+              "id": "ST-2051"
+            },
+            "outcome": "refused",
+            "code": "CHILD_NOT_ALLOWED"
+          },
+          {
+            "app": "cinema",
+            "entity": {
+              "type": "film",
+              "id": "FM-103"
+            },
+            "outcome": "refused",
+            "code": "CHILD_NOT_ALLOWED"
+          },
+          {
+            "app": "cinema",
+            "subject": {
+              "type": "film",
+              "id": "FM-103"
+            },
+            "outcome": "refused",
+            "code": "CHILD_NOT_ALLOWED"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

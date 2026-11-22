@@ -1,0 +1,11 @@
+{
+  "id": "cuj-fit-flight-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "flight": "QE354"
+    }
+  },
+  "steps": []
+}

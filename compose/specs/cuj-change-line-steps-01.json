@@ -1,0 +1,131 @@
+{
+  "id": "cuj-change-line-steps-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "kind": "ledger",
+        "name": "resized",
+        "match": {
+          "app": "pizza",
+          "entity": {
+            "type": "order",
+            "id": "PO-10111"
+          },
+          "action": "change",
+          "outcome": "ok"
+        }
+      },
+      {
+        "name": "in the new size",
+        "app": "pizza",
+        "path": "/api/v1/orders/PO-10111",
+        "expect": {
+          "lines": {
+            "line": 1,
+            "size": "small"
+          }
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "topping off",
+            "match": {
+              "app": "pizza",
+              "entity": {
+                "type": "order",
+                "id": "PO-10111"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "resized"
+          },
+          {
+            "name": "without the topping",
+            "app": "pizza",
+            "path": "/api/v1/orders/PO-10111",
+            "expect": {
+              "status": "received",
+              "lines": {
+                "line": 1,
+                "size": "small",
+                "toppingsKey": "walnut"
+              }
+            }
+          },
+          {
+            "kind": "unchanged",
+            "name": "other orders untouched",
+            "scope": [
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "entity": {
+                  "type": "order",
+                  "id": "PO-10005"
+                }
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "entity": {
+                  "type": "order",
+                  "id": "PO-10008"
+                }
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "entity": {
+                  "type": "order",
+                  "id": "PO-10024"
+                }
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "entity": {
+                  "type": "order",
+                  "id": "PO-10031"
+                }
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "entity": {
+                  "type": "order",
+                  "id": "PO-10093"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "total": {
+            "value": 12.15,
+            "tolerance": 0.01
+          }
+        }
+      }
+    }
+  ]
+}

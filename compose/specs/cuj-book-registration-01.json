@@ -1,0 +1,30 @@
+{
+  "id": "cuj-book-registration-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "registered",
+        "app": "events",
+        "path": "/api/v1/registrations?email=aurelie.juniper.41323%40journeys.example",
+        "expect": {
+          "email": "aurelie.juniper.41323@journeys.example"
+        },
+        "where": {
+          "eventCode": "EV-1068",
+          "status": "registered"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "registration",
+          "id": "{regNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

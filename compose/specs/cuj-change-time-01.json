@@ -1,0 +1,59 @@
+{
+  "id": "cuj-change-time-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "moved",
+        "app": "dining",
+        "path": "/api/v1/reservations/RV-10160",
+        "expect": {
+          "status": "confirmed",
+          "time": "19:30",
+          "date": "2027-05-24",
+          "partySize": 5,
+          "area": "indoor"
+        },
+        "entity": {
+          "type": "reservation",
+          "id": "RV-10160"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "other reservations untouched",
+        "scope": [
+          {
+            "apps": [
+              "dining"
+            ],
+            "entity": {
+              "type": "reservation",
+              "id": "RV-10007"
+            }
+          },
+          {
+            "apps": [
+              "dining"
+            ],
+            "entity": {
+              "type": "reservation",
+              "id": "RV-10058"
+            }
+          },
+          {
+            "apps": [
+              "dining"
+            ],
+            "entity": {
+              "type": "reservation",
+              "id": "RV-10088"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

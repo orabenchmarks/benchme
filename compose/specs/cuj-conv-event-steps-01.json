@@ -1,0 +1,103 @@
+{
+  "id": "cuj-conv-event-steps-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "event made",
+        "app": "events",
+        "path": "/api/v1/events?organiser=teodor.larrabee%40staff.example&date=2027-11-10",
+        "expect": {
+          "roomCode": "VEL-R2",
+          "startTime": "14:00"
+        },
+        "where": {
+          "title": "Quarterly planning"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "event",
+          "id": "{code}",
+          "at": "first"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "guests added",
+            "match": {
+              "app": "events",
+              "entity": {
+                "type": "event",
+                "id": "@event made"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "event made"
+          },
+          {
+            "name": "two more invited",
+            "app": "events",
+            "path": "/api/v1/events?organiser=teodor.larrabee%40staff.example&date=2027-11-10",
+            "expect": {
+              "guests": {
+                "email": "orrin.okonjo@staff.example"
+              }
+            },
+            "where": {
+              "title": "Quarterly planning"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "guest taken off",
+            "match": {
+              "app": "events",
+              "entity": {
+                "type": "event",
+                "id": "@event made"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "guests added"
+          },
+          {
+            "name": "three guests left",
+            "app": "events",
+            "path": "/api/v1/events?organiser=teodor.larrabee%40staff.example&date=2027-11-10",
+            "expect": {
+              "guestCount": 3,
+              "guests": {
+                "email": "orrin.okonjo@staff.example"
+              },
+              "roomCode": "VEL-R2"
+            },
+            "where": {
+              "title": "Quarterly planning",
+              "status": "scheduled"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

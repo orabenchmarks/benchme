@@ -1,0 +1,46 @@
+{
+  "id": "cuj-self-refill-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "refill requested",
+        "app": "clinic",
+        "path": "/api/v1/refills?rxNo=RX-60003",
+        "expect": {
+          "pharmacyCode": "CL-12"
+        },
+        "where": {
+          "status": "requested"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "refill",
+          "id": "{refillNo}"
+        }
+      },
+      {
+        "kind": "ledger",
+        "name": "requested as them",
+        "match": {
+          "app": "clinic",
+          "entity": {
+            "type": "refill"
+          },
+          "subject": {
+            "type": "prescription",
+            "id": "RX-60003"
+          },
+          "action": "create",
+          "outcome": "ok",
+          "actor": "orrin.okonjo8@example.com"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

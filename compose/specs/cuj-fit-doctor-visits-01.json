@@ -1,0 +1,12 @@
+{
+  "id": "cuj-fit-doctor-visits-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "video": true,
+      "newPatients": true
+    }
+  },
+  "steps": []
+}

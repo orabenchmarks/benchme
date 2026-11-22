@@ -1,0 +1,12 @@
+{
+  "id": "cuj-fit-room-equipment-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "videoConferencing": false,
+      "stepFree": true
+    }
+  },
+  "steps": []
+}

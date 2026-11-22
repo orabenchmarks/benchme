@@ -1,0 +1,67 @@
+{
+  "id": "cuj-refill-none-left-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "kind": "unchanged",
+        "name": "nothing changed",
+        "scope": [
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "prescription",
+              "id": "RX-60015"
+            }
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "subject": {
+              "type": "prescription",
+              "id": "RX-60015"
+            }
+          }
+        ]
+      },
+      {
+        "kind": "ledger",
+        "name": "looked or was refused",
+        "match": [
+          {
+            "app": "clinic",
+            "entity": {
+              "type": "prescription",
+              "id": "RX-60015"
+            },
+            "action": "read",
+            "outcome": "ok"
+          },
+          {
+            "app": "clinic",
+            "entity": {
+              "type": "prescription",
+              "id": "RX-60015"
+            },
+            "outcome": "refused",
+            "code": "NO_REFILLS_LEFT"
+          },
+          {
+            "app": "clinic",
+            "subject": {
+              "type": "prescription",
+              "id": "RX-60015"
+            },
+            "outcome": "refused",
+            "code": "NO_REFILLS_LEFT"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

@@ -1,0 +1,35 @@
+{
+  "id": "cuj-book-slot-after-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ordered",
+        "app": "pizza",
+        "path": "/api/v1/orders?customerEmail=ottilie.brightwell.14001%40journeys.example",
+        "expect": {
+          "slotTime": "19:30",
+          "lines": {
+            "pizzaCode": "PZ-101",
+            "quantity": 3
+          }
+        },
+        "where": {
+          "branchCode": "BR-102",
+          "slotDate": "2027-05-10",
+          "status": "received"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "order",
+          "id": "{orderNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

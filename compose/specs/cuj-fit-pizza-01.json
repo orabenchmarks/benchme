@@ -1,0 +1,11 @@
+{
+  "id": "cuj-fit-pizza-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "pizza": "PZ-108"
+    }
+  },
+  "steps": []
+}

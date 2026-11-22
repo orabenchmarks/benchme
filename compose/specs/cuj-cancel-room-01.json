@@ -1,0 +1,64 @@
+{
+  "id": "cuj-cancel-room-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "cancelled",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10162",
+        "expect": {
+          "status": "cancelled"
+        },
+        "entity": {
+          "type": "booking",
+          "id": "BK-10162"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "others left alone",
+        "scope": [
+          {
+            "apps": [
+              "hotels"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "BK-10017"
+            }
+          },
+          {
+            "apps": [
+              "hotels"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "BK-10035"
+            }
+          },
+          {
+            "apps": [
+              "hotels"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "BK-10057"
+            }
+          },
+          {
+            "apps": [
+              "hotels"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "BK-10161"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

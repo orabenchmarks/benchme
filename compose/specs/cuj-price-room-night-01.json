@@ -1,0 +1,14 @@
+{
+  "id": "cuj-price-room-night-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "nightly": {
+        "value": 270,
+        "tolerance": 0.01
+      }
+    }
+  },
+  "steps": []
+}

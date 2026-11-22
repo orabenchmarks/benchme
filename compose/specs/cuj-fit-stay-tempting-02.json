@@ -1,0 +1,11 @@
+{
+  "id": "cuj-fit-stay-tempting-02",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "hotel": "HT-124"
+    }
+  },
+  "steps": []
+}

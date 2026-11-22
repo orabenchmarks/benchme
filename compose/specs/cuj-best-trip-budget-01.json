@@ -1,0 +1,55 @@
+{
+  "id": "cuj-best-trip-budget-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "flight booked",
+        "app": "flights",
+        "path": "/api/v1/bookings?contactEmail=lucan.delacourt.51282%40journeys.example",
+        "expect": {
+          "cabin": "economy",
+          "passengerCount": 2,
+          "bags": 2
+        },
+        "where": {
+          "flightNo": "QE130",
+          "date": "2027-06-02",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      },
+      {
+        "name": "hotel booked",
+        "app": "hotels",
+        "path": "/api/v1/bookings?guestEmail=lucan.delacourt.51282%40journeys.example",
+        "expect": {
+          "nights": 2,
+          "adults": 2
+        },
+        "where": {
+          "roomCode": "HT-120-DBL",
+          "checkIn": "2027-06-02",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

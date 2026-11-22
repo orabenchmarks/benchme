@@ -1,0 +1,102 @@
+{
+  "id": "cuj-plan-overnight-trip-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "out booked",
+        "app": "flights",
+        "path": "/api/v1/bookings?contactEmail=pascal.everhart.33534%40journeys.example",
+        "expect": {
+          "passengerCount": 2,
+          "bags": 1
+        },
+        "where": {
+          "flightNo": "TF754",
+          "date": "2027-04-17",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "back booked",
+            "app": "flights",
+            "path": "/api/v1/bookings?contactEmail=pascal.everhart.33534%40journeys.example",
+            "expect": {
+              "passengerCount": 2,
+              "bags": 1
+            },
+            "where": {
+              "flightNo": "TF187",
+              "date": "2027-04-20",
+              "status": "confirmed"
+            },
+            "count": {
+              "min": 1,
+              "max": 1
+            },
+            "entity": {
+              "type": "booking",
+              "id": "{bookingNo}"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "room booked",
+            "app": "hotels",
+            "path": "/api/v1/bookings?guestEmail=pascal.everhart.33534%40journeys.example",
+            "expect": {
+              "nights": 2,
+              "adults": 2
+            },
+            "where": {
+              "roomCode": "HT-122-DBL",
+              "checkIn": "2027-04-18",
+              "status": "confirmed"
+            },
+            "count": {
+              "min": 1,
+              "max": 1
+            },
+            "entity": {
+              "type": "booking",
+              "id": "{bookingNo}"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "total": {
+            "value": 1040,
+            "tolerance": 0.01
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "cuj-fit-table-tempting-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "restaurant": "RS-123"
+    }
+  },
+  "steps": []
+}

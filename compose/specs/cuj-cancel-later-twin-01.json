@@ -1,0 +1,82 @@
+{
+  "id": "cuj-cancel-later-twin-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "cancelled",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30093",
+        "expect": {
+          "status": "cancelled"
+        },
+        "entity": {
+          "type": "appointment",
+          "id": "AP-30093"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "others left alone",
+        "scope": [
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "appointment",
+              "id": "AP-30029"
+            }
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "appointment",
+              "id": "AP-30036"
+            }
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "appointment",
+              "id": "AP-30114"
+            }
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "appointment",
+              "id": "AP-30132"
+            }
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "appointment",
+              "id": "AP-30162"
+            }
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "appointment",
+              "id": "AP-30163"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

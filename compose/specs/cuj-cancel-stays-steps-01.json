@@ -1,0 +1,65 @@
+{
+  "id": "cuj-cancel-stays-steps-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "first cancelled",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10073",
+        "expect": {
+          "status": "cancelled"
+        },
+        "entity": {
+          "type": "booking",
+          "id": "BK-10073"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "second cancelled",
+            "app": "hotels",
+            "path": "/api/v1/bookings/BK-10076",
+            "expect": {
+              "status": "cancelled"
+            },
+            "entity": {
+              "type": "booking",
+              "id": "BK-10076"
+            }
+          },
+          {
+            "kind": "unchanged",
+            "name": "the rest left alone",
+            "scope": [
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "entity": {
+                  "type": "booking",
+                  "id": "BK-10169"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "confirmed": 1
+        }
+      }
+    }
+  ]
+}
