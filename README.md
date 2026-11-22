@@ -42,7 +42,7 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | `apps/warehouse` | products, stock, orders, transfers: SSR UI, REST v1, a 14-tool MCP server, NLWeb `/ask`, WebMCP |
 | `apps/helpdesk` | tickets, comments, SLAs, assignment: SSR UI, REST v1, an 11-tool MCP server (with a destructive `delete_ticket`), NLWeb `/ask`, WebMCP |
 | `apps/vaultdocs` | ~40 seeded documents as MCP **resources** (`docs://<id>`), `search`/`get_document`/`list_documents` tools, two MCP **prompts**; full-text search UI + REST, NLWeb `/ask`, WebMCP |
-| `apps/hotels` | **Larchmere Stays**, a hotel booking site: ~30 hotels in six cities (the depots' among them), room types with limited rooms, bookings; search by city, dates, party, price and amenities; book and cancel. SSR UI, REST v1, a 9-tool MCP server, WebMCP (see [Hotels](#hotels)) |
+| `apps/hotels` | **Larchmere Stays**, a hotel booking site: ~30 hotels in six cities (the depots' among them), room types with limited rooms, bookings; search by city, dates, party, price and amenities; book and cancel. SSR UI, REST v1, a 9-tool MCP server (and the kit's five sign-in tools), WebMCP (see [Hotels](#hotels)) |
 | `apps/flights` | **Tallowmere Flights**: flight search and booking. SSR UI, REST v1, an MCP server, WebMCP (see [Flights](#flights)) |
 | `apps/dining` | **Thistlecombe Tables**: restaurant table reservations. SSR UI, REST v1, an MCP server, WebMCP (see [Restaurants](#restaurants)) |
 | `apps/pizza` | **Marlivo Pizza**: pizza ordering with a builder. SSR UI, REST v1, an MCP server, WebMCP (see [Pizza](#pizza)) |
@@ -52,7 +52,7 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | `apps/clinic` | **Calvenor Clinics**: doctors, appointments, coverage, prescription prices (administrative only). SSR UI, REST v1, an MCP server, WebMCP (see [Clinics](#clinics)) |
 | `apps/events` | **Fennick Events**: office events, room booking, invitations, registration. SSR UI, REST v1, an MCP server, WebMCP (see [Events](#events)) |
 | `apps/verify` | the verifier: json / xlsx / docx / patch / **state** oracles (state reads the app's own REST API after the fact — end state is the evidence, the artifact is ignored), HMAC receipts, attempt log, isolated Kubernetes Job runner; the intent corpus it ships with (generated tasks across the warehouse, helpdesk, vault and company site) is described in [`compose/specs/README.md`](compose/specs/README.md) |
-| `apps/mail` | per-workspace inbox with an internal delivery endpoint |
+| `apps/mail` | per-workspace inbox with an internal delivery endpoint; read through its pages, REST, or two MCP tools (also WebMCP tools on its pages) |
 | `apps/data` | the generated company site |
 | `packages/storefront` | the stores' pure logic: money, US sales tax by ZIP, cart, pricing, the scenario-file schema, outcome classes, order numbers |
 | `apps/shops` | three consumer stores and a payment page, served from one app (see [Stores](#stores)) |
@@ -304,11 +304,9 @@ uses on someone's behalf. No code or data is copied from it. Each site
 generates its own seeded rows, with invented names, from a random stream of
 its own (`substream(seed, "<app>")`), so adding the sites changed no earlier
 row and no earlier task's answer key. Each has SSR pages, REST `/api/v1`, an
-MCP server and WebMCP (no NLWeb `/ask`). A write through the pages or REST
-needs a session or an api token; a write through an MCP or WebMCP tool needs
-neither, as on the warehouse and the helpdesk: a tool call is scoped by its
-workspace alone. A comparison of doors therefore includes the sign-up (and the
-inbox code) that only the pages and REST ask for. Each site's rules are pure functions in `packages/scenarios`
+MCP server and WebMCP (no NLWeb `/ask`). A write asks the same sign-in
+through every door (see [The same sign-in on every door](#the-same-sign-in-on-every-door));
+the warehouse and the helpdesk are as they were, their tools ask none. Each site's rules are pure functions in `packages/scenarios`
 (`stays.ts` for hotels, `sites/<app>/rules.ts` for the others): the site
 applies them on every write, and the intent corpus derives its answer keys
 with them. Each site has six task kinds, three tasks each: 162 tasks, the
@@ -347,6 +345,47 @@ Left out of the repo: its games (`doors`, `webmcp-maze`, `proxx-lite`), office
 and creative tools (`spreadsheet`, `pixel-art-studio`), dashboards
 (`smart-home`, `analytics-dashboard`) and the demos about WebMCP itself
 (`explainer`, `page-agent`).
+
+### The same sign-in on every door
+
+On the nine sites a write needs someone signed in, whichever door it comes
+through, and reads stay open inside the workspace. The site's rules ask it,
+at the one place pages, REST and the tools all reach (`ledgered` in
+`packages/site-kit`), so no door can leave it out. A request is signed in by
+any of:
+
+- an api token, `Authorization: Bearer <token>` (issued on the account page);
+- the site's session cookie, which the pages' sign-in sets and a browser also
+  sends with the page's WebMCP tool calls;
+- an MCP session that signed in with the `sign_in` tool.
+
+A write by nobody is refused with one reason code, `UNAUTHORIZED`, and the
+ledger records it. Each door says so in its own way: REST answers 401
+`{"error":"UNAUTHORIZED"}`, a page sends the visitor to its sign-in page, a
+tool returns an error result that names the tools to call.
+
+No door is a dead end. Every site's tools include `sign_up`, `verify_email`,
+`sign_in`, `sign_out` and `whoami`, which do what the sign-up, verify and
+sign-in pages do, through the same code. The verification code is still
+mailed to the workspace inbox and has to be read there: the mail app has the
+same two reads as tools (`list_messages`, `get_message`), on its MCP server
+and on its pages.
+
+- **MCP.** The server gives a client an `Mcp-Session-Id` when it initializes,
+  as the protocol provides, and a client repeats it on every request. `sign_in`
+  keeps the session under that id, so the connection stays signed in and no
+  token is passed as a tool argument. The server holds no state for it. A tool
+  call sent without initializing (and without a token or a cookie) has nothing
+  to stay signed in with, and `sign_in` says so (`NO_SESSION`).
+- **WebMCP.** The page's bridge calls the site's `/mcp` from the browser, so
+  the answer to `sign_in` sets the site's own session cookie. Signing in with
+  the tool signs the pages in, and signing in on the pages signs the tools in.
+
+The signing-up steps are in the ledger as `auth` entries (`sign_up`,
+`verify`, `sign_in`, `sign_out`, `issue_token` on entity `account`, the id
+its email), made or refused (`EXISTS`, `BAD_CODE`, `BAD_CREDENTIALS`,
+`UNVERIFIED`). They are not writes: an account is not a change to what the
+site sells.
 
 ### The change ledger
 
@@ -410,7 +449,7 @@ them, and late checkout a hotel that offers it. A room type must have a room
 free on every night. A total is nights × the nightly price, plus the pet fee
 once per stay, plus the late-checkout fee.
 
-| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer htl_…`; MCP and WebMCP: no sign-in) |
+| door | reads | writes (every door: signed in, or `Authorization: Bearer htl_…`) |
 | --- | --- | --- |
 | REST `/api/v1` | `cities`, `hotels?city&amenities&pets`, `hotels/<code>`, `search?city&checkIn&nights&adults&kids&pets&maxPrice&amenities`, `rooms/<code>/availability?checkIn&nights`, `bookings?guestEmail&hotel&status`, `bookings/<no>` | `POST bookings`, `POST bookings/<no>/cancel` |
 | MCP and WebMCP | `list_cities`, `list_hotels`, `get_hotel`, `search_stays`, `check_availability`, `list_bookings`, `get_booking` | `create_booking`, `cancel_booking` |
@@ -471,7 +510,7 @@ passenger on that date: a sold-out cabin is 409 `SOLD_OUT`, too few seats is
 fare + passengers × bags × the carrier's bag fee. A round trip is two
 bookings.
 
-| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer flt_…`; MCP and WebMCP: no sign-in) |
+| door | reads | writes (every door: signed in, or `Authorization: Bearer flt_…`) |
 | --- | --- | --- |
 | REST `/api/v1` | `airports`, `carriers`, `flights?origin&destination&carrier`, `flights/<no>`, `flights/<no>/seats?date`, `search?origin&destination&date&returnDate&tripType&passengers&cabin&maxStops&carriers&maxPrice&departAfter&departBefore`, `bookings?contactEmail&flightNo&date&status`, `bookings/<no>` | `POST bookings`, `POST bookings/<no>/cancel` |
 | MCP and WebMCP | `list_airports`, `list_carriers`, `list_flights`, `get_flight`, `check_seats`, `search_flights`, `list_bookings`, `get_booking` | `create_booking`, `cancel_booking` |
@@ -533,7 +572,7 @@ private-room fee for the private room. A change of date, time, party, area or
 special request is checked against the same rules, the reservation's own table
 not counted against it.
 
-| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer dnr_…`; MCP and WebMCP: no sign-in) |
+| door | reads | writes (every door: signed in, or `Authorization: Bearer dnr_…`) |
 | --- | --- | --- |
 | REST `/api/v1` | `cities`, `restaurants?city&cuisine&menus&area`, `restaurants/<code>`, `restaurants/<code>/availability?date&partySize`, `search?city&date&time&partySize&area&cuisine&menus&maxPriceLevel`, `reservations?guestEmail&restaurant&date&status`, `reservations/<no>` | `POST reservations`, `POST reservations/<no>/change`, `POST reservations/<no>/cancel` |
 | MCP and WebMCP | `list_cities`, `list_restaurants`, `get_restaurant`, `search_tables`, `check_availability`, `list_reservations`, `get_reservation` | `create_reservation`, `change_reservation`, `cancel_reservation` |
@@ -599,7 +638,7 @@ size, plus each topping's price in that size. The total adds the delivery fee
 unless the subtotal reaches the branch's threshold. An order can be changed or
 cancelled only while it is `received`; a change re-prices the order.
 
-| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer pza_…`; MCP and WebMCP: no sign-in) |
+| door | reads | writes (every door: signed in, or `Authorization: Bearer pza_…`) |
 | --- | --- | --- |
 | REST `/api/v1` | `builder`, `branches?city`, `branches/<code>`, `branches/<code>/slots?date&pizzas&from`, `pizzas`, `pizzas/<code>`, `search?size&branch&vegetarian&vegan&without&maxPrice&toppings`, `POST quote`, `orders?customerEmail&branch&status&date`, `orders/<no>` | `POST orders`, `POST orders/<no>/lines/<line>`, `POST orders/<no>/cancel` |
 | MCP and WebMCP | `list_branches`, `get_menu`, `search_menu`, `find_slots`, `quote_order`, `list_orders`, `get_order` | `place_order`, `change_order_line`, `cancel_order` |
@@ -663,7 +702,7 @@ showtime's format and type, plus the premium surcharge for each premium-row
 seat, plus the booking fee for each ticket. A taken seat or a sold-out
 showtime is refused with 409; every other rule with 422.
 
-| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer cin_…`; MCP and WebMCP: no sign-in) |
+| door | reads | writes (every door: signed in, or `Authorization: Bearer cin_…`) |
 | --- | --- | --- |
 | REST `/api/v1` | `cinemas`, `cinemas/<code>`, `films?genre&city`, `films/<code>`, `showtimes?city&cinema&date&genre&film&format&after&seats&together`, `showtimes/<code>` (prices, fees, seat map), `bookings?customerEmail&showtime&film&status`, `bookings/<no>` | `POST bookings`, `POST bookings/<no>/cancel` |
 | MCP and WebMCP | `list_cinemas`, `get_cinema`, `list_films`, `get_film`, `search_showtimes`, `get_showtime`, `list_bookings`, `get_booking` | `create_booking`, `cancel_booking` |
@@ -740,7 +779,7 @@ category's window, for at most the units bought minus those already returned,
 with one of five reasons. Returns are refunded at the price paid and do not
 restock.
 
-| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer spt_…`; MCP and WebMCP: no sign-in) |
+| door | reads | writes (every door: signed in, or `Authorization: Bearer spt_…`) |
 | --- | --- | --- |
 | REST `/api/v1` | `policies`, `products?category&query`, `products/<code>`, `variants/<sku>`, `search?query&category&size&colour&maxPrice&maxWeight&inStock`, `customers?query`, `customers/<email>`, `orders?customerEmail&status&placedFrom&placedTo`, `orders/<no>`, `returns?orderNo&customerEmail` | `POST orders`, `POST orders/<no>/cancel`, `POST orders/<no>/reorder`, `POST returns` |
 | MCP and WebMCP | `get_store_policies`, `search_products`, `get_product`, `get_customer`, `list_orders`, `get_order` | `place_order`, `cancel_order`, `reorder`, `request_return` |
@@ -800,7 +839,7 @@ requested viewing holds it, for any of that agent's listings. A viewer cannot
 hold two requested viewings at the same time. A cancelled request holds
 nothing. A search without a status returns pending and sold listings too.
 
-| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer hom_…`; MCP and WebMCP: no sign-in) |
+| door | reads | writes (every door: signed in, or `Authorization: Bearer hom_…`) |
 | --- | --- | --- |
 | REST `/api/v1` | `cities`, `listings?city&neighbourhood&type&minPrice&maxPrice&minBeds&minBaths&minArea&minYearBuilt&features&status`, `listings/<code>`, `listings/<code>/slots?from&free`, `agents?city`, `agents/<code>`, `viewings?email&listing&agent&status`, `viewings/<no>` | `POST viewings`, `POST viewings/<no>/cancel` |
 | MCP and WebMCP | `list_cities`, `search_listings`, `get_listing`, `get_agent`, `list_viewing_slots`, `list_viewings`, `get_viewing` | `request_viewing`, `cancel_viewing` |
@@ -874,7 +913,7 @@ authorisation), and the whole price when it does not. A refill needs a refill
 left (422), a pharmacy that stocks that medication at that dosage (422), and no
 refill already requested (409). A request uses one refill.
 
-| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer cln_…`; MCP and WebMCP: no sign-in) |
+| door | reads | writes (every door: signed in, or `Authorization: Bearer cln_…`) |
 | --- | --- | --- |
 | REST `/api/v1` | `clinics`, `clinics/<code>`, `doctors?city&specialty&language&visitType&plan&newPatients&date`, `doctors/<code>`, `doctors/<code>/slots?date`, `plans`, `plans/<code>` (with coverage), `procedures`, `coverage?plan&procedure`, `visit-cost?doctor&plan&visitType`, `medications`, `medications/<code>`, `prices?medication&dosage`, `patients/<email>`, `appointments?patientEmail&doctor&date&status`, `appointments/<no>`, `prescriptions?patientEmail`, `prescriptions/<no>`, `refills?patientEmail&rxNo&status` | `POST appointments`, `POST appointments/<no>/cancel`, `POST prescriptions/<no>/refill` |
 | MCP and WebMCP | `list_clinics`, `find_doctors`, `get_doctor`, `get_plan`, `check_visit_cost`, `get_prescription_prices`, `get_patient` | `book_appointment`, `cancel_appointment`, `request_refill` |
@@ -945,7 +984,7 @@ scheduled open event with a place left. They cannot register twice for one
 event, or for two scheduled events at overlapping times. A cancelled
 registration holds no place.
 
-| door | reads | writes (pages and REST: signed in, or `Authorization: Bearer evt_…`; MCP and WebMCP: no sign-in) |
+| door | reads | writes (every door: signed in, or `Authorization: Bearer evt_…`) |
 | --- | --- | --- |
 | REST `/api/v1` | `offices`, `offices/<code or city>`, `rooms?office&minCapacity&equipment&accessible`, `rooms/<code>`, `free-rooms?office&date&startTime&endTime&people&equipment&accessible`, `people?office&team&name`, `people/<email>`, `events?office&room&date&from&to&organiser&guest&registrant&q&registration&status&hasPlaces`, `events/<code>`, `registrations?email&event&status`, `registrations/<no>` | `POST events`, `POST events/<code>/change`, `POST events/<code>/cancel`, `POST events/<code>/register`, `POST registrations/<no>/cancel` |
 | MCP and WebMCP | `list_offices`, `find_free_rooms`, `list_people`, `list_events`, `get_event` | `create_event`, `change_event`, `cancel_event`, `register_for_event`, `cancel_registration` |
@@ -1092,16 +1131,20 @@ often.
 
 ## WebMCP
 
-`warehouse`, `helpdesk`, `vaultdocs` and the nine sites from webmcp-tools each embed a small bridge script
+`warehouse`, `helpdesk`, `vaultdocs`, the nine sites from webmcp-tools and the inbox (`mail`) each embed a small bridge script
 (`webmcpScript` in `@benchme/site-kit`) on every page they render. It
 registers one `navigator.modelContext` tool per entry in the site's own
 `ToolRegistry` — the **same** catalog the site's `/mcp` server exposes, listed
 once and rendered into both surfaces, so a page tool and an MCP tool can never
 disagree. A tool's `execute` is a `fetch` back to the site's own `/mcp`
 (`tools/call`); a browser with no `navigator.modelContext` runs nothing. The
-gateway's `WEBMCP_APPS` env var (those twelve apps in compose and the chart)
+gateway's `WEBMCP_APPS` env var (those thirteen apps in compose and the chart)
 only controls what the **portal** advertises as WebMCP-capable — the bridge
-itself is unconditional on every page of the sites above.
+itself is unconditional on every page of the sites above. Every call the
+bridge makes carries `x-benchme-door: webmcp`, which is how a site's ledger
+tells a page's tool from a direct MCP client; on the nine sites the call also
+carries the browser's session cookie (see
+[The same sign-in on every door](#the-same-sign-in-on-every-door)).
 
 ## NLWeb
 

@@ -238,10 +238,11 @@ services:
       # Served at the root, outside any workspace: /wallet/* (link-cli's LINK_API_BASE_URL = <public>/wallet/api).
       SERVICE_TARGETS: '{"wallet":"http://wallet:3000"}'
       SEEDED_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events,mail,verify
-      MCP_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events
+      # mail: the inbox's two reads as tools, so the code a sign-up mails can be read by an agent that only has tools.
+      MCP_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events,mail
       ASK_APPS: warehouse,helpdesk,vaultdocs
       # hotels and the other errand sites have no NLWeb /ask (they are not in ASK_APPS).
-      WEBMCP_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events
+      WEBMCP_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events,mail
       WORKSPACE_TTL_SECONDS: ${WORKSPACE_TTL_SECONDS:-86400}
       WORKSPACE_MAX_TTL_SECONDS: ${WORKSPACE_MAX_TTL_SECONDS:-604800}
       # Your own machine: no need to throttle yourself.

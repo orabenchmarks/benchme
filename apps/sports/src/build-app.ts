@@ -24,7 +24,7 @@ export type BuildDeps = {
 
 /** Composition root: repos → services → routes. */
 export async function buildSports(d: BuildDeps): Promise<FastifyInstance> {
-  const auth = new AuthService({
+  const accounts = new AuthService({
     users: new PgUsersRepo(d.pool, "sports"),
     mailer: d.mailer,
     sessionTtlSeconds: d.sessionTtlSeconds,
@@ -39,7 +39,8 @@ export async function buildSports(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
-  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "sports"), auth, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "sports"), auth: accounts, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const auth = doors.auth;
   const catalog = doors.ledgered<CatalogRepo>(new PgCatalogRepo(d.pool), CATALOG_LEDGER);
   const orders = doors.ledgered<OrdersRepo>(new PgOrdersRepo(d.pool), ORDERS_LEDGER);
 
@@ -56,9 +57,9 @@ export async function buildSports(d: BuildDeps): Promise<FastifyInstance> {
     }
   });
 
-  const tools = sportsTools();
-  registerApi(app, { catalog, orders, auth });
+  const tools = doors.withSignIn(sportsTools());
+  registerApi(app, { catalog, orders });
   registerUi(app, { catalog, orders, auth, tools });
-  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-sports", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, catalog, orders }) }));
+  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-sports", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, catalog, orders }), sessions: true }));
   return app;
 }

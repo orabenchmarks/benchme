@@ -1,11 +1,10 @@
 import type { ShellCtx } from "@benchme/site-kit";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
-/** What every page route shares: the shell context, an HTML reply, and the sign-in guard for writes. */
+/** What every page route shares: the shell context and an HTML reply. A write asks no sign-in here: the site's rules ask it of every door. */
 export type PageKit = {
   ctx: (req: FastifyRequest, flash?: string) => Promise<ShellCtx>;
   html: (reply: FastifyReply, body: string, code?: number) => FastifyReply;
-  requireUser: (req: FastifyRequest, reply: FastifyReply) => Promise<ShellCtx | null>;
 };
 
 type Q = Record<string, string | string[] | undefined>;

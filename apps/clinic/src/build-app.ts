@@ -26,7 +26,7 @@ export type BuildDeps = {
 
 /** Composition root: repos → services → routes. */
 export async function buildClinic(d: BuildDeps): Promise<FastifyInstance> {
-  const auth = new AuthService({
+  const accounts = new AuthService({
     users: new PgUsersRepo(d.pool, "clinic"),
     mailer: d.mailer,
     sessionTtlSeconds: d.sessionTtlSeconds,
@@ -41,7 +41,8 @@ export async function buildClinic(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
-  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "clinic"), auth, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "clinic"), auth: accounts, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const auth = doors.auth;
   // The appointments' rules look doctors and plans up in the catalogue themselves: those are not a door's reads, so they get the catalogue as it is.
   const rawCatalog = new PgCatalogRepo(d.pool);
   const catalog = doors.ledgered<CatalogRepo>(rawCatalog, CATALOG_LEDGER);
@@ -61,9 +62,9 @@ export async function buildClinic(d: BuildDeps): Promise<FastifyInstance> {
     }
   });
 
-  const tools = clinicTools();
-  registerApi(app, { catalog, appointments, prescriptions, auth });
+  const tools = doors.withSignIn(clinicTools());
+  registerApi(app, { catalog, appointments, prescriptions });
   registerUi(app, { catalog, appointments, prescriptions, auth, tools });
-  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-clinic", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, catalog, appointments, prescriptions }) }));
+  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-clinic", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, catalog, appointments, prescriptions }), sessions: true }));
   return app;
 }

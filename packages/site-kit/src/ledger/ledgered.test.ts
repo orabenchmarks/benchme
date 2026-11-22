@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { AuthError } from "../auth-service.js";
 import { CallerScope, type Caller } from "../doors/caller.js";
 import { DOORS } from "../doors/door.js";
+import { NoCarrier } from "../doors/session-carrier.js";
+import { SIGN_IN_REQUIRED_CODE, SignInRequired } from "../doors/sign-in.js";
 import { DomainError } from "../mcp-server.js";
 import { MemoryLedger } from "./ledger.js";
 import { ledgered } from "./ledgered.js";
@@ -55,7 +57,8 @@ const RULES: LedgerRules<OrdersRepo> = {
 
 const WS = "ws_0123456789ab";
 const AT = "2027-03-01T10:02:11.482Z";
-const caller = (over: Partial<Caller> = {}): Caller => ({ door: "rest", observer: false, actor: async () => "ilsa@example.com", ...over });
+const caller = (over: Partial<Caller> = {}): Caller => ({ door: "rest", observer: false, actor: async () => "ilsa@example.com", session: new NoCarrier(), ...over });
+const nobody = (over: Partial<Caller> = {}): Caller => caller({ actor: async () => null, ...over });
 
 function site() {
   const ledger = new MemoryLedger("shop", () => new Date(AT));
@@ -150,6 +153,43 @@ describe("ledgered", () => {
     const callers = new CallerScope();
     const repo = ledgered(new FakeOrders() as OrdersRepo, { ...RULES, cancelOrder: undefined } as unknown as LedgerRules<OrdersRepo>, { ledger: new MemoryLedger("shop"), callers });
     expect(() => callers.run(caller(), () => repo.cancelOrder(WS, "SO-1"))).toThrow(/no ledger rule/);
+  });
+
+  // The sign-in rule. One fixture, one thing varied per case: who is signed in, then the door, then the kind of method.
+  describe("asks a sign-in of every write", () => {
+    it("refuses a write by nobody with the one sign-in code, records the refusal, and never reaches the repository", async () => {
+      const s = site();
+      const refused = await s.as(nobody(), () => s.orders.placeOrder(WS, "TENT")).catch((err: unknown) => err);
+      expect(refused).toBeInstanceOf(SignInRequired);
+      expect(refused).toMatchObject({ code: "UNAUTHORIZED", status: 401 });
+      expect(SIGN_IN_REQUIRED_CODE).toBe("UNAUTHORIZED");
+      expect(await s.entries()).toEqual([
+        { seq: 1, at: AT, app: "shop", kind: "write", entity: { type: "order", id: null }, action: "create", door: "rest", actor: null, outcome: "refused", code: "UNAUTHORIZED" },
+      ]);
+      // Nothing was placed: the same call, signed in, makes the shop's second order and not its third.
+      expect(await s.as(caller(), () => s.orders.placeOrder(WS, "TENT"))).toMatchObject({ orderNo: "SO-2" });
+    });
+
+    it("lets the same write through for someone signed in", async () => {
+      const s = site();
+      await s.as(caller(), () => s.orders.placeOrder(WS, "TENT"));
+      expect((await s.entries()).map((e) => [e.actor, e.outcome, e.code])).toEqual([["ilsa@example.com", "ok", null]]);
+    });
+
+    it.each(DOORS)("asks it through every door alike: %s", async (door) => {
+      const s = site();
+      const refused = await s.as(nobody({ door }), () => s.orders.cancelOrder(WS, "SO-1")).catch((err: unknown) => err);
+      expect(refused).toMatchObject({ code: "UNAUTHORIZED", door });
+      // The rule that would have refused it for its own reason (a shipped order) was never asked.
+      expect((await s.entries()).map((e) => [e.door, e.entity.id, e.action, e.outcome, e.code])).toEqual([[door, "SO-1", "cancel", "refused", "UNAUTHORIZED"]]);
+    });
+
+    it("asks nothing of a read", async () => {
+      const s = site();
+      expect(await s.as(nobody(), () => s.orders.getOrder(WS, "SO-1"))).toMatchObject({ orderNo: "SO-1" });
+      expect(await s.as(nobody(), () => s.orders.listOrders(WS))).toHaveLength(1);
+      expect((await s.entries()).map((e) => [e.kind, e.actor, e.outcome])).toEqual([["read", null, "ok"]]);
+    });
   });
 
   it("keeps each workspace's entries to itself", async () => {

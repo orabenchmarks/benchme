@@ -4,11 +4,15 @@ export { AuthError, AuthService, type AuthDeps, type Mailer, type VerificationCo
 export { HttpMailer } from "./http-mailer.js";
 export { ToolRegistry, type ToolDef } from "./tool-registry.js";
 export { toolInputJsonSchema, type JsonSchemaObject } from "./tool-schema.js";
-export { DomainError, buildMcpServer, registerMcp, type McpDeps } from "./mcp-server.js";
+export { DomainError, buildMcpServer, newMcpSessionId, registerMcp, type McpDeps } from "./mcp-server.js";
 export { refusalOf, type Refusal } from "./refusal.js";
 export { DOORS, DOOR_HEADER, WEBMCP_DOOR_VALUE, doorOf, type Door } from "./doors/door.js";
 export { CallerScope, once, type Caller } from "./doors/caller.js";
-export { registerDoors, type Doors, type DoorsDeps } from "./doors/register-doors.js";
+export { MCP_SESSION_HEADER, registerDoors, type Doors, type DoorsDeps } from "./doors/register-doors.js";
+export { SIGN_IN_REQUIRED_CODE, SignInRequired } from "./doors/sign-in.js";
+export { SIGN_IN_TOOLS, registerSignInTools, type SignInToolsDeps } from "./doors/sign-in-tools.js";
+export { CookieCarrier, McpSessionCarrier, NoCarrier, isMcpSessionId, type Session, type SessionCarrier } from "./doors/session-carrier.js";
+export { AUTH_LEDGER } from "./ledger/auth-rules.js";
 export { LEDGER_KINDS, LEDGER_OUTCOMES, NOT_FOUND_CODE, READ_ACTION, ledgerEntrySchema, ledgerPageSchema, type LedgerEntry, type LedgerKind, type LedgerOutcome, type LedgerPage, type NewLedgerEntry } from "./ledger/entry.js";
 export { MemoryLedger, PgLedger, type Ledger } from "./ledger/ledger.js";
 export { ledgerPath, registerLedgerRoute } from "./ledger/ledger-route.js";

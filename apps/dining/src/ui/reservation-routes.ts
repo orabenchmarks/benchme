@@ -9,11 +9,10 @@ import { reservationDetail, reservationsList } from "./reservation-pages.js";
 import { dayParamsOf, type DayParams } from "./restaurant-page.js";
 
 export type Page = { status: number; body: string };
-/** What the reservation routes share with the browsing ones: the shell, the sign-in guard, and the restaurant page a refused reservation re-renders. */
+/** What the reservation routes share with the browsing ones: the shell, and the restaurant page a refused reservation re-renders. A write asks no sign-in here: the site's rules ask it of every door. */
 export type UiKit = {
   dining: DiningRepo;
   ctx: (req: FastifyRequest, flash?: string) => Promise<ShellCtx>;
-  requireUser: (req: FastifyRequest, reply: FastifyReply) => Promise<ShellCtx | null>;
   restaurantPage: (req: FastifyRequest, code: string, params: DayParams, flash?: string) => Promise<Page>;
 };
 
@@ -40,7 +39,6 @@ export function registerReservationRoutes(app: FastifyInstance, k: UiKit): void 
   };
 
   app.post("/reservations", async (req, reply) => {
-    if (!(await k.requireUser(req, reply))) return;
     const f = formOf(req);
     const code = one(f.restaurantCode) ?? "";
     const parsed = reservationSchema.safeParse(filled(flat(f)));
@@ -74,7 +72,6 @@ export function registerReservationRoutes(app: FastifyInstance, k: UiKit): void 
   });
 
   app.post<{ Params: { no: string } }>("/reservations/:no/change", async (req, reply) => {
-    if (!(await k.requireUser(req, reply))) return;
     const f = flat(formOf(req));
     // An emptied special request clears it, so the note is kept even when blank.
     const parsed = changeSchema.safeParse({ ...filled(f), ...(f.note !== undefined ? { note: f.note } : {}) });
@@ -90,7 +87,6 @@ export function registerReservationRoutes(app: FastifyInstance, k: UiKit): void 
   });
 
   app.post<{ Params: { no: string } }>("/reservations/:no/cancel", async (req, reply) => {
-    if (!(await k.requireUser(req, reply))) return;
     return write(
       reply,
       async () => `${req.prefix}/reservations/${(await k.dining.cancelReservation(req.workspaceId, req.params.no)).reservationNo}`,

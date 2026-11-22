@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Door } from "./door.js";
+import type { SessionCarrier } from "./session-carrier.js";
 
 /** Who is asking, for the length of one request. */
 export type Caller = {
@@ -8,6 +9,8 @@ export type Caller = {
   readonly observer: boolean;
   /** The email of whoever is signed in on this request, or null for nobody. Resolved once, when first asked. */
   actor(): Promise<string | null>;
+  /** How a sign-in made on this request stays with the caller. */
+  readonly session: SessionCarrier;
 };
 
 /**

@@ -10,8 +10,12 @@
  *
  * One fresh workspace at the corpus seed, signed in to every app that has
  * accounts (sign-up → the code from the workspace inbox → verify → log in, as
- * tools/agent-eval does), then four passes:
+ * tools/agent-eval does), then five passes:
  *
+ *   0. no door is a dead end: on every app whose tools sign in, an account is
+ *      signed up, mailed its code, verified and signed in through MCP tools
+ *      alone (the app's, and the inbox's to read the code), with a second
+ *      address so the pages' own sign-in above is left as it was;
  *   1. every state task FAILS before anything is done — no check passes vacuously;
  *   2. every json task: the answer read back from the LIVE apps the way its
  *      question asks it is accepted, and a wrong answer is refused — the key
@@ -74,6 +78,48 @@ async function signIn(ws, app) {
   const cookies = login.headers.getSetCookie().map((c) => c.split(";")[0]);
   if (login.status !== 303 || cookies.length === 0) throw new Error(`${app} login answered ${login.status} with ${cookies.length} cookies`);
   return cookies;
+}
+
+/** One JSON-RPC request to an app's MCP server, as an MCP client sends it: the result, and the session id an `initialize` answers with. */
+async function mcp(ws, app, method, params, session) {
+  const res = await http("POST", `${BASE}/w/${ws}/${app}/mcp`, { body: { jsonrpc: "2.0", id: 1, method, params }, headers: { accept: "application/json, text/event-stream", ...(session ? { "mcp-session-id": session } : {}) } });
+  const text = await res.text();
+  if (!res.ok) throw Object.assign(new Error(`${app} mcp ${method} answered ${res.status}: ${text.slice(0, 300)}`), { status: res.status });
+  const line = text.split("\n").filter((l) => l.startsWith("data:")).pop();
+  const message = JSON.parse(line ? line.slice(5) : text);
+  if (message.error) throw new Error(`${app} mcp ${method}: ${JSON.stringify(message.error).slice(0, 300)}`);
+  return { result: message.result, session: res.headers.get("mcp-session-id") };
+}
+
+/** A tool's answer: the JSON it printed, or a throw with the tool's own words when it refused. */
+async function tool(ws, app, name, args, session) {
+  const { result } = await mcp(ws, app, "tools/call", { name, arguments: args }, session);
+  const said = JSON.parse(result.content[0].text);
+  if (result.isError) throw new Error(`${app} ${name} refused: ${JSON.stringify(said).slice(0, 300)}`);
+  return said;
+}
+
+/**
+ * The sign-in of `signIn`, through MCP tools alone: sign_up, the mailed code
+ * read with the inbox's own tools, verify_email, sign_in, and the site's word
+ * for who the connection now is. False for an app whose tools do not sign in.
+ */
+async function signInThroughTools(ws, app, email) {
+  // An app with no MCP server at all (the company's static site) has no tools to sign in with.
+  const listed = await mcp(ws, app, "tools/list", {}).catch((err) => (err.status === 404 ? null : Promise.reject(err)));
+  if (!listed?.result.tools.some((t) => t.name === "sign_in")) return false;
+  const { session } = await mcp(ws, app, "initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "intent-integrity", version: "0" } });
+  if (!session) throw new Error(`${app} gave an initializing client no Mcp-Session-Id to stay signed in with`);
+  const password = `pw-${Math.random().toString(36).slice(2)}-X9`;
+  await tool(ws, app, "sign_up", { name: "Integrity", email, password }, session);
+  const mail = await tool(ws, "mail", "list_messages", { to: email });
+  const code = mail.filter((m) => String(m.from).includes(app)).map((m) => /\b(\d{6})\b/.exec(m.body)?.[1]).filter(Boolean).at(0);
+  if (!code) throw new Error(`no verification code for ${app} in the inbox, read through its tools`);
+  await tool(ws, app, "verify_email", { email, code }, session);
+  await tool(ws, app, "sign_in", { email, password }, session);
+  const who = await tool(ws, app, "whoami", {}, session);
+  if (who.signedIn !== true || who.email !== email) throw new Error(`${app} says the connection is ${JSON.stringify(who)} after sign_in`);
+  return true;
 }
 
 function apiFor(ws, sessions) {
@@ -151,6 +197,16 @@ const passed = (label, checked) => {
 };
 
 console.log(`workspace ${ws} (${SCENARIO}) — ${state.length} state + ${json.length} json tasks`);
+
+let signedInByTools = 0;
+for (const app of Object.keys(sessions)) {
+  try {
+    if (await signInThroughTools(ws, app, "tools-integrity@example.com")) signedInByTools++;
+  } catch (err) {
+    surprise(app, `an agent with only its MCP tools cannot sign in: ${err.message}`);
+  }
+}
+passed("pass 0 — an account signs up and in through MCP tools alone, on every app whose tools sign in", signedInByTools);
 
 for (const t of state) {
   const r = await submit(ws, t.id, {});

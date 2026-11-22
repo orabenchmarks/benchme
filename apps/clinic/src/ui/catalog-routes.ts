@@ -1,4 +1,4 @@
-import { DomainError, requireSession, shell, type AuthService } from "@benchme/site-kit";
+import { DomainError, shell } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { appointmentSchema, date, doctorQuerySchema, toDoctorQuery } from "../api/inputs.js";
 import type { AppointmentsRepo } from "../db/appointments-repo.js";
@@ -6,14 +6,13 @@ import type { CatalogRepo } from "../db/catalog-repo.js";
 import * as catalogPages from "./pages/catalog.js";
 import * as doctorPages from "./pages/doctor.js";
 import * as findPages from "./pages/find.js";
-import { SESSION_COOKIE, form, html, query, type Ctx } from "./shell.js";
+import { form, html, query, type Ctx } from "./shell.js";
 
-export type CatalogUiDeps = { catalog: CatalogRepo; appointments: AppointmentsRepo; auth: AuthService; ctx: Ctx };
+export type CatalogUiDeps = { catalog: CatalogRepo; appointments: AppointmentsRepo; ctx: Ctx };
 type P = { Params: { code: string } };
 
 /** Find a doctor, a doctor's page (with the day's slots and the booking form), clinics, plans, prescription prices. */
 export function registerCatalogUi(app: FastifyInstance, d: CatalogUiDeps): void {
-  const requireUser = requireSession({ auth: d.auth, cookie: SESSION_COOKIE, shellCtx: d.ctx });
   const notFound = async (req: FastifyRequest, what: string) => ({ status: 404, body: shell(await d.ctx(req), "Not found", `<h1>No such ${what}</h1>`) });
 
   const doctorPage = async (req: FastifyRequest, code: string, b: doctorPages.BookParams, flash?: string) => {
@@ -46,8 +45,6 @@ export function registerCatalogUi(app: FastifyInstance, d: CatalogUiDeps): void 
   });
 
   app.post("/appointments", async (req, reply) => {
-    const c = await requireUser(req, reply);
-    if (!c) return;
     const f = form(req);
     const keep: doctorPages.BookParams = { date: f.date, time: f.time, visitType: f.visitType, planCode: f.planCode, patientName: f.patientName, patientEmail: f.patientEmail };
     const parsed = appointmentSchema.safeParse(f);

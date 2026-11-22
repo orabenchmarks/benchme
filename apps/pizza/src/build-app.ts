@@ -23,7 +23,7 @@ export type BuildDeps = {
 
 /** Composition root: repos → services → routes. */
 export async function buildPizza(d: BuildDeps): Promise<FastifyInstance> {
-  const auth = new AuthService({
+  const accounts = new AuthService({
     users: new PgUsersRepo(d.pool, "pizza"),
     mailer: d.mailer,
     sessionTtlSeconds: d.sessionTtlSeconds,
@@ -38,7 +38,8 @@ export async function buildPizza(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
-  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "pizza"), auth, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "pizza"), auth: accounts, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const auth = doors.auth;
   const pizza = doors.ledgered<PizzaRepo>(new PgPizzaRepo(d.pool), PIZZA_LEDGER);
 
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
@@ -54,9 +55,9 @@ export async function buildPizza(d: BuildDeps): Promise<FastifyInstance> {
     }
   });
 
-  const tools = pizzaTools();
-  registerApi(app, { pizza, auth });
+  const tools = doors.withSignIn(pizzaTools());
+  registerApi(app, { pizza });
   registerUi(app, { pizza, auth, tools });
-  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-pizza", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, pizza }) }));
+  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-pizza", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, pizza }), sessions: true }));
   return app;
 }

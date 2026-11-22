@@ -23,7 +23,7 @@ export type BuildDeps = {
 
 /** Composition root: repos → services → routes. */
 export async function buildCinema(d: BuildDeps): Promise<FastifyInstance> {
-  const auth = new AuthService({
+  const accounts = new AuthService({
     users: new PgUsersRepo(d.pool, "cinema"),
     mailer: d.mailer,
     sessionTtlSeconds: d.sessionTtlSeconds,
@@ -38,7 +38,8 @@ export async function buildCinema(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
-  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "cinema"), auth, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "cinema"), auth: accounts, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const auth = doors.auth;
   const cinema = doors.ledgered<CinemaRepo>(new PgCinemaRepo(d.pool), CINEMA_LEDGER);
 
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
@@ -54,9 +55,9 @@ export async function buildCinema(d: BuildDeps): Promise<FastifyInstance> {
     }
   });
 
-  const tools = cinemaTools();
-  registerApi(app, { cinema, auth });
+  const tools = doors.withSignIn(cinemaTools());
+  registerApi(app, { cinema });
   registerUi(app, { cinema, auth, tools });
-  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-cinema", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, cinema }) }));
+  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-cinema", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, cinema }), sessions: true }));
   return app;
 }

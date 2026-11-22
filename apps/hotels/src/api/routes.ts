@@ -1,24 +1,17 @@
-import { DomainError, apiUser, type AuthService } from "@benchme/site-kit";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { DomainError } from "@benchme/site-kit";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { HotelsRepo } from "../db/hotels-repo.js";
-import { SESSION_COOKIE } from "../ui/routes.js";
 import { amenityList, bookingSchema, date, given, nights, searchSchema, toQuery } from "./inputs.js";
 
-export type ApiDeps = { hotels: HotelsRepo; auth: AuthService };
+export type ApiDeps = { hotels: HotelsRepo };
 
 const hotelsQuery = z.object({ city: z.string().optional(), amenities: amenityList, pets: given(z.enum(["true", "false"]).optional()) });
 const bookingsQuery = z.object({ guestEmail: z.string().optional(), hotel: z.string().optional(), status: given(z.enum(["confirmed", "cancelled"]).optional()), cursor: z.string().optional(), limit: given(z.coerce.number().int().min(1).max(200).default(50)) });
 const availabilityQuery = z.object({ checkIn: date, nights });
 
-/** REST under /api/v1. Reads are open inside the workspace; booking and cancelling need a bearer token or a session. */
+/** REST under /api/v1. Reads are open inside the workspace; booking and cancelling need a bearer token or a session: the site's rules ask it of every write, through every door (site-kit's `ledgered`), so no route here does. */
 export function registerApi(app: FastifyInstance, d: ApiDeps): void {
-  const caller = apiUser(d.auth, SESSION_COOKIE);
-  const authed = async (req: FastifyRequest, reply: FastifyReply): Promise<boolean> => {
-    if (await caller(req)) return true;
-    reply.code(401).send({ error: "UNAUTHORIZED", message: "sign in or send Authorization: Bearer <api token>" });
-    return false;
-  };
   const run = async (reply: FastifyReply, fn: () => Promise<unknown>, code = 200) => {
     try {
       return reply.code(code).send(await fn());
@@ -59,13 +52,11 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
   });
   app.get<{ Params: { no: string } }>("/api/v1/bookings/:no", async (req, reply) => (await d.hotels.getBooking(req.workspaceId, req.params.no)) ?? reply.code(404).send({ error: "NOT_FOUND" }));
   app.post("/api/v1/bookings", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const b = parse(bookingSchema, req.body, reply);
     if (!b) return;
     return run(reply, () => d.hotels.createBooking(req.workspaceId, b), 201);
   });
   app.post<{ Params: { no: string } }>("/api/v1/bookings/:no/cancel", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     return run(reply, () => d.hotels.cancelBooking(req.workspaceId, req.params.no));
   });
 }

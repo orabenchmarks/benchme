@@ -1,13 +1,12 @@
-import { DomainError, apiUser, type AuthService } from "@benchme/site-kit";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { DomainError } from "@benchme/site-kit";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { EventsRepo } from "../db/events-repo.js";
 import type { OfficesRepo } from "../db/offices-repo.js";
 import type { RegistrationsRepo } from "../db/registrations-repo.js";
-import { SESSION_COOKIE } from "../ui/shell.js";
 import { changeSchema, date, equipmentList, eventSchema, freeRoomSchema, given, organiserSchema, registerSchema, registrationMode } from "./inputs.js";
 
-export type ApiDeps = { offices: OfficesRepo; events: EventsRepo; registrations: RegistrationsRepo; auth: AuthService };
+export type ApiDeps = { offices: OfficesRepo; events: EventsRepo; registrations: RegistrationsRepo };
 
 const flag = given(z.enum(["true", "false"]).optional());
 const roomsQuery = z.object({ office: z.string().optional(), minCapacity: given(z.coerce.number().int().min(1).optional()), equipment: equipmentList, accessible: flag });
@@ -21,14 +20,8 @@ const registrationsQuery = z.object({ email: z.string().optional(), event: z.str
 /** Drops the keys a query left out, so a filter object never carries `undefined`. */
 const defined = <T extends Record<string, unknown>>(o: T) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== "")) as T;
 
-/** REST under /api/v1. Reads are open inside the workspace; every write needs a bearer token or a session. */
+/** REST under /api/v1. Reads are open inside the workspace; every write needs a bearer token or a session: the site's rules ask it of every write, through every door (site-kit's `ledgered`), so no route here does. */
 export function registerApi(app: FastifyInstance, d: ApiDeps): void {
-  const caller = apiUser(d.auth, SESSION_COOKIE);
-  const authed = async (req: FastifyRequest, reply: FastifyReply): Promise<boolean> => {
-    if (await caller(req)) return true;
-    reply.code(401).send({ error: "UNAUTHORIZED", message: "sign in or send Authorization: Bearer <api token>" });
-    return false;
-  };
   const run = async (reply: FastifyReply, fn: () => Promise<unknown>, code = 200) => {
     try {
       return reply.code(code).send(await fn());
@@ -75,25 +68,21 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
   });
   app.get<P>("/api/v1/events/:code", async (req, reply) => (await d.events.getEvent(req.workspaceId, req.params.code)) ?? notFound(reply));
   app.post("/api/v1/events", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const e = parse(eventSchema, req.body, reply);
     if (!e) return;
     return run(reply, () => d.events.createEvent(req.workspaceId, e), 201);
   });
   app.post<P>("/api/v1/events/:code/change", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const ch = parse(changeSchema, req.body, reply);
     if (!ch) return;
     return run(reply, () => d.events.changeEvent(req.workspaceId, req.params.code, defined(ch)));
   });
   app.post<P>("/api/v1/events/:code/cancel", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const b = parse(organiserSchema, req.body, reply);
     if (!b) return;
     return run(reply, () => d.events.cancelEvent(req.workspaceId, req.params.code, b.organiserEmail));
   });
   app.post<P>("/api/v1/events/:code/register", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const who = parse(registerSchema, req.body, reply);
     if (!who) return;
     return run(reply, () => d.registrations.register(req.workspaceId, req.params.code, who), 201);
@@ -107,7 +96,6 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
   });
   app.get<P>("/api/v1/registrations/:code", async (req, reply) => (await d.registrations.getRegistration(req.workspaceId, req.params.code)) ?? notFound(reply));
   app.post<P>("/api/v1/registrations/:code/cancel", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     return run(reply, () => d.registrations.cancelRegistration(req.workspaceId, req.params.code));
   });
 }

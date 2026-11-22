@@ -61,12 +61,19 @@ export class AuthService {
     if (!ok) throw new AuthError("BAD_CODE", "that code is wrong or has expired");
   }
 
-  async login(ws: string, email: string, password: string): Promise<{ token: string; expiresAt: Date }> {
+  /**
+   * `bindTo` stores the session under a token the caller already holds (an MCP
+   * session's id) instead of a fresh one, replacing whoever was signed in
+   * under it: a client that cannot keep a cookie stays signed in by what it
+   * already repeats on every request.
+   */
+  async login(ws: string, email: string, password: string, bindTo?: string): Promise<{ token: string; expiresAt: Date }> {
     const user = await this.d.users.getUser(ws, email.trim().toLowerCase());
     if (!user || !(await matches(password, user.passwordHash))) throw new AuthError("BAD_CREDENTIALS", "wrong email or password", 401);
     if (!user.verifiedAt) throw new AuthError("UNVERIFIED", "verify your email before signing in", 403);
-    const token = randomBytes(24).toString("hex");
+    const token = bindTo ?? randomBytes(24).toString("hex");
     const expiresAt = new Date(this.now().getTime() + this.d.sessionTtlSeconds * 1000);
+    if (bindTo) await this.d.users.deleteSession(ws, bindTo);
     await this.d.users.createSession(ws, token, user.email, expiresAt);
     return { token, expiresAt };
   }

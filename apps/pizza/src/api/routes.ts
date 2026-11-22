@@ -1,23 +1,16 @@
-import { DomainError, apiUser, type AuthService } from "@benchme/site-kit";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { DomainError } from "@benchme/site-kit";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { PizzaRepo } from "../db/pizza-repo.js";
-import { SESSION_COOKIE } from "../ui/routes.js";
 import { changeSchema, fromSearchQuery, orderSchema, ordersQuery, quoteSchema, searchQuery, slotsQuery } from "./inputs.js";
 
-export type ApiDeps = { pizza: PizzaRepo; auth: AuthService };
+export type ApiDeps = { pizza: PizzaRepo };
 
 const branchesQuery = z.object({ city: z.string().optional() });
 const lineParam = z.coerce.number().int().min(1);
 
-/** REST under /api/v1. Reads (a quote included) are open inside the workspace; placing, changing and cancelling an order need a bearer token or a session. */
+/** REST under /api/v1. Reads (a quote included) are open inside the workspace; placing, changing and cancelling an order need a bearer token or a session: the site's rules ask it of every write, through every door (site-kit's `ledgered`), so no route here does. */
 export function registerApi(app: FastifyInstance, d: ApiDeps): void {
-  const caller = apiUser(d.auth, SESSION_COOKIE);
-  const authed = async (req: FastifyRequest, reply: FastifyReply): Promise<boolean> => {
-    if (await caller(req)) return true;
-    reply.code(401).send({ error: "UNAUTHORIZED", message: "sign in or send Authorization: Bearer <api token>" });
-    return false;
-  };
   const run = async (reply: FastifyReply, fn: () => Promise<unknown>, code = 200) => {
     try {
       return reply.code(code).send(await fn());
@@ -69,13 +62,11 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
   });
   app.get<{ Params: { no: string } }>("/api/v1/orders/:no", async (req, reply) => (await d.pizza.getOrder(req.workspaceId, req.params.no)) ?? notFound(reply));
   app.post("/api/v1/orders", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const b = parse(orderSchema, req.body, reply);
     if (!b) return;
     return run(reply, () => d.pizza.placeOrder(req.workspaceId, b), 201);
   });
   app.post<{ Params: { no: string; line: string } }>("/api/v1/orders/:no/lines/:line", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const line = parse(lineParam, req.params.line, reply);
     if (line === null) return;
     const change = parse(changeSchema, req.body ?? {}, reply);
@@ -83,7 +74,6 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
     return run(reply, () => d.pizza.changeLine(req.workspaceId, req.params.no, line, change));
   });
   app.post<{ Params: { no: string } }>("/api/v1/orders/:no/cancel", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     return run(reply, () => d.pizza.cancelOrder(req.workspaceId, req.params.no));
   });
 }

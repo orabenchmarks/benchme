@@ -54,7 +54,7 @@ export function registerPortal(app: FastifyInstance, d: PortalDeps): void {
       page(
         "benchme — MCP registry",
         `<h1>MCP server registry</h1>
-<p>Each server is scoped to a workspace by its URL. No authentication: the unguessable workspace id is the capability.</p>
+<p>Each server is scoped to a workspace by its URL: the unguessable workspace id is the capability to read. A site with accounts asks the same sign-in of a write through its tools as through its pages (<code>sign_up</code>, <code>verify_email</code> with the code mailed to the inbox, <code>sign_in</code>).</p>
 <table><tr><th>server</th><th>endpoint</th><th>transport</th><th>NLWeb /ask</th><th>ask MCP</th><th>WebMCP</th></tr>${rows}</table>`,
       ),
     );

@@ -68,7 +68,10 @@ and `node tools/intent-integrity.mjs --scenario webmcp-v1` proves this one.
   benchme serving these specs: every state task FAILS on a fresh workspace,
   PASSES once its reference solution has run through the REST API, and still
   passes after all of them ran; every json task accepts the answer read back
-  from the LIVE apps and refuses a wrong one. CI runs it on every change.
+  from the LIVE apps and refuses a wrong one. It also signs an account up and
+  in through MCP tools alone on every site whose tools sign in (the code read
+  with the inbox's tools), so no door is a dead end. CI runs it on every
+  change.
 
   ```bash
   docker compose -f compose.yaml -f compose.build.yaml up -d --build --wait

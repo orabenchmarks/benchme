@@ -23,7 +23,7 @@ export type BuildDeps = {
 
 /** Composition root: repos → services → routes. */
 export async function buildHotels(d: BuildDeps): Promise<FastifyInstance> {
-  const auth = new AuthService({
+  const accounts = new AuthService({
     users: new PgUsersRepo(d.pool, "hotels"),
     mailer: d.mailer,
     sessionTtlSeconds: d.sessionTtlSeconds,
@@ -38,7 +38,8 @@ export async function buildHotels(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
-  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "hotels"), auth, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "hotels"), auth: accounts, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const auth = doors.auth;
   const hotels = doors.ledgered<HotelsRepo>(new PgHotelsRepo(d.pool), HOTELS_LEDGER);
 
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
@@ -54,9 +55,9 @@ export async function buildHotels(d: BuildDeps): Promise<FastifyInstance> {
     }
   });
 
-  const tools = hotelTools();
-  registerApi(app, { hotels, auth });
+  const tools = doors.withSignIn(hotelTools());
+  registerApi(app, { hotels });
   registerUi(app, { hotels, auth, tools });
-  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-hotels", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, hotels }) }));
+  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-hotels", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, hotels }), sessions: true }));
   return app;
 }

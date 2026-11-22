@@ -1,4 +1,4 @@
-import { registerAuthRoutes, requireSession, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
+import { registerAuthRoutes, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { searchSchema, toSearch } from "../api/inputs.js";
 import type { CatalogRepo } from "../db/catalog-repo.js";
@@ -32,7 +32,7 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
   const html = (reply: FastifyReply, body: string, code = 200) => reply.code(code).type("text/html; charset=utf-8").send(body);
   const authDeps = { auth: d.auth, cookie: SESSION_COOKIE, shellCtx: ctx };
   registerAuthRoutes(app, authDeps);
-  const kit: PageKit = { ctx, html, requireUser: requireSession(authDeps) };
+  const kit: PageKit = { ctx, html };
   const notFound = async (req: FastifyRequest, reply: FastifyReply, what: string) => html(reply, shell(await ctx(req), "Not found", `<h1>No such ${what}</h1>`), 404);
 
   app.get("/", async (req, reply) => {

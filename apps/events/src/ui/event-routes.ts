@@ -50,7 +50,6 @@ export function registerEventUi(app: FastifyInstance, k: UiKit): void {
   app.get("/events/new", async (req, reply) => newPage(req, reply, flat(query(req)) as EventValues));
 
   app.post("/events", async (req, reply) => {
-    if (!(await k.requireUser(req, reply))) return;
     const f = form(req) as EventValues;
     const parsed = eventSchema.safeParse(f);
     if (!parsed.success) return newPage(req, reply, f, { code: 400, flash: `Check the event: ${fieldsOf(parsed.error.issues)}` });
@@ -67,7 +66,6 @@ export function registerEventUi(app: FastifyInstance, k: UiKit): void {
   app.get<P>("/events/:code/change", async (req, reply) => changePage(req, reply, req.params.code, null));
 
   app.post<P>("/events/:code/change", async (req, reply) => {
-    if (!(await k.requireUser(req, reply))) return;
     const f = form(req) as EventValues;
     const parsed = changeSchema.safeParse(f);
     if (!parsed.success) return changePage(req, reply, req.params.code, f, { code: 400, flash: `Check the change: ${fieldsOf(parsed.error.issues)}` });
@@ -80,7 +78,6 @@ export function registerEventUi(app: FastifyInstance, k: UiKit): void {
   });
 
   app.post<P>("/events/:code/cancel", async (req, reply) => {
-    if (!(await k.requireUser(req, reply))) return;
     const parsed = organiserSchema.safeParse(form(req));
     if (!parsed.success) return eventPage(req, reply, req.params.code, { code: 400, flash: "Give the organiser's email to cancel the event." });
     try {
@@ -92,7 +89,6 @@ export function registerEventUi(app: FastifyInstance, k: UiKit): void {
   });
 
   app.post<P>("/events/:code/register", async (req, reply) => {
-    if (!(await k.requireUser(req, reply))) return;
     const parsed = registerSchema.safeParse(form(req));
     if (!parsed.success) return eventPage(req, reply, req.params.code, { code: 400, flash: `Check the registration: ${fieldsOf(parsed.error.issues)}` });
     try {

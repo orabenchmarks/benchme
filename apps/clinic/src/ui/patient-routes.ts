@@ -1,18 +1,17 @@
-import { DomainError, requireSession, shell, type AuthService } from "@benchme/site-kit";
+import { DomainError, shell } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { appointmentsQuery, refillSchema, toAppointmentFilter } from "../api/inputs.js";
 import type { AppointmentsRepo } from "../db/appointments-repo.js";
 import type { CatalogRepo } from "../db/catalog-repo.js";
 import type { PrescriptionsRepo } from "../db/prescriptions-repo.js";
 import * as pages from "./pages/patient.js";
-import { SESSION_COOKIE, form, html, query, type Ctx } from "./shell.js";
+import { form, html, query, type Ctx } from "./shell.js";
 
-export type PatientUiDeps = { catalog: CatalogRepo; appointments: AppointmentsRepo; prescriptions: PrescriptionsRepo; auth: AuthService; ctx: Ctx };
+export type PatientUiDeps = { catalog: CatalogRepo; appointments: AppointmentsRepo; prescriptions: PrescriptionsRepo; ctx: Ctx };
 type N = { Params: { no: string } };
 
 /** A patient's appointments (with cancel) and prescriptions (with the refill request). */
 export function registerPatientUi(app: FastifyInstance, d: PatientUiDeps): void {
-  const requireUser = requireSession({ auth: d.auth, cookie: SESSION_COOKIE, shellCtx: d.ctx });
   const missing = async (req: FastifyRequest, what: string) => ({ status: 404, body: shell(await d.ctx(req), "Not found", `<h1>No such ${what}</h1>`) });
   const send = (reply: FastifyReply, page: { status: number; body: string }, status = page.status) => html(reply, page.body, page.status === 404 ? 404 : status);
 
@@ -33,7 +32,6 @@ export function registerPatientUi(app: FastifyInstance, d: PatientUiDeps): void 
   };
   app.get<N>("/appointments/:no", async (req, reply) => send(reply, await appointmentPage(req, req.params.no)));
   app.post<N>("/appointments/:no/cancel", async (req, reply) => {
-    if (!(await requireUser(req, reply))) return;
     try {
       await d.appointments.cancel(req.workspaceId, req.params.no);
       return reply.redirect(`${req.prefix}/appointments/${req.params.no}`, 303);
@@ -57,7 +55,6 @@ export function registerPatientUi(app: FastifyInstance, d: PatientUiDeps): void 
   };
   app.get<N>("/prescriptions/:no", async (req, reply) => send(reply, await prescriptionPage(req, req.params.no)));
   app.post<N>("/prescriptions/:no/refill", async (req, reply) => {
-    if (!(await requireUser(req, reply))) return;
     const parsed = refillSchema.safeParse(form(req));
     if (!parsed.success) return send(reply, await prescriptionPage(req, req.params.no, "Choose the pharmacy to collect the refill at"), 400);
     try {

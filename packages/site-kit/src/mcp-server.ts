@@ -1,19 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { FastifyInstance } from "fastify";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import { randomUUID } from "node:crypto";
+import { doorOf } from "./doors/door.js";
+import { refusalOf } from "./refusal.js";
 import type { ToolRegistry } from "./tool-registry.js";
 
-/** Thrown by a tool/domain operation to render a structured error (never a 500). */
-export class DomainError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly status = 422,
-  ) {
-    super(message);
-    this.name = "DomainError";
-  }
-}
+export { DomainError } from "./domain-error.js";
 
 export type McpDeps<C> = {
   serverName: string;
@@ -23,7 +17,18 @@ export type McpDeps<C> = {
   context: (workspaceId: string, prefix: string) => C;
   /** Register anything beyond tools (resources, prompts) — run after the tool loop. */
   extras?: (server: McpServer, ctx: C) => void;
+  /**
+   * For a site whose tools sign in (`Doors.withSignIn`): hand each client a
+   * session id when it initializes, which it then repeats on every request and
+   * a sign-in is kept under, and answer a page's bridge in one JSON body so
+   * the answer can carry the browser's session cookie. The server stays
+   * stateless either way: the id is a name, held nowhere here.
+   */
+  sessions?: boolean;
 };
+
+/** An MCP session's id, told apart at a glance from a site's own session tokens. */
+export const newMcpSessionId = (): string => `mcp-${randomUUID()}`;
 
 /** A fresh MCP server bound to one workspace (stateless per request). */
 export function buildMcpServer<C>(d: McpDeps<C>, ctx: C): McpServer {
@@ -34,9 +39,9 @@ export function buildMcpServer<C>(d: McpDeps<C>, ctx: C): McpServer {
         const result = await tool.handler(args as never, ctx);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
-        if (err instanceof DomainError) {
-          return { isError: true, content: [{ type: "text", text: JSON.stringify({ error: err.code, message: err.message }) }] };
-        }
+        // A rule's refusal, a sign-in's, or a write by nobody: the tool's own answer, never a protocol error.
+        const refusal = refusalOf(err);
+        if (refusal) return { isError: true, content: [{ type: "text", text: JSON.stringify({ error: refusal.code, message: refusal.message }) }] };
         throw err;
       }
     });
@@ -67,7 +72,7 @@ export function registerMcp<C>(app: FastifyInstance, d: McpDeps<C>): void {
 
   app.all("/mcp", async (req, reply) => {
     const server = buildMcpServer(d, d.context(req.workspaceId, req.prefix));
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    const transport = new StreamableHTTPServerTransport(d.sessions ? sessionOptions(req) : { sessionIdGenerator: undefined });
     reply.hijack();
     reply.raw.on("close", () => {
       void transport.close();
@@ -76,4 +81,17 @@ export function registerMcp<C>(app: FastifyInstance, d: McpDeps<C>): void {
     await server.connect(transport);
     await transport.handleRequest(req.raw, reply.raw, req.body);
   });
+}
+
+/**
+ * One transport per request, as ever. The request that initializes gets a
+ * session id to repeat; every later one is taken as it comes, with no session
+ * held here to check it against. A page's bridge reads one JSON body.
+ */
+function sessionOptions(req: FastifyRequest): ConstructorParameters<typeof StreamableHTTPServerTransport>[0] {
+  const messages: unknown[] = Array.isArray(req.body) ? req.body : [req.body];
+  return {
+    sessionIdGenerator: messages.some((m) => isInitializeRequest(m)) ? newMcpSessionId : undefined,
+    enableJsonResponse: doorOf(req.url, req.headers) === "webmcp",
+  };
 }

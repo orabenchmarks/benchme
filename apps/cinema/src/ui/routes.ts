@@ -1,4 +1,4 @@
-import { DomainError, registerAuthRoutes, requireSession, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
+import { DomainError, registerAuthRoutes, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { blankless, bookingSchema, searchSchema, toNewBooking, toQuery } from "../api/inputs.js";
 import type { CinemaRepo } from "../db/cinema-repo.js";
@@ -33,7 +33,6 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
   const html = (reply: FastifyReply, body: string, code = 200) => reply.code(code).type("text/html; charset=utf-8").send(body);
   const notFound = async (req: FastifyRequest, reply: FastifyReply, what: string) => html(reply, shell(await ctx(req), "Not found", `<h1>No such ${what}</h1>`), 404);
   const authDeps = { auth: d.auth, cookie: SESSION_COOKIE, shellCtx: ctx };
-  const requireUser = requireSession(authDeps);
   registerAuthRoutes(app, authDeps);
 
   const showtimePage = async (req: FastifyRequest, code: string, form: browse.Filters = {}, flash?: string) => {
@@ -76,8 +75,6 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
   });
 
   app.post("/bookings", async (req, reply) => {
-    const c = await requireUser(req, reply);
-    if (!c) return;
     const f = flat(req, "body");
     const code = f.showtimeCode ?? "";
     const parsed = bookingSchema.safeParse(blankless(f));
@@ -115,8 +112,6 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
   });
 
   app.post<{ Params: { no: string } }>("/bookings/:no/cancel", async (req, reply) => {
-    const c = await requireUser(req, reply);
-    if (!c) return;
     try {
       await d.cinema.cancelBooking(req.workspaceId, req.params.no);
       return reply.redirect(`${req.prefix}/bookings/${req.params.no}`, 303);

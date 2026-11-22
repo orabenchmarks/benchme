@@ -1,6 +1,6 @@
 import { VERIFIER_SIG_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signVerifierHeader, signWorkspaceHeader, type Pool } from "@benchme/core";
 import { SPORTS_TODAY, webmcpV1, scenarios, searchSportsVariants, sportsOrderTotals, sportsReturnDeadline, sportsReturnedQty, type SportsRows } from "@benchme/scenarios";
-import type { LedgerEntry, Mailer } from "@benchme/site-kit";
+import { SIGN_IN_TOOLS, type LedgerEntry, type Mailer } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { FastifyInstance, InjectOptions } from "fastify";
@@ -181,7 +181,8 @@ describe.skipIf(!DB)("sports (real Postgres)", () => {
     const other = second(source)!;
     const foreign = rows.addresses.find((a) => a.customerEmail !== source.customerEmail)!;
     const client = new Client({ name: "test", version: "0" });
-    await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));
+    // A write through a tool needs the sign-in every door asks: this client carries the account's api token.
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws), authorization: `Bearer ${bearer}` } } }));
     /** One reorder, [refusal, the address it ships to]; the new order is cancelled so the next one finds the same stock. */
     const shipsTo = async (made: { error?: string; orderNo?: string; addressCode?: string }) => {
       if (made.orderNo) expect((await post(`/api/v1/orders/${made.orderNo}/cancel`, {})).json().status).toBe("cancelled");
@@ -266,17 +267,23 @@ describe.skipIf(!DB)("sports (real Postgres)", () => {
     expect(html).not.toContain("<b>");
   });
 
-  it("keeps its ledger: a read through REST and through a page, a write and a refusal, each with its door and who was signed in", async () => {
+  it("keeps its ledger: a read through REST and through a page, a write nobody may make, a write and a rule's refusal, each with its door and who was signed in", async () => {
     const no = [...rows.orders].reverse().find((x) => x.status === "processing")!.orderNo;
     const from = await ledgerEnd();
     await get(`/api/v1/orders/${no}`);
     await app.inject(scoped({ method: "GET", url: `/orders/${no}` }));
+    // Nobody signed in: REST says 401, the page sends the visitor to sign in, and neither reaches the rules.
+    expect((await post(`/api/v1/orders/${no}/cancel`, {}, false)).json()).toEqual({ error: "UNAUTHORIZED", message: "sign in or send Authorization: Bearer <api token>" });
+    const sent = await app.inject(scoped({ method: "POST", url: `/orders/${no}/cancel` }));
+    expect([sent.statusCode, sent.headers.location]).toEqual([302, `/w/${ws}/sports/login`]);
     expect((await post(`/api/v1/orders/${no}/cancel`, {})).statusCode).toBe(200);
     expect((await post(`/api/v1/orders/${no}/cancel`, {})).json().error).toBe("ALREADY_CANCELLED");
     const kept = (await ledger(from)).filter((e) => e.entity.type === "order");
     expect(kept.map((e) => [e.app, e.kind, e.entity.id, e.action, e.door, e.actor, e.outcome, e.code])).toEqual([
       ["sports", "read", no, "read", "rest", null, "ok", null],
       ["sports", "read", no, "read", "page", null, "ok", null],
+      ["sports", "write", no, "cancel", "rest", null, "refused", "UNAUTHORIZED"],
+      ["sports", "write", no, "cancel", "page", null, "refused", "UNAUTHORIZED"],
       ["sports", "write", no, "cancel", "rest", "buyer@example.com", "ok", null],
       ["sports", "write", no, "cancel", "rest", "buyer@example.com", "refused", "ALREADY_CANCELLED"],
     ]);
@@ -290,18 +297,28 @@ describe.skipIf(!DB)("sports (real Postgres)", () => {
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));
     try {
       const names = (await client.listTools()).tools.map((t) => t.name).sort();
-      expect(names).toEqual(["cancel_order", "get_customer", "get_order", "get_product", "get_store_policies", "list_orders", "place_order", "reorder", "request_return", "search_products"]);
+      // The site's own tools, and the kit's for signing up and in.
+      expect(names).toEqual(["cancel_order", "get_customer", "get_order", "get_product", "get_store_policies", "list_orders", "place_order", "reorder", "request_return", "search_products", ...SIGN_IN_TOOLS].sort());
       // A product the writes above never touched, so its stock is still the seed's.
       const res = (await client.callTool({ name: "search_products", arguments: { category: "climbing", inStock: true } })) as { content: { text: string }[] };
       const touched = new Set((await get("/api/v1/orders?status=processing&limit=200")).items.flatMap((o: { lines: { sku: string }[] }) => o.lines.map((l) => l.sku)));
       const live = JSON.parse(res.content[0]!.text) as { sku: string }[];
       expect(live.filter((o) => !touched.has(o.sku))).toEqual(searchSportsVariants(rows, { category: "climbing", inStock: true }).filter((o) => !touched.has(o.sku)));
-      const refused = (await client.callTool({ name: "cancel_order", arguments: { orderNo: rows.orders.find((o) => o.status === "delivered")!.orderNo } })) as { isError?: boolean; content: { text: string }[] };
-      expect([refused.isError, JSON.parse(refused.content[0]!.text).error]).toEqual([true, "NOT_CANCELLABLE"]);
+      // A rule's refusal is the tool's answer for a caller who is signed in (here by the account's api token); nobody is refused before the rule is asked (below).
+      const member = new Client({ name: "test", version: "0" });
+      await member.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws), authorization: `Bearer ${bearer}` } } }));
+      const locked = (await member.callTool({ name: "cancel_order", arguments: { orderNo: rows.orders.find((o) => o.status === "delivered")!.orderNo } })) as { isError?: boolean; content: { text: string }[] };
+      await member.close();
+      expect([locked.isError, JSON.parse(locked.content[0]!.text).error]).toEqual([true, "NOT_CANCELLABLE"]);
       // A tool call is a door of its own in the ledger.
       const from = await ledgerEnd();
       await client.callTool({ name: "get_product", arguments: { productCode: rows.products[0]!.code } });
       expect((await ledger(from)).map((e) => [e.kind, e.entity.type, e.entity.id, e.door, e.outcome])).toEqual([["read", "product", rows.products[0]!.code, "mcp", "ok"]]);
+      // The sign-in the pages and REST ask, asked here too: a write by nobody is refused before the rules are, and the ledger keeps it.
+      const mark = await ledgerEnd();
+      const refused = (await client.callTool({ name: "cancel_order", arguments: { orderNo: "NO-SUCH" } })) as { isError?: boolean; content: { text: string }[] };
+      expect([refused.isError, JSON.parse(refused.content[0]!.text).error]).toEqual([true, "UNAUTHORIZED"]);
+      expect((await ledger(mark)).map((e) => [e.door, e.kind, e.entity.type, e.entity.id, e.action, e.actor, e.outcome, e.code])).toEqual([["mcp", "write", "order", "NO-SUCH", "cancel", null, "refused", "UNAUTHORIZED"]]);
     } finally {
       await client.close();
     }

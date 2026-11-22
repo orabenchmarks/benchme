@@ -1,5 +1,5 @@
 import { MAX_NIGHTS } from "@benchme/scenarios";
-import { DomainError, registerAuthRoutes, requireSession, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
+import { DomainError, registerAuthRoutes, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { bookingSchema, nights, searchSchema, toQuery } from "../api/inputs.js";
 import type { HotelsRepo } from "../db/hotels-repo.js";
@@ -32,7 +32,6 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
   });
   const html = (reply: FastifyReply, body: string, code = 200) => reply.code(code).type("text/html; charset=utf-8").send(body);
   const authDeps = { auth: d.auth, cookie: SESSION_COOKIE, shellCtx: ctx };
-  const requireUser = requireSession(authDeps);
   registerAuthRoutes(app, authDeps);
 
   const hotelPage = async (req: FastifyRequest, code: string, stay: pages.StayParams, flash?: string) => {
@@ -79,8 +78,6 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
   });
 
   app.post("/bookings", async (req, reply) => {
-    const c = await requireUser(req, reply);
-    if (!c) return;
     const f = (req.body ?? {}) as Record<string, string | undefined>;
     const hotelCode = f.hotelCode ?? "";
     const parsed = bookingSchema.safeParse({ ...f, lateCheckout: f.lateCheckout === "1" });
@@ -122,8 +119,6 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
   });
 
   app.post<{ Params: { no: string } }>("/bookings/:no/cancel", async (req, reply) => {
-    const c = await requireUser(req, reply);
-    if (!c) return;
     try {
       await d.hotels.cancelBooking(req.workspaceId, req.params.no);
       return reply.redirect(`${req.prefix}/bookings/${req.params.no}`, 303);

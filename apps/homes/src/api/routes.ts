@@ -1,11 +1,10 @@
-import { DomainError, apiUser, type AuthService } from "@benchme/site-kit";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { DomainError } from "@benchme/site-kit";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { HomesRepo } from "../db/homes-repo.js";
-import { SESSION_COOKIE } from "../ui/routes.js";
 import { filled, given, moment, searchSchema, toQuery, viewingSchema } from "./inputs.js";
 
-export type ApiDeps = { homes: HomesRepo; auth: AuthService };
+export type ApiDeps = { homes: HomesRepo };
 
 const agentsQuery = z.object({ city: z.string().optional() });
 const slotsQuery = z.object({ from: given(moment.optional()), free: given(z.enum(["true", "false"]).optional()) });
@@ -18,14 +17,8 @@ const viewingsQuery = z.object({
   limit: given(z.coerce.number().int().min(1).max(200).default(50)),
 });
 
-/** REST under /api/v1. Reads are open inside the workspace; requesting and cancelling a viewing need a bearer token or a session. */
+/** REST under /api/v1. Reads are open inside the workspace; requesting and cancelling a viewing need a bearer token or a session: the site's rules ask it of every write, through every door (site-kit's `ledgered`), so no route here does. */
 export function registerApi(app: FastifyInstance, d: ApiDeps): void {
-  const caller = apiUser(d.auth, SESSION_COOKIE);
-  const authed = async (req: FastifyRequest, reply: FastifyReply): Promise<boolean> => {
-    if (await caller(req)) return true;
-    reply.code(401).send({ error: "UNAUTHORIZED", message: "sign in or send Authorization: Bearer <api token>" });
-    return false;
-  };
   const run = async (reply: FastifyReply, fn: () => Promise<unknown>, code = 200) => {
     try {
       return reply.code(code).send(await fn());
@@ -68,13 +61,11 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
   });
   app.get<{ Params: { no: string } }>("/api/v1/viewings/:no", async (req, reply) => (await d.homes.getViewing(req.workspaceId, req.params.no)) ?? notFound(reply));
   app.post("/api/v1/viewings", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const v = parse(viewingSchema, req.body, reply);
     if (!v) return;
     return run(reply, () => d.homes.requestViewing(req.workspaceId, v), 201);
   });
   app.post<{ Params: { no: string } }>("/api/v1/viewings/:no/cancel", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     return run(reply, () => d.homes.cancelViewing(req.workspaceId, req.params.no));
   });
 }

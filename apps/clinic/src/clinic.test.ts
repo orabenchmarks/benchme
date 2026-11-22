@@ -11,7 +11,7 @@ import {
   type ClinicDoctor,
   type ClinicRows,
 } from "@benchme/scenarios";
-import type { LedgerEntry, Mailer } from "@benchme/site-kit";
+import { SIGN_IN_TOOLS, type LedgerEntry, type Mailer } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { FastifyInstance, InjectOptions } from "fastify";
@@ -264,17 +264,23 @@ describe.skipIf(!DB)("clinic (real Postgres)", () => {
     for (const unknown of ["/api/v1/plans/pl-99", `/api/v1/coverage?plan=pl-99&procedure=${procedure}`]) expect([unknown, await status(unknown)]).toEqual([unknown, 404]);
   });
 
-  it("keeps its ledger: a read through REST and through a page, a write and a refusal, each with its door and who was signed in", async () => {
+  it("keeps its ledger: a read through REST and through a page, a write nobody may make, a write and a rule's refusal, each with its door and who was signed in", async () => {
     const no = [...rows.appointments].reverse().find((x) => x.status === "booked")!.appointmentNo;
     const from = await ledgerEnd();
     await get(`/api/v1/appointments/${no}`);
     await app.inject(scoped({ method: "GET", url: `/appointments/${no}` }));
+    // Nobody signed in: REST says 401, the page sends the visitor to sign in, and neither reaches the rules.
+    expect((await post(`/api/v1/appointments/${no}/cancel`, {}, false)).json()).toEqual({ error: "UNAUTHORIZED", message: "sign in or send Authorization: Bearer <api token>" });
+    const sent = await app.inject(scoped({ method: "POST", url: `/appointments/${no}/cancel` }));
+    expect([sent.statusCode, sent.headers.location]).toEqual([302, `/w/${ws}/clinic/login`]);
     expect((await post(`/api/v1/appointments/${no}/cancel`, {})).statusCode).toBe(200);
     expect((await post(`/api/v1/appointments/${no}/cancel`, {})).json().error).toBe("ALREADY_CANCELLED");
     const kept = (await ledger(from)).filter((e) => e.entity.type === "appointment");
     expect(kept.map((e) => [e.app, e.kind, e.entity.id, e.action, e.door, e.actor, e.outcome, e.code])).toEqual([
       ["clinic", "read", no, "read", "rest", null, "ok", null],
       ["clinic", "read", no, "read", "page", null, "ok", null],
+      ["clinic", "write", no, "cancel", "rest", null, "refused", "UNAUTHORIZED"],
+      ["clinic", "write", no, "cancel", "page", null, "refused", "UNAUTHORIZED"],
       ["clinic", "write", no, "cancel", "rest", "booker@example.com", "ok", null],
       ["clinic", "write", no, "cancel", "rest", "booker@example.com", "refused", "ALREADY_CANCELLED"],
     ]);
@@ -288,7 +294,8 @@ describe.skipIf(!DB)("clinic (real Postgres)", () => {
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));
     try {
       const names = (await client.listTools()).tools.map((t) => t.name).sort();
-      expect(names).toEqual(["book_appointment", "cancel_appointment", "check_visit_cost", "find_doctors", "get_doctor", "get_patient", "get_plan", "get_prescription_prices", "list_clinics", "request_refill"]);
+      // The site's own tools, and the kit's for signing up and in.
+      expect(names).toEqual(["book_appointment", "cancel_appointment", "check_visit_cost", "find_doctors", "get_doctor", "get_patient", "get_plan", "get_prescription_prices", "list_clinics", "request_refill", ...SIGN_IN_TOOLS].sort());
       const { doctor, date } = fullDay();
       const city = rows.clinics.find((c) => c.code === doctor.clinicCode)!.city;
       const res = (await client.callTool({ name: "find_doctors", arguments: { city, date } })) as { content: { text: string }[] };
@@ -299,6 +306,11 @@ describe.skipIf(!DB)("clinic (real Postgres)", () => {
       const from = await ledgerEnd();
       await client.callTool({ name: "get_plan", arguments: { planCode: rows.plans[0]!.code } });
       expect((await ledger(from)).map((e) => [e.kind, e.entity.type, e.entity.id, e.door, e.outcome])).toEqual([["read", "plan", rows.plans[0]!.code, "mcp", "ok"]]);
+      // The sign-in the pages and REST ask, asked here too: a write by nobody is refused before the rules are, and the ledger keeps it.
+      const mark = await ledgerEnd();
+      const refused = (await client.callTool({ name: "cancel_appointment", arguments: { appointmentNo: "NO-SUCH" } })) as { isError?: boolean; content: { text: string }[] };
+      expect([refused.isError, JSON.parse(refused.content[0]!.text).error]).toEqual([true, "UNAUTHORIZED"]);
+      expect((await ledger(mark)).map((e) => [e.door, e.kind, e.entity.type, e.entity.id, e.action, e.actor, e.outcome, e.code])).toEqual([["mcp", "write", "appointment", "NO-SUCH", "cancel", null, "refused", "UNAUTHORIZED"]]);
     } finally {
       await client.close();
     }
