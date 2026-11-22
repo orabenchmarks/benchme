@@ -264,6 +264,14 @@ describe.skipIf(!DB)("pizza (real Postgres)", () => {
     expect((await pool.query("SELECT 1 FROM pizza.users WHERE workspace_id = $1 AND email = $2", [ws, email])).rowCount).toBe(0);
   });
 
+  it("names what a refused create was about: it has no entity id yet, and its subject says which one it was for", async () => {
+    const branch = rows.branches[0]!.code;
+    const from = await ledgerEnd();
+    const res = await post("/api/v1/orders", { branchCode: branch, fulfilment: "pickup", lines: [{ pizzaCode: rows.pizzas[0]!.code, size: "medium", quantity: 1 }], slotDate: "2028-01-05", slotTime: "18:00", customerName: "Subject Test", customerEmail: "subject@example.com" });
+    expect([res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 400, res.json().error]).toEqual([true, "OUTSIDE_WINDOW"]);
+    expect((await ledger(from)).map((e) => [e.kind, e.entity, e.subject, e.outcome, e.code])).toEqual([["write", { type: "order", id: null }, { type: "branch", id: branch }, "refused", "OUTSIDE_WINDOW"]]);
+  });
+
   it("exposes the same tools over MCP", async () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));

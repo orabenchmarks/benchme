@@ -4,21 +4,21 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { NewLedgerEntry } from "./entry.js";
 import { PgLedger } from "./ledger.js";
-import { ledgerTableSql } from "./schema.js";
+import { ledgerSql } from "./schema.js";
 
 const DB = process.env.DATABASE_URL;
 const SCHEMA = "sitekit_ledger_test";
 let pool: Pool;
 let ws: string;
 
-const entry = (over: Partial<NewLedgerEntry> = {}): NewLedgerEntry => ({ kind: "write", entity: { type: "order", id: "SO-1" }, action: "create", door: "mcp", actor: "ilsa@example.com", outcome: "ok", code: null, ...over });
+const entry = (over: Partial<NewLedgerEntry> = {}): NewLedgerEntry => ({ kind: "write", entity: { type: "order", id: "SO-1" }, subject: null, action: "create", door: "mcp", actor: "ilsa@example.com", outcome: "ok", code: null, ...over });
 
 beforeAll(async () => {
   if (!DB) return;
   pool = createPool(DB, 2);
   await migrate(pool, "core", join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "apps", "gateway", "migrations"));
   await pool.query(`CREATE SCHEMA IF NOT EXISTS ${SCHEMA}`);
-  await pool.query(ledgerTableSql(SCHEMA));
+  await pool.query(ledgerSql(SCHEMA));
   ws = newWorkspaceId();
   await pool.query("INSERT INTO core.workspaces (id, scenario, seed, expires_at) VALUES ($1, 'test', 1, now() + interval '1 hour')", [ws]);
 });
@@ -32,11 +32,13 @@ describe.skipIf(!DB)("PgLedger (real Postgres)", () => {
     const before = Date.now();
     await ledger.record(ws, entry());
     await ledger.record(ws, entry({ kind: "read", entity: { type: "order", id: null }, action: "read", door: "page", actor: null, outcome: "refused", code: "NOT_FOUND" }));
+    await ledger.record(ws, entry({ entity: { type: "return", id: null }, subject: { type: "order", id: "SO-1" }, outcome: "refused", code: "RETURN_WINDOW_CLOSED" }));
     const after = Date.now();
     const rows = await ledger.list(ws, 0, 100);
     expect(rows.map(({ seq: _seq, at: _at, ...rest }) => rest)).toEqual([
       { app: "shop", ...entry() },
-      { app: "shop", kind: "read", entity: { type: "order", id: null }, action: "read", door: "page", actor: null, outcome: "refused", code: "NOT_FOUND" },
+      { app: "shop", kind: "read", entity: { type: "order", id: null }, subject: null, action: "read", door: "page", actor: null, outcome: "refused", code: "NOT_FOUND" },
+      { app: "shop", ...entry({ entity: { type: "return", id: null }, subject: { type: "order", id: "SO-1" }, outcome: "refused", code: "RETURN_WINDOW_CLOSED" }) },
     ]);
     expect(rows[1]!.seq).toBeGreaterThan(rows[0]!.seq);
     // The database's clock, allowed a second either side of this process's.

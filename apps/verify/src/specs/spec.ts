@@ -143,10 +143,15 @@ const absentCheck = z
  * is "anything at all happened there". A read is `action: "read"`; `actor:
  * null` is an entry made by nobody signed in.
  */
+/** An entity, or a subject, by type and (optionally) id. */
+const entityRef = () => z.object({ type: z.string().min(1), id: z.string().min(1).optional() }).strict();
+
 const ledgerMatch = z
   .object({
     app: z.string().min(1),
-    entity: z.object({ type: z.string().min(1), id: z.string().min(1).optional() }).strict().optional(),
+    entity: entityRef().optional(),
+    /** What the request was about: the order a refused return was for (an entry's `subject`). */
+    subject: entityRef().optional(),
     action: z.string().min(1).optional(),
     outcome: z.enum(LEDGER_OUTCOMES).optional(),
     /** The site's reason code of a refused entry. */
@@ -182,18 +187,26 @@ const ledgerCheck = z
  * names the writes that are allowed, as ledger matchers. A sign-up or sign-in
  * is an `auth` entry and never counts as a write.
  */
+const unchangedScope = z
+  .object({
+    apps: z.array(z.string().min(1)).min(1),
+    actor: z.string().min(1).nullable().optional(),
+    entity: entityRef().optional(),
+    /** Only writes about this (an entry's `subject`): a return made from an order, a booking made for a showtime. */
+    subject: entityRef().optional(),
+  })
+  .strict();
+export type UnchangedScope = z.infer<typeof unchangedScope>;
+
 const unchangedCheck = z
   .object({
     kind: z.literal("unchanged"),
     name: z.string().min(1),
-    scope: z
-      .object({
-        apps: z.array(z.string().min(1)).min(1),
-        actor: z.string().min(1).nullable().optional(),
-        entity: z.object({ type: z.string().min(1), id: z.string().min(1).optional() }).strict().optional(),
-      })
-      .strict(),
+    /** One scope, or several: a write in any of them counts (what was done TO an order, and what was made FROM it). */
+    scope: z.union([unchangedScope, z.array(unchangedScope).min(1)]),
     except: z.array(ledgerMatch).optional(),
+    /** An earlier check of the task: only writes later than the entry it stood on count ("nothing changed since the booking"). */
+    after: z.string().min(1).optional(),
   })
   .strict();
 
@@ -233,7 +246,7 @@ export function afterProblems(checks: readonly StateCheckSpec[], earlier: readon
   const seen = [...earlier];
   const problems: string[] = [];
   for (const check of checks) {
-    if (check.kind === "ledger" && check.after !== undefined) {
+    if ((check.kind === "ledger" || check.kind === "unchanged") && check.after !== undefined) {
       const named = seen.filter((name) => name === check.after).length;
       if (named !== 1) problems.push(`check "${check.name}" comes after "${check.after}", which ${named === 0 ? "no earlier check is called" : "more than one earlier check is called"}`);
     }

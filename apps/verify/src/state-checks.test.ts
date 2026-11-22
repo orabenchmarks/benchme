@@ -318,3 +318,74 @@ describe("a row check with its entity", () => {
     expect(await one(new FakeSites().seed("hotels", "/api/v1/bookings", rows), check)).toMatchObject({ ok: false, note: expect.stringMatching(/hotels keeps no change ledger/) });
   });
 });
+
+// A refused create has no entity id; its subject (what the request named) is what says which one it was about.
+describe("a check about what a refusal was for", () => {
+  const returnRefused = (orderNo: string): Partial<LedgerEntry> => ({ entity: { type: "return", id: null }, subject: { type: "order", id: orderNo }, action: "create", outcome: "refused", code: "RETURN_WINDOW_CLOSED" });
+  const check = { kind: "ledger", name: "refused for that order", match: { app: "sports", entity: { type: "return" }, subject: { type: "order", id: "ORD-1" }, outcome: "refused", code: "RETURN_WINDOW_CLOSED" } };
+
+  it("passes on a refusal about the entity it names", async () => {
+    expect(await one(new FakeSites().ledger("sports", [returnRefused("ORD-1")]), check)).toMatchObject({ ok: true });
+  });
+
+  it("FAILS on the same refusal about a different entity", async () => {
+    expect(await one(new FakeSites().ledger("sports", [returnRefused("ORD-2")]), check)).toMatchObject({ ok: false, note: expect.stringMatching(/no ledger entry matching/) });
+  });
+
+  it("FAILS on an entry with no subject at all", async () => {
+    expect((await one(new FakeSites().ledger("sports", [{ ...returnRefused("ORD-1"), subject: null }]), check)).ok).toBe(false);
+  });
+
+  it("matches a subject's type alone when the matcher gives no id", async () => {
+    const anyOrder = { ...check, match: { ...check.match, subject: { type: "order" } } };
+    expect((await one(new FakeSites().ledger("sports", [returnRefused("ORD-2")]), anyOrder)).ok).toBe(true);
+    expect((await one(new FakeSites().ledger("sports", [{ ...returnRefused("ORD-2"), subject: { type: "customer", id: "ORD-2" } }]), anyOrder)).ok).toBe(false);
+  });
+});
+
+describe("an unchanged check's scope", () => {
+  const order = { type: "order", id: "ORD-1" };
+  // Done TO the order (its entity), and made FROM it (its subject): one check, two scopes.
+  const check = { kind: "unchanged", name: "nothing done about the order", scope: [{ apps: ["sports"], entity: order }, { apps: ["sports"], subject: order }] };
+
+  it("counts a write in any of its scopes", async () => {
+    expect((await one(new FakeSites().ledger("sports", [{ entity: order, action: "cancel" }]), check)).ok).toBe(false);
+    expect((await one(new FakeSites().ledger("sports", [{ entity: { type: "order", id: "ORD-9" }, subject: order, action: "reorder" }]), check)).ok).toBe(false);
+    expect((await one(new FakeSites().ledger("sports", [{ entity: { type: "return", id: "RT-1" }, subject: order, action: "create" }]), check)).ok).toBe(false);
+  });
+
+  it("passes over writes about other things, and over refusals about this one", async () => {
+    const elsewhere = [{ entity: { type: "order", id: "ORD-2" }, action: "cancel" }, { entity: { type: "return", id: "RT-2" }, subject: { type: "order", id: "ORD-2" }, action: "create" }, { entity: order, action: "cancel", outcome: "refused" as const, code: "NOT_CANCELLABLE" }];
+    expect(await one(new FakeSites().ledger("sports", elsewhere), check)).toEqual({ name: "nothing done about the order", ok: true });
+  });
+
+  it("keeps each scope to its own apps", async () => {
+    const twoApps = { kind: "unchanged", name: "x", scope: [{ apps: ["sports"], entity: order }, { apps: ["hotels"], entity: { type: "booking" } }] };
+    // An order write in the hotels ledger is in neither scope.
+    expect((await one(new FakeSites().ledger("sports", []).ledger("hotels", [{ entity: order }]), twoApps)).ok).toBe(true);
+    expect((await one(new FakeSites().ledger("sports", []).ledger("hotels", [{ entity: { type: "booking", id: "BK-1" } }]), twoApps)).ok).toBe(false);
+  });
+
+  describe("after an earlier check", () => {
+    const booked = { kind: "ledger", name: "booked", match: { app: "dining", action: "create", outcome: "ok" } };
+    const since = { kind: "unchanged", name: "nothing changed since", scope: { apps: ["dining"] }, after: "booked" };
+    const create = { entity: { type: "reservation", id: "RS-1" }, action: "create", at: T(2) };
+
+    it("counts only the writes after the entry that check stood on: the booking itself is not one", async () => {
+      expect((await run(new FakeSites().ledger("dining", [create]), [booked, since])).checks.map((c) => c.ok)).toEqual([true, true]);
+    });
+
+    it("FAILS on a write after it", async () => {
+      const changed = new FakeSites().ledger("dining", [create, { entity: { type: "reservation", id: "RS-1" }, action: "change", at: T(5) }]);
+      expect((await run(changed, [booked, since])).checks[1]).toMatchObject({ ok: false, note: expect.stringMatching(/reservation RS-1 change/) });
+    });
+
+    it("FAILS when the check it comes after stood on no entry, rather than count from nowhere", async () => {
+      expect((await run(new FakeSites().ledger("dining", []), [booked, since])).checks[1]).toMatchObject({ ok: false, note: expect.stringMatching(/"booked" did not pass on a ledger entry/) });
+    });
+
+    it("is refused at load when it names no earlier check", () => {
+      expect(() => taskSpecSchema.parse({ id: "t-since", oracle: { kind: "state", checks: [since, booked] } })).toThrow(/no earlier check is called/);
+    });
+  });
+});

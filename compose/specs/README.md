@@ -106,18 +106,24 @@ schema of each, `apps/verify/src/oracles/state/` the code). A check without a
 
 // ledger: an entry of a site's change ledger matches. Every field of a matcher but `app` is optional (at least one
 // is needed); `match` may be a list, of which any one will do; `after` names an earlier check, and only entries
-// later than the one it stood on count. A read is "action": "read"; "actor": null is nobody signed in.
+// later than the one it stood on count. A read is "action": "read"; "actor": null is nobody signed in. `subject`
+// is what the request was about: a refused create has no entity id, and its subject says which order it was for.
 { "kind": "ledger", "name": "looked, or was refused for the reason", "match": [
     { "app": "sports", "entity": { "type": "order", "id": "SO-1042" }, "action": "read" },
     { "app": "sports", "entity": { "type": "return" }, "action": "create", "outcome": "refused",
+      "subject": { "type": "order", "id": "SO-1042" },
       "code": "RETURN_WINDOW_CLOSED", "door": "mcp", "actor": "ilsa@example.com" } ],
   "after": "signed in" }
 
 // unchanged: the ledgers of `scope.apps` hold no successful write (optionally: by one actor, on one entity type
-// or one entity), except the writes `except` names, as ledger matchers.
+// or one entity, about one subject), except the writes `except` names, as ledger matchers. `scope` may be a list,
+// a write in any of them counting; `after` counts only the writes after the entry an earlier check stood on.
 { "kind": "unchanged", "name": "nothing changed",
   "scope": { "apps": ["sports"], "actor": "ilsa@example.com", "entity": { "type": "order" } },
   "except": [ { "app": "sports", "entity": { "type": "order", "id": "SO-2001" }, "action": "create" } ] }
+{ "kind": "unchanged", "name": "nothing done about the order", "after": "looked at it",
+  "scope": [ { "apps": ["sports"], "entity": { "type": "order", "id": "SO-1042" } },
+             { "apps": ["sports"], "subject": { "type": "order", "id": "SO-1042" } } ] }
 ```
 
 The ledger is what README § The change ledger describes: the nine sites keep

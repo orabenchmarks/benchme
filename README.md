@@ -399,6 +399,7 @@ refused:
 | `app`, `seq`, `at` | the site, the entry's place in its ledger, and when it happened (the database's clock, the one clock the sites share) |
 | `kind` | `read`, `write`, or `auth` (a step of signing up or in) |
 | `entity` | `{type, id}` in the site's own words (`booking`, `BK-50012`); `id` is null for a create the rules refused |
+| `subject` | what the request was about besides its entity, made or refused: the order a return is for, the showtime a booking is for, the event a registration is for (`{type: "order", id: "ORD-10042"}`); null when the request names nothing else |
 | `action` | `read`, or the write's verb (`create`, `cancel`, `change`, `reorder`) |
 | `door` | `page`, `rest`, `mcp` or `webmcp` |
 | `actor` | the email signed in on the request, or null for nobody |

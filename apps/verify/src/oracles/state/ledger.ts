@@ -48,6 +48,7 @@ const same = (actual: string | null, expected: string) => actual !== null && fie
 export function entryMatches(entry: LedgerEntry, m: LedgerMatch): boolean {
   if (!same(entry.app, m.app)) return false;
   if (m.entity && (!same(entry.entity.type, m.entity.type) || (m.entity.id !== undefined && !same(entry.entity.id, m.entity.id)))) return false;
+  if (m.subject && (!entry.subject || !same(entry.subject.type, m.subject.type) || (m.subject.id !== undefined && !same(entry.subject.id, m.subject.id)))) return false;
   if (m.action !== undefined && !same(entry.action, m.action)) return false;
   if (m.outcome !== undefined && entry.outcome !== m.outcome) return false;
   if (m.code !== undefined && !same(entry.code, m.code)) return false;
@@ -76,4 +77,5 @@ export function isAfter(entry: Pick<LedgerEntry, "app" | "seq" | "at">, ref: Pic
 }
 
 /** A ledger entry in a failure note's words. */
-export const describeEntry = (e: LedgerEntry): string => `${e.app}: ${e.entity.type} ${e.entity.id ?? "(new)"} ${e.action} through ${e.door} by ${e.actor ?? "nobody"} at ${e.at}`;
+export const describeEntry = (e: LedgerEntry): string =>
+  `${e.app}: ${e.entity.type} ${e.entity.id ?? "(new)"}${e.subject ? ` (for ${e.subject.type} ${e.subject.id})` : ""} ${e.action} through ${e.door} by ${e.actor ?? "nobody"} at ${e.at}`;

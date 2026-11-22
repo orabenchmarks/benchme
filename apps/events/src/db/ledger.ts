@@ -1,4 +1,4 @@
-import { read, unrecorded, write, type LedgerRules } from "@benchme/site-kit";
+import { about, read, unrecorded, write, type LedgerRules } from "@benchme/site-kit";
 import type { EventsRepo } from "./events-repo.js";
 import type { OfficesRepo } from "./offices-repo.js";
 import type { RegistrationsRepo } from "./registrations-repo.js";
@@ -17,7 +17,7 @@ export const OFFICES_LEDGER: LedgerRules<OfficesRepo> = {
 export const EVENTS_LEDGER: LedgerRules<EventsRepo> = {
   listEvents: unrecorded,
   getEvent: read("event", ([code]) => code),
-  createEvent: write("event", "create", (_args, event) => event?.code),
+  createEvent: write("event", "create", (_args, event) => event?.code, about("room", ([input]) => input.roomCode)),
   changeEvent: write("event", "change", ([code]) => code),
   cancelEvent: write("event", "cancel", ([code]) => code),
 };
@@ -26,7 +26,7 @@ export const EVENTS_LEDGER: LedgerRules<EventsRepo> = {
 export const REGISTRATIONS_LEDGER: LedgerRules<RegistrationsRepo> = {
   listRegistrations: unrecorded,
   getRegistration: read("registration", ([regNo]) => regNo),
-  register: write("registration", "create", (_args, registration) => registration?.regNo),
+  register: write("registration", "create", (_args, registration) => registration?.regNo, about("event", ([eventCode]) => eventCode)),
   cancelRegistration: write("registration", "cancel", ([regNo]) => regNo),
-  cancelRegistrationFor: write("registration", "cancel", (_args, registration) => registration?.regNo),
+  cancelRegistrationFor: write("registration", "cancel", (_args, registration) => registration?.regNo, about("event", ([eventCode]) => eventCode)),
 };

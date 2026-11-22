@@ -242,6 +242,14 @@ describe.skipIf(!DB)("homes (real Postgres)", () => {
     expect((await pool.query("SELECT 1 FROM homes.users WHERE workspace_id = $1 AND email = $2", [ws, email])).rowCount).toBe(0);
   });
 
+  it("names what a refused create was about: it has no entity id yet, and its subject says which one it was for", async () => {
+    const listing = rows.listings.find((l) => l.status === "sold")!.code;
+    const from = await ledgerEnd();
+    const res = await post("/api/v1/viewings", { listingCode: listing, date: "2027-06-08", time: "10:00", viewerName: "Subject Test", viewerEmail: "subject@example.com" });
+    expect([res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 400, res.json().error]).toEqual([true, "NOT_ACTIVE"]);
+    expect((await ledger(from)).map((e) => [e.kind, e.entity, e.subject, e.outcome, e.code])).toEqual([["write", { type: "viewing", id: null }, { type: "listing", id: listing }, "refused", "NOT_ACTIVE"]]);
+  });
+
   it("exposes the same tools over MCP", async () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));

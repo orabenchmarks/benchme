@@ -7,7 +7,7 @@ import { SIGN_IN_REQUIRED_CODE, SignInRequired } from "../doors/sign-in.js";
 import { DomainError } from "../mcp-server.js";
 import { MemoryLedger } from "./ledger.js";
 import { ledgered, untransacted } from "./ledgered.js";
-import { read, unrecorded, write, type LedgerRules } from "./rules.js";
+import { about, read, unrecorded, write, type LedgerRules } from "./rules.js";
 
 type Order = { orderNo: string; status: string };
 
@@ -50,7 +50,7 @@ class FakeOrders implements OrdersRepo {
 const RULES: LedgerRules<OrdersRepo> = {
   listOrders: unrecorded,
   getOrder: read("order", ([orderNo]) => orderNo),
-  placeOrder: write("order", "create", (_args, order) => order?.orderNo),
+  placeOrder: write("order", "create", (_args, order) => order?.orderNo, about("product", ([sku]) => sku)),
   cancelOrder: write("order", "cancel", ([orderNo]) => orderNo),
   crash: write("order", "crash", () => null),
 };
@@ -74,7 +74,7 @@ describe("ledgered", () => {
     const made = await s.as(caller(), () => s.orders.placeOrder(WS, "TENT"));
     expect(made).toEqual({ orderNo: "SO-2", status: "processing" });
     expect(await s.entries()).toEqual([
-      { seq: 1, at: AT, app: "shop", kind: "write", entity: { type: "order", id: "SO-2" }, action: "create", door: "rest", actor: "ilsa@example.com", outcome: "ok", code: null },
+      { seq: 1, at: AT, app: "shop", kind: "write", entity: { type: "order", id: "SO-2" }, subject: { type: "product", id: "TENT" }, action: "create", door: "rest", actor: "ilsa@example.com", outcome: "ok", code: null },
     ]);
   });
 
@@ -82,11 +82,19 @@ describe("ledgered", () => {
     const s = site();
     await expect(s.as(caller(), () => s.orders.cancelOrder(WS, "SO-1"))).rejects.toMatchObject({ code: "ORDER_LOCKED" });
     await expect(s.as(caller(), () => s.orders.placeOrder(WS, "GONE"))).rejects.toMatchObject({ code: "OUT_OF_STOCK" });
-    expect((await s.entries()).map((e) => [e.entity.id, e.action, e.outcome, e.code])).toEqual([
-      ["SO-1", "cancel", "refused", "ORDER_LOCKED"],
-      // A refused create has no entity yet.
-      [null, "create", "refused", "OUT_OF_STOCK"],
+    expect((await s.entries()).map((e) => [e.entity.id, e.subject, e.action, e.outcome, e.code])).toEqual([
+      ["SO-1", null, "cancel", "refused", "ORDER_LOCKED"],
+      // A refused create has no entity yet: its subject, from the request, says which product it was for.
+      [null, { type: "product", id: "GONE" }, "create", "refused", "OUT_OF_STOCK"],
     ]);
+  });
+
+  it("names no subject for a write whose rule gives none, and none for a request that does not give one", async () => {
+    const ledger = new MemoryLedger("shop");
+    const callers = new CallerScope();
+    const repo = ledgered({ place: async (_ws: string, _sku: string | undefined): Promise<{ no: string }> => ({ no: "SO-9" }) }, { place: write("order", "create", (_a, r) => r?.no, about("product", ([sku]) => sku)) }, { ledger, callers, transactions: untransacted });
+    await callers.run(caller(), () => repo.place(WS, undefined));
+    expect((await ledger.list(WS)).map((e) => e.subject)).toEqual([null]);
   });
 
   it("records a read of one entity, and a read that found nothing as refused with NOT_FOUND", async () => {
@@ -164,7 +172,7 @@ describe("ledgered", () => {
       expect(refused).toMatchObject({ code: "UNAUTHORIZED", status: 401 });
       expect(SIGN_IN_REQUIRED_CODE).toBe("UNAUTHORIZED");
       expect(await s.entries()).toEqual([
-        { seq: 1, at: AT, app: "shop", kind: "write", entity: { type: "order", id: null }, action: "create", door: "rest", actor: null, outcome: "refused", code: "UNAUTHORIZED" },
+        { seq: 1, at: AT, app: "shop", kind: "write", entity: { type: "order", id: null }, subject: { type: "product", id: "TENT" }, action: "create", door: "rest", actor: null, outcome: "refused", code: "UNAUTHORIZED" },
       ]);
       // Nothing was placed: the same call, signed in, makes the shop's second order and not its third.
       expect(await s.as(caller(), () => s.orders.placeOrder(WS, "TENT"))).toMatchObject({ orderNo: "SO-2" });

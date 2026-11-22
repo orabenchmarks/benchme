@@ -27,6 +27,12 @@ export const ledgerEntrySchema = z.object({
   kind: z.enum(LEDGER_KINDS),
   /** `id` is null when there is no entity yet: a create the rules refused. */
   entity: z.object({ type: z.string().min(1), id: z.string().nullable() }),
+  /**
+   * What the request was about, when it names something other than the entity it makes or changes: the order a
+   * return is for, the showtime a booking is for, the event a registration is for. A refused create has no entity
+   * id, so this is what says which one it was. Null when the request names nothing else.
+   */
+  subject: z.object({ type: z.string().min(1), id: z.string().min(1) }).nullable(),
   action: z.string().min(1),
   door: z.enum(DOORS),
   /** The email signed in on the request, or null for nobody. */

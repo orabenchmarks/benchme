@@ -305,6 +305,14 @@ describe.skipIf(!DB)("clinic (real Postgres)", () => {
     expect((await pool.query("SELECT 1 FROM clinic.users WHERE workspace_id = $1 AND email = $2", [ws, email])).rowCount).toBe(0);
   });
 
+  it("names what a refused create was about: it has no entity id yet, and its subject says which one it was for", async () => {
+    const rx = rows.prescriptions.find((p) => p.refillsLeft === 0)!.rxNo;
+    const from = await ledgerEnd();
+    const res = await post(`/api/v1/prescriptions/${rx}/refill`, { pharmacyCode: rows.clinics[0]!.code });
+    expect([res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 400, res.json().error]).toEqual([true, "NO_REFILLS_LEFT"]);
+    expect((await ledger(from)).map((e) => [e.kind, e.entity, e.subject, e.outcome, e.code])).toEqual([["write", { type: "refill", id: null }, { type: "prescription", id: rx }, "refused", "NO_REFILLS_LEFT"]]);
+  });
+
   it("exposes the same tools over MCP", async () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));

@@ -230,6 +230,14 @@ describe.skipIf(!DB)("cinema (real Postgres)", () => {
     expect((await pool.query("SELECT 1 FROM cinema.users WHERE workspace_id = $1 AND email = $2", [ws, email])).rowCount).toBe(0);
   });
 
+  it("names what a refused create was about: it has no entity id yet, and its subject says which one it was for", async () => {
+    const showtime = rows.showtimes[0]!.code;
+    const from = await ledgerEnd();
+    const res = await post("/api/v1/bookings", { showtimeCode: showtime, seats: ["Z99"], counts: { adult: 1 }, customerName: "Subject Test", customerEmail: "subject@example.com" });
+    expect([res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 400, res.json().error]).toEqual([true, "BAD_SEAT"]);
+    expect((await ledger(from)).map((e) => [e.kind, e.entity, e.subject, e.outcome, e.code])).toEqual([["write", { type: "booking", id: null }, { type: "showtime", id: showtime }, "refused", "BAD_SEAT"]]);
+  });
+
   it("exposes the same tools over MCP", async () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));

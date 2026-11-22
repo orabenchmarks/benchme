@@ -8,7 +8,10 @@ export interface Ledger {
   list(ws: string, afterSeq: number, limit: number): Promise<LedgerEntry[]>;
 }
 
-type Row = { seq: string; at: Date; kind: LedgerEntry["kind"]; entity_type: string; entity_id: string | null; action: string; door: LedgerEntry["door"]; actor: string | null; outcome: LedgerEntry["outcome"]; code: string | null };
+type Row = {
+  seq: string; at: Date; kind: LedgerEntry["kind"]; entity_type: string; entity_id: string | null; subject_type: string | null; subject_id: string | null;
+  action: string; door: LedgerEntry["door"]; actor: string | null; outcome: LedgerEntry["outcome"]; code: string | null;
+};
 
 const SCHEMA = /^[a-z_][a-z0-9_]*$/;
 
@@ -35,18 +38,19 @@ export class PgLedger implements Ledger {
 
   async record(ws: string, e: NewLedgerEntry): Promise<void> {
     await this.pool.query(
-      `INSERT INTO ${this.schema}.ledger (workspace_id, kind, entity_type, entity_id, action, door, actor, outcome, code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [ws, e.kind, e.entity.type, e.entity.id, e.action, e.door, e.actor, e.outcome, e.code],
+      `INSERT INTO ${this.schema}.ledger (workspace_id, kind, entity_type, entity_id, subject_type, subject_id, action, door, actor, outcome, code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [ws, e.kind, e.entity.type, e.entity.id, e.subject?.type ?? null, e.subject?.id ?? null, e.action, e.door, e.actor, e.outcome, e.code],
     );
   }
 
   async list(ws: string, afterSeq: number, limit: number): Promise<LedgerEntry[]> {
     const r = await this.pool.query<Row>(
-      `SELECT seq, at, kind, entity_type, entity_id, action, door, actor, outcome, code FROM ${this.schema}.ledger WHERE workspace_id = $1 AND seq > $2 ORDER BY seq LIMIT $3`,
+      `SELECT seq, at, kind, entity_type, entity_id, subject_type, subject_id, action, door, actor, outcome, code FROM ${this.schema}.ledger WHERE workspace_id = $1 AND seq > $2 ORDER BY seq LIMIT $3`,
       [ws, afterSeq, limit],
     );
     return r.rows.map((x) => ({
       seq: Number(x.seq), at: x.at.toISOString(), app: this.app, kind: x.kind, entity: { type: x.entity_type, id: x.entity_id },
+      subject: x.subject_type && x.subject_id ? { type: x.subject_type, id: x.subject_id } : null,
       action: x.action, door: x.door, actor: x.actor, outcome: x.outcome, code: x.code,
     }));
   }
@@ -64,7 +68,7 @@ export class MemoryLedger implements Ledger {
 
   async record(ws: string, e: NewLedgerEntry): Promise<void> {
     const entries = this.byWorkspace.get(ws) ?? [];
-    entries.push({ ...e, entity: { ...e.entity }, seq: ++this.seq, at: this.now().toISOString(), app: this.app });
+    entries.push({ ...e, entity: { ...e.entity }, subject: e.subject ? { ...e.subject } : null, seq: ++this.seq, at: this.now().toISOString(), app: this.app });
     this.byWorkspace.set(ws, entries);
   }
 

@@ -70,9 +70,11 @@ async function recorded(target: object, method: AnyMethod, name: string, rule: R
     if (rule.kind !== "read") throw new DomainError("READ_ONLY", "the verifier only reads", 403);
     return method.call(target, ws, ...args);
   }
+  const subjectId = rule.subject?.id(args) ?? null;
   const entry: EntryOf = (result, outcome, code, actor) => ({
     kind: rule.kind,
     entity: { type: rule.entity, id: rule.id(args, result) ?? null },
+    subject: rule.subject && subjectId ? { type: rule.subject.type, id: subjectId } : null,
     action: rule.action,
     door: caller.door,
     actor,

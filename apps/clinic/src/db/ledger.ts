@@ -1,4 +1,4 @@
-import { read, unrecorded, write, type LedgerRules } from "@benchme/site-kit";
+import { about, read, unrecorded, write, type LedgerRules } from "@benchme/site-kit";
 import type { AppointmentsRepo } from "./appointments-repo.js";
 import type { CatalogRepo } from "./catalog-repo.js";
 import type { PrescriptionsRepo } from "./prescriptions-repo.js";
@@ -24,7 +24,7 @@ export const CATALOG_LEDGER: LedgerRules<CatalogRepo> = {
 export const APPOINTMENTS_LEDGER: LedgerRules<AppointmentsRepo> = {
   list: unrecorded,
   get: read("appointment", ([no]) => no),
-  create: write("appointment", "create", (_args, appointment) => appointment?.appointmentNo),
+  create: write("appointment", "create", (_args, appointment) => appointment?.appointmentNo, about("doctor", ([input]) => input.doctorCode)),
   cancel: write("appointment", "cancel", ([no]) => no),
 };
 
@@ -33,5 +33,5 @@ export const PRESCRIPTIONS_LEDGER: LedgerRules<PrescriptionsRepo> = {
   list: unrecorded,
   refills: unrecorded,
   get: read("prescription", ([rxNo]) => rxNo),
-  requestRefill: write("refill", "create", (_args, refill) => refill?.refillNo),
+  requestRefill: write("refill", "create", (_args, refill) => refill?.refillNo, about("prescription", ([rxNo]) => rxNo)),
 };

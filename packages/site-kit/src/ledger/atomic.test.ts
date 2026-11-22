@@ -9,7 +9,7 @@ import type { NewLedgerEntry } from "./entry.js";
 import { PgLedger, type Ledger } from "./ledger.js";
 import { ledgered } from "./ledgered.js";
 import { read, write, type LedgerRules } from "./rules.js";
-import { ledgerTableSql } from "./schema.js";
+import { ledgerSql } from "./schema.js";
 
 const DB = process.env.DATABASE_URL;
 const SCHEMA = "sitekit_atomic_test";
@@ -67,7 +67,7 @@ beforeAll(async () => {
   pool = createPool(DB, 4);
   await migrate(pool, "core", join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "apps", "gateway", "migrations"));
   await pool.query(`CREATE SCHEMA IF NOT EXISTS ${SCHEMA}`);
-  await pool.query(ledgerTableSql(SCHEMA));
+  await pool.query(ledgerSql(SCHEMA));
   await pool.query(`CREATE TABLE IF NOT EXISTS ${SCHEMA}.things (workspace_id TEXT NOT NULL REFERENCES core.workspaces(id) ON DELETE CASCADE, id TEXT NOT NULL, colour TEXT NOT NULL, PRIMARY KEY (workspace_id, id))`);
 });
 afterAll(async () => {

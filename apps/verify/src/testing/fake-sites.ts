@@ -6,7 +6,7 @@ export const T = (minute: number, ms = 0): string => new Date(Date.UTC(2027, 2, 
 
 /** A ledger entry: by default Ilsa cancelling order SO-7 through MCP, made, at 10:02. A test varies one field. */
 export function entry(over: Partial<LedgerEntry> = {}): LedgerEntry {
-  return { seq: 1, at: T(2), app: "sports", kind: "write", entity: { type: "order", id: "SO-7" }, action: "cancel", door: "mcp", actor: "ilsa@example.com", outcome: "ok", code: null, ...over };
+  return { seq: 1, at: T(2), app: "sports", kind: "write", entity: { type: "order", id: "SO-7" }, subject: null, action: "cancel", door: "mcp", actor: "ilsa@example.com", outcome: "ok", code: null, ...over };
 }
 
 /**

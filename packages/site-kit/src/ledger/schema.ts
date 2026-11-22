@@ -1,4 +1,8 @@
 const SCHEMA = /^[a-z_][a-z0-9_]*$/;
+const checked = (schema: string): string => {
+  if (!SCHEMA.test(schema)) throw new Error(`invalid schema name: ${schema}`);
+  return schema;
+};
 
 /**
  * The ledger's table, for one app schema. Every site's own migration
@@ -11,7 +15,7 @@ const SCHEMA = /^[a-z_][a-z0-9_]*$/;
  * shares, so entries of two sites can be put in order.
  */
 export function ledgerTableSql(schema: string): string {
-  if (!SCHEMA.test(schema)) throw new Error(`invalid schema name: ${schema}`);
+  checked(schema);
   return `CREATE TABLE IF NOT EXISTS ${schema}.ledger (
   workspace_id TEXT NOT NULL REFERENCES core.workspaces(id) ON DELETE CASCADE,
   seq          BIGINT GENERATED ALWAYS AS IDENTITY,
@@ -28,3 +32,27 @@ export function ledgerTableSql(schema: string): string {
 );
 `;
 }
+
+/**
+ * The ledger's second migration: what a request was about (`subject`), so a refused create, which has no entity
+ * id, still names the order, showtime or event it was for. Every site's `*_ledger_subject.sql` carries this text.
+ */
+export function ledgerSubjectSql(schema: string): string {
+  const s = checked(schema);
+  return `ALTER TABLE ${s}.ledger ADD COLUMN IF NOT EXISTS subject_type TEXT;
+ALTER TABLE ${s}.ledger ADD COLUMN IF NOT EXISTS subject_id TEXT;
+DO $$ BEGIN
+  ALTER TABLE ${s}.ledger ADD CONSTRAINT ledger_subject_whole CHECK ((subject_type IS NULL) = (subject_id IS NULL));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+`;
+}
+
+/** The ledger's migrations, in order: the file suffix each site names one with, and its text for that site's schema. */
+export const LEDGER_MIGRATIONS: readonly { suffix: string; sql: (schema: string) => string }[] = [
+  { suffix: "ledger", sql: ledgerTableSql },
+  { suffix: "ledger_subject", sql: ledgerSubjectSql },
+];
+
+/** Every ledger migration for one schema, as one script: what a test that builds a ledger table of its own runs. */
+export const ledgerSql = (schema: string): string => LEDGER_MIGRATIONS.map((m) => m.sql(schema)).join("\n");
