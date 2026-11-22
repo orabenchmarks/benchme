@@ -1,3 +1,4 @@
+import type { Transactions } from "@benchme/core";
 import type { CallerScope } from "../doors/caller.js";
 import { DomainError } from "../domain-error.js";
 import { SIGN_IN_REQUIRED_CODE, SignInRequired } from "../doors/sign-in.js";
@@ -6,7 +7,15 @@ import { NOT_FOUND_CODE, type NewLedgerEntry } from "./entry.js";
 import type { Ledger } from "./ledger.js";
 import type { LedgerRule, LedgerRules, Recorded } from "./rules.js";
 
-export type LedgeredDeps = { ledger: Ledger; callers: CallerScope };
+export type LedgeredDeps = {
+  ledger: Ledger;
+  callers: CallerScope;
+  /** Where a write and its entry are made one transaction: the site's `transactions(pool)`, whose pool its repositories use. */
+  transactions: Pick<Transactions, "run">;
+};
+
+/** For a site whose rows are not in Postgres (tests): each write runs as it comes, with nothing to make atomic. */
+export const untransacted: Pick<Transactions, "run"> = { run: (fn) => fn() };
 
 type AnyRule = LedgerRule<unknown[], unknown>;
 type AnyMethod = (ws: string, ...args: unknown[]) => Promise<unknown>;
@@ -28,6 +37,11 @@ type AnyMethod = (ws: string, ...args: unknown[]) => Promise<unknown>;
  * here, every door asks the same, and a new door cannot forget to. A write by
  * nobody is recorded as refused with the one sign-in code and never reaches
  * the repository; the door it came through says so in its own way.
+ *
+ * A write (or a step of signing up or in) and its entry are one transaction:
+ * both are kept, or neither is, so the ledger never shows a change that did
+ * not happen, nor misses one that did. A refused write changed nothing: its
+ * transaction is rolled back and the refusal is kept on its own.
  */
 export function ledgered<R extends object>(repo: R, rules: LedgerRules<R>, d: LedgeredDeps): R {
   const ruleOf = (name: PropertyKey): AnyRule | undefined => (Object.hasOwn(rules, name) ? (rules as Record<PropertyKey, AnyRule>)[name] : undefined);
@@ -56,7 +70,7 @@ async function recorded(target: object, method: AnyMethod, name: string, rule: R
     if (rule.kind !== "read") throw new DomainError("READ_ONLY", "the verifier only reads", 403);
     return method.call(target, ws, ...args);
   }
-  const entry = (result: unknown, outcome: NewLedgerEntry["outcome"], code: string | null, actor: string | null): NewLedgerEntry => ({
+  const entry: EntryOf = (result, outcome, code, actor) => ({
     kind: rule.kind,
     entity: { type: rule.entity, id: rule.id(args, result) ?? null },
     action: rule.action,
@@ -70,6 +84,24 @@ async function recorded(target: object, method: AnyMethod, name: string, rule: R
     await d.ledger.record(ws, entry(undefined, "refused", SIGN_IN_REQUIRED_CODE, null));
     throw new SignInRequired(caller.door);
   }
+  if (rule.kind === "read") return recordedRead(target, method, d, ws, args, entry, actor);
+  try {
+    return await d.transactions.run(async () => {
+      const result = await method.call(target, ws, ...args);
+      await d.ledger.record(ws, entry(result, "ok", null, actor));
+      return result;
+    });
+  } catch (err) {
+    const refusal = refusalOf(err);
+    if (refusal) await d.ledger.record(ws, entry(undefined, "refused", refusal.code, actor));
+    throw err;
+  }
+}
+
+type EntryOf = (result: unknown, outcome: NewLedgerEntry["outcome"], code: string | null, actor: string | null) => NewLedgerEntry;
+
+/** A read changes nothing, so it needs no transaction: what it found, or why it found nothing, is kept after it. */
+async function recordedRead(target: object, method: AnyMethod, d: LedgeredDeps, ws: string, args: unknown[], entry: EntryOf, actor: string | null): Promise<unknown> {
   let result: unknown;
   try {
     result = await method.call(target, ws, ...args);
@@ -78,7 +110,7 @@ async function recorded(target: object, method: AnyMethod, name: string, rule: R
     if (refusal) await d.ledger.record(ws, entry(undefined, "refused", refusal.code, actor));
     throw err;
   }
-  const missing = rule.kind === "read" && (result === null || result === undefined);
+  const missing = result === null || result === undefined;
   await d.ledger.record(ws, missing ? entry(undefined, "refused", NOT_FOUND_CODE, actor) : entry(result, "ok", null, actor));
   return result;
 }

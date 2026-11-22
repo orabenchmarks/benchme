@@ -1,5 +1,5 @@
 import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, signWorkspaceHeader } from "@benchme/core";
-import { AuthService, DomainError, MemoryLedger, MemoryUsersRepo, read, registerDoors, registerWorkspaceScope, unrecorded, write, type LedgerRules } from "@benchme/site-kit";
+import { AuthService, DomainError, MemoryLedger, MemoryUsersRepo, read, registerDoors, registerWorkspaceScope, unrecorded, untransacted, write, type LedgerRules } from "@benchme/site-kit";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { StateOracle } from "./oracles/state-oracle.js";
@@ -47,7 +47,7 @@ beforeAll(async () => {
     req.cookies = {};
   });
   registerWorkspaceScope(site, SECRET);
-  const doors = registerDoors(site, { ledger, auth: accounts, cookie: "shop_session", gatewaySecret: SECRET });
+  const doors = registerDoors(site, { ledger, transactions: untransacted, auth: accounts, cookie: "shop_session", gatewaySecret: SECRET });
   const repo = doors.ledgered<OrdersRepo>(
     {
       listOrders: async () => [...orders.values()],

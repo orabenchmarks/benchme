@@ -275,6 +275,22 @@ describe.skipIf(!DB)("events (real Postgres)", () => {
     expect(Math.abs(Date.now() - Date.parse(kept[0]!.at))).toBeLessThan(60_000);
   });
 
+  it("keeps a write and its ledger entry together: a cancel, or a sign-up, whose entry cannot be kept does not happen", async () => {
+    const no = rows.registrations.find((x) => x.status === "registered")!.regNo;
+    const email = "unkept@example.com";
+    // For this test only, the ledger refuses the entry of a cancel and of a sign-up.
+    await pool.query("ALTER TABLE events.ledger ADD CONSTRAINT test_unkept CHECK (action NOT IN ('cancel', 'sign_up')) NOT VALID");
+    try {
+      expect((await post(`/api/v1/registrations/${no}/cancel`, {})).statusCode).toBe(500);
+      const signup = await app.inject(scoped({ method: "POST", url: "/signup", payload: `name=U&email=${encodeURIComponent(email)}&password=correct-horse-9`, headers: { "content-type": "application/x-www-form-urlencoded" } }));
+      expect(signup.statusCode).toBe(500);
+    } finally {
+      await pool.query("ALTER TABLE events.ledger DROP CONSTRAINT test_unkept");
+    }
+    expect((await get(`/api/v1/registrations/${no}`)).status).toBe("registered");
+    expect((await pool.query("SELECT 1 FROM events.users WHERE workspace_id = $1 AND email = $2", [ws, email])).rowCount).toBe(0);
+  });
+
   it("exposes the same tools over MCP", async () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));

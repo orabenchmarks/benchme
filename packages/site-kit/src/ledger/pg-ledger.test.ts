@@ -1,4 +1,4 @@
-import { createPool, migrate, newWorkspaceId, type Pool } from "@benchme/core";
+import { createPool, migrate, newWorkspaceId, transactions, type Pool } from "@benchme/core";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -28,7 +28,7 @@ afterAll(async () => {
 
 describe.skipIf(!DB)("PgLedger (real Postgres)", () => {
   it("keeps what it is handed, in order, under the app's name, stamped with the time it happened", async () => {
-    const ledger = new PgLedger(pool, SCHEMA, "shop");
+    const ledger = new PgLedger(transactions(pool), SCHEMA, "shop");
     const before = Date.now();
     await ledger.record(ws, entry());
     await ledger.record(ws, entry({ kind: "read", entity: { type: "order", id: null }, action: "read", door: "page", actor: null, outcome: "refused", code: "NOT_FOUND" }));
@@ -48,7 +48,7 @@ describe.skipIf(!DB)("PgLedger (real Postgres)", () => {
   });
 
   it("lists the entries after a cursor, a page at a time, and only the workspace's own", async () => {
-    const ledger = new PgLedger(pool, SCHEMA);
+    const ledger = new PgLedger(transactions(pool), SCHEMA);
     const all = await ledger.list(ws, 0, 100);
     expect(await ledger.list(ws, all[0]!.seq, 100)).toEqual(all.slice(1));
     expect(await ledger.list(ws, 0, 1)).toEqual(all.slice(0, 1));
@@ -56,7 +56,7 @@ describe.skipIf(!DB)("PgLedger (real Postgres)", () => {
   });
 
   it("refuses a door or an outcome the ledger does not know", async () => {
-    const ledger = new PgLedger(pool, SCHEMA);
+    const ledger = new PgLedger(transactions(pool), SCHEMA);
     await expect(ledger.record(ws, entry({ door: "side-window" as never }))).rejects.toThrow(/door/);
     await expect(ledger.record(ws, entry({ outcome: "maybe" as never }))).rejects.toThrow(/outcome/);
   });
@@ -64,7 +64,7 @@ describe.skipIf(!DB)("PgLedger (real Postgres)", () => {
   it("goes with its workspace", async () => {
     const gone = newWorkspaceId();
     await pool.query("INSERT INTO core.workspaces (id, scenario, seed, expires_at) VALUES ($1, 'test', 1, now() + interval '1 hour')", [gone]);
-    const ledger = new PgLedger(pool, SCHEMA);
+    const ledger = new PgLedger(transactions(pool), SCHEMA);
     await ledger.record(gone, entry());
     await pool.query("DELETE FROM core.workspaces WHERE id = $1", [gone]);
     expect(await ledger.list(gone, 0, 100)).toEqual([]);

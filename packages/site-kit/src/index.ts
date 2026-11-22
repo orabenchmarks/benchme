@@ -16,7 +16,7 @@ export { AUTH_LEDGER } from "./ledger/auth-rules.js";
 export { LEDGER_KINDS, LEDGER_OUTCOMES, NOT_FOUND_CODE, READ_ACTION, ledgerEntrySchema, ledgerPageSchema, type LedgerEntry, type LedgerKind, type LedgerOutcome, type LedgerPage, type NewLedgerEntry } from "./ledger/entry.js";
 export { MemoryLedger, PgLedger, type Ledger } from "./ledger/ledger.js";
 export { ledgerPath, registerLedgerRoute } from "./ledger/ledger-route.js";
-export { ledgered, type LedgeredDeps } from "./ledger/ledgered.js";
+export { ledgered, untransacted, type LedgeredDeps } from "./ledger/ledgered.js";
 export { authStep, read, unrecorded, write, type LedgerRule, type LedgerRules, type Recorded, type Unrecorded } from "./ledger/rules.js";
 export { ledgerTableSql } from "./ledger/schema.js";
 export { esc, money, shell, authPages, type NavLink, type ShellCtx } from "./html.js";

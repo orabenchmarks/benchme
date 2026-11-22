@@ -406,7 +406,12 @@ refused:
 
 Pages, REST and the MCP tools all reach a site's rows through its repository,
 so the kit records there (`ledgered`, `packages/site-kit/src/ledger`) and no
-route or tool can leave an entry out. Each site says once, per repository
+route or tool can leave an entry out. A write and its entry are one database
+transaction (`transactions(pool)` in `@benchme/core`, whose pool each site
+builds its repositories, accounts and ledger with): both are kept, or
+neither is, so the ledger never shows a change that did not happen nor
+misses one that did. A refused write is rolled back and its refusal kept on
+its own. Each site says once, per repository
 method, what is a read of one entity, a write, or neither
 (`apps/<app>/src/db/ledger.ts`); a method without a rule does not compile. A
 list or a search is not recorded. The door is read off the request: `/api/` is

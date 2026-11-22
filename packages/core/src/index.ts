@@ -4,6 +4,7 @@ export { createApp, type AppOptions } from "./http.js";
 export { isWorkspaceId, newWorkspaceId } from "./ids.js";
 export { HmacReceiptSigner, parseReceipt, type ReceiptSigner, type Verdict } from "./receipt.js";
 export { createPool, migrate, withTx, type Pool, type PoolClient } from "./pg.js";
+export { transactions, type Transactions } from "./transactions.js";
 export { createRedis, type Redis } from "./redis.js";
 export { PgWorkspaceRepo, type NewWorkspace, type Workspace, type WorkspaceRepo } from "./workspace.js";
 export {

@@ -6,7 +6,7 @@ import { NoCarrier } from "../doors/session-carrier.js";
 import { SIGN_IN_REQUIRED_CODE, SignInRequired } from "../doors/sign-in.js";
 import { DomainError } from "../mcp-server.js";
 import { MemoryLedger } from "./ledger.js";
-import { ledgered } from "./ledgered.js";
+import { ledgered, untransacted } from "./ledgered.js";
 import { read, unrecorded, write, type LedgerRules } from "./rules.js";
 
 type Order = { orderNo: string; status: string };
@@ -63,7 +63,7 @@ const nobody = (over: Partial<Caller> = {}): Caller => caller({ actor: async () 
 function site() {
   const ledger = new MemoryLedger("shop", () => new Date(AT));
   const callers = new CallerScope();
-  const orders = ledgered<OrdersRepo>(new FakeOrders(), RULES, { ledger, callers });
+  const orders = ledgered<OrdersRepo>(new FakeOrders(), RULES, { ledger, callers, transactions: untransacted });
   const as = <T>(who: Caller, fn: () => Promise<T>) => callers.run(who, fn);
   return { ledger, orders, as, entries: () => ledger.list(WS) };
 }
@@ -129,7 +129,7 @@ describe("ledgered", () => {
   it("takes a sign-in refusal for a refusal too", async () => {
     const ledger = new MemoryLedger("shop");
     const callers = new CallerScope();
-    const repo = ledgered({ verify: async (_ws: string, _email: string): Promise<void> => Promise.reject(new AuthError("BAD_CODE", "that code is wrong")) }, { verify: write("account", "verify", ([email]) => email) }, { ledger, callers });
+    const repo = ledgered({ verify: async (_ws: string, _email: string): Promise<void> => Promise.reject(new AuthError("BAD_CODE", "that code is wrong")) }, { verify: write("account", "verify", ([email]) => email) }, { ledger, callers, transactions: untransacted });
     await expect(callers.run(caller(), () => repo.verify(WS, "ilsa@example.com"))).rejects.toMatchObject({ code: "BAD_CODE" });
     expect((await ledger.list(WS)).map((e) => [e.entity.id, e.outcome, e.code])).toEqual([["ilsa@example.com", "refused", "BAD_CODE"]]);
   });
@@ -151,7 +151,7 @@ describe("ledgered", () => {
 
   it("refuses a method nobody gave a rule", async () => {
     const callers = new CallerScope();
-    const repo = ledgered(new FakeOrders() as OrdersRepo, { ...RULES, cancelOrder: undefined } as unknown as LedgerRules<OrdersRepo>, { ledger: new MemoryLedger("shop"), callers });
+    const repo = ledgered(new FakeOrders() as OrdersRepo, { ...RULES, cancelOrder: undefined } as unknown as LedgerRules<OrdersRepo>, { ledger: new MemoryLedger("shop"), callers, transactions: untransacted });
     expect(() => callers.run(caller(), () => repo.cancelOrder(WS, "SO-1"))).toThrow(/no ledger rule/);
   });
 

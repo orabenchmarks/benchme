@@ -7,6 +7,7 @@ import { registerAuthRoutes } from "../auth-routes.js";
 import { AuthService, type Mailer } from "../auth-service.js";
 import { ledgerPath } from "../ledger/ledger-route.js";
 import { MemoryLedger } from "../ledger/ledger.js";
+import { untransacted } from "../ledger/ledgered.js";
 import { read, unrecorded, write, type LedgerRules } from "../ledger/rules.js";
 import { DomainError, registerMcp } from "../mcp-server.js";
 import { ToolRegistry } from "../tool-registry.js";
@@ -111,7 +112,7 @@ beforeAll(async () => {
   app = Fastify();
   await app.register(cookie);
   registerWorkspaceScope(app, SECRET);
-  const doors = registerDoors(app, { ledger, auth, cookie: COOKIE, gatewaySecret: SECRET });
+  const doors = registerDoors(app, { ledger, transactions: untransacted, auth, cookie: COOKIE, gatewaySecret: SECRET });
   const things = doors.ledgered<ThingsRepo>(new FakeThings(), RULES);
   // The routes of a site, as the sites write them: none of them asks who is signed in.
   const refusal = (reply: FastifyReply, err: unknown) => {

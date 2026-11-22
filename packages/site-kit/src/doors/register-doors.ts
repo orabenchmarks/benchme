@@ -1,5 +1,5 @@
 import "@fastify/cookie";
-import { VERIFIER_SIG_HEADER, verifyVerifierHeader } from "@benchme/core";
+import { VERIFIER_SIG_HEADER, verifyVerifierHeader, type Transactions } from "@benchme/core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AuthService } from "../auth-service.js";
 import { AUTH_LEDGER } from "../ledger/auth-rules.js";
@@ -19,8 +19,13 @@ import { SignInRequired } from "./sign-in.js";
 export const MCP_SESSION_HEADER = "mcp-session-id";
 
 export type DoorsDeps = {
-  /** The site's change ledger (its own schema's table: `new PgLedger(pool, "<app>")`). */
+  /** The site's change ledger (its own schema's table: `new PgLedger(db, "<app>")`). */
   ledger: Ledger;
+  /**
+   * The site's `transactions(pool)`. Its pool is the one the site's repositories and accounts are built with, so a
+   * write and its ledger entry are one transaction (`untransacted` for a site whose rows are not in Postgres).
+   */
+  transactions: Pick<Transactions, "run">;
   auth: AuthService;
   /** The site's session cookie. */
   cookie: string;
@@ -49,7 +54,8 @@ export type Doors = {
 export function registerDoors(app: FastifyInstance, d: DoorsDeps): Doors {
   const callers = new CallerScope();
   const { ledger } = d;
-  const auth = ledgered(d.auth, AUTH_LEDGER, { ledger, callers });
+  const units = { ledger, callers, transactions: d.transactions };
+  const auth = ledgered(d.auth, AUTH_LEDGER, units);
 
   // A callback hook on purpose: the rest of the request runs inside `done`, so inside the scope.
   app.addHook("preHandler", (req, reply, done) => {
@@ -74,7 +80,7 @@ export function registerDoors(app: FastifyInstance, d: DoorsDeps): Doors {
     callers,
     ledger,
     auth,
-    ledgered: (repo, rules) => ledgered(repo, rules, { ledger, callers }),
+    ledgered: (repo, rules) => ledgered(repo, rules, units),
     withSignIn: (tools) => registerSignInTools(tools, { auth, callers }),
   };
 }

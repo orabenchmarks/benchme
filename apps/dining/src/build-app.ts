@@ -1,6 +1,6 @@
 import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
-import { createApp, type Pool } from "@benchme/core";
+import { createApp, transactions, type Pool } from "@benchme/core";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
 import { AuthService, PgLedger, PgUsersRepo, registerDoors, registerMcp, registerWorkspaceScope, type Mailer } from "@benchme/site-kit";
 import type { FastifyInstance } from "fastify";
@@ -24,8 +24,10 @@ export type BuildDeps = {
 
 /** Composition root: repos → services → routes. */
 export async function buildDining(d: BuildDeps): Promise<FastifyInstance> {
+  // One transaction for a write and its ledger entry: the repositories, the accounts and the ledger share its pool.
+  const db = transactions(d.pool);
   const accounts = new AuthService({
-    users: new PgUsersRepo(d.pool, "dining"),
+    users: new PgUsersRepo(db.pool, "dining"),
     mailer: d.mailer,
     sessionTtlSeconds: d.sessionTtlSeconds,
     tokenPrefix: "dnr",
@@ -39,9 +41,9 @@ export async function buildDining(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
-  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "dining"), auth: accounts, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const doors = registerDoors(app, { ledger: new PgLedger(db, "dining"), transactions: db, auth: accounts, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
   const auth = doors.auth;
-  const dining = doors.ledgered<DiningRepo>(new PgDiningRepo(d.pool), DINING_LEDGER);
+  const dining = doors.ledgered<DiningRepo>(new PgDiningRepo(db.pool), DINING_LEDGER);
 
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
     if (req.params.id !== req.workspaceId) return reply.code(400).send({ error: "WORKSPACE_MISMATCH" });

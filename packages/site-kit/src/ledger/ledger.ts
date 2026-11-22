@@ -1,4 +1,4 @@
-import type { Pool } from "@benchme/core";
+import type { Transactions } from "@benchme/core";
 import type { LedgerEntry, NewLedgerEntry } from "./entry.js";
 
 /** A site's change ledger: appended to by the site's rules, read by the verifier alone. */
@@ -16,15 +16,21 @@ const SCHEMA = /^[a-z_][a-z0-9_]*$/;
  * The same `ledger` table under any app schema (each site's own migration
  * creates it), so every site keeps its own and none share rows. The time is
  * the database's own clock at the insert, one clock for every site.
+ *
+ * It takes the site's `transactions`, not a pool, so an entry is always
+ * written on the connection of the write it records: handed the raw pool, a
+ * ledger would commit an entry on its own while its write could still fail.
  */
 export class PgLedger implements Ledger {
+  private readonly pool: Transactions["pool"];
   constructor(
-    private readonly pool: Pool,
+    db: Pick<Transactions, "pool">,
     private readonly schema: string,
     /** The app's name on every entry; a site's schema carries its name. */
     private readonly app: string = schema,
   ) {
     if (!SCHEMA.test(schema)) throw new Error(`invalid schema name: ${schema}`);
+    this.pool = db.pool;
   }
 
   async record(ws: string, e: NewLedgerEntry): Promise<void> {

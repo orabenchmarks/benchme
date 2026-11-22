@@ -1,6 +1,6 @@
 import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
-import { createApp, type Pool } from "@benchme/core";
+import { createApp, transactions, type Pool } from "@benchme/core";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
 import { AuthService, PgLedger, PgUsersRepo, registerDoors, registerMcp, registerWorkspaceScope, type Mailer } from "@benchme/site-kit";
 import type { FastifyInstance } from "fastify";
@@ -26,8 +26,10 @@ export type BuildDeps = {
 
 /** Composition root: repos → services → routes. */
 export async function buildClinic(d: BuildDeps): Promise<FastifyInstance> {
+  // One transaction for a write and its ledger entry: the repositories, the accounts and the ledger share its pool.
+  const db = transactions(d.pool);
   const accounts = new AuthService({
-    users: new PgUsersRepo(d.pool, "clinic"),
+    users: new PgUsersRepo(db.pool, "clinic"),
     mailer: d.mailer,
     sessionTtlSeconds: d.sessionTtlSeconds,
     tokenPrefix: "cln",
@@ -41,13 +43,13 @@ export async function buildClinic(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
-  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "clinic"), auth: accounts, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const doors = registerDoors(app, { ledger: new PgLedger(db, "clinic"), transactions: db, auth: accounts, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
   const auth = doors.auth;
   // The appointments' rules look doctors and plans up in the catalogue themselves: those are not a door's reads, so they get the catalogue as it is.
-  const rawCatalog = new PgCatalogRepo(d.pool);
+  const rawCatalog = new PgCatalogRepo(db.pool);
   const catalog = doors.ledgered<CatalogRepo>(rawCatalog, CATALOG_LEDGER);
-  const appointments = doors.ledgered<AppointmentsRepo>(new PgAppointmentsRepo(d.pool, rawCatalog), APPOINTMENTS_LEDGER);
-  const prescriptions = doors.ledgered<PrescriptionsRepo>(new PgPrescriptionsRepo(d.pool), PRESCRIPTIONS_LEDGER);
+  const appointments = doors.ledgered<AppointmentsRepo>(new PgAppointmentsRepo(db.pool, rawCatalog), APPOINTMENTS_LEDGER);
+  const prescriptions = doors.ledgered<PrescriptionsRepo>(new PgPrescriptionsRepo(db.pool), PRESCRIPTIONS_LEDGER);
 
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
     if (req.params.id !== req.workspaceId) return reply.code(400).send({ error: "WORKSPACE_MISMATCH" });
