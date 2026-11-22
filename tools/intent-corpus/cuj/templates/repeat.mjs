@@ -52,7 +52,8 @@ export const repeatTemplates = [
       "An exchange over three prompts: one unit of a delivered line sent back as too small, then the same product and colour ordered in the next size up to the same address, then what that new order costs with shipping (`sportsShippingCents`). No order of the customer's in progress has that size.",
     candidates: (ctx) =>
       ctx.rows.sports.orders.filter((o) => o.status === "delivered").flatMap((o) => linesOf(ctx, o.orderNo).filter((l) => returnable(ctx, o, l.sku) && !returnedBefore(ctx, o, l.sku)).map((line) => ({ o, line }))),
-    claims: ({ o, line }) => [`person:sports:${o.customerEmail}`, `order:${o.orderNo}`, `variant:${line.sku}`],
+    // A return never restocks: what changes stock is the order of the next size, claimed once it is known.
+    claims: ({ o }) => [`person:sports:${o.customerEmail}`, `order:${o.orderNo}`],
     build({ o, line }, ctx) {
       const v = variantOf(ctx, line.sku);
       const sizes = ctx.rows.sports.variants.filter((x) => x.productCode === v.productCode && x.colour === v.colour);
@@ -68,6 +69,7 @@ export const repeatTemplates = [
         apps: ["sports"],
         target: o.orderNo,
         hidden: [next.sku],
+        claims: [`variant:${next.sku}`],
         effort: { reads: 1, writes: 2 },
         summary: `One ${line.sku} from ${o.orderNo} goes back as too small, one ${next.sku} is ordered to the same address, and its cost is given.`,
         note: `${o.orderNo}: return 1 × ${line.sku}; order 1 × ${next.sku} (${next.size}) to ${o.addressCode}; ${dollars(total)}`,

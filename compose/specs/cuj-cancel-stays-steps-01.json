@@ -7,13 +7,13 @@
       {
         "name": "first cancelled",
         "app": "hotels",
-        "path": "/api/v1/bookings/BK-10073",
+        "path": "/api/v1/bookings/BK-10146",
         "expect": {
           "status": "cancelled"
         },
         "entity": {
           "type": "booking",
-          "id": "BK-10073"
+          "id": "BK-10146"
         }
       }
     ]
@@ -26,13 +26,13 @@
           {
             "name": "second cancelled",
             "app": "hotels",
-            "path": "/api/v1/bookings/BK-10076",
+            "path": "/api/v1/bookings/BK-10124",
             "expect": {
               "status": "cancelled"
             },
             "entity": {
               "type": "booking",
-              "id": "BK-10076"
+              "id": "BK-10124"
             }
           },
           {
@@ -45,7 +45,34 @@
                 ],
                 "entity": {
                   "type": "booking",
-                  "id": "BK-10169"
+                  "id": "BK-10056"
+                }
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "entity": {
+                  "type": "booking",
+                  "id": "BK-10123"
+                }
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "entity": {
+                  "type": "booking",
+                  "id": "BK-10135"
+                }
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "entity": {
+                  "type": "booking",
+                  "id": "BK-10156"
                 }
               }
             ]
@@ -57,7 +84,7 @@
       "oracle": {
         "kind": "json",
         "expect": {
-          "confirmed": 1
+          "confirmed": 4
         }
       }
     }

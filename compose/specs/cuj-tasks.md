@@ -74,12 +74,11 @@ The only menu pizza a named branch can make that is vegetarian, has none of an a
 
 - **cuj-fit-pizza-01** — medium: BR-106 medium, vegetarian, no dairy, ≤ $17 → PZ-108
 
-### fit-stay-tempting (find-the-fit; pages, tools) — 2 tasks
+### fit-stay-tempting (find-the-fit; pages, tools) — 1 task
 
 Which hotel in a city has a room free for a stay that fits the party, at no more than a nightly cap, with two named amenities: exactly one (`searchStays`). The tempting one: another hotel has both amenities and a room within the cap that fits, but that room is booked out on one of the nights.
 
 - **cuj-fit-stay-tempting-01** — hard: Ostrand 2027-03-26 × 2, 1 adult, ≤ $180, gym + washer → HT-110; HT-106-SGL would fit but is booked out
-- **cuj-fit-stay-tempting-02** — hard: Tessalind 2027-05-13 × 2, 2 adults, ≤ $160, restaurant + airport shuttle → HT-124; HT-122-DBL would fit but is booked out
 
 ### fit-table-tempting (find-the-fit; pages, tools) — 1 task
 
@@ -409,7 +408,7 @@ A seeded guest has two confirmed reservations at one restaurant on different day
 
 Two of a seeded guest's hotel bookings cancelled over three prompts, each described by its hotel and check-in date: one, then a second, then how many of their bookings are still confirmed. Each cancel step's check reads its booking; the last state step holds the rest to no write.
 
-- **cuj-cancel-stays-steps-01** — hard: danae.prewitt9@example.com: cancel BK-10073 (HT-112 2027-03-30), then BK-10076 (HT-128 2027-06-03); 1 left confirmed
+- **cuj-cancel-stays-steps-01** — hard: danae.ferrante5@example.com: cancel BK-10146 (HT-126 2027-06-07), then BK-10124 (HT-105 2027-04-16); 4 left confirmed
 
 ### cancel-shipped (cancel-it; pages, tools) — 1 task
 
@@ -740,3 +739,9 @@ Two prompts on two sites: a named flight booked, then a named room type in the d
 Two prompts on two sites: a named room type booked for the last nights of June, then the flight home on a date in July, impossible (`OUTSIDE_WINDOW`: flights are sold for departures to 2027-06-30). The second step's right outcome is to say so and book nothing; its checks count from the room.
 
 - **cuj-plan-return-outside-01** — impossible: HT-105-DBL 2027-06-28 × 3; then SZ148 on 2027-07-01 is outside the window
+
+### fit-variant-tempting (find-the-fit; pages, tools) — 1 task
+
+Which colour of a named product, in a named size, is the cheapest that is in stock, and at what price: exactly one. The tempting one: a cheaper colour in that size is out of stock.
+
+- **cuj-fit-variant-tempting-01** — hard: SP-115 size S: SP-115-RED-S ($62.99) is out of stock → SP-115-BLK-S black, $67.99

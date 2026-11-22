@@ -4,8 +4,8 @@
  * impossible ones ask for what the site's rules cannot give a named place.
  */
 import { addDays, cinemaSearchShowtimes, clinicFindDoctors, diningSearch, diningTablesLeft, nightsOf, pizzaMenuSearch, roomsLeft, searchFlights, searchHomeListings, searchStays, shuffle } from "../../../../packages/scenarios/dist/index.js";
-import { R, about, dollars, impossibleChecks, jsonOracle, newPerson, site, stateOracle, PAGES_AND_TOOLS } from "../kit.mjs";
-import { cinemaPath, clinicPath, diningPath, eventsPath, flightsPath, homesPath, hotelsPath, pizzaPath } from "../paths.mjs";
+import { R, about, dollars, impossibleChecks, jsonOracle, money, newPerson, site, stateOracle, PAGES_AND_TOOLS } from "../kit.mjs";
+import { cinemaPath, clinicPath, diningPath, eventsPath, flightsPath, homesPath, hotelsPath, pizzaPath, sportsPath } from "../paths.mjs";
 
 const AREA = "find-the-fit";
 const partyText = (adults, kids) => `${adults} adult${adults === 1 ? "" : "s"}${kids ? ` and ${kids} child${kids === 1 ? "" : "ren"}` : ""}`;
@@ -287,7 +287,7 @@ export const findTemplates = [
     key: "fit-stay-tempting",
     area: AREA,
     surfaces: PAGES_AND_TOOLS,
-    count: 2,
+    count: 1,
     about:
       "Which hotel in a city has a room free for a stay that fits the party, at no more than a nightly cap, with two named amenities: exactly one (`searchStays`). The tempting one: another hotel has both amenities and a room within the cap that fits, but that room is booked out on one of the nights.",
     candidates: (ctx) => {
@@ -489,6 +489,59 @@ export const findTemplates = [
           rubric: R.impossible(["hotels"], `book one room for ${adults} adults`),
           oracle: stateOracle(...impossibleChecks({ app: "hotels", things, code: "TOO_MANY_GUESTS" })),
           solve: (api) => api.attempt("hotels", hotelsPath.bookings, body),
+        }],
+      };
+    },
+  },
+];
+
+/**
+ * Placed last in the registry: it reads stock that the orders of other tasks change, so it takes the variants they
+ * leave alone.
+ */
+export const findLastTemplates = [
+  {
+    key: "fit-variant-tempting",
+    area: AREA,
+    surfaces: PAGES_AND_TOOLS,
+    count: 1,
+    about:
+      "Which colour of a named product, in a named size, is the cheapest that is in stock, and at what price: exactly one. The tempting one: a cheaper colour in that size is out of stock.",
+    candidates: (ctx) => {
+      const groups = new Map();
+      for (const v of ctx.rows.sports.variants) groups.set(`${v.productCode}|${v.size}`, [...(groups.get(`${v.productCode}|${v.size}`) ?? []), v]);
+      return [...groups.values()].filter((vs) => {
+        const inStock = vs.filter((v) => v.stock > 0);
+        const out = vs.filter((v) => v.stock === 0);
+        return inStock.length >= 2 && out.length > 0 && Math.min(...out.map((v) => v.priceCents)) < Math.min(...inStock.map((v) => v.priceCents));
+      });
+    },
+    claims: (vs) => vs.map((v) => `variant:${v.sku}`),
+    build(vs, ctx) {
+      const byPrice = (x, y) => x.priceCents - y.priceCents;
+      const inStock = vs.filter((v) => v.stock > 0).sort(byPrice);
+      const trap = vs.filter((v) => v.stock === 0).sort(byPrice)[0];
+      const best = inStock[0];
+      if (inStock[1].priceCents === best.priceCents) return null;
+      const product = ctx.sports.product.get(best.productCode);
+      return {
+        apps: ["sports"],
+        target: product.code,
+        hidden: [best.sku, best.colour],
+        constraints: [`size ${best.size}`, "in stock"],
+        tempting: { what: `${trap.sku} is cheaper, and out of stock`, check: async (api) => (await api.get("sports", sportsPath.variant(trap.sku))).stock === 0 },
+        effort: { reads: 1, writes: 0 },
+        summary: `The cheapest colour of ${product.code} in size ${best.size} that is in stock, and its price.`,
+        note: `${product.code} size ${best.size}: ${trap.sku} (${dollars(trap.priceCents)}) is out of stock → ${best.sku} ${best.colour}, ${dollars(best.priceCents)}`,
+        steps: [{
+          kind: "json",
+          intent: `On ${site("sports")}, which colour of the ${product.name} (${product.code}) in size ${best.size} is the cheapest one in stock, and what does it cost? Answer as JSON: {"colour": "<the colour>", "price": <dollars>}.`,
+          rubric: R.answer(["sports"], "the cheapest colour in stock and its price"),
+          oracle: jsonOracle({ colour: best.colour, price: money(best.priceCents) }),
+          answer: async (api) => {
+            const live = (await api.get("sports", sportsPath.product(product.code))).variants.filter((v) => v.size === best.size && v.stock > 0).sort(byPrice);
+            return { colour: live[0].colour, price: live[0].priceCents / 100 };
+          },
         }],
       };
     },

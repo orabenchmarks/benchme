@@ -300,39 +300,6 @@
     }
   },
   {
-    "id": "cuj-fit-stay-tempting-02",
-    "area": "find-the-fit",
-    "level": "hard",
-    "veryHard": false,
-    "apps": [
-      "hotels"
-    ],
-    "app": "hotels",
-    "surfaces": [
-      "pages",
-      "tools"
-    ],
-    "intent": "On the hotel booking site, which hotel in Tessalind has a room free for 2 nights from 2027-05-13 for 2 adults, at no more than $160 a night, with both a restaurant and an airport shuttle? Answer as JSON: {\"hotel\": \"<the hotel's code>\"}.",
-    "rubric": [
-      "The answer gives the hotel that meets every requirement as the hotel booking site shows it, not a guess.",
-      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
-      "The agent used only the hotel booking site, no other site and no outside source."
-    ],
-    "steps": [],
-    "kind": "json",
-    "summary": "The one Tessalind hotel with a free room for the stay that fits the party, within the cap, with both amenities.",
-    "key": {
-      "blind": false,
-      "oracle": {
-        "kind": "json",
-        "expect": {
-          "hotel": "HT-124"
-        }
-      },
-      "steps": []
-    }
-  },
-  {
     "id": "cuj-fit-table-tempting-01",
     "area": "find-the-fit",
     "level": "hard",
@@ -5017,7 +4984,7 @@
       "pages",
       "tools"
     ],
-    "intent": "On the hotel booking site, Danae Prewitt (danae.prewitt9@example.com) has several bookings. Cancel their stay at Omlo House from 2027-03-30; the others stay as they are.",
+    "intent": "On the hotel booking site, Danae Ferrante (danae.ferrante5@example.com) has several bookings. Cancel their stay at Thoom House from 2027-06-07; the others stay as they are.",
     "rubric": [
       "The reply says the booking was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
       "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
@@ -5025,7 +4992,7 @@
     ],
     "steps": [
       {
-        "intent": "Now cancel their stay at Renkafal Hotel from 2027-06-03 as well.",
+        "intent": "Now cancel their stay at Vizy Suites from 2027-04-16 as well.",
         "rubric": [
           "The reply to this message says the second booking was cancelled and claims no change that was not made.",
           "Nothing besides that changed in this step."
@@ -5043,7 +5010,7 @@
     ],
     "kind": "state",
     "stateChecked": true,
-    "summary": "Two of danae.prewitt9@example.com's bookings are cancelled, one prompt each; their others are untouched, and the reply counts what is left.",
+    "summary": "Two of danae.ferrante5@example.com's bookings are cancelled, one prompt each; their others are untouched, and the reply counts what is left.",
     "key": {
       "blind": false,
       "oracle": {
@@ -5052,13 +5019,13 @@
           {
             "name": "first cancelled",
             "app": "hotels",
-            "path": "/api/v1/bookings/BK-10073",
+            "path": "/api/v1/bookings/BK-10146",
             "expect": {
               "status": "cancelled"
             },
             "entity": {
               "type": "booking",
-              "id": "BK-10073"
+              "id": "BK-10146"
             }
           }
         ]
@@ -5071,13 +5038,13 @@
               {
                 "name": "second cancelled",
                 "app": "hotels",
-                "path": "/api/v1/bookings/BK-10076",
+                "path": "/api/v1/bookings/BK-10124",
                 "expect": {
                   "status": "cancelled"
                 },
                 "entity": {
                   "type": "booking",
-                  "id": "BK-10076"
+                  "id": "BK-10124"
                 }
               },
               {
@@ -5090,7 +5057,34 @@
                     ],
                     "entity": {
                       "type": "booking",
-                      "id": "BK-10169"
+                      "id": "BK-10056"
+                    }
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "entity": {
+                      "type": "booking",
+                      "id": "BK-10123"
+                    }
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "entity": {
+                      "type": "booking",
+                      "id": "BK-10135"
+                    }
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "entity": {
+                      "type": "booking",
+                      "id": "BK-10156"
                     }
                   }
                 ]
@@ -5102,7 +5096,7 @@
           "oracle": {
             "kind": "json",
             "expect": {
-              "confirmed": 1
+              "confirmed": 4
             }
           }
         }
@@ -10485,6 +10479,43 @@
           }
         }
       ]
+    }
+  },
+  {
+    "id": "cuj-fit-variant-tempting-01",
+    "area": "find-the-fit",
+    "level": "hard",
+    "veryHard": false,
+    "apps": [
+      "sports"
+    ],
+    "app": "sports",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "intent": "On the sports shop site, which colour of the Rennex Training Swimsuit (SP-115) in size S is the cheapest one in stock, and what does it cost? Answer as JSON: {\"colour\": \"<the colour>\", \"price\": <dollars>}.",
+    "rubric": [
+      "The answer gives the cheapest colour in stock and its price as the sports shop site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the sports shop site, no other site and no outside source."
+    ],
+    "steps": [],
+    "kind": "json",
+    "summary": "The cheapest colour of SP-115 in size S that is in stock, and its price.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "colour": "black",
+          "price": {
+            "value": 67.99,
+            "tolerance": 0.01
+          }
+        }
+      },
+      "steps": []
     }
   }
 ]
