@@ -167,8 +167,11 @@ const judge = async (answer, oracle) => json.check(Buffer.from(JSON.stringify(an
 const notes = (r) => r.checks.filter((c) => !c.ok).map((c) => `${c.name}: ${c.note ?? "failed"}`).join("; ");
 const stepSaid = (s) => `${s.verdict} ${JSON.stringify(s.checks ?? []).slice(0, 400)}`;
 const levelText = (lv) => (lv ? `${lv.level}${lv.veryHard ? " (very hard)" : ""}` : "no level");
-/** The sites' clock and this one's are the same machine's or near it: a time this close to a step's window is in it. */
-const SKEW_MS = 250;
+/** The sites' clock and this one's are the same machine's: a time this close to a step's window is in it. */
+const SKEW_MS = 50;
+/** How far apart two steps' windows are kept, so a time near one cannot be taken for the other's. */
+const GAP_MS = 300;
+const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 /** The checks of a state step whose time falls outside the window its reference solution ran in. */
 const misplaced = (s, window) =>
   (s.checks ?? []).filter((c) => c.at && (Date.parse(c.at) < window.from - SKEW_MS || Date.parse(c.at) > window.to + SKEW_MS)).map((c) => `${c.name} at ${c.at}`);
@@ -232,6 +235,8 @@ export async function runCujIntegrity({ base, seed = 4242, scale = 1, operatorKe
       const n = i + 1;
       meter.step();
       if (step.kind === "state") {
+        const before = Object.values(windows).at(-1);
+        if (before) await sleep(Math.max(0, before.to + GAP_MS - Date.now()));
         const from = Date.now();
         try {
           await step.solve(api);
