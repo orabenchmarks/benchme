@@ -1,6 +1,6 @@
-import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signWorkspaceHeader, type Pool } from "@benchme/core";
+import { VERIFIER_SIG_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signVerifierHeader, signWorkspaceHeader, type Pool } from "@benchme/core";
 import { webmcpV1, homeSlotsOf, scenarios, searchHomeListings, type HomeListing, type HomeRows, type HomeSlot } from "@benchme/scenarios";
-import type { Mailer } from "@benchme/site-kit";
+import type { LedgerEntry, Mailer } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { FastifyInstance, InjectOptions } from "fastify";
@@ -34,6 +34,9 @@ const scoped = (o: InjectOptions & { url: string }, wsId = ws): InjectOptions =>
 });
 const get = async (url: string) => (await app.inject(scoped({ method: "GET", url }))).json();
 const post = (url: string, payload: unknown, auth = true) => app.inject(scoped({ method: "POST", url, payload: payload as Record<string, unknown>, headers: auth ? { authorization: `Bearer ${bearer}` } : {} }));
+/** The site's ledger as the verifier reads it: every entry after `from`. */
+const ledger = async (from = 0) => (await app.inject(scoped({ url: `/internal/workspaces/${ws}/ledger?cursor=${from}&limit=1000`, headers: { [VERIFIER_SIG_HEADER]: signVerifierHeader(SECRET, ws) } }))).json().items as LedgerEntry[];
+const ledgerEnd = async () => Number((await pool.query("SELECT COALESCE(max(seq), 0) AS seq FROM homes.ledger WHERE workspace_id = $1", [ws])).rows[0].seq);
 const form = (url: string, body: Record<string, string>) => app.inject(scoped({ method: "POST", url, payload: new URLSearchParams(body).toString(), headers: { "content-type": "application/x-www-form-urlencoded", cookie } }));
 
 async function signIn(wsId: string, email: string): Promise<{ token: string; cookie: string }> {
@@ -198,6 +201,25 @@ describe.skipIf(!DB)("homes (real Postgres)", () => {
     for (const required of ["listingCode", "date", "time", "viewerName", "viewerEmail"]) expect([required, (await post("/api/v1/viewings", { ...ask, [required]: "" })).statusCode]).toEqual([required, 400]);
   });
 
+  it("keeps its ledger: a read through REST and through a page, a write and a refusal, each with its door and who was signed in", async () => {
+    const no = [...rows.viewings].reverse().find((x) => x.status === "requested")!.viewingNo;
+    const from = await ledgerEnd();
+    await get(`/api/v1/viewings/${no}`);
+    await app.inject(scoped({ method: "GET", url: `/viewings/${no}` }));
+    expect((await post(`/api/v1/viewings/${no}/cancel`, {})).statusCode).toBe(200);
+    expect((await post(`/api/v1/viewings/${no}/cancel`, {})).json().error).toBe("ALREADY_CANCELLED");
+    const kept = (await ledger(from)).filter((e) => e.entity.type === "viewing");
+    expect(kept.map((e) => [e.app, e.kind, e.entity.id, e.action, e.door, e.actor, e.outcome, e.code])).toEqual([
+      ["homes", "read", no, "read", "rest", null, "ok", null],
+      ["homes", "read", no, "read", "page", null, "ok", null],
+      ["homes", "write", no, "cancel", "rest", "viewer@example.com", "ok", null],
+      ["homes", "write", no, "cancel", "rest", "viewer@example.com", "refused", "ALREADY_CANCELLED"],
+    ]);
+    // Each is stamped when it happened, in order.
+    expect(kept.map((e) => Date.parse(e.at))).toEqual(kept.map((e) => Date.parse(e.at)).sort((a, b) => a - b));
+    expect(Math.abs(Date.now() - Date.parse(kept[0]!.at))).toBeLessThan(60_000);
+  });
+
   it("exposes the same tools over MCP", async () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));
@@ -207,6 +229,10 @@ describe.skipIf(!DB)("homes (real Postgres)", () => {
       const city = rows.listings[0]!.city;
       const res = (await client.callTool({ name: "search_listings", arguments: { city, types: ["house", "townhouse"], minBeds: 2, status: "active" } })) as { content: { text: string }[] };
       expect(JSON.parse(res.content[0]!.text)).toEqual(searchHomeListings(rows.listings, { city, types: ["house", "townhouse"], minBeds: 2, status: "active" }));
+      // A tool call is a door of its own in the ledger.
+      const from = await ledgerEnd();
+      await client.callTool({ name: "get_listing", arguments: { listingCode: rows.listings[0]!.code } });
+      expect((await ledger(from)).map((e) => [e.kind, e.entity.type, e.entity.id, e.door, e.outcome])).toEqual([["read", "listing", rows.listings[0]!.code, "mcp", "ok"]]);
     } finally {
       await client.close();
     }

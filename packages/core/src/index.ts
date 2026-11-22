@@ -8,8 +8,11 @@ export { createRedis, type Redis } from "./redis.js";
 export { PgWorkspaceRepo, type NewWorkspace, type Workspace, type WorkspaceRepo } from "./workspace.js";
 export {
   FORWARDED_PREFIX_HEADER,
+  VERIFIER_SIG_HEADER,
   WORKSPACE_HEADER,
   WORKSPACE_SIG_HEADER,
+  signVerifierHeader,
   signWorkspaceHeader,
+  verifyVerifierHeader,
   verifyWorkspaceHeader,
 } from "./workspace-header.js";

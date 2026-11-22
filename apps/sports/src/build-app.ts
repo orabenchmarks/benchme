@@ -2,15 +2,16 @@ import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
 import { createApp, type Pool } from "@benchme/core";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
-import { AuthService, PgUsersRepo, registerMcp, registerWorkspaceScope, type Mailer } from "@benchme/site-kit";
+import { AuthService, PgLedger, PgUsersRepo, registerDoors, registerMcp, registerWorkspaceScope, type Mailer } from "@benchme/site-kit";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { registerApi } from "./api/routes.js";
-import { PgCatalogRepo } from "./db/catalog-repo.js";
-import { PgOrdersRepo } from "./db/orders-repo.js";
+import { PgCatalogRepo, type CatalogRepo } from "./db/catalog-repo.js";
+import { CATALOG_LEDGER, ORDERS_LEDGER } from "./db/ledger.js";
+import { PgOrdersRepo, type OrdersRepo } from "./db/orders-repo.js";
 import { seedSports } from "./db/seed.js";
 import { sportsTools } from "./mcp/tools.js";
-import { registerUi } from "./ui/routes.js";
+import { SESSION_COOKIE, registerUi } from "./ui/routes.js";
 
 export type BuildDeps = {
   pool: Pool;
@@ -23,8 +24,6 @@ export type BuildDeps = {
 
 /** Composition root: repos → services → routes. */
 export async function buildSports(d: BuildDeps): Promise<FastifyInstance> {
-  const catalog = new PgCatalogRepo(d.pool);
-  const orders = new PgOrdersRepo(d.pool);
   const auth = new AuthService({
     users: new PgUsersRepo(d.pool, "sports"),
     mailer: d.mailer,
@@ -40,6 +39,9 @@ export async function buildSports(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
+  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "sports"), auth, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const catalog = doors.ledgered<CatalogRepo>(new PgCatalogRepo(d.pool), CATALOG_LEDGER);
+  const orders = doors.ledgered<OrdersRepo>(new PgOrdersRepo(d.pool), ORDERS_LEDGER);
 
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
     if (req.params.id !== req.workspaceId) return reply.code(400).send({ error: "WORKSPACE_MISMATCH" });

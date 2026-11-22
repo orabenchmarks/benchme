@@ -1,6 +1,6 @@
-import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signWorkspaceHeader, type Pool } from "@benchme/core";
+import { VERIFIER_SIG_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signVerifierHeader, signWorkspaceHeader, type Pool } from "@benchme/core";
 import { webmcpV1, pizzaMenuSearch, pizzaQuote, pizzaSlots, scenarios, type PizzaRows } from "@benchme/scenarios";
-import type { Mailer } from "@benchme/site-kit";
+import type { LedgerEntry, Mailer } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { FastifyInstance, InjectOptions } from "fastify";
@@ -34,6 +34,9 @@ const scoped = (o: InjectOptions & { url: string }, wsId = ws): InjectOptions =>
 });
 const get = async (url: string) => (await app.inject(scoped({ method: "GET", url }))).json();
 const post = (url: string, payload: unknown, auth = true) => app.inject(scoped({ method: "POST", url, payload: payload as Record<string, unknown>, headers: auth ? { authorization: `Bearer ${bearer}` } : {} }));
+/** The site's ledger as the verifier reads it: every entry after `from`. */
+const ledger = async (from = 0) => (await app.inject(scoped({ url: `/internal/workspaces/${ws}/ledger?cursor=${from}&limit=1000`, headers: { [VERIFIER_SIG_HEADER]: signVerifierHeader(SECRET, ws) } }))).json().items as LedgerEntry[];
+const ledgerEnd = async () => Number((await pool.query("SELECT COALESCE(max(seq), 0) AS seq FROM pizza.ledger WHERE workspace_id = $1", [ws])).rows[0].seq);
 const form = (url: string, body: Record<string, string | string[]>) => {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(body)) for (const x of [v].flat()) qs.append(k, x);
@@ -220,6 +223,25 @@ describe.skipIf(!DB)("pizza (real Postgres)", () => {
     expect((await get(`/api/v1/orders/${no}`)).status).toBe("cancelled");
   });
 
+  it("keeps its ledger: a read through REST and through a page, a write and a refusal, each with its door and who was signed in", async () => {
+    const no = [...rows.orders].reverse().find((x) => x.status === "received")!.orderNo;
+    const from = await ledgerEnd();
+    await get(`/api/v1/orders/${no}`);
+    await app.inject(scoped({ method: "GET", url: `/orders/${no}` }));
+    expect((await post(`/api/v1/orders/${no}/cancel`, {})).statusCode).toBe(200);
+    expect((await post(`/api/v1/orders/${no}/cancel`, {})).json().error).toBe("ALREADY_CANCELLED");
+    const kept = (await ledger(from)).filter((e) => e.entity.type === "order");
+    expect(kept.map((e) => [e.app, e.kind, e.entity.id, e.action, e.door, e.actor, e.outcome, e.code])).toEqual([
+      ["pizza", "read", no, "read", "rest", null, "ok", null],
+      ["pizza", "read", no, "read", "page", null, "ok", null],
+      ["pizza", "write", no, "cancel", "rest", "orderer@example.com", "ok", null],
+      ["pizza", "write", no, "cancel", "rest", "orderer@example.com", "refused", "ALREADY_CANCELLED"],
+    ]);
+    // Each is stamped when it happened, in order.
+    expect(kept.map((e) => Date.parse(e.at))).toEqual(kept.map((e) => Date.parse(e.at)).sort((a, b) => a - b));
+    expect(Math.abs(Date.now() - Date.parse(kept[0]!.at))).toBeLessThan(60_000);
+  });
+
   it("exposes the same tools over MCP", async () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));
@@ -229,6 +251,10 @@ describe.skipIf(!DB)("pizza (real Postgres)", () => {
       const out = rows.stockouts[0]!;
       const res = (await client.callTool({ name: "search_menu", arguments: { size: "medium", branchCode: out.branchCode, vegetarian: true } })) as { content: { text: string }[] };
       expect(JSON.parse(res.content[0]!.text)).toEqual(pizzaMenuSearch(rows, { size: "medium", branchCode: out.branchCode, vegetarian: true }));
+      // A tool call is a door of its own in the ledger.
+      const from = await ledgerEnd();
+      await client.callTool({ name: "get_order", arguments: { orderNo: rows.orders[0]!.orderNo } });
+      expect((await ledger(from)).map((e) => [e.kind, e.entity.type, e.entity.id, e.door, e.outcome])).toEqual([["read", "order", rows.orders[0]!.orderNo, "mcp", "ok"]]);
     } finally {
       await client.close();
     }

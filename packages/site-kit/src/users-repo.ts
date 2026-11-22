@@ -91,3 +91,57 @@ export class PgUsersRepo implements UsersRepo {
     return r.rows[0] ? toUser(r.rows[0]) : null;
   }
 }
+
+/** The same contract in memory, for tests of what signs people up and in. */
+export class MemoryUsersRepo implements UsersRepo {
+  private readonly users = new Map<string, UserRow & { passwordHash: string }>();
+  private readonly codes = new Map<string, { code: string; expiresAt: Date }>();
+  private readonly sessions = new Map<string, { email: string; expiresAt: Date }>();
+  private readonly key = (ws: string, id: string) => `${ws} ${id}`;
+
+  async createUser(ws: string, email: string, passwordHash: string, displayName: string): Promise<UserRow> {
+    const user = { email, displayName, verifiedAt: null, apiToken: null, passwordHash };
+    this.users.set(this.key(ws, email), user);
+    return { email, displayName, verifiedAt: null, apiToken: null };
+  }
+
+  async getUser(ws: string, email: string) {
+    return this.users.get(this.key(ws, email)) ?? null;
+  }
+
+  async setVerificationCode(ws: string, email: string, code: string, expiresAt: Date): Promise<void> {
+    this.codes.set(this.key(ws, email), { code, expiresAt });
+  }
+
+  async consumeVerificationCode(ws: string, email: string, code: string, now: Date): Promise<boolean> {
+    const held = this.codes.get(this.key(ws, email));
+    if (!held || held.code !== code || held.expiresAt <= now) return false;
+    this.codes.delete(this.key(ws, email));
+    const user = this.users.get(this.key(ws, email));
+    if (user) user.verifiedAt ??= now;
+    return true;
+  }
+
+  async createSession(ws: string, token: string, email: string, expiresAt: Date): Promise<void> {
+    this.sessions.set(this.key(ws, token), { email, expiresAt });
+  }
+
+  async getSessionEmail(ws: string, token: string, now: Date): Promise<string | null> {
+    const s = this.sessions.get(this.key(ws, token));
+    return s && s.expiresAt > now ? s.email : null;
+  }
+
+  async deleteSession(ws: string, token: string): Promise<void> {
+    this.sessions.delete(this.key(ws, token));
+  }
+
+  async setApiToken(ws: string, email: string, token: string): Promise<void> {
+    const user = this.users.get(this.key(ws, email));
+    if (user) user.apiToken = token;
+  }
+
+  async getUserByApiToken(ws: string, token: string): Promise<UserRow | null> {
+    for (const [k, u] of this.users) if (k.startsWith(`${ws} `) && u.apiToken === token) return { email: u.email, displayName: u.displayName, verifiedAt: u.verifiedAt, apiToken: u.apiToken };
+    return null;
+  }
+}

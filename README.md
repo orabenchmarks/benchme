@@ -38,7 +38,7 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | `packages/core` | config, http (healthz/readyz), ids, receipts (HMAC), pg + migrations, redis, the workspace model |
 | `packages/scenarios` | seeded generators (`acme-v1`, `shops-v1`, `guide-v1`, `web-v1`, `webmcp-v1`) and the derived ground truths |
 | `apps/gateway` | workspace API, signed reverse proxy, portal + MCP registry, reaper |
-| `packages/site-kit` | what every site shares: the gateway-scope hook, signup/verify/login + sessions + api tokens, the MCP server plumbing, the page shell |
+| `packages/site-kit` | what every site shares: the gateway-scope hook, signup/verify/login + sessions + api tokens, the MCP server plumbing, the page shell, the doors and the change ledger (see [The change ledger](#the-change-ledger)) |
 | `apps/warehouse` | products, stock, orders, transfers: SSR UI, REST v1, a 14-tool MCP server, NLWeb `/ask`, WebMCP |
 | `apps/helpdesk` | tickets, comments, SLAs, assignment: SSR UI, REST v1, an 11-tool MCP server (with a destructive `delete_ticket`), NLWeb `/ask`, WebMCP |
 | `apps/vaultdocs` | ~40 seeded documents as MCP **resources** (`docs://<id>`), `search`/`get_document`/`list_documents` tools, two MCP **prompts**; full-text search UI + REST, NLWeb `/ask`, WebMCP |
@@ -347,6 +347,41 @@ Left out of the repo: its games (`doors`, `webmcp-maze`, `proxx-lite`), office
 and creative tools (`spreadsheet`, `pixel-art-studio`), dashboards
 (`smart-home`, `analytics-dashboard`) and the demos about WebMCP itself
 (`explainer`, `page-agent`).
+
+### The change ledger
+
+Each of the nine sites keeps a ledger per workspace (the `ledger` table of its
+own schema). It holds one entry for every read of a single entity (a booking,
+an order, a showtime's seat map, a product) and for every write, made or
+refused:
+
+| field | |
+| --- | --- |
+| `app`, `seq`, `at` | the site, the entry's place in its ledger, and when it happened (the database's clock, the one clock the sites share) |
+| `kind` | `read`, `write`, or `auth` (a step of signing up or in) |
+| `entity` | `{type, id}` in the site's own words (`booking`, `BK-50012`); `id` is null for a create the rules refused |
+| `action` | `read`, or the write's verb (`create`, `cancel`, `change`, `reorder`) |
+| `door` | `page`, `rest`, `mcp` or `webmcp` |
+| `actor` | the email signed in on the request, or null for nobody |
+| `outcome`, `code` | `ok`, or `refused` with the site's reason code (`SOLD_OUT`, `ALREADY_CANCELLED`; `NOT_FOUND` for a read that found nothing) |
+
+Pages, REST and the MCP tools all reach a site's rows through its repository,
+so the kit records there (`ledgered`, `packages/site-kit/src/ledger`) and no
+route or tool can leave an entry out. Each site says once, per repository
+method, what is a read of one entity, a write, or neither
+(`apps/<app>/src/db/ledger.ts`); a method without a rule does not compile. A
+list or a search is not recorded. The door is read off the request: `/api/` is
+`rest`, `/mcp` is `mcp`, or `webmcp` when the call carries the header the
+page's bridge sends (`x-benchme-door: webmcp`), and anything else is `page`.
+
+Only the verifier reads a ledger. Its route,
+`/internal/workspaces/<id>/ledger`, is on the app's own address under a path
+the gateway never proxies, and it answers only a request that carries the
+verifier's signature (`x-benchme-verifier-sig`, an HMAC made with the gateway
+secret, which the gateway itself never sends). The verifier's reads of a
+site's REST API carry the same signature and are left out of the ledger, so a
+check never finds its own earlier read there. No page, REST answer or tool
+shows an entry.
 
 ### Hotels
 

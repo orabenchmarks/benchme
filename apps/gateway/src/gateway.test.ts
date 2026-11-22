@@ -321,6 +321,11 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
       expect((await rawFetch(port, `/w/${minted.id}/warehouse/${rest}`)).status, rest).toBe(404);
     }
     expect(stub.seeds.length).toBe(seededBefore);
+    // A site's change ledger is under the same door: the verifier reads it on the app's own address, and no address here leads to it.
+    for (const path of [`/w/${minted.id}/warehouse/internal/workspaces/${minted.id}/ledger`, `/w/${minted.id}/warehouse/internal/workspaces/${minted.id}/ledger?cursor=0&limit=5`]) {
+      const res = await gateway.inject({ method: "GET", url: path });
+      expect([path, res.statusCode, res.json().error]).toEqual([path, 404, "NOT_FOUND"]);
+    }
     // An app's other /internal/* pages (the guide's operator-keyed records) are still proxied.
     const records = await gateway.inject(`/w/${minted.id}/guide/internal/records?workspace=${minted.id}`);
     expect(records.statusCode).toBe(200);

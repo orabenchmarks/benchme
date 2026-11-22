@@ -2,14 +2,15 @@ import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
 import { createApp, type Pool } from "@benchme/core";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
-import { AuthService, PgUsersRepo, registerMcp, registerWorkspaceScope, type Mailer } from "@benchme/site-kit";
+import { AuthService, PgLedger, PgUsersRepo, registerDoors, registerMcp, registerWorkspaceScope, type Mailer } from "@benchme/site-kit";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { registerApi } from "./api/routes.js";
-import { PgHotelsRepo } from "./db/hotels-repo.js";
+import { PgHotelsRepo, type HotelsRepo } from "./db/hotels-repo.js";
+import { HOTELS_LEDGER } from "./db/ledger.js";
 import { seedHotels } from "./db/seed.js";
 import { hotelTools } from "./mcp/tools.js";
-import { registerUi } from "./ui/routes.js";
+import { SESSION_COOKIE, registerUi } from "./ui/routes.js";
 
 export type BuildDeps = {
   pool: Pool;
@@ -22,7 +23,6 @@ export type BuildDeps = {
 
 /** Composition root: repos → services → routes. */
 export async function buildHotels(d: BuildDeps): Promise<FastifyInstance> {
-  const hotels = new PgHotelsRepo(d.pool);
   const auth = new AuthService({
     users: new PgUsersRepo(d.pool, "hotels"),
     mailer: d.mailer,
@@ -38,6 +38,8 @@ export async function buildHotels(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
+  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "hotels"), auth, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const hotels = doors.ledgered<HotelsRepo>(new PgHotelsRepo(d.pool), HOTELS_LEDGER);
 
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
     if (req.params.id !== req.workspaceId) return reply.code(400).send({ error: "WORKSPACE_MISMATCH" });

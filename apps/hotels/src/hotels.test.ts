@@ -1,6 +1,6 @@
-import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signWorkspaceHeader, type Pool } from "@benchme/core";
+import { VERIFIER_SIG_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signVerifierHeader, signWorkspaceHeader, type Pool } from "@benchme/core";
 import { webmcpV1, roomsLeft, scenarios, searchStays, type HotelRows } from "@benchme/scenarios";
-import type { Mailer } from "@benchme/site-kit";
+import type { LedgerEntry, Mailer } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { FastifyInstance, InjectOptions } from "fastify";
@@ -34,6 +34,9 @@ const scoped = (o: InjectOptions & { url: string }, wsId = ws): InjectOptions =>
 });
 const get = async (url: string) => (await app.inject(scoped({ method: "GET", url }))).json();
 const post = (url: string, payload: unknown, auth = true) => app.inject(scoped({ method: "POST", url, payload: payload as Record<string, unknown>, headers: auth ? { authorization: `Bearer ${bearer}` } : {} }));
+/** The site's ledger as the verifier reads it: every entry after `from`. */
+const ledger = async (from = 0) => (await app.inject(scoped({ url: `/internal/workspaces/${ws}/ledger?cursor=${from}&limit=1000`, headers: { [VERIFIER_SIG_HEADER]: signVerifierHeader(SECRET, ws) } }))).json().items as LedgerEntry[];
+const ledgerEnd = async () => Number((await pool.query("SELECT COALESCE(max(seq), 0) AS seq FROM hotels.ledger WHERE workspace_id = $1", [ws])).rows[0].seq);
 
 async function token(wsId: string, email: string): Promise<string> {
   const before = mailer.sent.length;
@@ -181,6 +184,25 @@ describe.skipIf(!DB)("hotels (real Postgres)", () => {
     expect((await post("/api/v1/bookings", stay)).statusCode).toBe(201);
   });
 
+  it("keeps its ledger: a read through REST and through a page, a write and a refusal, each with its door and who was signed in", async () => {
+    const no = [...rows.bookings].reverse().find((x) => x.status === "confirmed")!.bookingNo;
+    const from = await ledgerEnd();
+    await get(`/api/v1/bookings/${no}`);
+    await app.inject(scoped({ method: "GET", url: `/bookings/${no}` }));
+    expect((await post(`/api/v1/bookings/${no}/cancel`, {})).statusCode).toBe(200);
+    expect((await post(`/api/v1/bookings/${no}/cancel`, {})).json().error).toBe("ALREADY_CANCELLED");
+    const kept = (await ledger(from)).filter((e) => e.entity.type === "booking");
+    expect(kept.map((e) => [e.app, e.kind, e.entity.id, e.action, e.door, e.actor, e.outcome, e.code])).toEqual([
+      ["hotels", "read", no, "read", "rest", null, "ok", null],
+      ["hotels", "read", no, "read", "page", null, "ok", null],
+      ["hotels", "write", no, "cancel", "rest", "booker@example.com", "ok", null],
+      ["hotels", "write", no, "cancel", "rest", "booker@example.com", "refused", "ALREADY_CANCELLED"],
+    ]);
+    // Each is stamped when it happened, in order.
+    expect(kept.map((e) => Date.parse(e.at))).toEqual(kept.map((e) => Date.parse(e.at)).sort((a, b) => a - b));
+    expect(Math.abs(Date.now() - Date.parse(kept[0]!.at))).toBeLessThan(60_000);
+  });
+
   it("exposes the same tools over MCP", async () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));
@@ -191,6 +213,10 @@ describe.skipIf(!DB)("hotels (real Postgres)", () => {
       // Not QUIET: the booking test above left a booking on those nights, which the seed rows do not have.
       const res = (await client.callTool({ name: "search_stays", arguments: { city, checkIn: "2027-11-08", nights: 3, adults: 1 } })) as { content: { text: string }[] };
       expect(JSON.parse(res.content[0]!.text)).toEqual(searchStays(rows, { city, checkIn: "2027-11-08", nights: 3, adults: 1, kids: 0, pets: 0 }));
+      // A tool call is a door of its own in the ledger.
+      const from = await ledgerEnd();
+      await client.callTool({ name: "get_hotel", arguments: { hotelCode: rows.hotels[0]!.code } });
+      expect((await ledger(from)).map((e) => [e.kind, e.entity.type, e.entity.id, e.door, e.outcome])).toEqual([["read", "hotel", rows.hotels[0]!.code, "mcp", "ok"]]);
     } finally {
       await client.close();
     }

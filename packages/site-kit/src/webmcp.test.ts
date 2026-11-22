@@ -1,6 +1,7 @@
 import { createContext, runInContext } from "node:vm";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { doorOf } from "./doors/door.js";
 import { ToolRegistry } from "./tool-registry.js";
 import { webmcpScript, WEBMCP_SCRIPT_MARKER } from "./webmcp.js";
 
@@ -92,6 +93,9 @@ describe("the emitted bridge script", () => {
     runInContext(body(), createContext({ navigator, window: {}, fetch: fetchSpy }));
     expect(await tools[0]?.execute({ sku: "A" })).toBe("42");
     expect(fetchSpy.mock.calls[0]?.[0]).toBe("/w/abc/warehouse/mcp");
+    // Every call says it came through a page's tool: the site's ledger names the door from this header.
+    const sent = (fetchSpy.mock.calls[0] as unknown as [string, { headers: Record<string, string> }])[1].headers;
+    expect(doorOf("/mcp", sent)).toBe("webmcp");
   });
 });
 

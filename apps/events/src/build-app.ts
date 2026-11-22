@@ -2,16 +2,17 @@ import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
 import { createApp, type Pool } from "@benchme/core";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
-import { AuthService, PgUsersRepo, registerMcp, registerWorkspaceScope, type Mailer } from "@benchme/site-kit";
+import { AuthService, PgLedger, PgUsersRepo, registerDoors, registerMcp, registerWorkspaceScope, type Mailer } from "@benchme/site-kit";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { registerApi } from "./api/routes.js";
-import { PgEventsRepo } from "./db/events-repo.js";
-import { PgOfficesRepo } from "./db/offices-repo.js";
-import { PgRegistrationsRepo } from "./db/registrations-repo.js";
+import { PgEventsRepo, type EventsRepo } from "./db/events-repo.js";
+import { EVENTS_LEDGER, OFFICES_LEDGER, REGISTRATIONS_LEDGER } from "./db/ledger.js";
+import { PgOfficesRepo, type OfficesRepo } from "./db/offices-repo.js";
+import { PgRegistrationsRepo, type RegistrationsRepo } from "./db/registrations-repo.js";
 import { seedEvents } from "./db/seed.js";
 import { eventTools } from "./mcp/tools.js";
-import { SITE_NAME } from "./ui/shell.js";
+import { SESSION_COOKIE, SITE_NAME } from "./ui/shell.js";
 import { registerUi } from "./ui/routes.js";
 
 export type BuildDeps = {
@@ -25,7 +26,6 @@ export type BuildDeps = {
 
 /** Composition root: repos → services → routes. */
 export async function buildEvents(d: BuildDeps): Promise<FastifyInstance> {
-  const repos = { offices: new PgOfficesRepo(d.pool), events: new PgEventsRepo(d.pool), registrations: new PgRegistrationsRepo(d.pool) };
   const auth = new AuthService({
     users: new PgUsersRepo(d.pool, "events"),
     mailer: d.mailer,
@@ -41,6 +41,12 @@ export async function buildEvents(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
+  const doors = registerDoors(app, { ledger: new PgLedger(d.pool, "events"), auth, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const repos = {
+    offices: doors.ledgered<OfficesRepo>(new PgOfficesRepo(d.pool), OFFICES_LEDGER),
+    events: doors.ledgered<EventsRepo>(new PgEventsRepo(d.pool), EVENTS_LEDGER),
+    registrations: doors.ledgered<RegistrationsRepo>(new PgRegistrationsRepo(d.pool), REGISTRATIONS_LEDGER),
+  };
 
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
     if (req.params.id !== req.workspaceId) return reply.code(400).send({ error: "WORKSPACE_MISMATCH" });
