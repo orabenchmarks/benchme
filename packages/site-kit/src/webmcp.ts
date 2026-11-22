@@ -1,3 +1,4 @@
+import { DOOR_HEADER, WEBMCP_DOOR_VALUE } from "./doors/door.js";
 import type { ToolRegistry } from "./tool-registry.js";
 import { toolInputJsonSchema } from "./tool-schema.js";
 
@@ -10,7 +11,8 @@ export const WEBMCP_REGISTER_GLOBAL = "__benchmeWebmcpRegister";
  * WebMCP tools are closures inside the page. This script registers one per
  * catalog entry and bridges `execute` to the app's own `/mcp` (JSON-RPC
  * `tools/call`), so the page surface and the MCP surface can never disagree:
- * both are rendered from `ToolRegistry.list()`.
+ * both are rendered from `ToolRegistry.list()`. Every call it makes carries
+ * the door header, so the site knows the call came through a page's tool.
  *
  * Two globals carry the API today, and a page cannot know which browser it is
  * in, so it registers on EVERY distinct one present:
@@ -37,7 +39,7 @@ export function webmcpScript<C>(tools: ToolRegistry<C>, prefix: string): string 
   const catalog = tools.list().map((t) => ({ name: t.name, description: t.description, inputSchema: toolInputJsonSchema(t) }));
   const json = JSON.stringify({ endpoint: `${prefix}/mcp`, tools: catalog }).replace(/<\//g, "<\\/");
   return `<script ${WEBMCP_SCRIPT_MARKER}>(function(){var cfg=${json};var seq=0;var done=[];
-function call(name,args){return fetch(cfg.endpoint,{method:"POST",headers:{"content-type":"application/json","accept":"application/json, text/event-stream"},body:JSON.stringify({jsonrpc:"2.0",id:++seq,method:"tools/call",params:{name:name,arguments:args||{}}})}).then(function(r){return r.text()}).then(function(t){var line=t.split("\\n").filter(function(l){return l.indexOf("data:")===0}).pop();var body=JSON.parse(line?line.slice(5):t);var c=body.result&&body.result.content;return c&&c[0]&&c[0].text?c[0].text:JSON.stringify(body.result||body.error)})}
+function call(name,args){return fetch(cfg.endpoint,{method:"POST",headers:{"content-type":"application/json","accept":"application/json, text/event-stream","${DOOR_HEADER}":"${WEBMCP_DOOR_VALUE}"},body:JSON.stringify({jsonrpc:"2.0",id:++seq,method:"tools/call",params:{name:name,arguments:args||{}}})}).then(function(r){return r.text()}).then(function(t){var line=t.split("\\n").filter(function(l){return l.indexOf("data:")===0}).pop();var body=JSON.parse(line?line.slice(5):t);var c=body.result&&body.result.content;return c&&c[0]&&c[0].text?c[0].text:JSON.stringify(body.result||body.error)})}
 function contexts(){var out=[];if(typeof document!=="undefined"&&document&&document.modelContext)out.push(document.modelContext);if(typeof navigator!=="undefined"&&navigator&&navigator.modelContext&&out.indexOf(navigator.modelContext)<0)out.push(navigator.modelContext);return out.filter(function(mc){return typeof mc.registerTool==="function"})}
 function register(){contexts().forEach(function(mc){if(done.indexOf(mc)>=0)return;done.push(mc);
 cfg.tools.forEach(function(t){try{mc.registerTool({name:t.name,description:t.description,inputSchema:t.inputSchema,execute:function(a){return call(t.name,a)}})}catch(e){if(typeof console!=="undefined")console.warn("webmcp: "+t.name+" not registered: "+e)}})});return done.length>0}

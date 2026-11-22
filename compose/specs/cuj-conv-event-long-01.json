@@ -1,0 +1,179 @@
+{
+  "id": "cuj-conv-event-long-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "event made",
+        "app": "events",
+        "path": "/api/v1/events?organiser=ilsa.voss%40staff.example&date=2027-11-17",
+        "expect": {
+          "status": "scheduled"
+        },
+        "where": {
+          "title": "Launch review"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "event",
+          "id": "{code}",
+          "at": "first"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "guests added",
+            "match": {
+              "app": "events",
+              "entity": {
+                "type": "event",
+                "id": "@event made"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "event made"
+          },
+          {
+            "name": "the first added is invited",
+            "app": "events",
+            "path": "/api/v1/events?organiser=ilsa.voss%40staff.example&date=2027-11-17",
+            "expect": {
+              "guests": {
+                "email": "bram.voss@staff.example"
+              }
+            },
+            "where": {
+              "title": "Launch review",
+              "status": "scheduled"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "room changed",
+            "match": {
+              "app": "events",
+              "entity": {
+                "type": "event",
+                "id": "@event made"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "guests added"
+          },
+          {
+            "name": "in the room that holds everyone",
+            "app": "events",
+            "path": "/api/v1/events?organiser=ilsa.voss%40staff.example&date=2027-11-17",
+            "expect": {
+              "roomCode": "BRE-R2"
+            },
+            "where": {
+              "title": "Launch review",
+              "status": "scheduled"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "an hour later",
+            "match": {
+              "app": "events",
+              "entity": {
+                "type": "event",
+                "id": "@event made"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "room changed"
+          },
+          {
+            "name": "at the new time",
+            "app": "events",
+            "path": "/api/v1/events?organiser=ilsa.voss%40staff.example&date=2027-11-17",
+            "expect": {
+              "startTime": "11:00",
+              "endTime": "12:00"
+            },
+            "where": {
+              "title": "Launch review",
+              "status": "scheduled"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "guest taken off",
+            "match": {
+              "app": "events",
+              "entity": {
+                "type": "event",
+                "id": "@event made"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "an hour later"
+          },
+          {
+            "name": "as it stands",
+            "app": "events",
+            "path": "/api/v1/events?organiser=ilsa.voss%40staff.example&date=2027-11-17",
+            "expect": {
+              "guestCount": 3,
+              "roomCode": "BRE-R2",
+              "startTime": "11:00",
+              "guests": {
+                "email": "bram.voss@staff.example"
+              }
+            },
+            "where": {
+              "title": "Launch review",
+              "status": "scheduled"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "people": 4
+        }
+      }
+    }
+  ]
+}

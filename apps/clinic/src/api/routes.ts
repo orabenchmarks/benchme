@@ -1,13 +1,12 @@
-import { DomainError, apiUser, type AuthService } from "@benchme/site-kit";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { DomainError } from "@benchme/site-kit";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { AppointmentsRepo } from "../db/appointments-repo.js";
 import type { CatalogRepo } from "../db/catalog-repo.js";
 import type { PrescriptionsRepo } from "../db/prescriptions-repo.js";
-import { SESSION_COOKIE } from "../ui/shell.js";
 import { appointmentSchema, appointmentsQuery, date, defaulted, doctorQuerySchema, optional, refillSchema, toAppointmentFilter, toDoctorQuery, visitType } from "./inputs.js";
 
-export type ApiDeps = { catalog: CatalogRepo; appointments: AppointmentsRepo; prescriptions: PrescriptionsRepo; auth: AuthService };
+export type ApiDeps = { catalog: CatalogRepo; appointments: AppointmentsRepo; prescriptions: PrescriptionsRepo };
 
 const slotsQuery = z.object({ date });
 const coverageQuery = z.object({ plan: z.string().min(1), procedure: z.string().min(1) });
@@ -16,14 +15,8 @@ const pricesQuery = z.object({ medication: z.string().min(1), dosage: optional(z
 const rxQuery = z.object({ patientEmail: z.string().optional() });
 const refillsQuery = z.object({ patientEmail: z.string().optional(), rxNo: z.string().optional(), status: optional(z.enum(["requested", "collected"])) });
 
-/** REST under /api/v1. Reads are open inside the workspace; booking, cancelling and refill requests need a bearer token or a session. */
+/** REST under /api/v1. Reads are open inside the workspace; booking, cancelling and refill requests need a bearer token or a session: the site's rules ask it of every write, through every door (site-kit's `ledgered`), so no route here does. */
 export function registerApi(app: FastifyInstance, d: ApiDeps): void {
-  const caller = apiUser(d.auth, SESSION_COOKIE);
-  const authed = async (req: FastifyRequest, reply: FastifyReply): Promise<boolean> => {
-    if (await caller(req)) return true;
-    reply.code(401).send({ error: "UNAUTHORIZED", message: "sign in or send Authorization: Bearer <api token>" });
-    return false;
-  };
   const run = async (reply: FastifyReply, fn: () => Promise<unknown>, code = 200) => {
     try {
       return reply.code(code).send(await fn());
@@ -84,13 +77,11 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
   });
   app.get<{ Params: { no: string } }>("/api/v1/appointments/:no", async (req, reply) => found(reply, await d.appointments.get(req.workspaceId, req.params.no)));
   app.post("/api/v1/appointments", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const b = parse(appointmentSchema, req.body, reply);
     if (!b) return;
     return run(reply, () => d.appointments.create(req.workspaceId, b), 201);
   });
   app.post<{ Params: { no: string } }>("/api/v1/appointments/:no/cancel", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     return run(reply, () => d.appointments.cancel(req.workspaceId, req.params.no));
   });
 
@@ -101,7 +92,6 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
   });
   app.get<{ Params: { no: string } }>("/api/v1/prescriptions/:no", async (req, reply) => found(reply, await d.prescriptions.get(req.workspaceId, req.params.no)));
   app.post<{ Params: { no: string } }>("/api/v1/prescriptions/:no/refill", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const b = parse(refillSchema, req.body, reply);
     if (!b) return;
     return run(reply, () => d.prescriptions.requestRefill(req.workspaceId, req.params.no, b.pharmacyCode), 201);

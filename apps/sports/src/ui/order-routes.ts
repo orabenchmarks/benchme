@@ -57,7 +57,6 @@ export function registerOrderUi(app: FastifyInstance, d: UiDeps, k: PageKit): vo
   });
 
   app.post("/orders", async (req, reply) => {
-    if (!(await k.requireUser(req, reply))) return;
     const f = flat(req.body);
     const parsed = orderSchema.safeParse({ customerEmail: f.customerEmail, addressCode: f.addressCode, lines: formLines(f) });
     if (!parsed.success) return k.html(reply, await formPage(req, f, `Check the order: ${issues(parsed.error)}`), 400);
@@ -78,7 +77,6 @@ export function registerOrderUi(app: FastifyInstance, d: UiDeps, k: PageKit): vo
   /** A follow-up action on an order page: 303 to the page it lands on, or the order page again with the reason. */
   const action = (path: string, act: (req: FastifyRequest<No>, f: Record<string, string | undefined>) => Promise<string>) =>
     app.post<No>(`/orders/:no/${path}`, async (req, reply: FastifyReply) => {
-      if (!(await k.requireUser(req, reply))) return;
       try {
         return reply.redirect(`${req.prefix}/orders/${await act(req, flat(req.body))}`, 303);
       } catch (err) {

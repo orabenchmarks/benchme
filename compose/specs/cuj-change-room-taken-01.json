@@ -1,0 +1,112 @@
+{
+  "id": "cuj-change-room-taken-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "kind": "unchanged",
+        "name": "nothing changed",
+        "scope": [
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1075"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "subject": {
+              "type": "event",
+              "id": "EV-1075"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "room",
+              "id": "VEL-R5"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "subject": {
+              "type": "room",
+              "id": "VEL-R5"
+            }
+          }
+        ]
+      },
+      {
+        "kind": "ledger",
+        "name": "looked or was refused",
+        "match": [
+          {
+            "app": "events",
+            "entity": {
+              "type": "event",
+              "id": "EV-1075"
+            },
+            "action": "read",
+            "outcome": "ok"
+          },
+          {
+            "app": "events",
+            "entity": {
+              "type": "room",
+              "id": "VEL-R5"
+            },
+            "action": "read",
+            "outcome": "ok"
+          },
+          {
+            "app": "events",
+            "entity": {
+              "type": "event",
+              "id": "EV-1075"
+            },
+            "outcome": "refused",
+            "code": "ROOM_TAKEN"
+          },
+          {
+            "app": "events",
+            "subject": {
+              "type": "event",
+              "id": "EV-1075"
+            },
+            "outcome": "refused",
+            "code": "ROOM_TAKEN"
+          },
+          {
+            "app": "events",
+            "entity": {
+              "type": "room",
+              "id": "VEL-R5"
+            },
+            "outcome": "refused",
+            "code": "ROOM_TAKEN"
+          },
+          {
+            "app": "events",
+            "subject": {
+              "type": "room",
+              "id": "VEL-R5"
+            },
+            "outcome": "refused",
+            "code": "ROOM_TAKEN"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

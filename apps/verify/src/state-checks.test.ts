@@ -1,0 +1,478 @@
+import type { LedgerEntry } from "@benchme/site-kit";
+import type { z } from "zod";
+import { describe, expect, it } from "vitest";
+import { StateOracle, defaultStateChecks } from "./oracles/state-oracle.js";
+import { stateSpec, taskSpecSchema } from "./specs/spec.js";
+import { FakeSites, T } from "./testing/fake-sites.js";
+
+type Spec = z.infer<typeof stateSpec>;
+const WS = "ws_0123456789ab";
+const ctx = { workspaceId: WS, taskId: "state-checks-test" };
+
+const read = (over: Partial<LedgerEntry> = {}): Partial<LedgerEntry> => ({ kind: "read", action: "read", ...over });
+const refused = (code: string, over: Partial<LedgerEntry> = {}): Partial<LedgerEntry> => ({ outcome: "refused", code, ...over });
+
+const run = async (sites: FakeSites, checks: unknown[]) => new StateOracle(sites).check(Buffer.alloc(0), stateSpec.parse({ kind: "state", checks }) as Spec, ctx);
+const one = async (sites: FakeSites, check: unknown) => (await run(sites, [check])).checks[0]!;
+
+describe("the check kinds", () => {
+  it("have one implementation for every kind the schema knows, and no other", () => {
+    expect(defaultStateChecks().kinds().sort()).toEqual(["absent", "ledger", "row", "unchanged"]);
+    for (const kind of ["absent", "ledger", "unchanged"]) expect(() => stateSpec.parse({ kind: "state", checks: [{ kind, name: "x" }] })).toThrow();
+    expect(() => stateSpec.parse({ kind: "state", checks: [{ kind: "vanished", name: "x" }] })).toThrow(/unknown check kind .*vanished.*; there is row, absent, ledger, unchanged/);
+  });
+
+  it("leave a check that names no kind exactly as it was written: it is a row check", () => {
+    const written = { name: "shipped", app: "warehouse", path: "/api/v1/orders", where: { no: "SO-1" }, expect: { status: "shipped" } };
+    expect(stateSpec.parse({ kind: "state", checks: [written] }).checks).toEqual([written]);
+    expect(stateSpec.parse({ kind: "state", checks: [{ kind: "row", ...written }] }).checks).toEqual([{ kind: "row", ...written }]);
+  });
+});
+
+describe("an absent check", () => {
+  const check = { kind: "absent", name: "no second booking", app: "hotels", path: "/api/v1/bookings", where: { guestEmail: "ilsa@example.com" } };
+  const others = [{ bookingNo: "BK-1", guestEmail: "bram@example.com", status: "confirmed" }];
+
+  it("passes when no row matches, the outcome a row check fails on", async () => {
+    const sites = new FakeSites().seed("hotels", "/api/v1/bookings", others);
+    expect(await one(sites, check)).toEqual({ name: "no second booking", ok: true });
+    expect(await one(sites, { name: "booked", app: "hotels", path: "/api/v1/bookings", where: check.where, expect: { status: "confirmed" } })).toMatchObject({ ok: false, note: expect.stringMatching(/no row/) });
+  });
+
+  it("FAILS when one row matches: the same list, with her booking in it", async () => {
+    const sites = new FakeSites().seed("hotels", "/api/v1/bookings", [...others, { bookingNo: "BK-2", guestEmail: "Ilsa@Example.com", status: "confirmed" }]);
+    expect(await one(sites, check)).toMatchObject({ ok: false, note: expect.stringMatching(/expected no matching row at hotels\/api\/v1\/bookings, found 1: .*BK-2/) });
+  });
+
+  it("counts a row only when it also satisfies `expect`, when one is given", async () => {
+    const hers = (status: string) => new FakeSites().seed("hotels", "/api/v1/bookings", [{ bookingNo: "BK-2", guestEmail: "ilsa@example.com", status }]);
+    const confirmedOnly = { ...check, expect: { status: "confirmed" } };
+    expect((await one(hers("cancelled"), confirmedOnly)).ok).toBe(true);
+    expect((await one(hers("confirmed"), confirmedOnly)).ok).toBe(false);
+  });
+
+  it("passes on an empty list and on a path that is not there, and with no `where` only on those", async () => {
+    const anyRow = { kind: "absent", name: "no return", app: "sports", path: "/api/v1/returns?orderNo=SO-7" };
+    expect((await one(new FakeSites().seed("sports", anyRow.path, []), anyRow)).ok).toBe(true);
+    expect((await one(new FakeSites(), anyRow)).ok).toBe(true);
+    expect((await one(new FakeSites().seed("sports", anyRow.path, [{ returnNo: "RT-1" }]), anyRow)).ok).toBe(false);
+  });
+
+  it("FAILS when the read could not be finished: an absence is proven over everything or not at all", async () => {
+    // A cursor that never ends: the read stops at its page cap having seen no match.
+    const endless = new FakeSites().seed("hotels", "/api/v1/bookings", { items: others, nextCursor: "c" }).seed("hotels", "/api/v1/bookings?cursor=c", { items: others, nextCursor: "c" });
+    expect(await one(endless, check)).toMatchObject({ ok: false, note: expect.stringMatching(/absence is not proven/) });
+    const down = new FakeSites().seed("hotels", "/api/v1/bookings", others);
+    down.down.add("hotels");
+    expect(await one(down, check)).toMatchObject({ ok: false, note: expect.stringMatching(/unreachable/) });
+  });
+
+  it("is refused at load with a field it does not have", () => {
+    expect(() => stateSpec.parse({ kind: "state", checks: [{ ...check, count: { max: 0 } }] })).toThrow(/count/);
+  });
+});
+
+describe("a ledger check", () => {
+  const match = { app: "sports", entity: { type: "order", id: "SO-7" }, action: "cancel", outcome: "ok", door: "mcp", actor: "ilsa@example.com" };
+  const check = { kind: "ledger", name: "cancelled", match };
+
+  it("passes on an entry that matches, and its time is the entry's time", async () => {
+    const sites = new FakeSites().ledger("sports", [{ at: T(2, 482) }]);
+    expect(await one(sites, check)).toEqual({ name: "cancelled", ok: true, at: "2027-03-01T10:02:00.482Z" });
+  });
+
+  it("reports when the entry happened, never when the check ran", async () => {
+    const before = Date.now();
+    const result = await one(new FakeSites().ledger("sports", [{ at: T(2, 482) }]), check);
+    expect(result.at).toBe(T(2, 482));
+    expect(Math.abs(Date.parse(result.at!) - before)).toBeGreaterThan(24 * 3600 * 1000);
+  });
+
+  it("FAILS on an empty ledger: an agent that did nothing has no entry", async () => {
+    expect(await one(new FakeSites().ledger("sports", []), check)).toMatchObject({ ok: false, note: expect.stringMatching(/no ledger entry matching/) });
+  });
+
+  // One entry that matches on every field; each case moves the ENTRY off the matcher in exactly one of them.
+  it.each([
+    ["app", { app: "hotels" }],
+    ["entity type", { entity: { type: "return", id: "SO-7" } }],
+    ["entity id", { entity: { type: "order", id: "SO-8" } }],
+    ["action", { action: "create" }],
+    ["outcome", { outcome: "refused" as const, code: "ORDER_LOCKED" }],
+    ["door", { door: "rest" as const }],
+    ["actor", { actor: "bram@example.com" }],
+    ["actor (nobody)", { actor: null }],
+  ])("FAILS when the only entry differs in its %s", async (_field, moved) => {
+    const sites = new FakeSites().ledger("sports", []).ledger("hotels", []);
+    sites.ledger(moved.app ?? "sports", [moved]);
+    expect((await one(sites, check)).ok).toBe(false);
+    // The matcher without that field would have taken it: it is that field that refused it.
+    expect((await one(new FakeSites().ledger("sports", [{}]), check)).ok).toBe(true);
+  });
+
+  it("matches a refusal by its reason code, and nobody by `actor: null`", async () => {
+    const locked = { kind: "ledger", name: "refused", match: { app: "sports", outcome: "refused", code: "ORDER_LOCKED" } };
+    expect((await one(new FakeSites().ledger("sports", [refused("ORDER_LOCKED")]), locked)).ok).toBe(true);
+    expect((await one(new FakeSites().ledger("sports", [refused("UNAUTHORIZED")]), locked)).ok).toBe(false);
+    const byNobody = { kind: "ledger", name: "unsigned", match: { app: "sports", action: "cancel", actor: null } };
+    expect((await one(new FakeSites().ledger("sports", [{ actor: null }]), byNobody)).ok).toBe(true);
+    expect((await one(new FakeSites().ledger("sports", [{}]), byNobody)).ok).toBe(false);
+  });
+
+  it("compares strings as rows are compared: trimmed, whatever the case", async () => {
+    const loud = { kind: "ledger", name: "cancelled", match: { app: "sports", entity: { type: "Order", id: " so-7 " }, actor: "Ilsa@Example.com" } };
+    expect((await one(new FakeSites().ledger("sports", [{}]), loud)).ok).toBe(true);
+  });
+
+  it("takes any one of several matchers, across apps, and stands on the earliest entry that matches", async () => {
+    const lookedOrRefused = { kind: "ledger", name: "looked or was refused", match: [{ app: "sports", entity: { type: "order", id: "SO-7" }, action: "read" }, { app: "hotels", outcome: "refused", code: "SOLD_OUT" }] };
+    expect((await one(new FakeSites().ledger("sports", []).ledger("hotels", []), lookedOrRefused)).ok).toBe(false);
+    expect(await one(new FakeSites().ledger("sports", [read({ at: T(5) })]).ledger("hotels", []), lookedOrRefused)).toMatchObject({ ok: true, at: T(5) });
+    expect(await one(new FakeSites().ledger("sports", []).ledger("hotels", [refused("SOLD_OUT", { at: T(6) })]), lookedOrRefused)).toMatchObject({ ok: true, at: T(6) });
+    const both = new FakeSites().ledger("sports", [read({ at: T(5) }), read({ at: T(9) })]).ledger("hotels", [refused("SOLD_OUT", { at: T(4) })]);
+    expect(await one(both, lookedOrRefused)).toMatchObject({ ok: true, at: T(4) });
+  });
+
+  describe("after another check", () => {
+    const booked = { kind: "ledger", name: "booked", match: { app: "hotels", entity: { type: "booking" }, action: "create", outcome: "ok" } };
+    const changed = { kind: "ledger", name: "changed after booking", match: { app: "dining", action: "change", outcome: "ok" }, after: "booked" };
+    const hotels = [{ entity: { type: "booking", id: "BK-1" }, action: "create", at: T(3) }];
+
+    it("passes on an entry later than the one the named check stood on", async () => {
+      const sites = new FakeSites().ledger("hotels", hotels).ledger("dining", [{ action: "change", at: T(4) }]);
+      expect((await run(sites, [booked, changed])).checks).toEqual([{ name: "booked", ok: true, at: T(3) }, { name: "changed after booking", ok: true, at: T(4) }]);
+    });
+
+    it("FAILS when the only matching entry came before it: the same entry, a minute earlier than the booking", async () => {
+      const sites = new FakeSites().ledger("hotels", hotels).ledger("dining", [{ action: "change", at: T(2) }]);
+      expect((await run(sites, [booked, changed])).checks[1]).toMatchObject({ ok: false, note: expect.stringMatching(/1 matching ledger entry, none after "booked"/) });
+    });
+
+    it("skips the earlier matches and stands on the first one after", async () => {
+      const sites = new FakeSites().ledger("hotels", hotels).ledger("dining", [{ action: "change", at: T(1) }, { action: "change", at: T(7) }, { action: "change", at: T(8) }]);
+      expect((await run(sites, [booked, changed])).checks[1]).toEqual({ name: "changed after booking", ok: true, at: T(7) });
+    });
+
+    it("goes by the ledger's own order within one app, where two entries can share a millisecond", async () => {
+      const first = { kind: "ledger", name: "first", match: { app: "sports", action: "create" } };
+      const second = { kind: "ledger", name: "second", match: { app: "sports", entity: { type: "order" } }, after: "first" };
+      const sameInstant = new FakeSites().ledger("sports", [{ action: "create", at: T(2) }, { action: "cancel", at: T(2) }]);
+      expect((await run(sameInstant, [first, second])).checks.map((c) => c.ok)).toEqual([true, true]);
+      // Alone, the entry `first` stood on matches `second` too: it is not after itself.
+      expect((await run(new FakeSites().ledger("sports", [{ action: "create", at: T(2) }]), [first, second])).checks.map((c) => c.ok)).toEqual([true, false]);
+    });
+
+    it("FAILS when the named check did not pass, or passed on no ledger entry", async () => {
+      const sites = new FakeSites().ledger("hotels", []).ledger("dining", [{ action: "change", at: T(4) }]);
+      expect((await run(sites, [booked, changed])).checks[1]).toMatchObject({ ok: false, note: expect.stringMatching(/"booked" did not pass on a ledger entry/) });
+      const rowOnly = { name: "booked", app: "hotels", path: "/api/v1/bookings", expect: { status: "confirmed" } };
+      const seeded = new FakeSites().seed("hotels", "/api/v1/bookings", [{ status: "confirmed" }]).ledger("dining", [{ action: "change", at: T(4) }]);
+      expect((await run(seeded, [rowOnly, changed])).checks.map((c) => c.ok)).toEqual([true, false]);
+    });
+
+    it("is refused at load when it names no earlier check, or a later one", () => {
+      const task = (checks: unknown[]) => taskSpecSchema.parse({ id: "t-after", oracle: { kind: "state", checks } });
+      expect(() => task([booked, changed])).not.toThrow();
+      expect(() => task([changed, booked])).toThrow(/comes after .*booked.*, which no earlier check is called/);
+      expect(() => task([booked, { ...changed, after: "bokked" }])).toThrow(/no earlier check is called/);
+      expect(() => task([booked, { ...booked }, changed])).toThrow(/more than one earlier check is called/);
+    });
+  });
+
+  it("FAILS when a ledger cannot be read, rather than pass on what it did not see", async () => {
+    const down = new FakeSites().ledger("sports", [{}]);
+    down.down.add("sports");
+    expect(await one(down, check)).toMatchObject({ ok: false, note: expect.stringMatching(/ledger unreachable: connection refused/) });
+    // An app that keeps no ledger answers its route with nothing.
+    expect(await one(new FakeSites(), check)).toMatchObject({ ok: false, note: expect.stringMatching(/sports keeps no change ledger/) });
+    const garbled = new FakeSites().seed("sports", "x", null);
+    garbled.get = async () => ({ items: [{ seq: "one" }], nextCursor: null });
+    expect(await one(garbled, check)).toMatchObject({ ok: false, note: expect.stringMatching(/answered its ledger with something else/) });
+  });
+
+  it("is refused at load when a matcher names only the app, or a field the ledger does not have", () => {
+    const parse = (m: unknown) => stateSpec.parse({ kind: "state", checks: [{ kind: "ledger", name: "x", match: m }] });
+    expect(() => parse({ app: "sports" })).toThrow(/must name more than the app/);
+    expect(() => parse({ app: "sports", actoor: "ilsa@example.com" })).toThrow(/actoor/);
+    expect(() => parse({ app: "sports", door: "window" })).toThrow();
+    expect(() => parse([])).toThrow();
+  });
+});
+
+describe("an unchanged check", () => {
+  const check = { kind: "unchanged", name: "nothing changed", scope: { apps: ["sports"] } };
+  /** Everything an agent can do that changes nothing: look, be refused, sign up and in. */
+  const harmless = [read(), refused("ORDER_LOCKED"), refused("UNAUTHORIZED", { actor: null }), { kind: "auth" as const, entity: { type: "account", id: "ilsa@example.com" }, action: "sign_up" }];
+
+  it("passes when the ledger holds no successful write: reads, refusals and sign-ups change nothing", async () => {
+    expect(await one(new FakeSites().ledger("sports", harmless), check)).toEqual({ name: "nothing changed", ok: true });
+    expect((await one(new FakeSites().ledger("sports", []), check)).ok).toBe(true);
+  });
+
+  it("FAILS on one successful write: the same ledger, its refused cancel made", async () => {
+    const sites = new FakeSites().ledger("sports", [read(), { at: T(2) }, refused("UNAUTHORIZED", { actor: null })]);
+    expect(await one(sites, check)).toEqual({ name: "nothing changed", ok: false, note: `1 successful write where none was expected; the first, sports: order SO-7 cancel through mcp by ilsa@example.com at ${T(2)}` });
+  });
+
+  it("looks at every app of its scope, and at no other", async () => {
+    const sites = () => new FakeSites().ledger("sports", harmless).ledger("hotels", [{ entity: { type: "booking", id: "BK-1" }, action: "create" }]);
+    expect((await one(sites(), check)).ok).toBe(true);
+    expect((await one(sites(), { ...check, scope: { apps: ["sports", "hotels"] } })).ok).toBe(false);
+  });
+
+  it("narrows to one actor's writes, to nobody's, to one entity type or one entity", async () => {
+    const sites = () => new FakeSites().ledger("sports", [{ actor: "bram@example.com", entity: { type: "return", id: "RT-1" }, action: "create" }]);
+    const scoped = (scope: Record<string, unknown>) => one(sites(), { ...check, scope: { apps: ["sports"], ...scope } });
+    expect((await scoped({ actor: "ilsa@example.com" })).ok).toBe(true);
+    expect((await scoped({ actor: "bram@example.com" })).ok).toBe(false);
+    expect((await scoped({ actor: null })).ok).toBe(true);
+    expect((await scoped({ entity: { type: "order" } })).ok).toBe(true);
+    expect((await scoped({ entity: { type: "return" } })).ok).toBe(false);
+    expect((await scoped({ entity: { type: "return", id: "RT-2" } })).ok).toBe(true);
+    expect((await scoped({ entity: { type: "return", id: "RT-1" } })).ok).toBe(false);
+  });
+
+  it("allows the writes it names, and only those", async () => {
+    const booking = { entity: { type: "booking", id: "BK-1" }, action: "create" };
+    const allowed = { ...check, scope: { apps: ["hotels"] }, except: [{ app: "hotels", entity: { type: "booking", id: "BK-1" }, action: "create" }] };
+    expect((await one(new FakeSites().ledger("hotels", [booking]), allowed)).ok).toBe(true);
+    expect((await one(new FakeSites().ledger("hotels", [booking, { ...booking, action: "cancel" }]), allowed)).ok).toBe(false);
+    expect((await one(new FakeSites().ledger("hotels", [booking, { ...booking, entity: { type: "booking", id: "BK-2" } }]), allowed)).ok).toBe(false);
+  });
+
+  it("reads the whole ledger: a write past the first page is still a write", async () => {
+    const long = new FakeSites().ledger("sports", [...Array.from({ length: 2300 }, () => read()), {}]);
+    expect((await one(long, check)).ok).toBe(false);
+    expect(long.ledgerReads).toBe(3);
+    expect((await one(new FakeSites().ledger("sports", Array.from({ length: 2300 }, () => read())), check)).ok).toBe(true);
+  });
+
+  it("FAILS when a ledger of its scope cannot be read: nothing seen is not nothing done", async () => {
+    expect(await one(new FakeSites().ledger("sports", harmless), { ...check, scope: { apps: ["sports", "warehouse"] } })).toMatchObject({ ok: false, note: expect.stringMatching(/warehouse keeps no change ledger/) });
+    const endless = new FakeSites().ledger("sports", harmless);
+    endless.get = async () => ({ items: [], nextCursor: "1" });
+    expect(await one(endless, check)).toMatchObject({ ok: false, note: expect.stringMatching(/did not end within/) });
+  });
+
+  it("has no time of its own, and reads each ledger once however many checks ask", async () => {
+    const sites = new FakeSites().ledger("sports", harmless);
+    const result = await run(sites, [check, { ...check, name: "again" }, { kind: "ledger", name: "looked", match: { app: "sports", action: "read" } }]);
+    expect(result.checks.map((c) => [c.ok, "at" in c])).toEqual([[true, false], [true, false], [true, true]]);
+    expect(sites.ledgerReads).toBe(1);
+  });
+
+  it("is refused at load without an app to look at", () => {
+    expect(() => stateSpec.parse({ kind: "state", checks: [{ ...check, scope: { apps: [] } }] })).toThrow();
+    expect(() => stateSpec.parse({ kind: "state", checks: [{ ...check, scope: {} }] })).toThrow();
+  });
+});
+
+// The check an impossible task carries: nothing was changed, AND the agent looked at what it was asked about or was
+// refused for the expected reason. Four runs, the same two checks.
+describe("an impossible task's checks", () => {
+  const checks = [
+    { kind: "unchanged", name: "nothing changed", scope: { apps: ["sports"] } },
+    { kind: "ledger", name: "looked, or was refused for the reason", match: [{ app: "sports", entity: { type: "order", id: "SO-7" }, action: "read" }, { app: "sports", entity: { type: "return" }, outcome: "refused", code: "RETURN_WINDOW_CLOSED" }] },
+  ];
+  const verdict = async (ledger: Partial<LedgerEntry>[]) => (await run(new FakeSites().ledger("sports", ledger), checks)).verdict;
+
+  it("fail a run that did nothing", async () => expect(await verdict([])).toBe("FAIL"));
+  it("pass a run that looked at the order and changed nothing", async () => expect(await verdict([read()])).toBe("OK"));
+  it("pass a run that was refused with the expected reason", async () => expect(await verdict([refused("RETURN_WINDOW_CLOSED", { entity: { type: "return", id: null }, action: "create" })])).toBe("OK"));
+  it("fail a run refused for another reason that never looked", async () => expect(await verdict([refused("UNAUTHORIZED", { entity: { type: "return", id: null }, action: "create", actor: null })])).toBe("FAIL"));
+  it("fail a run that looked and then changed something", async () => expect(await verdict([read(), { action: "cancel" }])).toBe("FAIL"));
+});
+
+describe("a row check with its entity", () => {
+  const rows = [{ bookingNo: "BK-1", guestEmail: "ilsa@example.com", status: "cancelled" }];
+  const check = { name: "cancelled", app: "hotels", path: "/api/v1/bookings", where: { guestEmail: "ilsa@example.com" }, expect: { status: "cancelled" }, entity: { type: "booking", id: "{bookingNo}" } };
+  const booking = (over: Partial<LedgerEntry>) => ({ entity: { type: "booking", id: "BK-1" }, ...over });
+
+  it("reports when the row became what it is: the last successful write the ledger holds for it", async () => {
+    const sites = new FakeSites().seed("hotels", "/api/v1/bookings", rows).ledger("hotels", [booking({ action: "create", at: T(1) }), booking({ action: "cancel", at: T(6) })]);
+    expect(await one(sites, check)).toEqual({ name: "cancelled", ok: true, at: T(6) });
+  });
+
+  it("is not moved by a later refusal, a later read, or another booking's write", async () => {
+    const sites = new FakeSites().seed("hotels", "/api/v1/bookings", rows).ledger("hotels", [
+      booking({ action: "cancel", at: T(6) }),
+      booking({ action: "cancel", at: T(7), outcome: "refused", code: "ALREADY_CANCELLED" }),
+      booking({ kind: "read", action: "read", at: T(8) }),
+      booking({ entity: { type: "booking", id: "BK-2" }, action: "cancel", at: T(9) }),
+    ]);
+    expect((await one(sites, check)).at).toBe(T(6));
+  });
+
+  it("passes with no time for a row nobody wrote, and names none when the check gives no entity", async () => {
+    const seeded = new FakeSites().seed("hotels", "/api/v1/bookings", rows).ledger("hotels", []);
+    expect(await one(seeded, check)).toEqual({ name: "cancelled", ok: true });
+    const { entity: _entity, ...plain } = check;
+    const written = new FakeSites().seed("hotels", "/api/v1/bookings", rows).ledger("hotels", [booking({ action: "cancel", at: T(6) })]);
+    expect(await one(written, plain)).toEqual({ name: "cancelled", ok: true });
+    expect(written.ledgerReads).toBe(0);
+  });
+
+  it("still fails on the row, and fails when asked for a time the ledger cannot give", async () => {
+    const wrong = new FakeSites().seed("hotels", "/api/v1/bookings", [{ ...rows[0], status: "confirmed" }]).ledger("hotels", [booking({ action: "create", at: T(1) })]);
+    expect(await one(wrong, check)).toMatchObject({ ok: false, note: expect.stringMatching(/expected status/) });
+    expect(await one(new FakeSites().seed("hotels", "/api/v1/bookings", rows), check)).toMatchObject({ ok: false, note: expect.stringMatching(/hotels keeps no change ledger/) });
+  });
+});
+
+// A refused create has no entity id; its subject (what the request named) is what says which one it was about.
+describe("a check about what a refusal was for", () => {
+  const returnRefused = (orderNo: string): Partial<LedgerEntry> => ({ entity: { type: "return", id: null }, subject: { type: "order", id: orderNo }, action: "create", outcome: "refused", code: "RETURN_WINDOW_CLOSED" });
+  const check = { kind: "ledger", name: "refused for that order", match: { app: "sports", entity: { type: "return" }, subject: { type: "order", id: "ORD-1" }, outcome: "refused", code: "RETURN_WINDOW_CLOSED" } };
+
+  it("passes on a refusal about the entity it names", async () => {
+    expect(await one(new FakeSites().ledger("sports", [returnRefused("ORD-1")]), check)).toMatchObject({ ok: true });
+  });
+
+  it("FAILS on the same refusal about a different entity", async () => {
+    expect(await one(new FakeSites().ledger("sports", [returnRefused("ORD-2")]), check)).toMatchObject({ ok: false, note: expect.stringMatching(/no ledger entry matching/) });
+  });
+
+  it("FAILS on an entry with no subject at all", async () => {
+    expect((await one(new FakeSites().ledger("sports", [{ ...returnRefused("ORD-1"), subject: null }]), check)).ok).toBe(false);
+  });
+
+  it("matches a subject's type alone when the matcher gives no id", async () => {
+    const anyOrder = { ...check, match: { ...check.match, subject: { type: "order" } } };
+    expect((await one(new FakeSites().ledger("sports", [returnRefused("ORD-2")]), anyOrder)).ok).toBe(true);
+    expect((await one(new FakeSites().ledger("sports", [{ ...returnRefused("ORD-2"), subject: { type: "customer", id: "ORD-2" } }]), anyOrder)).ok).toBe(false);
+  });
+});
+
+describe("an unchanged check's scope", () => {
+  const order = { type: "order", id: "ORD-1" };
+  // Done TO the order (its entity), and made FROM it (its subject): one check, two scopes.
+  const check = { kind: "unchanged", name: "nothing done about the order", scope: [{ apps: ["sports"], entity: order }, { apps: ["sports"], subject: order }] };
+
+  it("counts a write in any of its scopes", async () => {
+    expect((await one(new FakeSites().ledger("sports", [{ entity: order, action: "cancel" }]), check)).ok).toBe(false);
+    expect((await one(new FakeSites().ledger("sports", [{ entity: { type: "order", id: "ORD-9" }, subject: order, action: "reorder" }]), check)).ok).toBe(false);
+    expect((await one(new FakeSites().ledger("sports", [{ entity: { type: "return", id: "RT-1" }, subject: order, action: "create" }]), check)).ok).toBe(false);
+  });
+
+  it("passes over writes about other things, and over refusals about this one", async () => {
+    const elsewhere = [{ entity: { type: "order", id: "ORD-2" }, action: "cancel" }, { entity: { type: "return", id: "RT-2" }, subject: { type: "order", id: "ORD-2" }, action: "create" }, { entity: order, action: "cancel", outcome: "refused" as const, code: "NOT_CANCELLABLE" }];
+    expect(await one(new FakeSites().ledger("sports", elsewhere), check)).toEqual({ name: "nothing done about the order", ok: true });
+  });
+
+  it("keeps each scope to its own apps", async () => {
+    const twoApps = { kind: "unchanged", name: "x", scope: [{ apps: ["sports"], entity: order }, { apps: ["hotels"], entity: { type: "booking" } }] };
+    // An order write in the hotels ledger is in neither scope.
+    expect((await one(new FakeSites().ledger("sports", []).ledger("hotels", [{ entity: order }]), twoApps)).ok).toBe(true);
+    expect((await one(new FakeSites().ledger("sports", []).ledger("hotels", [{ entity: { type: "booking", id: "BK-1" } }]), twoApps)).ok).toBe(false);
+  });
+
+  describe("after an earlier check", () => {
+    const booked = { kind: "ledger", name: "booked", match: { app: "dining", action: "create", outcome: "ok" } };
+    const since = { kind: "unchanged", name: "nothing changed since", scope: { apps: ["dining"] }, after: "booked" };
+    const create = { entity: { type: "reservation", id: "RS-1" }, action: "create", at: T(2) };
+
+    it("counts only the writes after the entry that check stood on: the booking itself is not one", async () => {
+      expect((await run(new FakeSites().ledger("dining", [create]), [booked, since])).checks.map((c) => c.ok)).toEqual([true, true]);
+    });
+
+    it("FAILS on a write after it", async () => {
+      const changed = new FakeSites().ledger("dining", [create, { entity: { type: "reservation", id: "RS-1" }, action: "change", at: T(5) }]);
+      expect((await run(changed, [booked, since])).checks[1]).toMatchObject({ ok: false, note: expect.stringMatching(/reservation RS-1 change/) });
+    });
+
+    it("FAILS when the check it comes after stood on no entry, rather than count from nowhere", async () => {
+      expect((await run(new FakeSites().ledger("dining", []), [booked, since])).checks[1]).toMatchObject({ ok: false, note: expect.stringMatching(/"booked" did not pass on a ledger entry/) });
+    });
+
+    it("is refused at load when it names no earlier check", () => {
+      expect(() => taskSpecSchema.parse({ id: "t-since", oracle: { kind: "state", checks: [since, booked] } })).toThrow(/no earlier check is called/);
+    });
+  });
+});
+
+// A later step speaks of what an earlier one made: the reservation booked in step 1 has an id nobody knew beforehand.
+describe("an id that names the entity an earlier check stood on", () => {
+  const rows = [{ reservationNo: "RS-7", guestEmail: "ilsa@example.com", status: "confirmed" }];
+  const booked = { name: "booked", app: "dining", path: "/api/v1/reservations", where: { guestEmail: "ilsa@example.com" }, expect: { status: "confirmed" }, entity: { type: "reservation", id: "{reservationNo}" } };
+  const changed = { kind: "ledger", name: "changed", match: { app: "dining", entity: { type: "reservation", id: "@booked" }, action: "change", outcome: "ok" } };
+  const reservation = (id: string, over: Partial<LedgerEntry>) => ({ entity: { type: "reservation", id }, ...over });
+  const sites = (entries: Partial<LedgerEntry>[]) => new FakeSites().seed("dining", "/api/v1/reservations", rows).ledger("dining", entries);
+
+  it("matches the entity a row check found: that reservation's change, not another's", async () => {
+    const theirs = sites([reservation("RS-7", { action: "create", at: T(1) }), reservation("RS-9", { action: "change", at: T(2) }), reservation("RS-7", { action: "change", at: T(3) })]);
+    // The row check stands on RS-7's last write (its change at T(3)); `changed` stands on that change, never RS-9's.
+    expect((await run(theirs, [booked, changed])).checks).toEqual([{ name: "booked", ok: true, at: T(3) }, { name: "changed", ok: true, at: T(3) }]);
+    expect((await run(sites([reservation("RS-7", { action: "create", at: T(1) }), reservation("RS-9", { action: "change", at: T(2) })]), [booked, changed])).checks[1]).toMatchObject({ ok: false, note: expect.stringMatching(/no ledger entry matching/) });
+  });
+
+  it("matches the entity a ledger check matched, and keeps to its own type", async () => {
+    const made = { kind: "ledger", name: "made", match: { app: "dining", entity: { type: "reservation" }, action: "create", outcome: "ok" } };
+    const cancelled = { kind: "ledger", name: "cancelled", match: { app: "dining", entity: { type: "reservation", id: "@made" }, action: "cancel" }, after: "made" };
+    const ledger = new FakeSites().ledger("dining", [reservation("RS-3", { action: "create", at: T(1) }), reservation("RS-4", { action: "cancel", at: T(2) }), reservation("RS-3", { action: "cancel", at: T(4) })]);
+    expect((await run(ledger, [made, cancelled])).checks[1]).toEqual({ name: "cancelled", ok: true, at: T(4) });
+    const otherType = { ...cancelled, match: { ...cancelled.match, entity: { type: "order", id: "@made" } } };
+    expect((await run(ledger, [made, otherType])).checks[1]).toMatchObject({ ok: false });
+  });
+
+  it("scopes an unchanged check to that entity: a write to it fails, a write to another does not", async () => {
+    const untouched = { kind: "unchanged", name: "left alone", scope: { apps: ["dining"], entity: { type: "reservation", id: "@booked" } }, after: "booked" };
+    const create = reservation("RS-7", { action: "create", at: T(1) });
+    expect((await run(sites([create, reservation("RS-9", { action: "change", at: T(5) })]), [booked, untouched])).checks[1]).toEqual({ name: "left alone", ok: true });
+    // Booked by a ledger check standing on the create: a change to RS-7 after it is a change to the reservation that was booked.
+    const madeFirst = { kind: "ledger", name: "booked", match: { app: "dining", entity: { type: "reservation" }, action: "create", outcome: "ok" } };
+    const changedAfter = new FakeSites().ledger("dining", [create, reservation("RS-7", { action: "change", at: T(5) })]);
+    expect((await run(changedAfter, [madeFirst, untouched])).checks[1]).toMatchObject({ ok: false, note: expect.stringMatching(/reservation RS-7 change/) });
+  });
+
+  it("FAILS when the check it names did not pass, or passed on no entry: it names nothing", async () => {
+    const none = new FakeSites().seed("dining", "/api/v1/reservations", []).ledger("dining", [reservation("RS-7", { action: "change", at: T(3) })]);
+    expect((await run(none, [booked, changed])).checks[1]).toMatchObject({ ok: false, note: expect.stringMatching(/"booked" did not pass on a ledger entry for an entity, so @booked names nothing/) });
+    const untouchedSeed = sites([]);
+    expect((await run(untouchedSeed, [booked, changed])).checks[1]).toMatchObject({ ok: false, note: expect.stringMatching(/names nothing/) });
+  });
+
+  it("is refused at load when it names no earlier check, or a later one, in a matcher, a scope or an exception", () => {
+    const task = (checks: unknown[]) => taskSpecSchema.parse({ id: "t-ref", oracle: { kind: "state", checks } });
+    expect(() => task([booked, changed])).not.toThrow();
+    expect(() => task([changed, booked])).toThrow(/names the entity of .*booked.*, which no earlier check is called/);
+    expect(() => task([booked, { kind: "unchanged", name: "u", scope: { apps: ["dining"], subject: { type: "restaurant", id: "@bokked" } } }])).toThrow(/no earlier check is called/);
+    expect(() => task([booked, { kind: "unchanged", name: "u", scope: { apps: ["dining"] }, except: [{ app: "dining", entity: { type: "reservation", id: "@nope" } }] }])).toThrow(/names the entity of .*nope/);
+    // An id that merely starts with a letter is a plain id.
+    expect(() => task([{ ...changed, match: { ...changed.match, entity: { type: "reservation", id: "RS-7" } } }])).not.toThrow();
+  });
+
+  it("reaches back into an earlier step, as `after` does", () => {
+    const stepped = { id: "t-ref-steps", oracle: { kind: "state", checks: [booked] }, steps: [{ oracle: { kind: "state", checks: [changed] } }] };
+    expect(() => taskSpecSchema.parse(stepped)).not.toThrow();
+    expect(() => taskSpecSchema.parse({ ...stepped, oracle: { kind: "state", checks: [changed] }, steps: [{ oracle: { kind: "state", checks: [booked] } }] })).toThrow(/names the entity of .*booked/);
+  });
+});
+
+// A step that booked what a later step changes is placed by the booking, not by the change.
+describe("a row check placed by the write that made its entity", () => {
+  const rows = [{ reservationNo: "RS-7", guestEmail: "ilsa@example.com", status: "confirmed", partySize: 4 }];
+  const check = { name: "booked", app: "dining", path: "/api/v1/reservations", where: { guestEmail: "ilsa@example.com" }, expect: { status: "confirmed" }, entity: { type: "reservation", id: "{reservationNo}", at: "first" } };
+  const reservation = (over: Partial<LedgerEntry>) => ({ entity: { type: "reservation", id: "RS-7" }, ...over });
+  const sites = (entries: Partial<LedgerEntry>[]) => new FakeSites().seed("dining", "/api/v1/reservations", rows).ledger("dining", entries);
+  const history = [reservation({ action: "create", at: T(1) }), reservation({ action: "change", at: T(4) }), reservation({ action: "change", at: T(6) })];
+
+  it("reports the first successful write, where the default reports the last", async () => {
+    expect(await one(sites(history), check)).toEqual({ name: "booked", ok: true, at: T(1) });
+    expect(await one(sites(history), { ...check, entity: { type: "reservation", id: "{reservationNo}" } })).toEqual({ name: "booked", ok: true, at: T(6) });
+    expect(await one(sites(history), { ...check, entity: { type: "reservation", id: "{reservationNo}", at: "last" } })).toEqual({ name: "booked", ok: true, at: T(6) });
+  });
+
+  it("is not moved by a refused write before the one that made it, nor by another reservation's", async () => {
+    const before = [reservation({ action: "create", at: T(0), outcome: "refused", code: "FULL" }), { entity: { type: "reservation", id: "RS-9" }, action: "create", at: T(1) }, reservation({ action: "create", at: T(2) })];
+    expect((await one(sites(before), check)).at).toBe(T(2));
+  });
+
+  it("is what a later step's `after` counts from: a change after the booking, in a later step", async () => {
+    const changed = { kind: "ledger", name: "party changed", match: { app: "dining", entity: { type: "reservation", id: "@booked" }, action: "change", outcome: "ok" }, after: "booked" };
+    expect((await run(sites(history), [check, changed])).checks).toEqual([{ name: "booked", ok: true, at: T(1) }, { name: "party changed", ok: true, at: T(4) }]);
+  });
+
+  it("is refused at load with any other value", () => {
+    expect(() => stateSpec.parse({ kind: "state", checks: [{ ...check, entity: { ...check.entity, at: "middle" } }] })).toThrow();
+  });
+});

@@ -4,8 +4,10 @@ import { randomBytes } from "node:crypto";
 import type { AttemptsRepo } from "./attempts-repo.js";
 import { detailsFor, type OracleRegistry } from "./oracles/oracle.js";
 import type { SpecRegistry } from "./specs/spec.js";
+import { judgeTask, type StepResult } from "./steps.js";
 
-export type SubmitResult = { verdict: "OK" | "FAIL"; receipt: string; details: unknown[]; attempt: number };
+/** `steps` is there for a task whose spec declares steps, and only for one: every other answer is the four fields it always was. */
+export type SubmitResult = { verdict: "OK" | "FAIL"; receipt: string; details: unknown[]; attempt: number; steps?: StepResult[] };
 
 export type VerifierDeps = {
   specs: SpecRegistry;
@@ -18,9 +20,10 @@ export type VerifierDeps = {
 };
 
 /**
- * The submit pipeline: spec lookup → oracle → receipt (signed, logged in
- * core.receipts AND verify.attempts with the artifact). Blind specs get counts
- * only. Every attempt is logged even when it fails.
+ * The submit pipeline: spec lookup → oracle (each state step's, for a task
+ * with steps: see steps.ts) → receipt (signed, logged in core.receipts AND
+ * verify.attempts with the artifact). Blind specs get counts only. Every
+ * attempt is logged even when it fails.
  */
 export class Verifier {
   private readonly now: () => Date;
@@ -34,7 +37,7 @@ export class Verifier {
     const prior = await this.d.attempts.countForTask(workspaceId, taskId);
     if (prior >= this.d.maxAttemptsPerTask) throw new DomainError("TOO_MANY_ATTEMPTS", `task ${taskId} allows ${this.d.maxAttemptsPerTask} submissions per workspace`, 429);
 
-    const result = await this.d.oracles.for(spec).check(artifact, spec.oracle, { workspaceId, taskId });
+    const result = await judgeTask(spec, artifact, this.d.oracles, { workspaceId, taskId });
     const nonce = randomBytes(8).toString("hex");
     const ts = this.now().getTime();
     const scope = `${taskId}`;
@@ -45,6 +48,6 @@ export class Verifier {
       [receipt, workspaceId, scope, result.verdict, nonce, ts, JSON.stringify(details)],
     );
     await this.d.attempts.record(workspaceId, { taskId, kind: spec.oracle.kind, verdict: result.verdict, receipt, details, artifact });
-    return { verdict: result.verdict, receipt, details, attempt: prior + 1 };
+    return { verdict: result.verdict, receipt, details, attempt: prior + 1, ...(result.steps ? { steps: result.steps } : {}) };
   }
 }

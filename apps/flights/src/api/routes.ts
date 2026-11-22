@@ -1,11 +1,10 @@
-import { DomainError, apiUser, type AuthService } from "@benchme/site-kit";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { DomainError } from "@benchme/site-kit";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { FlightsRepo } from "../db/flights-repo.js";
-import { SESSION_COOKIE } from "../ui/routes.js";
 import { bookingSchema, date, dropEmpty, searchSchema, searchTrip } from "./inputs.js";
 
-export type ApiDeps = { flights: FlightsRepo; auth: AuthService };
+export type ApiDeps = { flights: FlightsRepo };
 
 const flightsQuery = z.object({ origin: z.string().optional(), destination: z.string().optional(), carrier: z.string().optional() });
 const bookingsQuery = z.object({
@@ -18,14 +17,8 @@ const bookingsQuery = z.object({
 });
 const seatsQuery = z.object({ date });
 
-/** REST under /api/v1. Reads are open inside the workspace; booking and cancelling need a bearer token or a session. */
+/** REST under /api/v1. Reads are open inside the workspace; booking and cancelling need a bearer token or a session: the site's rules ask it of every write, through every door (site-kit's `ledgered`), so no route here does. */
 export function registerApi(app: FastifyInstance, d: ApiDeps): void {
-  const caller = apiUser(d.auth, SESSION_COOKIE);
-  const authed = async (req: FastifyRequest, reply: FastifyReply): Promise<boolean> => {
-    if (await caller(req)) return true;
-    reply.code(401).send({ error: "UNAUTHORIZED", message: "sign in or send Authorization: Bearer <api token>" });
-    return false;
-  };
   const run = async (reply: FastifyReply, fn: () => Promise<unknown>, code = 200) => {
     try {
       return reply.code(code).send(await fn());
@@ -68,13 +61,11 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
   });
   app.get<{ Params: { no: string } }>("/api/v1/bookings/:no", async (req, reply) => (await d.flights.getBooking(req.workspaceId, req.params.no)) ?? notFound(reply));
   app.post("/api/v1/bookings", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const b = parse(bookingSchema, req.body, reply);
     if (!b) return;
     return run(reply, () => d.flights.createBooking(req.workspaceId, b), 201);
   });
   app.post<{ Params: { no: string } }>("/api/v1/bookings/:no/cancel", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     return run(reply, () => d.flights.cancelBooking(req.workspaceId, req.params.no));
   });
 }

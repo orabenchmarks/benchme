@@ -51,6 +51,19 @@ like the rest (no id is in both corpora); its public files are
 **`webmcp-tasks.json`**, **`webmcp-corpus.json`** and **`webmcp-tasks.md`**, the
 twins of the three above. `node tools/intent-corpus.mjs` writes both corpora,
 and `node tools/intent-integrity.mjs --scenario webmcp-v1` proves this one.
+
+## The cuj-v1 corpus (`cuj-*.json`)
+
+Critical-user-journey tasks over a fresh `cuj-v1` workspace at seed 4242 (the
+same nine sites, with accounts some of their people already have), in ten
+focus areas and four levels, some over several steps:
+**`cuj-corpus.json`** (each record with its answer key), **`cuj-tasks.json`**
+(the records without), **`cuj-tasks.md`** (how each was derived), and a
+**`cuj-<template>-NN.json`** answer key for every task with a state step or
+only one step. Its records have their own shape, described with the levels and
+checks in `docs/scenarios/cuj-v1.md`; its templates are in
+`tools/intent-corpus/cuj/templates/`, and
+`node tools/intent-integrity.mjs --scenario cuj-v1` proves it.
 - **`tools/intent-corpus.mjs` regenerates all of them.** The first ten tasks
   are `tools/intent-corpus/original.mjs`; every other kind is a TEMPLATE in
   `tools/intent-corpus/templates/` (the contract is in its `index.mjs`),
@@ -68,7 +81,10 @@ and `node tools/intent-integrity.mjs --scenario webmcp-v1` proves this one.
   benchme serving these specs: every state task FAILS on a fresh workspace,
   PASSES once its reference solution has run through the REST API, and still
   passes after all of them ran; every json task accepts the answer read back
-  from the LIVE apps and refuses a wrong one. CI runs it on every change.
+  from the LIVE apps and refuses a wrong one. It also signs an account up and
+  in through MCP tools alone on every site whose tools sign in (the code read
+  with the inbox's tools), so no door is a dead end. CI runs it on every
+  change.
 
   ```bash
   docker compose -f compose.yaml -f compose.build.yaml up -d --build --wait
@@ -81,6 +97,116 @@ every workspace — so its tasks are derived from that seed's company, not the
 workspace's (the vault's memos describe the workspace's company; the two need
 not agree). The mail app holds no seeded content (only the verification mail
 a sign-up produces), so no task is about it.
+
+## What a `state` check can ask
+
+A `state` oracle is a list of named checks, run in order, all of which must
+pass. Each is one of four kinds (`apps/verify/src/specs/spec.ts` has the
+schema of each, `apps/verify/src/oracles/state/` the code). A check without a
+`kind` is a `row` check, which is every check written before there were kinds.
+
+```jsonc
+// row: at least one row survives `where` and satisfies `expect` (count, rowPath as before).
+// `entity` is optional: the row's entity in the site's ledger, its id filled from the row. With it, a passing
+// check reports when the row was last written; with "at": "first", when it was first written (made): a step that
+// booked what a later step changes is then placed by the booking.
+{ "name": "cancelled", "app": "hotels", "path": "/api/v1/bookings?guestEmail=ilsa%40example.com",
+  "where": { "bookingNo": "BK-10001" }, "expect": { "status": "cancelled" },
+  "entity": { "type": "booking", "id": "{bookingNo}" } }
+
+// absent: no row survives `where` and (if given) satisfies `expect`. With neither, the list must be empty.
+{ "kind": "absent", "name": "no second booking", "app": "hotels",
+  "path": "/api/v1/bookings?guestEmail=ilsa%40example.com", "where": { "status": "confirmed" } }
+
+// ledger: an entry of a site's change ledger matches. Every field of a matcher but `app` is optional (at least one
+// is needed); `match` may be a list, of which any one will do; `after` names an earlier check, and only entries
+// later than the one it stood on count. A read is "action": "read"; "actor": null is nobody signed in. `subject`
+// is what the request was about: a refused create has no entity id, and its subject says which order it was for.
+{ "kind": "ledger", "name": "looked, or was refused for the reason", "match": [
+    { "app": "sports", "entity": { "type": "order", "id": "SO-1042" }, "action": "read" },
+    { "app": "sports", "entity": { "type": "return" }, "action": "create", "outcome": "refused",
+      "subject": { "type": "order", "id": "SO-1042" },
+      "code": "RETURN_WINDOW_CLOSED", "door": "mcp", "actor": "ilsa@example.com" } ],
+  "after": "signed in" }
+
+// unchanged: the ledgers of `scope.apps` hold no successful write (optionally: by one actor, on one entity type
+// or one entity, about one subject), except the writes `except` names, as ledger matchers. `scope` may be a list,
+// a write in any of them counting; `after` counts only the writes after the entry an earlier check stood on.
+{ "kind": "unchanged", "name": "nothing changed",
+  "scope": { "apps": ["sports"], "actor": "ilsa@example.com", "entity": { "type": "order" } },
+  "except": [ { "app": "sports", "entity": { "type": "order", "id": "SO-2001" }, "action": "create" } ] }
+{ "kind": "unchanged", "name": "nothing done about the order", "after": "looked at it",
+  "scope": [ { "apps": ["sports"], "entity": { "type": "order", "id": "SO-1042" } },
+             { "apps": ["sports"], "subject": { "type": "order", "id": "SO-1042" } } ] }
+
+// An entity or subject id "@<check name>" is the entity of the entry an earlier check stood on: the reservation a
+// row check found (its `entity`), or the one a ledger check matched. A later step can then speak of what an earlier
+// step made, whose id nobody knew when the task was written. It fails when that check passed on no entity.
+{ "kind": "ledger", "name": "party changed", "after": "booked",
+  "match": { "app": "dining", "entity": { "type": "reservation", "id": "@booked" }, "action": "change", "outcome": "ok" } }
+```
+
+The ledger is what README § The change ledger describes: the nine sites keep
+one, and the verifier is its only reader. An `absent` or `unchanged` check
+fails when what it reads cannot be read to the end, and a `ledger` or
+`unchanged` check fails on an app that keeps no ledger: nothing seen is not
+nothing done. A sign-up or a sign-in is an `auth` entry, never a write, so
+`unchanged` does not count it and a `ledger` check can ask for it
+(`"entity": { "type": "account", "id": "<email>" }, "action": "sign_in"`).
+
+An impossible task (the site's rules make the request impossible) carries an
+`unchanged` check AND a `ledger` check that the agent looked at the thing or
+was refused with the expected reason, so an agent that did nothing does not
+pass.
+
+## A task with steps
+
+A task may be done in several steps, each a further prompt in one
+conversation. Its spec is the task's own oracle (step 1) and a `steps` list of
+the follow-ups, each with an oracle that is `json` (the reply is the answer)
+or `state`. The verifier is asked once, after the last step:
+
+```jsonc
+// <taskId>.json
+{ "id": "trip-01", "blind": false,
+  "oracle": { "kind": "state", "checks": [ { "kind": "ledger", "name": "booked", "match": { … } } ] },   // step 1
+  "steps": [
+    { "oracle": { "kind": "json", "expect": { "total": 910 } } },                                          // step 2
+    { "oracle": { "kind": "state", "checks": [ { "kind": "ledger", "name": "dinner moved", "match": { … }, "after": "booked" } ] } } ] }   // step 3
+
+// POST /w/<id>/verify/v1/submit/trip-01
+{ "verdict": "FAIL",                     // OK only when every state step is OK
+  "receipt": "RCPT-trip-01-FAIL-…", "attempt": 1,
+  "steps": [
+    { "step": 1, "verdict": "OK",   "checks": [ { "name": "booked", "passed": true, "at": "2027-03-01T10:02:11.482Z" } ] },
+    { "step": 3, "verdict": "FAIL", "checks": [ { "name": "dinner moved", "passed": false } ] } ],
+  "details": [ { "name": "booked", "ok": true }, { "name": "dinner moved", "ok": false, "note": "…" } ] }
+```
+
+- `step` counts from 1, the task's own prompt. A step whose oracle is `json`
+  is not listed and not judged: whoever holds the conversation grades that
+  reply against the key. So what is submitted does not matter to a task of
+  several steps, and one with no `state` step at all is refused (422
+  `NO_STATE_STEP`).
+- `at` is when what satisfied the check happened: the time of the ledger
+  entry a `ledger` check stood on, or of the last write of the row a `row`
+  check found (when the check names its `entity`; the first, with `"at":
+  "first"`). It is the site's own
+  record, never the time of the submission, so a change can be placed in the
+  turn it was made in. A check that nothing satisfied, or that says what did
+  not happen (`absent`, `unchanged`), has none.
+- A later step's check may come `after` an earlier step's, or name the
+  entity one stood on (`"id": "@<check name>"`), and each check is named once
+  in the task.
+- The submission reads current state only and may be repeated.
+- A blind task's steps carry `passed` and `failed` counts in place of
+  `checks`.
+
+A spec with no `steps` key is answered as it always was: `verdict`,
+`receipt`, `details` and `attempt`, and nothing else. A task of one step that
+wants its step's result declares `"steps": []`: the answer gains `steps` (the
+one state step, or none for a `json` task, which is still judged from the
+submitted answer) and is otherwise the same.
 
 Add your own hidden tasks the same way (the schema is
 `apps/verify/src/specs/spec.ts`; `tools/build-specs.mjs --configmap` shows the

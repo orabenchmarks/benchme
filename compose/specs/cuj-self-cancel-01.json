@@ -1,0 +1,51 @@
+{
+  "id": "cuj-self-cancel-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "cancelled",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10060",
+        "expect": {
+          "status": "cancelled"
+        },
+        "entity": {
+          "type": "booking",
+          "id": "BK-10060"
+        }
+      },
+      {
+        "kind": "ledger",
+        "name": "cancelled as them",
+        "match": {
+          "app": "hotels",
+          "entity": {
+            "type": "booking",
+            "id": "BK-10060"
+          },
+          "action": "cancel",
+          "outcome": "ok",
+          "actor": "lior.ferrante2@example.com"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "others left alone",
+        "scope": [
+          {
+            "apps": [
+              "hotels"
+            ],
+            "entity": {
+              "type": "booking",
+              "id": "BK-10117"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

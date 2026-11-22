@@ -1,0 +1,12 @@
+{
+  "id": "cuj-fit-restaurant-days-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "closedDay": "monday",
+      "vegan": false
+    }
+  },
+  "steps": []
+}

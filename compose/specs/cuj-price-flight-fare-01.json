@@ -1,0 +1,14 @@
+{
+  "id": "cuj-price-flight-fare-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "fare": {
+        "value": 250,
+        "tolerance": 0.01
+      }
+    }
+  },
+  "steps": []
+}

@@ -14,6 +14,6 @@ export type UiDeps = { catalog: CatalogRepo; appointments: AppointmentsRepo; pre
 export function registerUi(app: FastifyInstance, d: UiDeps): void {
   const ctx = shellCtx(d.auth, d.tools);
   registerAuthRoutes(app, { auth: d.auth, cookie: SESSION_COOKIE, shellCtx: ctx });
-  registerCatalogUi(app, { catalog: d.catalog, appointments: d.appointments, auth: d.auth, ctx });
-  registerPatientUi(app, { catalog: d.catalog, appointments: d.appointments, prescriptions: d.prescriptions, auth: d.auth, ctx });
+  registerCatalogUi(app, { catalog: d.catalog, appointments: d.appointments, ctx });
+  registerPatientUi(app, { catalog: d.catalog, appointments: d.appointments, prescriptions: d.prescriptions, ctx });
 }

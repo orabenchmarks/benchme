@@ -1,0 +1,14 @@
+{
+  "id": "cuj-price-flight-total-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "total": {
+        "value": 660,
+        "tolerance": 0.01
+      }
+    }
+  },
+  "steps": []
+}

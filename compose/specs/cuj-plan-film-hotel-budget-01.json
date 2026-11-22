@@ -1,0 +1,61 @@
+{
+  "id": "cuj-plan-film-hotel-budget-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "tickets booked",
+        "app": "cinema",
+        "path": "/api/v1/bookings?customerEmail=quinta.everhart.92343%40journeys.example",
+        "expect": {
+          "seatCount": 2,
+          "together": true
+        },
+        "where": {
+          "showtimeCode": "ST-2072",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "room booked",
+            "app": "hotels",
+            "path": "/api/v1/bookings?guestEmail=quinta.everhart.92343%40journeys.example",
+            "expect": {
+              "nights": 1,
+              "adults": 2
+            },
+            "where": {
+              "roomCode": "HT-114-DBL",
+              "checkIn": "2027-05-15",
+              "status": "confirmed"
+            },
+            "count": {
+              "min": 1,
+              "max": 1
+            },
+            "entity": {
+              "type": "booking",
+              "id": "{bookingNo}"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

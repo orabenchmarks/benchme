@@ -1,0 +1,48 @@
+{
+  "id": "cuj-self-viewing-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "requested",
+        "app": "homes",
+        "path": "/api/v1/viewings?email=maren.prewitt5%40mail.example",
+        "expect": {
+          "time": "11:30"
+        },
+        "where": {
+          "listingCode": "LS-3110",
+          "date": "2027-06-19",
+          "status": "requested"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "viewing",
+          "id": "{viewingNo}"
+        }
+      },
+      {
+        "kind": "ledger",
+        "name": "requested as them",
+        "match": {
+          "app": "homes",
+          "entity": {
+            "type": "viewing"
+          },
+          "subject": {
+            "type": "listing",
+            "id": "LS-3110"
+          },
+          "action": "create",
+          "outcome": "ok",
+          "actor": "maren.prewitt5@mail.example"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

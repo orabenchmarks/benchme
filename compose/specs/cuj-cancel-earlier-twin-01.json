@@ -1,0 +1,64 @@
+{
+  "id": "cuj-cancel-earlier-twin-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "cancelled",
+        "app": "dining",
+        "path": "/api/v1/reservations/RV-10185",
+        "expect": {
+          "status": "cancelled"
+        },
+        "entity": {
+          "type": "reservation",
+          "id": "RV-10185"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "others left alone",
+        "scope": [
+          {
+            "apps": [
+              "dining"
+            ],
+            "entity": {
+              "type": "reservation",
+              "id": "RV-10037"
+            }
+          },
+          {
+            "apps": [
+              "dining"
+            ],
+            "entity": {
+              "type": "reservation",
+              "id": "RV-10098"
+            }
+          },
+          {
+            "apps": [
+              "dining"
+            ],
+            "entity": {
+              "type": "reservation",
+              "id": "RV-10140"
+            }
+          },
+          {
+            "apps": [
+              "dining"
+            ],
+            "entity": {
+              "type": "reservation",
+              "id": "RV-10204"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

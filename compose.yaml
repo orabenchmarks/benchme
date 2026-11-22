@@ -233,15 +233,16 @@ services:
       # Routed like any app, but left out of a workspace's urls (and the portal, the registry, robots.txt) — guide
       # and web included: only the guide-v1 / web-v1 scenario's workspaces advertise them (Scenario.apps). web is
       # the site network, which the guide's own service serves under /web. The sites from webmcp-tools (hotels …
-      # events) likewise: only webmcp-v1's workspaces advertise them.
+      # events) likewise: only webmcp-v1's and cuj-v1's workspaces advertise them.
       UNLISTED_APPS: paylantern,wallet,guide,web,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events
       # Served at the root, outside any workspace: /wallet/* (link-cli's LINK_API_BASE_URL = <public>/wallet/api).
       SERVICE_TARGETS: '{"wallet":"http://wallet:3000"}'
       SEEDED_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events,mail,verify
-      MCP_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events
+      # mail: the inbox's two reads as tools, so the code a sign-up mails can be read by an agent that only has tools.
+      MCP_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events,mail
       ASK_APPS: warehouse,helpdesk,vaultdocs
       # hotels and the other errand sites have no NLWeb /ask (they are not in ASK_APPS).
-      WEBMCP_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events
+      WEBMCP_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events,mail
       WORKSPACE_TTL_SECONDS: ${WORKSPACE_TTL_SECONDS:-86400}
       WORKSPACE_MAX_TTL_SECONDS: ${WORKSPACE_MAX_TTL_SECONDS:-604800}
       # Your own machine: no need to throttle yourself.

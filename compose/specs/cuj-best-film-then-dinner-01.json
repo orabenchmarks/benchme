@@ -1,0 +1,62 @@
+{
+  "id": "cuj-best-film-then-dinner-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "film booked",
+        "app": "cinema",
+        "path": "/api/v1/bookings?customerEmail=jasper.ashdown.57824%40journeys.example",
+        "expect": {
+          "showtimeCode": "ST-2095",
+          "seatCount": 5,
+          "together": true
+        },
+        "where": {
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "dinner booked",
+            "app": "dining",
+            "path": "/api/v1/reservations?guestEmail=jasper.ashdown.57824%40journeys.example",
+            "expect": {
+              "partySize": 5,
+              "area": "indoor",
+              "time": "21:30"
+            },
+            "where": {
+              "restaurantCode": "RS-126",
+              "date": "2027-05-15",
+              "status": "confirmed"
+            },
+            "count": {
+              "min": 1,
+              "max": 1
+            },
+            "entity": {
+              "type": "reservation",
+              "id": "{reservationNo}"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

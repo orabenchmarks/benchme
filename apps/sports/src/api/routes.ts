@@ -1,12 +1,11 @@
-import { DomainError, apiUser, type AuthService } from "@benchme/site-kit";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { DomainError } from "@benchme/site-kit";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { CatalogRepo } from "../db/catalog-repo.js";
 import type { OrdersRepo } from "../db/orders-repo.js";
-import { SESSION_COOKIE } from "../ui/routes.js";
 import { orderSchema, ordersQuery, reorderSchema, returnSchema, searchSchema, toOrderFilter, toSearch } from "./inputs.js";
 
-export type ApiDeps = { catalog: CatalogRepo; orders: OrdersRepo; auth: AuthService };
+export type ApiDeps = { catalog: CatalogRepo; orders: OrdersRepo };
 
 const productsQuery = z.object({ category: z.string().optional(), query: z.string().optional() });
 const customersQuery = z.object({ query: z.string().optional() });
@@ -14,14 +13,8 @@ const returnsQuery = z.object({ orderNo: z.string().optional(), customerEmail: z
 /** Query strings and forms send "" for a field left blank; blank means "not given". */
 export const blankless = (o: unknown): Record<string, unknown> => Object.fromEntries(Object.entries((o ?? {}) as Record<string, unknown>).filter(([, v]) => v !== ""));
 
-/** REST under /api/v1. Reads are open inside the workspace; orders, cancels, reorders and returns need a bearer token or a session. */
+/** REST under /api/v1. Reads are open inside the workspace; orders, cancels, reorders and returns need a bearer token or a session: the site's rules ask it of every write, through every door (site-kit's `ledgered`), so no route here does. */
 export function registerApi(app: FastifyInstance, d: ApiDeps): void {
-  const caller = apiUser(d.auth, SESSION_COOKIE);
-  const authed = async (req: FastifyRequest, reply: FastifyReply): Promise<boolean> => {
-    if (await caller(req)) return true;
-    reply.code(401).send({ error: "UNAUTHORIZED", message: "sign in or send Authorization: Bearer <api token>" });
-    return false;
-  };
   const run = async (reply: FastifyReply, fn: () => Promise<unknown>, code = 200) => {
     try {
       return reply.code(code).send(await fn());
@@ -68,17 +61,14 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
   });
   app.get<Key>("/api/v1/orders/:key", async (req, reply) => (await d.orders.getOrder(req.workspaceId, req.params.key)) ?? notFound(reply));
   app.post("/api/v1/orders", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const o = parse(orderSchema, req.body, reply);
     if (!o) return;
     return run(reply, () => d.orders.placeOrder(req.workspaceId, o), 201);
   });
   app.post<Key>("/api/v1/orders/:key/cancel", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     return run(reply, () => d.orders.cancelOrder(req.workspaceId, req.params.key));
   });
   app.post<Key>("/api/v1/orders/:key/reorder", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const r = parse(reorderSchema, req.body, reply);
     if (!r) return;
     return run(reply, () => d.orders.reorder(req.workspaceId, req.params.key, r.addressCode), 201);
@@ -90,7 +80,6 @@ export function registerApi(app: FastifyInstance, d: ApiDeps): void {
     return d.orders.listReturns(req.workspaceId, f);
   });
   app.post("/api/v1/returns", async (req, reply) => {
-    if (!(await authed(req, reply))) return;
     const r = parse(returnSchema, req.body, reply);
     if (!r) return;
     return run(reply, () => d.orders.requestReturn(req.workspaceId, r), 201);

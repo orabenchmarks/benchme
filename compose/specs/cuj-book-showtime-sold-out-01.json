@@ -1,0 +1,67 @@
+{
+  "id": "cuj-book-showtime-sold-out-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "kind": "unchanged",
+        "name": "nothing changed",
+        "scope": [
+          {
+            "apps": [
+              "cinema"
+            ],
+            "entity": {
+              "type": "showtime",
+              "id": "ST-2086"
+            }
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "subject": {
+              "type": "showtime",
+              "id": "ST-2086"
+            }
+          }
+        ]
+      },
+      {
+        "kind": "ledger",
+        "name": "looked or was refused",
+        "match": [
+          {
+            "app": "cinema",
+            "entity": {
+              "type": "showtime",
+              "id": "ST-2086"
+            },
+            "action": "read",
+            "outcome": "ok"
+          },
+          {
+            "app": "cinema",
+            "entity": {
+              "type": "showtime",
+              "id": "ST-2086"
+            },
+            "outcome": "refused",
+            "code": "SOLD_OUT"
+          },
+          {
+            "app": "cinema",
+            "subject": {
+              "type": "showtime",
+              "id": "ST-2086"
+            },
+            "outcome": "refused",
+            "code": "SOLD_OUT"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

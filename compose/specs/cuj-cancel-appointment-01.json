@@ -1,0 +1,91 @@
+{
+  "id": "cuj-cancel-appointment-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "cancelled",
+        "app": "clinic",
+        "path": "/api/v1/appointments/AP-30014",
+        "expect": {
+          "status": "cancelled"
+        },
+        "entity": {
+          "type": "appointment",
+          "id": "AP-30014"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "others left alone",
+        "scope": [
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "appointment",
+              "id": "AP-30069"
+            }
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "appointment",
+              "id": "AP-30070"
+            }
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "appointment",
+              "id": "AP-30097"
+            }
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "appointment",
+              "id": "AP-30109"
+            }
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "appointment",
+              "id": "AP-30118"
+            }
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "appointment",
+              "id": "AP-30119"
+            }
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "entity": {
+              "type": "appointment",
+              "id": "AP-30131"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

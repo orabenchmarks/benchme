@@ -1,15 +1,16 @@
 import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
-import { createApp, type Pool } from "@benchme/core";
+import { createApp, transactions, type Pool } from "@benchme/core";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
-import { AuthService, PgUsersRepo, registerMcp, registerWorkspaceScope, type Mailer } from "@benchme/site-kit";
+import { AuthService, PgLedger, PgUsersRepo, registerDoors, registerMcp, registerWorkspaceScope, seedAccounts, type Mailer } from "@benchme/site-kit";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { registerApi } from "./api/routes.js";
-import { PgCinemaRepo } from "./db/cinema-repo.js";
+import { PgCinemaRepo, type CinemaRepo } from "./db/cinema-repo.js";
+import { CINEMA_LEDGER } from "./db/ledger.js";
 import { seedCinema } from "./db/seed.js";
 import { cinemaTools } from "./mcp/tools.js";
-import { SITE_NAME, registerUi } from "./ui/routes.js";
+import { SESSION_COOKIE, SITE_NAME, registerUi } from "./ui/routes.js";
 
 export type BuildDeps = {
   pool: Pool;
@@ -22,9 +23,10 @@ export type BuildDeps = {
 
 /** Composition root: repos → services → routes. */
 export async function buildCinema(d: BuildDeps): Promise<FastifyInstance> {
-  const cinema = new PgCinemaRepo(d.pool);
-  const auth = new AuthService({
-    users: new PgUsersRepo(d.pool, "cinema"),
+  // One transaction for a write and its ledger entry: the repositories, the accounts and the ledger share its pool.
+  const db = transactions(d.pool);
+  const accounts = new AuthService({
+    users: new PgUsersRepo(db.pool, "cinema"),
     mailer: d.mailer,
     sessionTtlSeconds: d.sessionTtlSeconds,
     tokenPrefix: "cin",
@@ -38,6 +40,9 @@ export async function buildCinema(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
+  const doors = registerDoors(app, { ledger: new PgLedger(db, "cinema"), transactions: db, auth: accounts, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const auth = doors.auth;
+  const cinema = doors.ledgered<CinemaRepo>(new PgCinemaRepo(db.pool), CINEMA_LEDGER);
 
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
     if (req.params.id !== req.workspaceId) return reply.code(400).send({ error: "WORKSPACE_MISMATCH" });
@@ -45,6 +50,7 @@ export async function buildCinema(d: BuildDeps): Promise<FastifyInstance> {
     try {
       const rows = d.scenarios.get(body.scenario).generate(body.seed);
       await seedCinema(d.pool, req.workspaceId, rows);
+      await seedAccounts(d.pool, "cinema", req.workspaceId, rows.accounts?.cinema ?? []);
       return reply.code(201).send({ ok: true, showtimes: rows.cinema.showtimes.length, bookings: rows.cinema.bookings.length });
     } catch (err) {
       if (err instanceof UnknownScenarioError) return reply.code(422).send({ error: "UNKNOWN_SCENARIO", message: err.message });
@@ -52,9 +58,9 @@ export async function buildCinema(d: BuildDeps): Promise<FastifyInstance> {
     }
   });
 
-  const tools = cinemaTools();
-  registerApi(app, { cinema, auth });
+  const tools = doors.withSignIn(cinemaTools());
+  registerApi(app, { cinema });
   registerUi(app, { cinema, auth, tools });
-  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-cinema", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, cinema }) }));
+  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-cinema", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, cinema }), sessions: true }));
   return app;
 }

@@ -1,0 +1,31 @@
+{
+  "id": "cuj-best-showing-cheapest-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked",
+        "app": "cinema",
+        "path": "/api/v1/bookings?customerEmail=lucan.everhart.60326%40journeys.example",
+        "expect": {
+          "showtimeCode": "ST-2052",
+          "seatCount": 3,
+          "together": true
+        },
+        "where": {
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

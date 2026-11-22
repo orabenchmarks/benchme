@@ -23,7 +23,6 @@ export function registerRegistrationUi(app: FastifyInstance, k: UiKit): void {
   app.get<P>("/registrations/:no", async (req, reply) => regPage(req, reply, req.params.no));
 
   app.post<P>("/registrations/:no/cancel", async (req, reply) => {
-    if (!(await k.requireUser(req, reply))) return;
     try {
       await d.registrations.cancelRegistration(req.workspaceId, req.params.no);
       return reply.redirect(`${req.prefix}/registrations/${req.params.no}`, 303);

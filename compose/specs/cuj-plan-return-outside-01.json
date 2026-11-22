@@ -1,0 +1,98 @@
+{
+  "id": "cuj-plan-return-outside-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "room booked",
+        "app": "hotels",
+        "path": "/api/v1/bookings?guestEmail=dorian.ingram.82842%40journeys.example",
+        "expect": {
+          "nights": 3
+        },
+        "where": {
+          "roomCode": "HT-105-DBL",
+          "checkIn": "2027-06-28",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "unchanged",
+            "name": "nothing changed",
+            "scope": [
+              {
+                "apps": [
+                  "flights"
+                ],
+                "entity": {
+                  "type": "flight",
+                  "id": "SZ148"
+                }
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "subject": {
+                  "type": "flight",
+                  "id": "SZ148"
+                }
+              }
+            ],
+            "after": "room booked"
+          },
+          {
+            "kind": "ledger",
+            "name": "looked or was refused",
+            "match": [
+              {
+                "app": "flights",
+                "entity": {
+                  "type": "flight",
+                  "id": "SZ148"
+                },
+                "action": "read",
+                "outcome": "ok"
+              },
+              {
+                "app": "flights",
+                "entity": {
+                  "type": "flight",
+                  "id": "SZ148"
+                },
+                "outcome": "refused",
+                "code": "OUTSIDE_WINDOW"
+              },
+              {
+                "app": "flights",
+                "subject": {
+                  "type": "flight",
+                  "id": "SZ148"
+                },
+                "outcome": "refused",
+                "code": "OUTSIDE_WINDOW"
+              }
+            ],
+            "after": "room booked"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "id": "cuj-cancel-stays-steps-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "first cancelled",
+        "app": "hotels",
+        "path": "/api/v1/bookings/BK-10146",
+        "expect": {
+          "status": "cancelled"
+        },
+        "entity": {
+          "type": "booking",
+          "id": "BK-10146"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "second cancelled",
+            "app": "hotels",
+            "path": "/api/v1/bookings/BK-10124",
+            "expect": {
+              "status": "cancelled"
+            },
+            "entity": {
+              "type": "booking",
+              "id": "BK-10124"
+            }
+          },
+          {
+            "kind": "unchanged",
+            "name": "the rest left alone",
+            "scope": [
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "entity": {
+                  "type": "booking",
+                  "id": "BK-10056"
+                }
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "entity": {
+                  "type": "booking",
+                  "id": "BK-10123"
+                }
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "entity": {
+                  "type": "booking",
+                  "id": "BK-10135"
+                }
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "entity": {
+                  "type": "booking",
+                  "id": "BK-10156"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "confirmed": 4
+        }
+      }
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { flightDateInWindow, type FlightAirport } from "@benchme/scenarios";
-import { registerAuthRoutes, requireSession, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
+import { registerAuthRoutes, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { dropEmpty, searchSchema, searchTrip } from "../api/inputs.js";
 import type { FlightsRepo } from "../db/flights-repo.js";
@@ -15,7 +15,6 @@ export type Page = { status: number; body: string };
 export type UiKit = {
   ctx: (req: FastifyRequest, flash?: string) => Promise<ShellCtx>;
   html: (reply: FastifyReply, page: Page) => FastifyReply;
-  requireUser: (req: FastifyRequest, reply: FastifyReply) => Promise<ShellCtx | null>;
   airports: (req: FastifyRequest) => Promise<Map<string, FlightAirport>>;
   flightPage: (req: FastifyRequest, flightNo: string, form: flightPages.BookingForm, flash?: string) => Promise<Page>;
 };
@@ -46,7 +45,6 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
   const kit: UiKit = {
     ctx,
     html: (reply, page) => reply.code(page.status).type("text/html; charset=utf-8").send(page.body),
-    requireUser: requireSession(authDeps),
     airports,
     async flightPage(req, flightNo, form, flash) {
       const c = await ctx(req, flash);

@@ -1,0 +1,33 @@
+{
+  "id": "cuj-book-table-party-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked",
+        "app": "dining",
+        "path": "/api/v1/reservations?guestEmail=greer.everhart.67369%40journeys.example",
+        "expect": {
+          "partySize": 6,
+          "area": "indoor"
+        },
+        "where": {
+          "restaurantCode": "RS-110",
+          "date": "2027-10-25",
+          "time": "19:00",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "reservation",
+          "id": "{reservationNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

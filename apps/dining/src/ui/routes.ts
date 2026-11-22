@@ -1,5 +1,5 @@
 import { isDate } from "@benchme/scenarios";
-import { registerAuthRoutes, requireSession, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
+import { registerAuthRoutes, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { filled, searchSchema, toQuery } from "../api/inputs.js";
 import type { DiningRepo } from "../db/dining-repo.js";
@@ -58,5 +58,5 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
     return html(reply, page.body, page.status);
   });
 
-  registerReservationRoutes(app, { dining: d.dining, ctx, requireUser: requireSession(authDeps), restaurantPage });
+  registerReservationRoutes(app, { dining: d.dining, ctx, restaurantPage });
 }

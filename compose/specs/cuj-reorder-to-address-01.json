@@ -1,0 +1,48 @@
+{
+  "id": "cuj-reorder-to-address-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "one new order",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=ilsa.larrabee%40example.org&status=processing",
+        "expect": {
+          "addressCode": "AD-1019",
+          "lineCount": 1
+        },
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "order",
+          "id": "{orderNo}"
+        }
+      },
+      {
+        "name": "SP-110-RED-M × 1",
+        "app": "sports",
+        "path": "/api/v1/orders?customerEmail=ilsa.larrabee%40example.org&status=processing",
+        "expect": {
+          "lines": {
+            "sku": "SP-110-RED-M",
+            "qty": 1
+          }
+        },
+        "where": {
+          "status": "processing"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        }
+      }
+    ]
+  },
+  "steps": []
+}

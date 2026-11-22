@@ -321,6 +321,11 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
       expect((await rawFetch(port, `/w/${minted.id}/warehouse/${rest}`)).status, rest).toBe(404);
     }
     expect(stub.seeds.length).toBe(seededBefore);
+    // A site's change ledger is under the same door: the verifier reads it on the app's own address, and no address here leads to it.
+    for (const path of [`/w/${minted.id}/warehouse/internal/workspaces/${minted.id}/ledger`, `/w/${minted.id}/warehouse/internal/workspaces/${minted.id}/ledger?cursor=0&limit=5`]) {
+      const res = await gateway.inject({ method: "GET", url: path });
+      expect([path, res.statusCode, res.json().error]).toEqual([path, 404, "NOT_FOUND"]);
+    }
     // An app's other /internal/* pages (the guide's operator-keyed records) are still proxied.
     const records = await gateway.inject(`/w/${minted.id}/guide/internal/records?workspace=${minted.id}`);
     expect(records.statusCode).toBe(200);
@@ -529,12 +534,13 @@ describe("app registry and config (no database)", () => {
     expect(names(["hotels", "mail"])).toEqual(["warehouse", "mail", "hotels"]);
   });
 
-  it("seeds exactly the apps seeded before the webmcp-v1 sites for every other scenario, and the nine sites for webmcp-v1 alone", () => {
+  it("seeds exactly the apps seeded before the webmcp-v1 sites for every other scenario, and the nine sites for the scenarios that name them (webmcp-v1, cuj-v1)", () => {
     const targets = seedTargetsFor(deployed(), scenarios);
-    for (const scenario of scenarios.list().map((s) => s.key).filter((key) => key !== "webmcp-v1")) {
+    const naming = ["webmcp-v1", "cuj-v1"];
+    for (const scenario of scenarios.list().map((s) => s.key).filter((key) => !naming.includes(key))) {
       expect(targets({ scenario }).map((a) => a.name).sort(), scenario).toEqual([...BEFORE_THE_SITES].sort());
     }
-    expect(targets({ scenario: "webmcp-v1" }).map((a) => a.name).sort()).toEqual([...BEFORE_THE_SITES, ...SITES].sort());
+    for (const scenario of naming) expect(targets({ scenario }).map((a) => a.name).sort(), scenario).toEqual([...BEFORE_THE_SITES, ...SITES].sort());
   });
 
   it("creates a workspace of another scenario while a webmcp-v1 site is down; a webmcp-v1 one fails on it", async () => {

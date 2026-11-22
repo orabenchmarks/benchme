@@ -1,0 +1,122 @@
+{
+  "id": "cuj-change-event-time-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "moved",
+        "app": "events",
+        "path": "/api/v1/events/EV-1060",
+        "expect": {
+          "status": "scheduled",
+          "date": "2027-03-29",
+          "startTime": "13:30",
+          "endTime": "14:30",
+          "roomCode": "VEL-R5"
+        },
+        "entity": {
+          "type": "event",
+          "id": "EV-1060"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "other events untouched",
+        "scope": [
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1021"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1023"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1061"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1062"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1063"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1064"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1065"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1066"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1067"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "event",
+              "id": "EV-1068"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

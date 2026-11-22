@@ -1,0 +1,15 @@
+{
+  "id": "cuj-fit-variant-tempting-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "colour": "black",
+      "price": {
+        "value": 67.99,
+        "tolerance": 0.01
+      }
+    }
+  },
+  "steps": []
+}

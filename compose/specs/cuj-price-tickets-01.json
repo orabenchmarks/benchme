@@ -1,0 +1,14 @@
+{
+  "id": "cuj-price-tickets-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "total": {
+        "value": 39,
+        "tolerance": 0.01
+      }
+    }
+  },
+  "steps": []
+}

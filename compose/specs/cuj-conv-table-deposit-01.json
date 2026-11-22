@@ -1,0 +1,45 @@
+{
+  "id": "cuj-conv-table-deposit-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked",
+        "app": "dining",
+        "path": "/api/v1/reservations?guestEmail=lucan.delacourt.73838%40journeys.example",
+        "expect": {
+          "time": "19:00",
+          "partySize": 4,
+          "area": "indoor"
+        },
+        "where": {
+          "restaurantCode": "RS-112",
+          "date": "2027-11-05",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "reservation",
+          "id": "{reservationNo}"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "deposit": {
+            "value": 40,
+            "tolerance": 0.01
+          }
+        }
+      }
+    }
+  ]
+}

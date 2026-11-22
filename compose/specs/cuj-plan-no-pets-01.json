@@ -1,0 +1,143 @@
+{
+  "id": "cuj-plan-no-pets-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "flight booked",
+        "app": "flights",
+        "path": "/api/v1/bookings?contactEmail=nolan.ingram.94208%40journeys.example",
+        "expect": {
+          "passengerCount": 1
+        },
+        "where": {
+          "flightNo": "EM153",
+          "date": "2027-04-24",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "unchanged",
+            "name": "nothing changed",
+            "scope": [
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "entity": {
+                  "type": "room",
+                  "id": "HT-127-SGL"
+                }
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "subject": {
+                  "type": "room",
+                  "id": "HT-127-SGL"
+                }
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "entity": {
+                  "type": "hotel",
+                  "id": "HT-127"
+                }
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "subject": {
+                  "type": "hotel",
+                  "id": "HT-127"
+                }
+              }
+            ],
+            "after": "flight booked"
+          },
+          {
+            "kind": "ledger",
+            "name": "looked or was refused",
+            "match": [
+              {
+                "app": "hotels",
+                "entity": {
+                  "type": "room",
+                  "id": "HT-127-SGL"
+                },
+                "action": "read",
+                "outcome": "ok"
+              },
+              {
+                "app": "hotels",
+                "entity": {
+                  "type": "hotel",
+                  "id": "HT-127"
+                },
+                "action": "read",
+                "outcome": "ok"
+              },
+              {
+                "app": "hotels",
+                "entity": {
+                  "type": "room",
+                  "id": "HT-127-SGL"
+                },
+                "outcome": "refused",
+                "code": "NO_PETS"
+              },
+              {
+                "app": "hotels",
+                "subject": {
+                  "type": "room",
+                  "id": "HT-127-SGL"
+                },
+                "outcome": "refused",
+                "code": "NO_PETS"
+              },
+              {
+                "app": "hotels",
+                "entity": {
+                  "type": "hotel",
+                  "id": "HT-127"
+                },
+                "outcome": "refused",
+                "code": "NO_PETS"
+              },
+              {
+                "app": "hotels",
+                "subject": {
+                  "type": "hotel",
+                  "id": "HT-127"
+                },
+                "outcome": "refused",
+                "code": "NO_PETS"
+              }
+            ],
+            "after": "flight booked"
+          }
+        ]
+      }
+    }
+  ]
+}

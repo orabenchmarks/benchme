@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildVerify } from "./build-app.js";
 import type { JobRunner, RunnerReport } from "./oracles/patch-oracle.js";
-import type { WorkspaceStateReader } from "./oracles/state-reader.js";
 import { MemorySpecRegistry } from "./specs/spec.js";
+import { FakeSites, T } from "./testing/fake-sites.js";
 
 const DB = process.env.DATABASE_URL;
 const SECRET = "gateway-secret-for-tests";
@@ -25,20 +25,24 @@ class StubRunner implements JobRunner {
   }
 }
 
+const BOOKED = { kind: "ledger" as const, name: "booked", match: { app: "hotels", entity: { type: "booking" }, action: "create", outcome: "ok" as const } };
+const DINNER_MOVED = { kind: "ledger" as const, name: "dinner moved", match: { app: "dining", action: "change", outcome: "ok" as const }, after: "booked" };
+
 const specs = new MemorySpecRegistry([
   { id: "calc-easy-01", blind: false, oracle: { kind: "json", expect: { answer: { value: 500500, tolerance: 0 }, unit: "count" } } },
   { id: "doc-xlsx-01", blind: false, oracle: { kind: "xlsx", sheets: [{ name: "Sales", headerRow: ["Region", "Amount"], cells: { B4: { formula: "SUM(" }, A1: "Region" }, frozenHeader: true }] } },
   { id: "doc-docx-01", blind: false, oracle: { kind: "docx", contains: ["quarterly summary"], headings: ["Results"], minTables: 1, minParagraphs: 3 } },
   { id: "code-easy-01", blind: false, oracle: { kind: "patch", runnerImage: "stub", baseSha: "abc", requiredTests: ["pagination", "status"], lint: true, typecheck: true, timeoutSeconds: 60 } },
   { id: "code-hard-01", blind: true, oracle: { kind: "patch", runnerImage: "stub", baseSha: "abc", requiredTests: [], lint: true, typecheck: true, timeoutSeconds: 60 } },
+  // One state check, three ways: no steps declared, an empty list of steps, and as step 1 of three (an answer between).
+  { id: "state-plain-01", blind: false, oracle: { kind: "state", checks: [BOOKED] } },
+  { id: "cuj-one-01", blind: false, oracle: { kind: "state", checks: [BOOKED] }, steps: [] },
+  { id: "cuj-trip-01", blind: false, oracle: { kind: "state", checks: [BOOKED] }, steps: [{ oracle: { kind: "json", expect: { total: 910 } } }, { oracle: { kind: "state", checks: [DINNER_MOVED] } }] },
+  { id: "cuj-talk-01", blind: false, oracle: { kind: "json", expect: { total: 910 } }, steps: [{ oracle: { kind: "json", expect: { nights: 2 } } }] },
 ]);
 
-/** No test task in this suite uses the `state` oracle; this fake is only here to satisfy the composition root's required dependency. */
-class NullStateReader implements WorkspaceStateReader {
-  async get(): Promise<unknown> {
-    return null;
-  }
-}
+/** The sites the state tasks read: a hotel booked at 10:02, and a dinner never moved. */
+const sites = new FakeSites().ledger("hotels", [{ entity: { type: "booking", id: "BK-1" }, action: "create", at: T(2, 482) }]).ledger("dining", []);
 
 let pool: Pool;
 let app: FastifyInstance;
@@ -76,7 +80,7 @@ beforeAll(async () => {
   pool = createPool(DB, 4);
   await migrate(pool, "core", join(here, "..", "..", "gateway", "migrations"));
   await migrate(pool, "verify", join(here, "..", "migrations"));
-  app = (await buildVerify({ pool, specs, receipts: signer, runner, stateReader: new NullStateReader(), gatewaySecret: SECRET, maxAttemptsPerTask: 3, maxArtifactBytes: 1024 * 1024, logLevel: "silent" })).app;
+  app = (await buildVerify({ pool, specs, receipts: signer, runner, stateReader: sites, gatewaySecret: SECRET, maxAttemptsPerTask: 3, maxArtifactBytes: 1024 * 1024, logLevel: "silent" })).app;
   ws = newWorkspaceId();
   await pool.query("INSERT INTO core.workspaces (id, scenario, seed, expires_at) VALUES ($1, 'acme-v1', 1, now() + interval '1 hour')", [ws]);
 });
@@ -139,5 +143,45 @@ describe.skipIf(!DB)("verifier (real Postgres, real xlsx/docx)", () => {
     expect(runner.calls).toBeGreaterThanOrEqual(4);
     const attempts = (await app.inject(scoped({ url: "/v1/attempts/code-easy-01" }))).json();
     expect(attempts).toHaveLength(3);
+  });
+
+  it("answers a task that declares no steps with the four fields it always did, and nothing else", async () => {
+    const json = (await submit("calc-easy-01", JSON.stringify({ answer: 500500, unit: "count" }), "application/json")).json();
+    expect(Object.keys(json).sort()).toEqual(["attempt", "details", "receipt", "verdict"]);
+    const state = (await submit("state-plain-01", "{}", "application/json")).json();
+    expect(Object.keys(state).sort()).toEqual(["attempt", "details", "receipt", "verdict"]);
+    expect([state.verdict, state.details]).toEqual(["OK", [{ name: "booked", ok: true }]]);
+  });
+
+  it("answers a task that declares steps with each state step's result beside them", async () => {
+    const one = (await submit("cuj-one-01", "{}", "application/json")).json();
+    expect(Object.keys(one).sort()).toEqual(["attempt", "details", "receipt", "steps", "verdict"]);
+    expect([one.verdict, one.details, one.steps]).toEqual(["OK", [{ name: "booked", ok: true }], [{ step: 1, verdict: "OK", checks: [{ name: "booked", passed: true, at: "2027-03-01T10:02:00.482Z" }] }]]);
+
+    const trip = (await submit("cuj-trip-01", "{}", "application/json")).json();
+    expect(trip).toMatchObject({
+      verdict: "FAIL",
+      attempt: 1,
+      steps: [
+        { step: 1, verdict: "OK", checks: [{ name: "booked", passed: true, at: "2027-03-01T10:02:00.482Z" }] },
+        { step: 3, verdict: "FAIL", checks: [{ name: "dinner moved", passed: false }] },
+      ],
+      details: [{ name: "booked", ok: true }, { name: "dinner moved", ok: false, note: expect.stringMatching(/no ledger entry matching/) }],
+    });
+    expect(trip.receipt).toMatch(/^RCPT-cuj-trip-01-FAIL-[0-9a-f]{12}$/);
+    // The receipt's log holds the details it always held; the submission reads current state only, and may be repeated.
+    expect((await pool.query("SELECT verdict, details FROM core.receipts WHERE receipt = $1", [trip.receipt])).rows[0]).toMatchObject({ verdict: "FAIL", details: trip.details });
+    const again = (await submit("cuj-trip-01", "{}", "application/json")).json();
+    expect([again.attempt, again.steps]).toEqual([2, trip.steps]);
+    // The dinner is moved, after the booking: the same task is now done, and says when each step's change happened.
+    sites.ledger("dining", [{ entity: { type: "reservation", id: "RS-9" }, action: "change", at: T(9) }]);
+    const done = (await submit("cuj-trip-01", "{}", "application/json")).json();
+    expect([done.verdict, done.steps[1]]).toEqual(["OK", { step: 3, verdict: "OK", checks: [{ name: "dinner moved", passed: true, at: "2027-03-01T10:09:00.000Z" }] }]);
+  });
+
+  it("refuses a task of several steps that has no state to check, and logs no attempt for it", async () => {
+    const res = await submit("cuj-talk-01", JSON.stringify({ total: 910 }), "application/json");
+    expect([res.statusCode, res.json().error]).toEqual([422, "NO_STATE_STEP"]);
+    expect((await app.inject(scoped({ url: "/v1/attempts/cuj-talk-01" }))).json()).toEqual([]);
   });
 });

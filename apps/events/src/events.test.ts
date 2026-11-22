@@ -1,6 +1,6 @@
-import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signWorkspaceHeader, type Pool } from "@benchme/core";
+import { VERIFIER_SIG_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signVerifierHeader, signWorkspaceHeader, type Pool } from "@benchme/core";
 import { webmcpV1, addDays, eventFreeRooms, eventPlacesLeft, eventWeekday, scenarios, type EventRows, type OfficeEvent } from "@benchme/scenarios";
-import type { Mailer } from "@benchme/site-kit";
+import { SIGN_IN_TOOLS, type LedgerEntry, type Mailer } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { FastifyInstance, InjectOptions } from "fastify";
@@ -34,6 +34,9 @@ const scoped = (o: InjectOptions & { url: string }, wsId = ws): InjectOptions =>
 });
 const get = async (url: string) => (await app.inject(scoped({ method: "GET", url }))).json();
 const post = (url: string, payload: unknown, auth = true) => app.inject(scoped({ method: "POST", url, payload: payload as Record<string, unknown>, headers: auth ? { authorization: `Bearer ${bearer}` } : {} }));
+/** The site's ledger as the verifier reads it: every entry after `from`. */
+const ledger = async (from = 0) => (await app.inject(scoped({ url: `/internal/workspaces/${ws}/ledger?cursor=${from}&limit=1000`, headers: { [VERIFIER_SIG_HEADER]: signVerifierHeader(SECRET, ws) } }))).json().items as LedgerEntry[];
+const ledgerEnd = async () => Number((await pool.query("SELECT COALESCE(max(seq), 0) AS seq FROM events.ledger WHERE workspace_id = $1", [ws])).rows[0].seq);
 const formPost = (url: string, body: Record<string, string>) => app.inject(scoped({ method: "POST", url, payload: new URLSearchParams(body).toString(), headers: { "content-type": "application/x-www-form-urlencoded", cookie } }));
 const served = (e: OfficeEvent) => Object.fromEntries(Object.entries(e).filter(([k]) => k !== "guestEmails"));
 
@@ -247,16 +250,75 @@ describe.skipIf(!DB)("events (real Postgres)", () => {
     for (const url of bad) expect([url, await status(url)]).toEqual([url, 400]);
   });
 
+  it("keeps its ledger: a read through REST and through a page, a write nobody may make, a write and a rule's refusal, each with its door and who was signed in", async () => {
+    const no = [...rows.registrations].reverse().find((x) => x.status === "registered")!.regNo;
+    const from = await ledgerEnd();
+    await get(`/api/v1/registrations/${no}`);
+    await app.inject(scoped({ method: "GET", url: `/registrations/${no}` }));
+    // Nobody signed in: REST says 401, the page sends the visitor to sign in, and neither reaches the rules.
+    expect((await post(`/api/v1/registrations/${no}/cancel`, {}, false)).json()).toEqual({ error: "UNAUTHORIZED", message: "sign in or send Authorization: Bearer <api token>" });
+    const sent = await app.inject(scoped({ method: "POST", url: `/registrations/${no}/cancel` }));
+    expect([sent.statusCode, sent.headers.location]).toEqual([302, `/w/${ws}/events/login`]);
+    expect((await post(`/api/v1/registrations/${no}/cancel`, {})).statusCode).toBe(200);
+    expect((await post(`/api/v1/registrations/${no}/cancel`, {})).json().error).toBe("ALREADY_CANCELLED");
+    const kept = (await ledger(from)).filter((e) => e.entity.type === "registration");
+    expect(kept.map((e) => [e.app, e.kind, e.entity.id, e.action, e.door, e.actor, e.outcome, e.code])).toEqual([
+      ["events", "read", no, "read", "rest", null, "ok", null],
+      ["events", "read", no, "read", "page", null, "ok", null],
+      ["events", "write", no, "cancel", "rest", null, "refused", "UNAUTHORIZED"],
+      ["events", "write", no, "cancel", "page", null, "refused", "UNAUTHORIZED"],
+      ["events", "write", no, "cancel", "rest", "organiser@example.com", "ok", null],
+      ["events", "write", no, "cancel", "rest", "organiser@example.com", "refused", "ALREADY_CANCELLED"],
+    ]);
+    // Each is stamped when it happened, in order.
+    expect(kept.map((e) => Date.parse(e.at))).toEqual(kept.map((e) => Date.parse(e.at)).sort((a, b) => a - b));
+    expect(Math.abs(Date.now() - Date.parse(kept[0]!.at))).toBeLessThan(60_000);
+  });
+
+  it("keeps a write and its ledger entry together: a cancel, or a sign-up, whose entry cannot be kept does not happen", async () => {
+    const no = rows.registrations.find((x) => x.status === "registered")!.regNo;
+    const email = "unkept@example.com";
+    // For this test only, the ledger refuses the entry of a cancel and of a sign-up.
+    await pool.query("ALTER TABLE events.ledger ADD CONSTRAINT test_unkept CHECK (action NOT IN ('cancel', 'sign_up')) NOT VALID");
+    try {
+      expect((await post(`/api/v1/registrations/${no}/cancel`, {})).statusCode).toBe(500);
+      const signup = await app.inject(scoped({ method: "POST", url: "/signup", payload: `name=U&email=${encodeURIComponent(email)}&password=correct-horse-9`, headers: { "content-type": "application/x-www-form-urlencoded" } }));
+      expect(signup.statusCode).toBe(500);
+    } finally {
+      await pool.query("ALTER TABLE events.ledger DROP CONSTRAINT test_unkept");
+    }
+    expect((await get(`/api/v1/registrations/${no}`)).status).toBe("registered");
+    expect((await pool.query("SELECT 1 FROM events.users WHERE workspace_id = $1 AND email = $2", [ws, email])).rowCount).toBe(0);
+  });
+
+  it("names what a refused create was about: it has no entity id yet, and its subject says which one it was for", async () => {
+    const event = rows.events.find((e) => e.registration === "invite-only" && e.status === "scheduled")!.code;
+    const from = await ledgerEnd();
+    const res = await post(`/api/v1/events/${event}/register`, { name: "Subject Test", email: "subject@example.com" });
+    expect([res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 400, res.json().error]).toEqual([true, "INVITE_ONLY"]);
+    expect((await ledger(from)).map((e) => [e.kind, e.entity, e.subject, e.outcome, e.code])).toEqual([["write", { type: "registration", id: null }, { type: "event", id: event }, "refused", "INVITE_ONLY"]]);
+  });
+
   it("exposes the same tools over MCP", async () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));
     try {
       const names = (await client.listTools()).tools.map((t) => t.name).sort();
-      expect(names).toEqual(["cancel_event", "cancel_registration", "change_event", "create_event", "find_free_rooms", "get_event", "list_events", "list_offices", "list_people", "register_for_event"]);
+      // The site's own tools, and the kit's for signing up and in.
+      expect(names).toEqual(["cancel_event", "cancel_registration", "change_event", "create_event", "find_free_rooms", "get_event", "list_events", "list_offices", "list_people", "register_for_event", ...SIGN_IN_TOOLS].sort());
       // A seeded day, not QUIET: the tests above booked rooms on QUIET, which the seed rows do not have.
       const e = rows.events.find((x) => x.status === "scheduled")!;
       const res = (await client.callTool({ name: "find_free_rooms", arguments: { office: e.officeCode, date: e.date, startTime: e.startTime, endTime: e.endTime, people: 3 } })) as { content: { text: string }[] };
       expect(JSON.parse(res.content[0]!.text)).toEqual(eventFreeRooms(rows, { officeCode: e.officeCode, date: e.date, startTime: e.startTime, endTime: e.endTime, people: 3 }));
+      // A tool call is a door of its own in the ledger.
+      const from = await ledgerEnd();
+      await client.callTool({ name: "get_event", arguments: { eventCode: rows.events[0]!.code } });
+      expect((await ledger(from)).map((e) => [e.kind, e.entity.type, e.entity.id, e.door, e.outcome])).toEqual([["read", "event", rows.events[0]!.code, "mcp", "ok"]]);
+      // The sign-in the pages and REST ask, asked here too: a write by nobody is refused before the rules are, and the ledger keeps it.
+      const mark = await ledgerEnd();
+      const refused = (await client.callTool({ name: "cancel_registration", arguments: { regNo: "NO-SUCH" } })) as { isError?: boolean; content: { text: string }[] };
+      expect([refused.isError, JSON.parse(refused.content[0]!.text).error]).toEqual([true, "UNAUTHORIZED"]);
+      expect((await ledger(mark)).map((e) => [e.door, e.kind, e.entity.type, e.entity.id, e.action, e.actor, e.outcome, e.code])).toEqual([["mcp", "write", "registration", "NO-SUCH", "cancel", null, "refused", "UNAUTHORIZED"]]);
     } finally {
       await client.close();
     }

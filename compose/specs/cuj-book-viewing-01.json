@@ -1,0 +1,31 @@
+{
+  "id": "cuj-book-viewing-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "requested",
+        "app": "homes",
+        "path": "/api/v1/viewings?email=aurelie.everhart.70175%40journeys.example",
+        "expect": {
+          "date": "2027-06-07",
+          "time": "10:00"
+        },
+        "where": {
+          "listingCode": "LS-3165",
+          "status": "requested"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "viewing",
+          "id": "{viewingNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

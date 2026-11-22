@@ -6,12 +6,17 @@
  *   node tools/intent-integrity.mjs --base http://localhost:8080 [--scenario acme-v1] [--seed 4242] [--scale 1] [--operator-key <key>]
  *
  * --scenario picks the corpus (tools/intent-corpus/corpus.mjs CORPORA): acme-v1
- * (the default) or webmcp-v1, the sites from webmcp-tools.
+ * (the default), webmcp-v1, the sites from webmcp-tools, or cuj-v1, whose
+ * proof is tools/intent-integrity/cuj.mjs (levels measured, steps in order).
  *
  * One fresh workspace at the corpus seed, signed in to every app that has
  * accounts (sign-up → the code from the workspace inbox → verify → log in, as
- * tools/agent-eval does), then four passes:
+ * tools/agent-eval does), then five passes:
  *
+ *   0. no door is a dead end: on every app whose tools sign in, an account is
+ *      signed up, mailed its code, verified and signed in through MCP tools
+ *      alone (the app's, and the inbox's to read the code), with a second
+ *      address so the pages' own sign-in above is left as it was;
  *   1. every state task FAILS before anything is done — no check passes vacuously;
  *   2. every json task: the answer read back from the LIVE apps the way its
  *      question asks it is accepted, and a wrong answer is refused — the key
@@ -22,6 +27,7 @@
  * Exits 1 on any surprise, naming the task and the verifier's own words.
  */
 import { buildCorpus } from "./intent-corpus/corpus.mjs";
+import { liveBenchme, perturb } from "./intent-integrity/live.mjs";
 
 const argv = process.argv.slice(2);
 const option = (name, fallback) => {
@@ -35,46 +41,19 @@ const SCENARIO = option("scenario", "acme-v1");
 const OPERATOR_KEY = option("operator-key");
 const EMAIL = "integrity@example.com";
 
+// cuj-v1's tasks have areas, levels and steps: their proof is its own (tools/intent-integrity/cuj.mjs).
+if (SCENARIO === "cuj-v1") {
+  const { runCujIntegrity } = await import("./intent-integrity/cuj.mjs");
+  process.exit(await runCujIntegrity({ base: BASE, seed: SEED, scale: SCALE, operatorKey: OPERATOR_KEY }));
+}
+
 const corpus = buildCorpus({ seed: SEED, scale: SCALE, scenario: SCENARIO });
 if (corpus.problems.length) throw new Error(corpus.problems.join("; "));
 
-async function http(method, url, { body, form, cookies, headers = {} } = {}) {
-  const res = await fetch(url, {
-    method,
-    redirect: "manual",
-    headers: {
-      ...headers,
-      ...(cookies?.length ? { cookie: cookies.join("; ") } : {}),
-      ...(form ? { "content-type": "application/x-www-form-urlencoded" } : body !== undefined ? { "content-type": "application/json" } : {}),
-    },
-    body: form ? new URLSearchParams(form).toString() : body !== undefined ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined,
-  });
-  return res;
-}
-
-async function mint() {
-  const res = await http("POST", `${BASE}/api/workspaces`, { body: { scenario: SCENARIO, seed: SEED }, headers: OPERATOR_KEY ? { "x-benchme-operator-key": OPERATOR_KEY } : {} });
-  if (!res.ok) throw new Error(`workspace mint answered ${res.status}: ${await res.text()}`);
-  return (await res.json()).id;
-}
-
-/** Session cookies for one app, or [] for an app without accounts (the vault, the data site). */
-async function signIn(ws, app) {
-  const root = `${BASE}/w/${ws}/${app}`;
-  const password = `pw-${Math.random().toString(36).slice(2)}-X9`;
-  const signup = await http("POST", `${root}/signup`, { form: { email: EMAIL, password, name: "Integrity" } });
-  if (signup.status === 404) return [];
-  if (signup.status >= 400) throw new Error(`${app} signup answered ${signup.status}: ${await signup.text()}`);
-  const mail = await (await http("GET", `${BASE}/w/${ws}/mail/api/v1/messages`)).json();
-  const code = mail.filter((m) => m.to === EMAIL && String(m.from).includes(app)).map((m) => /\b(\d{6})\b/.exec(m.body)?.[1]).filter(Boolean).at(-1);
-  if (!code) throw new Error(`no verification code for ${app} in the workspace inbox`);
-  const verify = await http("POST", `${root}/verify`, { form: { email: EMAIL, code } });
-  if (verify.status >= 400) throw new Error(`${app} verify answered ${verify.status}`);
-  const login = await http("POST", `${root}/login`, { form: { email: EMAIL, password } });
-  const cookies = login.headers.getSetCookie().map((c) => c.split(";")[0]);
-  if (login.status !== 303 || cookies.length === 0) throw new Error(`${app} login answered ${login.status} with ${cookies.length} cookies`);
-  return cookies;
-}
+const live = liveBenchme({ base: BASE, operatorKey: OPERATOR_KEY });
+const { http, signInThroughTools, submit } = live;
+const mint = () => live.mint(SCENARIO, SEED);
+const signIn = (ws, app) => live.signIn(ws, app, { email: EMAIL });
 
 function apiFor(ws, sessions) {
   const url = (app, path) => `${BASE}/w/${ws}/${app}${path}`;
@@ -114,23 +93,6 @@ function apiFor(ws, sessions) {
   return api;
 }
 
-async function submit(ws, id, artifact) {
-  const res = await http("POST", `${BASE}/w/${ws}/verify/v1/submit/${id}`, { body: JSON.stringify(artifact) });
-  const body = await res.json().catch(() => ({}));
-  if (!body.verdict) throw new Error(`verifier answered ${res.status} for ${id}: ${JSON.stringify(body).slice(0, 300)}`);
-  return body;
-}
-
-/** A wrong answer of the same shape: every field moved off its key. */
-function perturb(expect) {
-  return Object.fromEntries(
-    Object.entries(expect).map(([field, v]) => [
-      field,
-      typeof v === "object" ? v.value + v.tolerance * 10 + 1 : typeof v === "number" ? v + 1 : typeof v === "boolean" ? !v : `${v}-not-it`,
-    ]),
-  );
-}
-
 const ws = await mint();
 const sessions = {};
 for (const app of new Set(corpus.tasks.map((t) => t.app))) sessions[app] = await signIn(ws, app);
@@ -151,6 +113,16 @@ const passed = (label, checked) => {
 };
 
 console.log(`workspace ${ws} (${SCENARIO}) — ${state.length} state + ${json.length} json tasks`);
+
+let signedInByTools = 0;
+for (const app of Object.keys(sessions)) {
+  try {
+    if (await signInThroughTools(ws, app, "tools-integrity@example.com")) signedInByTools++;
+  } catch (err) {
+    surprise(app, `an agent with only its MCP tools cannot sign in: ${err.message}`);
+  }
+}
+passed("pass 0 — an account signs up and in through MCP tools alone, on every app whose tools sign in", signedInByTools);
 
 for (const t of state) {
   const r = await submit(ws, t.id, {});

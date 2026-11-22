@@ -1,4 +1,6 @@
 import type { Pool } from "@benchme/core";
+import { createHash } from "node:crypto";
+import { hashPassword } from "./auth-service.js";
 
 export type UserRow = { email: string; displayName: string; verifiedAt: Date | null; apiToken: string | null };
 
@@ -89,5 +91,83 @@ export class PgUsersRepo implements UsersRepo {
   async getUserByApiToken(ws: string, token: string): Promise<UserRow | null> {
     const r = await this.pool.query<URow>(`SELECT * FROM ${this.s}.users WHERE workspace_id = $1 AND api_token = $2`, [ws, token]);
     return r.rows[0] ? toUser(r.rows[0]) : null;
+  }
+}
+
+/** An account a scenario's workspace starts with: signed up and verified already. */
+export type SeedAccount = { email: string; name: string; password: string };
+/** When a seeded account was verified: one fixed moment, so two workspaces of one seed hold the same rows. */
+const SEEDED_AT = "2027-01-01T00:00:00Z";
+
+/**
+ * Signs a scenario's accounts up on a site, verified, as if each owner had
+ * signed up and read their code. The salt comes from the schema and the
+ * email, so the same seed gives byte-identical rows in every workspace; the
+ * password still only matches through scrypt, as any other account's does.
+ * An account already there is left as it is.
+ */
+export async function seedAccounts(pool: Pool, schema: string, ws: string, accounts: readonly SeedAccount[]): Promise<void> {
+  if (!SCHEMA.test(schema)) throw new Error(`invalid schema name: ${schema}`);
+  for (const a of accounts) {
+    const email = a.email.trim().toLowerCase();
+    const salt = createHash("sha256").update(`${schema}:${email}`).digest("hex").slice(0, 32);
+    await pool.query(
+      `INSERT INTO ${schema}.users (workspace_id, email, password_hash, display_name, verified_at) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (workspace_id, email) DO NOTHING`,
+      [ws, email, await hashPassword(a.password, salt), a.name, SEEDED_AT],
+    );
+  }
+}
+
+/** The same contract in memory, for tests of what signs people up and in. */
+export class MemoryUsersRepo implements UsersRepo {
+  private readonly users = new Map<string, UserRow & { passwordHash: string }>();
+  private readonly codes = new Map<string, { code: string; expiresAt: Date }>();
+  private readonly sessions = new Map<string, { email: string; expiresAt: Date }>();
+  private readonly key = (ws: string, id: string) => `${ws} ${id}`;
+
+  async createUser(ws: string, email: string, passwordHash: string, displayName: string): Promise<UserRow> {
+    const user = { email, displayName, verifiedAt: null, apiToken: null, passwordHash };
+    this.users.set(this.key(ws, email), user);
+    return { email, displayName, verifiedAt: null, apiToken: null };
+  }
+
+  async getUser(ws: string, email: string) {
+    return this.users.get(this.key(ws, email)) ?? null;
+  }
+
+  async setVerificationCode(ws: string, email: string, code: string, expiresAt: Date): Promise<void> {
+    this.codes.set(this.key(ws, email), { code, expiresAt });
+  }
+
+  async consumeVerificationCode(ws: string, email: string, code: string, now: Date): Promise<boolean> {
+    const held = this.codes.get(this.key(ws, email));
+    if (!held || held.code !== code || held.expiresAt <= now) return false;
+    this.codes.delete(this.key(ws, email));
+    const user = this.users.get(this.key(ws, email));
+    if (user) user.verifiedAt ??= now;
+    return true;
+  }
+
+  async createSession(ws: string, token: string, email: string, expiresAt: Date): Promise<void> {
+    this.sessions.set(this.key(ws, token), { email, expiresAt });
+  }
+
+  async getSessionEmail(ws: string, token: string, now: Date): Promise<string | null> {
+    const s = this.sessions.get(this.key(ws, token));
+    return s && s.expiresAt > now ? s.email : null;
+  }
+
+  async deleteSession(ws: string, token: string): Promise<void> {
+    this.sessions.delete(this.key(ws, token));
+  }
+
+  async setApiToken(ws: string, email: string, token: string): Promise<void> {
+    const user = this.users.get(this.key(ws, email));
+    if (user) user.apiToken = token;
+  }
+
+  async getUserByApiToken(ws: string, token: string): Promise<UserRow | null> {
+    for (const [k, u] of this.users) if (k.startsWith(`${ws} `) && u.apiToken === token) return { email: u.email, displayName: u.displayName, verifiedAt: u.verifiedAt, apiToken: u.apiToken };
+    return null;
   }
 }

@@ -1,0 +1,33 @@
+{
+  "id": "cuj-book-appointment-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked",
+        "app": "clinic",
+        "path": "/api/v1/appointments?patientEmail=ottilie.ingram.13949%40journeys.example",
+        "expect": {
+          "date": "2027-08-18",
+          "time": "09:00",
+          "visitType": "in-person",
+          "planCode": "PL-11"
+        },
+        "where": {
+          "doctorCode": "DR-222",
+          "status": "booked"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "appointment",
+          "id": "{appointmentNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

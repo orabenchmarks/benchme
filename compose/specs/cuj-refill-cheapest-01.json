@@ -1,0 +1,37 @@
+{
+  "id": "cuj-refill-cheapest-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "refill requested",
+        "app": "clinic",
+        "path": "/api/v1/refills?rxNo=RX-60046",
+        "expect": {
+          "pharmacyCode": "CL-11"
+        },
+        "where": {
+          "status": "requested"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "refill",
+          "id": "{refillNo}"
+        }
+      },
+      {
+        "name": "one refill fewer",
+        "app": "clinic",
+        "path": "/api/v1/prescriptions/RX-60046",
+        "expect": {
+          "refillsLeft": 1
+        }
+      }
+    ]
+  },
+  "steps": []
+}

@@ -1,4 +1,4 @@
-import { DomainError, registerAuthRoutes, requireSession, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
+import { DomainError, registerAuthRoutes, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { filled, searchSchema, toQuery, viewingSchema } from "../api/inputs.js";
 import type { HomesRepo } from "../db/homes-repo.js";
@@ -33,7 +33,6 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
   });
   const html = (reply: FastifyReply, body: string, code = 200) => reply.code(code).type("text/html; charset=utf-8").send(body);
   const authDeps = { auth: d.auth, cookie: SESSION_COOKIE, shellCtx: ctx };
-  const requireUser = requireSession(authDeps);
   registerAuthRoutes(app, authDeps);
   const ws = (req: FastifyRequest) => req.workspaceId;
 
@@ -63,8 +62,6 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
   });
 
   app.post("/viewings", async (req, reply) => {
-    const c = await requireUser(req, reply);
-    if (!c) return;
     const f = (req.body ?? {}) as Record<string, string | undefined>;
     const slot = f.slot ?? "";
     const parsed = viewingSchema.safeParse({ ...filled(f), ...(slot ? { date: slot.slice(0, 10), time: slot.slice(11) } : {}) });
@@ -103,8 +100,6 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
   });
 
   app.post<{ Params: { no: string } }>("/viewings/:no/cancel", async (req, reply) => {
-    const c = await requireUser(req, reply);
-    if (!c) return;
     try {
       await d.homes.cancelViewing(ws(req), req.params.no);
       return reply.redirect(`${req.prefix}/viewings/${req.params.no}`, 303);

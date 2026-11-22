@@ -1,0 +1,49 @@
+{
+  "id": "cuj-conv-pizza-total-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ordered",
+        "app": "pizza",
+        "path": "/api/v1/orders?customerEmail=florian.fairbanks.39224%40journeys.example",
+        "expect": {
+          "slotTime": "18:00",
+          "lineCount": 1,
+          "lines": {
+            "pizzaCode": "PZ-101",
+            "size": "xlarge",
+            "quantity": 1
+          }
+        },
+        "where": {
+          "branchCode": "BR-109",
+          "slotDate": "2027-10-08",
+          "status": "received"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "order",
+          "id": "{orderNo}"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "total": {
+            "value": 28.65,
+            "tolerance": 0.01
+          }
+        }
+      }
+    }
+  ]
+}

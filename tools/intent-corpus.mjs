@@ -4,7 +4,8 @@
  * visitor would type, not a scripted API call) with ground truths DERIVED
  * from the same generator that seeds a workspace (@benchme/scenarios) —
  * never transcribed by hand. One corpus per scenario (tools/intent-corpus/
- * corpus.mjs CORPORA): acme-v1's and webmcp-v1's, written side by side. A `state` task is checked by the
+ * corpus.mjs CORPORA): acme-v1's, webmcp-v1's and cuj-v1's, written side by
+ * side. A `state` task is checked by the
  * verifier reading the app's own REST API afterwards; a `json` task by the
  * answer document it produces.
  *
@@ -22,6 +23,11 @@
  *                        for a platform that grades the answers itself
  *                        (webmcp-v1's: webmcp-corpus.json)
  *   intent-tasks.md      how every answer was derived (webmcp-tasks.md)
+ *
+ * cuj-v1's are cuj-<…>.json keys, cuj-tasks.json, cuj-corpus.json and
+ * cuj-tasks.md: records with an area, a level and follow-up steps
+ * (docs/scenarios/cuj-v1.md). A task whose every step is answered in a reply
+ * has no key file: the verifier has nothing of it to check.
  *
  * The first ten tasks are tools/intent-corpus/original.mjs, verbatim; every
  * other kind is a template in tools/intent-corpus/templates/ (see its
@@ -54,8 +60,9 @@ if (PRINT) {
   for (const corpus of corpora) {
     const task = corpus.tasks.find((t) => t.id === PRINT);
     const spec = corpus.specs.find((s) => s.id === PRINT);
-    if (task && spec) {
-      console.log(JSON.stringify({ scenario: corpus.scenario, task, spec }, null, 2));
+    const record = corpus.corpus.find((r) => r.id === PRINT);
+    if (task && (spec || record?.key)) {
+      console.log(JSON.stringify({ scenario: corpus.scenario, task, spec: spec ?? null, ...(record?.key && !spec ? { key: record.key } : {}) }, null, 2));
       process.exit(0);
     }
   }
@@ -74,9 +81,9 @@ for (const corpus of corpora) {
     files.set(name, content);
   }
 }
-// An intent-*.json on disk that no corpus produces is a stale answer key the
-// verifier would still load; the corpus files themselves are not keys.
-const stale = existsSync(OUT) ? readdirSync(OUT).filter((f) => /^intent-.*\.json$/.test(f) && !files.has(f)) : [];
+// An intent-*.json or cuj-*.json on disk that no corpus produces is a stale
+// answer key the verifier would still load; the corpus files themselves are not keys.
+const stale = existsSync(OUT) ? readdirSync(OUT).filter((f) => /^(intent|cuj)-.*\.json$/.test(f) && !files.has(f)) : [];
 const summary = corpora.map((c) => `${c.scenario} ${c.tasks.length}`).join(", ");
 
 if (flag("check")) {
@@ -94,7 +101,8 @@ if (flag("check")) {
 mkdirSync(OUT, { recursive: true });
 for (const name of stale) rmSync(join(OUT, name));
 for (const [name, content] of files) writeFileSync(join(OUT, name), content);
-const count = (c, kind) => c.tasks.filter((t) => t.oracle === kind).length;
+// A task's kind is its oracle's (acme-v1, webmcp-v1) or its first step's (cuj-v1).
+const count = (c, kind) => c.tasks.filter((t) => (t.oracle ?? t.kind) === kind).length;
 console.log(
   JSON.stringify(
     { seed: SEED, scale: SCALE, out: OUT, corpora: Object.fromEntries(corpora.map((c) => [c.scenario, { tasks: c.tasks.length, state: count(c, "state"), json: count(c, "json") }])), removed: stale },

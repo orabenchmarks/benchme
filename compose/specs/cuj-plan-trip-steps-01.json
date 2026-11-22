@@ -1,0 +1,73 @@
+{
+  "id": "cuj-plan-trip-steps-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "flight booked",
+        "app": "flights",
+        "path": "/api/v1/bookings?contactEmail=keira.ingram.67813%40journeys.example",
+        "expect": {
+          "passengerCount": 1,
+          "bags": 0
+        },
+        "where": {
+          "flightNo": "TF805",
+          "date": "2027-05-15",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "name": "room booked",
+            "app": "hotels",
+            "path": "/api/v1/bookings?guestEmail=keira.ingram.67813%40journeys.example",
+            "expect": {
+              "nights": 3,
+              "adults": 1
+            },
+            "where": {
+              "roomCode": "HT-118-SGL",
+              "checkIn": "2027-05-15",
+              "status": "confirmed"
+            },
+            "count": {
+              "min": 1,
+              "max": 1
+            },
+            "entity": {
+              "type": "booking",
+              "id": "{bookingNo}"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "total": {
+            "value": 585,
+            "tolerance": 0.01
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,133 @@
+{
+  "id": "cuj-change-line-size-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "resized",
+        "app": "pizza",
+        "path": "/api/v1/orders/PO-10072",
+        "expect": {
+          "status": "received",
+          "lines": {
+            "line": 1,
+            "size": "xlarge",
+            "toppingsKey": "artichoke,feta",
+            "quantity": 3
+          }
+        },
+        "entity": {
+          "type": "order",
+          "id": "PO-10072"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "other orders untouched",
+        "scope": [
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10003"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10034"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10039"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10050"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10053"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10057"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10078"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10089"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10090"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10103"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10113"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

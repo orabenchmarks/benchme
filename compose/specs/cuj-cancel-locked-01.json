@@ -1,0 +1,67 @@
+{
+  "id": "cuj-cancel-locked-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "kind": "unchanged",
+        "name": "nothing changed",
+        "scope": [
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10020"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "subject": {
+              "type": "order",
+              "id": "PO-10020"
+            }
+          }
+        ]
+      },
+      {
+        "kind": "ledger",
+        "name": "looked or was refused",
+        "match": [
+          {
+            "app": "pizza",
+            "entity": {
+              "type": "order",
+              "id": "PO-10020"
+            },
+            "action": "read",
+            "outcome": "ok"
+          },
+          {
+            "app": "pizza",
+            "entity": {
+              "type": "order",
+              "id": "PO-10020"
+            },
+            "outcome": "refused",
+            "code": "ORDER_LOCKED"
+          },
+          {
+            "app": "pizza",
+            "subject": {
+              "type": "order",
+              "id": "PO-10020"
+            },
+            "outcome": "refused",
+            "code": "ORDER_LOCKED"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

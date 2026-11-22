@@ -1,0 +1,67 @@
+{
+  "id": "cuj-return-window-closed-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "kind": "unchanged",
+        "name": "nothing changed",
+        "scope": [
+          {
+            "apps": [
+              "sports"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "ORD-10014"
+            }
+          },
+          {
+            "apps": [
+              "sports"
+            ],
+            "subject": {
+              "type": "order",
+              "id": "ORD-10014"
+            }
+          }
+        ]
+      },
+      {
+        "kind": "ledger",
+        "name": "looked or was refused",
+        "match": [
+          {
+            "app": "sports",
+            "entity": {
+              "type": "order",
+              "id": "ORD-10014"
+            },
+            "action": "read",
+            "outcome": "ok"
+          },
+          {
+            "app": "sports",
+            "entity": {
+              "type": "order",
+              "id": "ORD-10014"
+            },
+            "outcome": "refused",
+            "code": "RETURN_WINDOW_CLOSED"
+          },
+          {
+            "app": "sports",
+            "subject": {
+              "type": "order",
+              "id": "ORD-10014"
+            },
+            "outcome": "refused",
+            "code": "RETURN_WINDOW_CLOSED"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

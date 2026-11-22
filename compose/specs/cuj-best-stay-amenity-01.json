@@ -1,0 +1,32 @@
+{
+  "id": "cuj-best-stay-amenity-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked",
+        "app": "hotels",
+        "path": "/api/v1/bookings?guestEmail=hollis.brightwell.54386%40journeys.example",
+        "expect": {
+          "nights": 3,
+          "adults": 2
+        },
+        "where": {
+          "roomCode": "HT-132-DBL",
+          "checkIn": "2027-11-08",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

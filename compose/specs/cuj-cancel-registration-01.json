@@ -1,0 +1,64 @@
+{
+  "id": "cuj-cancel-registration-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "cancelled",
+        "app": "events",
+        "path": "/api/v1/registrations/RG-3048",
+        "expect": {
+          "status": "cancelled"
+        },
+        "entity": {
+          "type": "registration",
+          "id": "RG-3048"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "others left alone",
+        "scope": [
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "registration",
+              "id": "RG-3015"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "registration",
+              "id": "RG-3064"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "registration",
+              "id": "RG-3091"
+            }
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "entity": {
+              "type": "registration",
+              "id": "RG-3125"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

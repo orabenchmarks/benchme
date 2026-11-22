@@ -1,4 +1,4 @@
-import { DomainError, type ShellCtx } from "@benchme/site-kit";
+import { DomainError } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { changeSchema, orderSchema } from "../api/inputs.js";
 import type { PizzaRepo } from "../db/pizza-repo.js";
@@ -7,7 +7,6 @@ import { buildValues, many, one, orderBodyOf, type Form } from "./build-model.js
 export type Page = { status: number; body: string };
 export type OrderWriteDeps = {
   pizza: PizzaRepo;
-  requireUser: (req: FastifyRequest, reply: FastifyReply) => Promise<ShellCtx | null>;
   html: (reply: FastifyReply, body: string, code?: number) => FastifyReply;
   buildPage: (req: FastifyRequest, f: Form, flash?: string) => Promise<Page>;
   orderPage: (req: FastifyRequest, no: string, flash?: string) => Promise<Page>;
@@ -20,7 +19,6 @@ export function registerOrderWrites(app: FastifyInstance, d: OrderWriteDeps): vo
   const show = (reply: FastifyReply, page: Page, status = page.status) => d.html(reply, page.body, page.status === 200 ? status : page.status);
 
   app.post("/orders", async (req, reply) => {
-    if (!(await d.requireUser(req, reply))) return;
     const f = (req.body ?? {}) as Form;
     const code = one(f.pizzaCode);
     const pizza = code ? await d.pizza.pizza(req.workspaceId, code) : null;
@@ -36,7 +34,6 @@ export function registerOrderWrites(app: FastifyInstance, d: OrderWriteDeps): vo
   });
 
   app.post<{ Params: { no: string; line: string } }>("/orders/:no/lines/:line", async (req, reply) => {
-    if (!(await d.requireUser(req, reply))) return;
     const f = (req.body ?? {}) as Form;
     const parsed = changeSchema.safeParse({ size: one(f.size), crust: one(f.crust), sauce: one(f.sauce), cheese: one(f.cheese), toppings: many(f.toppings), quantity: one(f.quantity) });
     const line = Number(req.params.line);
@@ -51,7 +48,6 @@ export function registerOrderWrites(app: FastifyInstance, d: OrderWriteDeps): vo
   });
 
   app.post<{ Params: { no: string } }>("/orders/:no/cancel", async (req, reply) => {
-    if (!(await d.requireUser(req, reply))) return;
     try {
       await d.pizza.cancelOrder(req.workspaceId, req.params.no);
       return reply.redirect(`${req.prefix}/orders/${req.params.no}`, 303);

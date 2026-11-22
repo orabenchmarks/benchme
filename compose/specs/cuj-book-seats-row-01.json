@@ -1,0 +1,37 @@
+{
+  "id": "cuj-book-seats-row-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked",
+        "app": "cinema",
+        "path": "/api/v1/bookings?customerEmail=quinta.everhart.94011%40journeys.example",
+        "expect": {
+          "seats": "D1,D2,D3",
+          "together": true,
+          "ticketCounts": {
+            "adult": 2,
+            "child": 1,
+            "senior": 0,
+            "student": 0
+          }
+        },
+        "where": {
+          "showtimeCode": "ST-2129",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

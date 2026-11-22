@@ -1,0 +1,15 @@
+{
+  "id": "cuj-price-bags-cheapest-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "flight": "SZ796",
+      "total": {
+        "value": 410,
+        "tolerance": 0.01
+      }
+    }
+  },
+  "steps": []
+}

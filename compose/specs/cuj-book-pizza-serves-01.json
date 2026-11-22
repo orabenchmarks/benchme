@@ -1,0 +1,37 @@
+{
+  "id": "cuj-book-pizza-serves-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "ordered",
+        "app": "pizza",
+        "path": "/api/v1/orders?customerEmail=mireille.ashdown.83379%40journeys.example",
+        "expect": {
+          "slotTime": "18:30",
+          "lineCount": 1,
+          "lines": {
+            "pizzaCode": "PZ-103",
+            "size": "large",
+            "quantity": 1
+          }
+        },
+        "where": {
+          "branchCode": "BR-103",
+          "slotDate": "2027-09-17",
+          "status": "received"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "order",
+          "id": "{orderNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

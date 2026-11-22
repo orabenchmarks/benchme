@@ -1,13 +1,15 @@
 /**
  * One intent corpus per scenario for one (seed, scale): acme-v1's (the original
- * ten, then its templates) and webmcp-v1's (the sites from webmcp-tools) — and
- * the files each is written as.
+ * ten, then its templates), webmcp-v1's (the sites from webmcp-tools) and
+ * cuj-v1's (critical user journeys over the same sites, in focus areas and
+ * levels, some over several steps: ./cuj/) — and the files each is written as.
  *
  *   buildCorpus({ seed, scale, scenario }) → { problems, scenario, files, specs, tasks, corpus, md, solutions, answers }
  *   corpusFiles(corpus)                    → Map<file name, content>
  *   CORPORA                                → every corpus, by scenario
  */
-import { acmeV1, webmcpV1 } from "../../packages/scenarios/dist/index.js";
+import { acmeV1, cujV1, webmcpV1 } from "../../packages/scenarios/dist/index.js";
+import { buildCujCorpus } from "./cuj/build.mjs";
 import { deriveTemplated } from "./derive.mjs";
 import { deriveOriginal } from "./original.mjs";
 import { TEMPLATES_BY_SCENARIO } from "./templates/index.mjs";
@@ -19,7 +21,9 @@ const NO_ORIGINAL = { problems: [], specs: [], tasks: [], md: "", claims: [], so
  * template list in templates/index.mjs). Every task runs in a fresh workspace
  * of its corpus's scenario. The spec files of all corpora share one directory
  * (the verifier reads `<taskId>.json` by id), so their ids never collide; each
- * corpus has its own public files.
+ * corpus has its own public files. A corpus with its own `build` makes its
+ * specs, public rows and graded records itself (cuj-v1's records carry an
+ * area, a level and steps).
  */
 export const CORPORA = [
   {
@@ -34,6 +38,12 @@ export const CORPORA = [
     original: () => NO_ORIGINAL,
     files: { tasks: "webmcp-tasks.json", corpus: "webmcp-corpus.json", md: "webmcp-tasks.md" },
   },
+  {
+    scenario: cujV1,
+    title: "cuj-v1 corpus",
+    build: (rows, { seed, scale }) => buildCujCorpus(rows, { seed, scale }),
+    files: { tasks: "cuj-tasks.json", corpus: "cuj-corpus.json", md: "cuj-tasks.md" },
+  },
 ];
 
 export function corpusOf(scenario) {
@@ -45,6 +55,11 @@ export function corpusOf(scenario) {
 export function buildCorpus({ seed = 4242, scale = 1, scenario = "acme-v1" } = {}) {
   const def = corpusOf(scenario);
   const rows = def.scenario.generate(seed);
+  if (def.build) {
+    const built = def.build(rows, { seed, scale });
+    if (built.problems.length) return { problems: built.problems };
+    return { problems: [], scenario, files: def.files, specs: built.specs, tasks: built.tasks, corpus: built.corpus, md: built.md, plans: built.plans };
+  }
   const original = def.original(rows, seed);
   if (original.problems.length) return { problems: original.problems };
   const templated = deriveTemplated(rows, { seed, scale, claimed: original.claims, taken: original.tasks.map((t) => t.id), templates: TEMPLATES_BY_SCENARIO[scenario] });

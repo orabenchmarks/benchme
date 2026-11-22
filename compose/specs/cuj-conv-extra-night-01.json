@@ -1,0 +1,144 @@
+{
+  "id": "cuj-conv-extra-night-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked",
+        "app": "hotels",
+        "path": "/api/v1/bookings?guestEmail=benedikt.everhart.27340%40journeys.example",
+        "expect": {
+          "status": "confirmed",
+          "nights": 2
+        },
+        "where": {
+          "roomCode": "HT-103-FAM",
+          "checkIn": "2027-04-01"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}",
+          "at": "first"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "unchanged",
+            "name": "nothing changed",
+            "scope": [
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "entity": {
+                  "type": "room",
+                  "id": "HT-103-FAM"
+                }
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "subject": {
+                  "type": "room",
+                  "id": "HT-103-FAM"
+                }
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "entity": {
+                  "type": "booking",
+                  "id": "@booked"
+                }
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "subject": {
+                  "type": "booking",
+                  "id": "@booked"
+                }
+              }
+            ],
+            "after": "booked"
+          },
+          {
+            "kind": "ledger",
+            "name": "looked or was refused",
+            "match": [
+              {
+                "app": "hotels",
+                "entity": {
+                  "type": "room",
+                  "id": "HT-103-FAM"
+                },
+                "action": "read",
+                "outcome": "ok"
+              },
+              {
+                "app": "hotels",
+                "entity": {
+                  "type": "booking",
+                  "id": "@booked"
+                },
+                "action": "read",
+                "outcome": "ok"
+              },
+              {
+                "app": "hotels",
+                "entity": {
+                  "type": "room",
+                  "id": "HT-103-FAM"
+                },
+                "outcome": "refused",
+                "code": "SOLD_OUT"
+              },
+              {
+                "app": "hotels",
+                "subject": {
+                  "type": "room",
+                  "id": "HT-103-FAM"
+                },
+                "outcome": "refused",
+                "code": "SOLD_OUT"
+              },
+              {
+                "app": "hotels",
+                "entity": {
+                  "type": "booking",
+                  "id": "@booked"
+                },
+                "outcome": "refused",
+                "code": "SOLD_OUT"
+              },
+              {
+                "app": "hotels",
+                "subject": {
+                  "type": "booking",
+                  "id": "@booked"
+                },
+                "outcome": "refused",
+                "code": "SOLD_OUT"
+              }
+            ],
+            "after": "booked"
+          }
+        ]
+      }
+    }
+  ]
+}

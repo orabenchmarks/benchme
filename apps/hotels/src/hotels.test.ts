@@ -1,6 +1,6 @@
-import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signWorkspaceHeader, type Pool } from "@benchme/core";
-import { webmcpV1, roomsLeft, scenarios, searchStays, type HotelRows } from "@benchme/scenarios";
-import type { Mailer } from "@benchme/site-kit";
+import { VERIFIER_SIG_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signVerifierHeader, signWorkspaceHeader, type Pool } from "@benchme/core";
+import { cujV1, webmcpV1, roomsLeft, scenarios, searchStays, type HotelRows } from "@benchme/scenarios";
+import { SIGN_IN_TOOLS, type LedgerEntry, type Mailer } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { FastifyInstance, InjectOptions } from "fastify";
@@ -34,6 +34,9 @@ const scoped = (o: InjectOptions & { url: string }, wsId = ws): InjectOptions =>
 });
 const get = async (url: string) => (await app.inject(scoped({ method: "GET", url }))).json();
 const post = (url: string, payload: unknown, auth = true) => app.inject(scoped({ method: "POST", url, payload: payload as Record<string, unknown>, headers: auth ? { authorization: `Bearer ${bearer}` } : {} }));
+/** The site's ledger as the verifier reads it: every entry after `from`. */
+const ledger = async (from = 0) => (await app.inject(scoped({ url: `/internal/workspaces/${ws}/ledger?cursor=${from}&limit=1000`, headers: { [VERIFIER_SIG_HEADER]: signVerifierHeader(SECRET, ws) } }))).json().items as LedgerEntry[];
+const ledgerEnd = async () => Number((await pool.query("SELECT COALESCE(max(seq), 0) AS seq FROM hotels.ledger WHERE workspace_id = $1", [ws])).rows[0].seq);
 
 async function token(wsId: string, email: string): Promise<string> {
   const before = mailer.sent.length;
@@ -181,16 +184,94 @@ describe.skipIf(!DB)("hotels (real Postgres)", () => {
     expect((await post("/api/v1/bookings", stay)).statusCode).toBe(201);
   });
 
+  it("keeps its ledger: a read through REST and through a page, a write nobody may make, a write and a rule's refusal, each with its door and who was signed in", async () => {
+    const no = [...rows.bookings].reverse().find((x) => x.status === "confirmed")!.bookingNo;
+    const from = await ledgerEnd();
+    await get(`/api/v1/bookings/${no}`);
+    await app.inject(scoped({ method: "GET", url: `/bookings/${no}` }));
+    // Nobody signed in: REST says 401, the page sends the visitor to sign in, and neither reaches the rules.
+    expect((await post(`/api/v1/bookings/${no}/cancel`, {}, false)).json()).toEqual({ error: "UNAUTHORIZED", message: "sign in or send Authorization: Bearer <api token>" });
+    const sent = await app.inject(scoped({ method: "POST", url: `/bookings/${no}/cancel` }));
+    expect([sent.statusCode, sent.headers.location]).toEqual([302, `/w/${ws}/hotels/login`]);
+    expect((await post(`/api/v1/bookings/${no}/cancel`, {})).statusCode).toBe(200);
+    expect((await post(`/api/v1/bookings/${no}/cancel`, {})).json().error).toBe("ALREADY_CANCELLED");
+    const kept = (await ledger(from)).filter((e) => e.entity.type === "booking");
+    expect(kept.map((e) => [e.app, e.kind, e.entity.id, e.action, e.door, e.actor, e.outcome, e.code])).toEqual([
+      ["hotels", "read", no, "read", "rest", null, "ok", null],
+      ["hotels", "read", no, "read", "page", null, "ok", null],
+      ["hotels", "write", no, "cancel", "rest", null, "refused", "UNAUTHORIZED"],
+      ["hotels", "write", no, "cancel", "page", null, "refused", "UNAUTHORIZED"],
+      ["hotels", "write", no, "cancel", "rest", "booker@example.com", "ok", null],
+      ["hotels", "write", no, "cancel", "rest", "booker@example.com", "refused", "ALREADY_CANCELLED"],
+    ]);
+    // Each is stamped when it happened, in order.
+    expect(kept.map((e) => Date.parse(e.at))).toEqual(kept.map((e) => Date.parse(e.at)).sort((a, b) => a - b));
+    expect(Math.abs(Date.now() - Date.parse(kept[0]!.at))).toBeLessThan(60_000);
+  });
+
+  it("keeps a write and its ledger entry together: a cancel, or a sign-up, whose entry cannot be kept does not happen", async () => {
+    const no = rows.bookings.find((x) => x.status === "confirmed")!.bookingNo;
+    const email = "unkept@example.com";
+    // For this test only, the ledger refuses the entry of a cancel and of a sign-up.
+    await pool.query("ALTER TABLE hotels.ledger ADD CONSTRAINT test_unkept CHECK (action NOT IN ('cancel', 'sign_up')) NOT VALID");
+    try {
+      expect((await post(`/api/v1/bookings/${no}/cancel`, {})).statusCode).toBe(500);
+      const signup = await app.inject(scoped({ method: "POST", url: "/signup", payload: `name=U&email=${encodeURIComponent(email)}&password=correct-horse-9`, headers: { "content-type": "application/x-www-form-urlencoded" } }));
+      expect(signup.statusCode).toBe(500);
+    } finally {
+      await pool.query("ALTER TABLE hotels.ledger DROP CONSTRAINT test_unkept");
+    }
+    expect((await get(`/api/v1/bookings/${no}`)).status).toBe("confirmed");
+    expect((await pool.query("SELECT 1 FROM hotels.users WHERE workspace_id = $1 AND email = $2", [ws, email])).rowCount).toBe(0);
+  });
+
+  it("names what a refused create was about: it has no entity id yet, and its subject says which one it was for", async () => {
+    const room = rows.rooms[0]!.code;
+    const from = await ledgerEnd();
+    const res = await post("/api/v1/bookings", { roomCode: room, checkIn: "2028-01-02", nights: 1, adults: 1, kids: 0, pets: 0, lateCheckout: false, guestName: "Subject Test", guestEmail: "subject@example.com" });
+    expect([res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 400, res.json().error]).toEqual([true, "OUTSIDE_WINDOW"]);
+    expect((await ledger(from)).map((e) => [e.kind, e.entity, e.subject, e.outcome, e.code])).toEqual([["write", { type: "booking", id: null }, { type: "room", id: room }, "refused", "OUTSIDE_WINDOW"]]);
+  });
+
+  it("starts a cuj-v1 workspace with its accounts signed up and verified: their owners sign in with their password", async () => {
+    const cuj = newWorkspaceId();
+    await pool.query("INSERT INTO core.workspaces (id, scenario, seed, expires_at) VALUES ($1, 'cuj-v1', 4242, now() + interval '1 hour')", [cuj]);
+    expect((await app.inject(scoped({ method: "POST", url: `/internal/workspaces/${cuj}/seed`, payload: { scenario: "cuj-v1", seed: 4242 } }, cuj))).statusCode).toBe(201);
+    const [owner, other] = cujV1.generate(4242).accounts!.hotels!;
+    const login = (email: string, password: string) => app.inject(scoped({ method: "POST", url: "/login", payload: `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`, headers: { "content-type": "application/x-www-form-urlencoded" } }, cuj));
+    const ok = await login(owner!.email, owner!.password);
+    expect([ok.statusCode, ok.cookies.some((c) => c.name === "ht_session")]).toEqual([303, true]);
+    // Each account takes its own password only, and an account of one workspace is no account in another.
+    expect((await login(owner!.email, other!.password)).statusCode).toBe(401);
+    expect((await app.inject(scoped({ method: "POST", url: "/login", payload: `email=${encodeURIComponent(owner!.email)}&password=${encodeURIComponent(owner!.password)}`, headers: { "content-type": "application/x-www-form-urlencoded" } }))).statusCode).toBe(401);
+    // The same seed, the same rows: a second workspace keeps the same password hash for the same account.
+    const again = newWorkspaceId();
+    await pool.query("INSERT INTO core.workspaces (id, scenario, seed, expires_at) VALUES ($1, 'cuj-v1', 4242, now() + interval '1 hour')", [again]);
+    await app.inject(scoped({ method: "POST", url: `/internal/workspaces/${again}/seed`, payload: { scenario: "cuj-v1", seed: 4242 } }, again));
+    const hashes = await pool.query<{ password_hash: string }>("SELECT password_hash FROM hotels.users WHERE workspace_id = ANY($1) AND email = $2", [[cuj, again], owner!.email]);
+    expect(hashes.rows.map((r) => r.password_hash)).toEqual([hashes.rows[0]!.password_hash, hashes.rows[0]!.password_hash]);
+  });
+
   it("exposes the same tools over MCP", async () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));
     try {
       const names = (await client.listTools()).tools.map((t) => t.name).sort();
-      expect(names).toEqual(["cancel_booking", "check_availability", "create_booking", "get_booking", "get_hotel", "list_bookings", "list_cities", "list_hotels", "search_stays"]);
+      // The site's own tools, and the kit's for signing up and in.
+      expect(names).toEqual(["cancel_booking", "check_availability", "create_booking", "get_booking", "get_hotel", "list_bookings", "list_cities", "list_hotels", "search_stays", ...SIGN_IN_TOOLS].sort());
       const city = rows.hotels[0]!.city;
       // Not QUIET: the booking test above left a booking on those nights, which the seed rows do not have.
       const res = (await client.callTool({ name: "search_stays", arguments: { city, checkIn: "2027-11-08", nights: 3, adults: 1 } })) as { content: { text: string }[] };
       expect(JSON.parse(res.content[0]!.text)).toEqual(searchStays(rows, { city, checkIn: "2027-11-08", nights: 3, adults: 1, kids: 0, pets: 0 }));
+      // A tool call is a door of its own in the ledger.
+      const from = await ledgerEnd();
+      await client.callTool({ name: "get_hotel", arguments: { hotelCode: rows.hotels[0]!.code } });
+      expect((await ledger(from)).map((e) => [e.kind, e.entity.type, e.entity.id, e.door, e.outcome])).toEqual([["read", "hotel", rows.hotels[0]!.code, "mcp", "ok"]]);
+      // The sign-in the pages and REST ask, asked here too: a write by nobody is refused before the rules are, and the ledger keeps it.
+      const mark = await ledgerEnd();
+      const refused = (await client.callTool({ name: "cancel_booking", arguments: { bookingNo: "NO-SUCH" } })) as { isError?: boolean; content: { text: string }[] };
+      expect([refused.isError, JSON.parse(refused.content[0]!.text).error]).toEqual([true, "UNAUTHORIZED"]);
+      expect((await ledger(mark)).map((e) => [e.door, e.kind, e.entity.type, e.entity.id, e.action, e.actor, e.outcome, e.code])).toEqual([["mcp", "write", "booking", "NO-SUCH", "cancel", null, "refused", "UNAUTHORIZED"]]);
     } finally {
       await client.close();
     }

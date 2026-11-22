@@ -1,0 +1,33 @@
+{
+  "id": "cuj-best-flight-bags-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked",
+        "app": "flights",
+        "path": "/api/v1/bookings?contactEmail=keira.corrigan.52305%40journeys.example",
+        "expect": {
+          "cabin": "economy",
+          "passengerCount": 2,
+          "bags": 2
+        },
+        "where": {
+          "flightNo": "QE615",
+          "date": "2027-03-18",
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

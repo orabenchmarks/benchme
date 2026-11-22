@@ -1,0 +1,14 @@
+{
+  "id": "cuj-price-variant-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "price": {
+        "value": 217.99,
+        "tolerance": 0.01
+      }
+    }
+  },
+  "steps": []
+}

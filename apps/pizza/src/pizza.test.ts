@@ -1,6 +1,6 @@
-import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signWorkspaceHeader, type Pool } from "@benchme/core";
+import { VERIFIER_SIG_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signVerifierHeader, signWorkspaceHeader, type Pool } from "@benchme/core";
 import { webmcpV1, pizzaMenuSearch, pizzaQuote, pizzaSlots, scenarios, type PizzaRows } from "@benchme/scenarios";
-import type { Mailer } from "@benchme/site-kit";
+import { SIGN_IN_TOOLS, type LedgerEntry, type Mailer } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { FastifyInstance, InjectOptions } from "fastify";
@@ -34,6 +34,9 @@ const scoped = (o: InjectOptions & { url: string }, wsId = ws): InjectOptions =>
 });
 const get = async (url: string) => (await app.inject(scoped({ method: "GET", url }))).json();
 const post = (url: string, payload: unknown, auth = true) => app.inject(scoped({ method: "POST", url, payload: payload as Record<string, unknown>, headers: auth ? { authorization: `Bearer ${bearer}` } : {} }));
+/** The site's ledger as the verifier reads it: every entry after `from`. */
+const ledger = async (from = 0) => (await app.inject(scoped({ url: `/internal/workspaces/${ws}/ledger?cursor=${from}&limit=1000`, headers: { [VERIFIER_SIG_HEADER]: signVerifierHeader(SECRET, ws) } }))).json().items as LedgerEntry[];
+const ledgerEnd = async () => Number((await pool.query("SELECT COALESCE(max(seq), 0) AS seq FROM pizza.ledger WHERE workspace_id = $1", [ws])).rows[0].seq);
 const form = (url: string, body: Record<string, string | string[]>) => {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(body)) for (const x of [v].flat()) qs.append(k, x);
@@ -220,15 +223,74 @@ describe.skipIf(!DB)("pizza (real Postgres)", () => {
     expect((await get(`/api/v1/orders/${no}`)).status).toBe("cancelled");
   });
 
+  it("keeps its ledger: a read through REST and through a page, a write nobody may make, a write and a rule's refusal, each with its door and who was signed in", async () => {
+    const no = [...rows.orders].reverse().find((x) => x.status === "received")!.orderNo;
+    const from = await ledgerEnd();
+    await get(`/api/v1/orders/${no}`);
+    await app.inject(scoped({ method: "GET", url: `/orders/${no}` }));
+    // Nobody signed in: REST says 401, the page sends the visitor to sign in, and neither reaches the rules.
+    expect((await post(`/api/v1/orders/${no}/cancel`, {}, false)).json()).toEqual({ error: "UNAUTHORIZED", message: "sign in or send Authorization: Bearer <api token>" });
+    const sent = await app.inject(scoped({ method: "POST", url: `/orders/${no}/cancel` }));
+    expect([sent.statusCode, sent.headers.location]).toEqual([302, `/w/${ws}/pizza/login`]);
+    expect((await post(`/api/v1/orders/${no}/cancel`, {})).statusCode).toBe(200);
+    expect((await post(`/api/v1/orders/${no}/cancel`, {})).json().error).toBe("ALREADY_CANCELLED");
+    const kept = (await ledger(from)).filter((e) => e.entity.type === "order");
+    expect(kept.map((e) => [e.app, e.kind, e.entity.id, e.action, e.door, e.actor, e.outcome, e.code])).toEqual([
+      ["pizza", "read", no, "read", "rest", null, "ok", null],
+      ["pizza", "read", no, "read", "page", null, "ok", null],
+      ["pizza", "write", no, "cancel", "rest", null, "refused", "UNAUTHORIZED"],
+      ["pizza", "write", no, "cancel", "page", null, "refused", "UNAUTHORIZED"],
+      ["pizza", "write", no, "cancel", "rest", "orderer@example.com", "ok", null],
+      ["pizza", "write", no, "cancel", "rest", "orderer@example.com", "refused", "ALREADY_CANCELLED"],
+    ]);
+    // Each is stamped when it happened, in order.
+    expect(kept.map((e) => Date.parse(e.at))).toEqual(kept.map((e) => Date.parse(e.at)).sort((a, b) => a - b));
+    expect(Math.abs(Date.now() - Date.parse(kept[0]!.at))).toBeLessThan(60_000);
+  });
+
+  it("keeps a write and its ledger entry together: a cancel, or a sign-up, whose entry cannot be kept does not happen", async () => {
+    const no = rows.orders.find((x) => x.status === "received")!.orderNo;
+    const email = "unkept@example.com";
+    // For this test only, the ledger refuses the entry of a cancel and of a sign-up.
+    await pool.query("ALTER TABLE pizza.ledger ADD CONSTRAINT test_unkept CHECK (action NOT IN ('cancel', 'sign_up')) NOT VALID");
+    try {
+      expect((await post(`/api/v1/orders/${no}/cancel`, {})).statusCode).toBe(500);
+      const signup = await app.inject(scoped({ method: "POST", url: "/signup", payload: `name=U&email=${encodeURIComponent(email)}&password=correct-horse-9`, headers: { "content-type": "application/x-www-form-urlencoded" } }));
+      expect(signup.statusCode).toBe(500);
+    } finally {
+      await pool.query("ALTER TABLE pizza.ledger DROP CONSTRAINT test_unkept");
+    }
+    expect((await get(`/api/v1/orders/${no}`)).status).toBe("received");
+    expect((await pool.query("SELECT 1 FROM pizza.users WHERE workspace_id = $1 AND email = $2", [ws, email])).rowCount).toBe(0);
+  });
+
+  it("names what a refused create was about: it has no entity id yet, and its subject says which one it was for", async () => {
+    const branch = rows.branches[0]!.code;
+    const from = await ledgerEnd();
+    const res = await post("/api/v1/orders", { branchCode: branch, fulfilment: "pickup", lines: [{ pizzaCode: rows.pizzas[0]!.code, size: "medium", quantity: 1 }], slotDate: "2028-01-05", slotTime: "18:00", customerName: "Subject Test", customerEmail: "subject@example.com" });
+    expect([res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 400, res.json().error]).toEqual([true, "OUTSIDE_WINDOW"]);
+    expect((await ledger(from)).map((e) => [e.kind, e.entity, e.subject, e.outcome, e.code])).toEqual([["write", { type: "order", id: null }, { type: "branch", id: branch }, "refused", "OUTSIDE_WINDOW"]]);
+  });
+
   it("exposes the same tools over MCP", async () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws) } } }));
     try {
       const names = (await client.listTools()).tools.map((t) => t.name).sort();
-      expect(names).toEqual(["cancel_order", "change_order_line", "find_slots", "get_menu", "get_order", "list_branches", "list_orders", "place_order", "quote_order", "search_menu"]);
+      // The site's own tools, and the kit's for signing up and in.
+      expect(names).toEqual(["cancel_order", "change_order_line", "find_slots", "get_menu", "get_order", "list_branches", "list_orders", "place_order", "quote_order", "search_menu", ...SIGN_IN_TOOLS].sort());
       const out = rows.stockouts[0]!;
       const res = (await client.callTool({ name: "search_menu", arguments: { size: "medium", branchCode: out.branchCode, vegetarian: true } })) as { content: { text: string }[] };
       expect(JSON.parse(res.content[0]!.text)).toEqual(pizzaMenuSearch(rows, { size: "medium", branchCode: out.branchCode, vegetarian: true }));
+      // A tool call is a door of its own in the ledger.
+      const from = await ledgerEnd();
+      await client.callTool({ name: "get_order", arguments: { orderNo: rows.orders[0]!.orderNo } });
+      expect((await ledger(from)).map((e) => [e.kind, e.entity.type, e.entity.id, e.door, e.outcome])).toEqual([["read", "order", rows.orders[0]!.orderNo, "mcp", "ok"]]);
+      // The sign-in the pages and REST ask, asked here too: a write by nobody is refused before the rules are, and the ledger keeps it.
+      const mark = await ledgerEnd();
+      const refused = (await client.callTool({ name: "cancel_order", arguments: { orderNo: "NO-SUCH" } })) as { isError?: boolean; content: { text: string }[] };
+      expect([refused.isError, JSON.parse(refused.content[0]!.text).error]).toEqual([true, "UNAUTHORIZED"]);
+      expect((await ledger(mark)).map((e) => [e.door, e.kind, e.entity.type, e.entity.id, e.action, e.actor, e.outcome, e.code])).toEqual([["mcp", "write", "order", "NO-SUCH", "cancel", null, "refused", "UNAUTHORIZED"]]);
     } finally {
       await client.close();
     }

@@ -1,0 +1,31 @@
+{
+  "id": "cuj-book-earliest-together-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "booked earliest together",
+        "app": "cinema",
+        "path": "/api/v1/bookings?customerEmail=nolan.juniper.64404%40journeys.example",
+        "expect": {
+          "showtimeCode": "ST-2111",
+          "seatCount": 4,
+          "together": true
+        },
+        "where": {
+          "status": "confirmed"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "booking",
+          "id": "{bookingNo}"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

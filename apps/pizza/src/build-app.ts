@@ -1,15 +1,16 @@
 import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
-import { createApp, type Pool } from "@benchme/core";
+import { createApp, transactions, type Pool } from "@benchme/core";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
-import { AuthService, PgUsersRepo, registerMcp, registerWorkspaceScope, type Mailer } from "@benchme/site-kit";
+import { AuthService, PgLedger, PgUsersRepo, registerDoors, registerMcp, registerWorkspaceScope, seedAccounts, type Mailer } from "@benchme/site-kit";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { registerApi } from "./api/routes.js";
-import { PgPizzaRepo } from "./db/pizza-repo.js";
+import { PgPizzaRepo, type PizzaRepo } from "./db/pizza-repo.js";
+import { PIZZA_LEDGER } from "./db/ledger.js";
 import { seedPizza } from "./db/seed.js";
 import { pizzaTools } from "./mcp/tools.js";
-import { registerUi } from "./ui/routes.js";
+import { SESSION_COOKIE, registerUi } from "./ui/routes.js";
 
 export type BuildDeps = {
   pool: Pool;
@@ -22,9 +23,10 @@ export type BuildDeps = {
 
 /** Composition root: repos → services → routes. */
 export async function buildPizza(d: BuildDeps): Promise<FastifyInstance> {
-  const pizza = new PgPizzaRepo(d.pool);
-  const auth = new AuthService({
-    users: new PgUsersRepo(d.pool, "pizza"),
+  // One transaction for a write and its ledger entry: the repositories, the accounts and the ledger share its pool.
+  const db = transactions(d.pool);
+  const accounts = new AuthService({
+    users: new PgUsersRepo(db.pool, "pizza"),
     mailer: d.mailer,
     sessionTtlSeconds: d.sessionTtlSeconds,
     tokenPrefix: "pza",
@@ -38,6 +40,9 @@ export async function buildPizza(d: BuildDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(formbody);
   registerWorkspaceScope(app, d.gatewaySecret);
+  const doors = registerDoors(app, { ledger: new PgLedger(db, "pizza"), transactions: db, auth: accounts, cookie: SESSION_COOKIE, gatewaySecret: d.gatewaySecret });
+  const auth = doors.auth;
+  const pizza = doors.ledgered<PizzaRepo>(new PgPizzaRepo(db.pool), PIZZA_LEDGER);
 
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
     if (req.params.id !== req.workspaceId) return reply.code(400).send({ error: "WORKSPACE_MISMATCH" });
@@ -45,6 +50,7 @@ export async function buildPizza(d: BuildDeps): Promise<FastifyInstance> {
     try {
       const rows = d.scenarios.get(body.scenario).generate(body.seed);
       await seedPizza(d.pool, req.workspaceId, rows);
+      await seedAccounts(d.pool, "pizza", req.workspaceId, rows.accounts?.pizza ?? []);
       return reply.code(201).send({ ok: true, branches: rows.pizza.branches.length, pizzas: rows.pizza.pizzas.length, orders: rows.pizza.orders.length });
     } catch (err) {
       if (err instanceof UnknownScenarioError) return reply.code(422).send({ error: "UNKNOWN_SCENARIO", message: err.message });
@@ -52,9 +58,9 @@ export async function buildPizza(d: BuildDeps): Promise<FastifyInstance> {
     }
   });
 
-  const tools = pizzaTools();
-  registerApi(app, { pizza, auth });
+  const tools = doors.withSignIn(pizzaTools());
+  registerApi(app, { pizza });
   registerUi(app, { pizza, auth, tools });
-  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-pizza", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, pizza }) }));
+  await app.register(async (scope) => registerMcp(scope, { serverName: "benchme-pizza", version: "0.1.0", tools, context: (workspaceId) => ({ workspaceId, pizza }), sessions: true }));
   return app;
 }

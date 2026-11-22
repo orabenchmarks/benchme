@@ -1,4 +1,4 @@
-import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, signWorkspaceHeader } from "@benchme/core";
+import { VERIFIER_SIG_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, signVerifierHeader, signWorkspaceHeader } from "@benchme/core";
 
 /**
  * Reads one app's live REST state, scoped to a workspace. The `state` oracle
@@ -26,6 +26,10 @@ export class UnknownAppError extends Error {
  * Calls each target app directly at its in-cluster URL (APP_TARGETS — the
  * same map the gateway uses), signing the workspace header the same way the
  * gateway does: apps trust nothing else, so a check reader must prove it too.
+ * It also signs as the verifier (VERIFIER_SIG_HEADER), which the gateway never
+ * does: a site leaves the verifier's reads out of its change ledger, so a
+ * check never finds its own earlier read there, and shows the ledger itself
+ * (`/internal/workspaces/<id>/ledger`) to no other reader.
  */
 export class HttpWorkspaceStateReader implements WorkspaceStateReader {
   constructor(
@@ -41,6 +45,7 @@ export class HttpWorkspaceStateReader implements WorkspaceStateReader {
       headers: {
         [WORKSPACE_HEADER]: workspaceId,
         [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(this.secret, workspaceId),
+        [VERIFIER_SIG_HEADER]: signVerifierHeader(this.secret, workspaceId),
       },
     });
     if (res.status === 404) return null;

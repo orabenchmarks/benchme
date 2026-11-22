@@ -1,0 +1,64 @@
+{
+  "id": "cuj-cancel-pickup-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "name": "cancelled",
+        "app": "pizza",
+        "path": "/api/v1/orders/PO-10135",
+        "expect": {
+          "status": "cancelled"
+        },
+        "entity": {
+          "type": "order",
+          "id": "PO-10135"
+        }
+      },
+      {
+        "kind": "unchanged",
+        "name": "others left alone",
+        "scope": [
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10068"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10100"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10123"
+            }
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "entity": {
+              "type": "order",
+              "id": "PO-10136"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": []
+}

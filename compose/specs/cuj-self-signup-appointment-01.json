@@ -1,0 +1,62 @@
+{
+  "id": "cuj-self-signup-appointment-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "kind": "ledger",
+        "name": "account confirmed",
+        "match": {
+          "app": "clinic",
+          "entity": {
+            "type": "account",
+            "id": "quinta.holloway.65447@journeys.example"
+          },
+          "action": "verify",
+          "outcome": "ok"
+        }
+      },
+      {
+        "name": "booked",
+        "app": "clinic",
+        "path": "/api/v1/appointments?patientEmail=quinta.holloway.65447%40journeys.example",
+        "expect": {
+          "date": "2027-09-22",
+          "time": "11:30",
+          "visitType": "in-person"
+        },
+        "where": {
+          "doctorCode": "DR-204",
+          "status": "booked"
+        },
+        "count": {
+          "min": 1,
+          "max": 1
+        },
+        "entity": {
+          "type": "appointment",
+          "id": "{appointmentNo}"
+        }
+      },
+      {
+        "kind": "ledger",
+        "name": "booked as them",
+        "match": {
+          "app": "clinic",
+          "entity": {
+            "type": "appointment"
+          },
+          "subject": {
+            "type": "doctor",
+            "id": "DR-204"
+          },
+          "action": "create",
+          "outcome": "ok",
+          "actor": "quinta.holloway.65447@journeys.example"
+        }
+      }
+    ]
+  },
+  "steps": []
+}

@@ -1,0 +1,11 @@
+{
+  "id": "cuj-fit-listing-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "listing": "LS-3192"
+    }
+  },
+  "steps": []
+}

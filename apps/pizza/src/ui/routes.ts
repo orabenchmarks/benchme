@@ -1,5 +1,5 @@
 import { PIZZA_STATUSES, isDate, type PizzaOrderStatus } from "@benchme/scenarios";
-import { registerAuthRoutes, requireSession, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
+import { registerAuthRoutes, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { fromSearchQuery, searchQuery } from "../api/inputs.js";
 import type { PizzaRepo } from "../db/pizza-repo.js";
@@ -111,5 +111,5 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
     return html(reply, page.body, page.status);
   });
 
-  registerOrderWrites(app, { pizza: d.pizza, requireUser: requireSession(authDeps), html, buildPage, orderPage });
+  registerOrderWrites(app, { pizza: d.pizza, html, buildPage, orderPage });
 }

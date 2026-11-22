@@ -1,0 +1,183 @@
+{
+  "id": "cuj-change-event-steps-01",
+  "blind": false,
+  "oracle": {
+    "kind": "state",
+    "checks": [
+      {
+        "kind": "ledger",
+        "name": "guest added",
+        "match": {
+          "app": "events",
+          "entity": {
+            "type": "event",
+            "id": "EV-1019"
+          },
+          "action": "change",
+          "outcome": "ok"
+        }
+      },
+      {
+        "name": "on the guest list",
+        "app": "events",
+        "path": "/api/v1/events/EV-1019",
+        "expect": {
+          "guests": {
+            "email": "aurelie.delacourt.91899@journeys.example"
+          }
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "time moved",
+            "match": {
+              "app": "events",
+              "entity": {
+                "type": "event",
+                "id": "EV-1019"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "guest added"
+          },
+          {
+            "name": "at the new time",
+            "app": "events",
+            "path": "/api/v1/events/EV-1019",
+            "expect": {
+              "date": "2027-05-01",
+              "startTime": "10:30",
+              "endTime": "12:00"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "room changed",
+            "match": {
+              "app": "events",
+              "entity": {
+                "type": "event",
+                "id": "EV-1019"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "time moved"
+          },
+          {
+            "name": "in the room that holds everyone",
+            "app": "events",
+            "path": "/api/v1/events/EV-1019",
+            "expect": {
+              "roomCode": "TES-R4",
+              "startTime": "10:30"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "guest removed",
+            "match": {
+              "app": "events",
+              "entity": {
+                "type": "event",
+                "id": "EV-1019"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "room changed"
+          },
+          {
+            "name": "one guest fewer",
+            "app": "events",
+            "path": "/api/v1/events/EV-1019",
+            "expect": {
+              "guestCount": 5,
+              "guests": {
+                "email": "aurelie.delacourt.91899@journeys.example"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "state",
+        "checks": [
+          {
+            "kind": "ledger",
+            "name": "registration opened",
+            "match": {
+              "app": "events",
+              "entity": {
+                "type": "event",
+                "id": "EV-1019"
+              },
+              "action": "change",
+              "outcome": "ok"
+            },
+            "after": "guest removed"
+          },
+          {
+            "name": "open with places",
+            "app": "events",
+            "path": "/api/v1/events/EV-1019",
+            "expect": {
+              "status": "scheduled",
+              "registration": "open",
+              "places": 2,
+              "roomCode": "TES-R4",
+              "guestCount": 5
+            }
+          },
+          {
+            "kind": "unchanged",
+            "name": "other events untouched",
+            "scope": [
+              {
+                "apps": [
+                  "events"
+                ],
+                "entity": {
+                  "type": "event",
+                  "id": "EV-1037"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "floor": 1
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "cuj-price-medication-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "price": {
+        "value": 33.5,
+        "tolerance": 0.01
+      }
+    }
+  },
+  "steps": []
+}

@@ -13,7 +13,6 @@ const text = (v: string | string[] | undefined) => (Array.isArray(v) ? v.join("\
 /** Booking from a flight page, the bookings list, a booking's page, and cancelling from it. */
 export function registerBookingUi(app: FastifyInstance, d: UiDeps, kit: UiKit): void {
   app.post("/bookings", async (req, reply) => {
-    if (!(await kit.requireUser(req, reply))) return;
     const f = (req.body ?? {}) as Q;
     const flightNo = one(f.flightNo) ?? "";
     const form: BookingForm = { date: one(f.date), cabin: one(f.cabin), passengers: text(f.passengers), bags: one(f.bags), contactEmail: one(f.contactEmail) };
@@ -51,7 +50,6 @@ export function registerBookingUi(app: FastifyInstance, d: UiDeps, kit: UiKit): 
   app.get<{ Params: { no: string } }>("/bookings/:no", async (req, reply) => kit.html(reply, await bookingPage(req, req.params.no)));
 
   app.post<{ Params: { no: string } }>("/bookings/:no/cancel", async (req, reply) => {
-    if (!(await kit.requireUser(req, reply))) return;
     try {
       await d.flights.cancelBooking(req.workspaceId, req.params.no);
       return reply.redirect(`${req.prefix}/bookings/${req.params.no}`, 303);
