@@ -19,7 +19,7 @@
  */
 import { shuffle } from "../../../packages/scenarios/dist/index.js";
 import { streamFor } from "../kit.mjs";
-import { heldAddresses, withActorGuard } from "./actors.mjs";
+import { heldAddresses, ownAccounts, withActorGuard } from "./actors.mjs";
 import { contextOf } from "./context.mjs";
 import { AREAS, LEVELS, LEVEL_TEXT, NO_EASY, levelOf } from "./levels.mjs";
 import { CUJ_TEMPLATES } from "./templates/index.mjs";
@@ -148,6 +148,8 @@ export function buildCujCorpus(rows, { seed, scale = 1, templates = CUJ_TEMPLATE
   // A person who already has an account belongs to the journeys that sign in as them; no other task names them.
   const claims = new Set(ctx.accountPeople);
   const out = { problems: [], specs: [], tasks: [], corpus: [], plans: {}, sections: [] };
+  /** Every task as built, in corpus order: records are written once all are known (the actor guard needs them all). */
+  const picked = [];
   const keys = new Set();
   for (const template of templates) {
     if (keys.has(template.key)) out.problems.push(`template key ${template.key} is used twice`);
@@ -160,9 +162,8 @@ export function buildCujCorpus(rows, { seed, scale = 1, templates = CUJ_TEMPLATE
       if (notes.length >= want) break;
       const taken = template.claims(pick, ctx);
       if (taken.some((k) => claims.has(k))) continue;
-      const picked = template.build(pick, ctx, rng);
-      if (!picked || pickIssue(picked)) continue;
-      const built = withActorGuard(picked, ctx, held);
+      const built = template.build(pick, ctx, rng);
+      if (!built || pickIssue(built)) continue;
       // What the pick turned out to write about, known only once built: claimed like the rest.
       const more = built.claims ?? [];
       if (more.some((k) => claims.has(k))) continue;
@@ -179,17 +180,24 @@ export function buildCujCorpus(rows, { seed, scale = 1, templates = CUJ_TEMPLATE
       }
       for (const k of [...taken, ...more]) claims.add(k);
       const id = `cuj-${template.key}-${String(notes.length + 1).padStart(2, "0")}`;
-      const record = recordOf(id, template, built, lv);
-      out.corpus.push(record);
-      const { key: _key, ...task } = record;
-      out.tasks.push(task);
-      // A task whose every step is answered in a reply has nothing for the verifier to check (it would refuse it).
-      if (record.stateChecked || built.steps.length === 1) out.specs.push({ id, blind: false, oracle: record.key.oracle, steps: record.key.steps });
-      out.plans[id] = { props, built, level: lv };
+      picked.push({ id, template, built, lv, props });
       notes.push(`- **${id}** — ${lv.level}${lv.veryHard ? " (very hard)" : ""}: ${built.note ?? built.summary}`);
     }
     if (notes.length === 0) out.problems.push(`template ${template.key} produced no task for seed ${seed}`);
     out.sections.push(`### ${template.key} (${template.area}; ${template.surfaces.join(", ")}) — ${notes.length} task${notes.length === 1 ? "" : "s"}\n\n${template.about}\n\n${notes.join("\n")}\n`);
+  }
+  // Every task is known now, so the actor guard (./actors.mjs) can leave out the accounts any task signs in as: their
+  // writes are another task's, and would fail this one's guard in a workspace the tasks share.
+  const signedInAs = new Set(picked.flatMap(({ built }) => [...ownAccounts(built)]));
+  for (const { id, template, built: unguarded, lv, props } of picked) {
+    const built = withActorGuard(unguarded, ctx, held, signedInAs);
+    const record = recordOf(id, template, built, lv);
+    out.corpus.push(record);
+    const { key: _key, ...task } = record;
+    out.tasks.push(task);
+    // A task whose every step is answered in a reply has nothing for the verifier to check (it would refuse it).
+    if (record.stateChecked || built.steps.length === 1) out.specs.push({ id, blind: false, oracle: record.key.oracle, steps: record.key.steps });
+    out.plans[id] = { props, built, level: lv };
   }
   // A new person a prompt names (an address of the corpus's own) is in one task only: two tasks booking for one
   // person would read each other's bookings.

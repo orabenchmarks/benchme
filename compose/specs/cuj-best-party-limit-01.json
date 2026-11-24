@@ -82,12 +82,6 @@
               "dining"
             ],
             "actor": "orrin.mbeki4@example.com"
-          },
-          {
-            "apps": [
-              "dining"
-            ],
-            "actor": "quill.voss8@example.com"
           }
         ]
       }

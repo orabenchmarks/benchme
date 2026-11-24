@@ -6,8 +6,10 @@
  * the workspace starts with on that site, or a person its rows hold whom a
  * prompt names (the organiser of the event to change, the guest to take off).
  * The people the task itself signs in as are left out: an `actor` its checks
- * name, an account it asks to have signed up. A run that signed in as
- * someone it was not asked to act as fails, whatever else it got right.
+ * name, an account it asks to have signed up. So are the accounts ANY task of
+ * the corpus signs in as: their writes belong to that task, and tasks share a
+ * workspace (one proof runs them all in one). A run that signed in as someone
+ * it was not asked to act as fails, whatever else it got right.
  *
  * Added here, once, to every template's tasks, so no template can leave it
  * out; tools/intent-integrity.mjs proves it like every other check (each
@@ -33,7 +35,7 @@ export function heldAddresses(rows) {
 }
 
 /** What a task's checks say it signs in as: every `actor` they name, and every account a check finds confirmed. */
-function ownAccounts(built) {
+export function ownAccounts(built) {
   const out = new Set();
   const walk = (v) => {
     if (Array.isArray(v)) return v.forEach(walk);
@@ -46,15 +48,18 @@ function ownAccounts(built) {
   return out;
 }
 
-/** The task with the guard on its last state step, or as it was when it changes nothing or no one else is near it. */
-export function withActorGuard(built, ctx, held) {
+/**
+ * The task with the guard on its last state step, or as it was when it changes nothing or no one else is near it.
+ * `signedInAs` is every account any task of the corpus signs in as: never in another task's guard.
+ */
+export function withActorGuard(built, ctx, held, signedInAs = new Set()) {
   const last = built.steps.filter((s) => s.kind === "state").at(-1);
   if (!last) return built;
   const own = ownAccounts(built);
   const named = built.steps.flatMap((s) => [...s.intent.matchAll(EMAIL)].map(([m]) => lower(m))).filter((e) => held.has(e));
   const scope = built.apps.flatMap((app) => {
     const others = new Set([...(ctx.accounts[app] ?? []).map((a) => lower(a.email)), ...named]);
-    return [...others].filter((email) => !own.has(email)).sort().map((actor) => ({ apps: [app], actor }));
+    return [...others].filter((email) => !own.has(email) && !signedInAs.has(email)).sort().map((actor) => ({ apps: [app], actor }));
   });
   if (scope.length === 0) return built;
   if (last.oracle.checks.some((c) => c.name === ACTOR_GUARD)) throw new Error(`a template already names a check "${ACTOR_GUARD}"`);
