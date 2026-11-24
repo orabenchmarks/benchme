@@ -7,6 +7,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, which hotel in Karrow has a room free for 2 nights from 2027-03-31 for 1 adult, at no more than $180 a night, with both breakfast and an airport shuttle? Answer as JSON: {\"hotel\": \"<the hotel's code, HT-…>\"}.",
+    "rubric": [
+      "The answer gives the hotel that meets every requirement as the hotel booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the hotel booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one Karrow hotel with a free room that fits the party, within the cap, with both amenities."
   },
@@ -18,6 +23,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, which hotel in Tessalind has a room free for 3 nights from 2027-06-09 for 2 adults, at no more than $160 a night, with both a gym and an airport shuttle? Answer as JSON: {\"hotel\": \"<the hotel's code, HT-…>\"}.",
+    "rubric": [
+      "The answer gives the hotel that meets every requirement as the hotel booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the hotel booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one Tessalind hotel with a free room that fits the party, within the cap, with both amenities."
   },
@@ -29,6 +39,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, which hotel in Brenmoor has a room free for 2 nights from 2027-03-19 for 2 adults, at no more than $190 a night, with both a gym and a restaurant? Answer as JSON: {\"hotel\": \"<the hotel's code, HT-…>\"}.",
+    "rubric": [
+      "The answer gives the hotel that meets every requirement as the hotel booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the hotel booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one Brenmoor hotel with a free room that fits the party, within the cap, with both amenities."
   },
@@ -40,6 +55,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, is there a hotel in Tessalind with a room free for 3 nights from 2027-03-18 for 2 adults, at no more than $110 a night, with both a spa and a pool? Also name the hotel that comes closest: the cheapest one with a room free on those nights for that party and both a spa and a pool, at any price. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the hotel's code, HT-…>\"}.",
+    "rubric": [
+      "The answer gives whether any hotel meets every requirement, and the one that comes closest, as the hotel booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the hotel booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No Tessalind hotel meets every requirement; the closest is the cheapest with both amenities at any price."
   },
@@ -51,6 +71,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, is there a hotel in Quillhaven with a room free for 2 nights from 2027-04-28 for 2 adults, at no more than $200 a night, with both a gym and free parking? Also name the hotel that comes closest: the cheapest one with a room free on those nights for that party and both a gym and free parking, at any price. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the hotel's code, HT-…>\"}.",
+    "rubric": [
+      "The answer gives whether any hotel meets every requirement, and the one that comes closest, as the hotel booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the hotel booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No Quillhaven hotel meets every requirement; the closest is the cheapest with both amenities at any price."
   },
@@ -62,6 +87,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, is there a hotel in Brenmoor with a room free for 3 nights from 2027-03-25 for 2 adults and 1 child, at no more than $200 a night, with both breakfast and a washer? Also name the hotel that comes closest: the cheapest one with a room free on those nights for that party and both breakfast and a washer, at any price. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the hotel's code, HT-…>\"}.",
+    "rubric": [
+      "The answer gives whether any hotel meets every requirement, and the one that comes closest, as the hotel booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the hotel booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No Brenmoor hotel meets every requirement; the closest is the cheapest with both amenities at any price."
   },
@@ -73,6 +103,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, what would this stay at Eltru House (HT-119) cost in total: one Double room (HT-119-DBL) for 3 nights from 2027-10-03, for 2 adults and 1 child, bringing one dog? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the stay costs in total, its fees included, as the hotel booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the hotel booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "3 nights at HT-119-DBL's nightly price, plus the hotel's fees for what the stay adds."
   },
@@ -84,6 +119,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, what would this stay at Thovi Hotel (HT-109) cost in total: one Family suite (HT-109-FAM) for 4 nights from 2027-10-25, for 3 adults, with late checkout? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the stay costs in total, its fees included, as the hotel booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the hotel booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "4 nights at HT-109-FAM's nightly price, plus the hotel's fees for what the stay adds."
   },
@@ -95,6 +135,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, what would this stay at Marsil Inn (HT-102) cost in total: one Family suite (HT-102-FAM) for 2 nights from 2027-09-11, for 4 adults and 1 child, bringing one dog? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the stay costs in total, its fees included, as the hotel booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the hotel booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "2 nights at HT-102-FAM's nightly price, plus the hotel's fees for what the stay adds."
   },
@@ -106,6 +151,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, book the Double room (HT-123-DBL) at Trutrumar Lodge for Emeric Fairweather (emeric.fairweather@travel.example): 3 nights from 2027-05-17, for 1 adult and 1 child.",
+    "rubric": [
+      "The reply says the room was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the hotel booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "emeric.fairweather@travel.example has one confirmed booking of HT-123-DBL from 2027-05-17 with the nights, party and extras asked."
   },
@@ -117,6 +167,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, book the Single room (HT-126-SGL) at Thoom House for Fenna Esterhazy (fenna.esterhazy@travel.example): 4 nights from 2027-04-20, for 1 adult.",
+    "rubric": [
+      "The reply says the room was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the hotel booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "fenna.esterhazy@travel.example has one confirmed booking of HT-126-SGL from 2027-04-20 with the nights, party and extras asked."
   },
@@ -128,6 +183,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, book the Single room (HT-120-SGL) at Renlolo Inn for Fenna Fairweather (fenna.fairweather@travel.example): 4 nights from 2027-06-12, for 1 adult, with late checkout.",
+    "rubric": [
+      "The reply says the room was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the hotel booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "fenna.fairweather@travel.example has one confirmed booking of HT-120-SGL from 2027-06-12 with the nights, party and extras asked."
   },
@@ -139,6 +199,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, book a room for Corin Esterhazy (corin.esterhazy@travel.example) for 3 nights from 2027-04-22, for 1 adult: the cheapest room in Brenmoor that fits them, is free on every one of those nights, and is in a hotel with a gym.",
+    "rubric": [
+      "The reply says the room was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the hotel booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "corin.esterhazy@travel.example has one confirmed booking: the cheapest free room in Brenmoor that fits, in a hotel with a gym, for those dates."
   },
@@ -150,6 +215,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, book a room for Corin Castellan (corin.castellan@travel.example) for 3 nights from 2027-04-20, for 1 adult and 1 child: the cheapest room in Velmora that fits them, is free on every one of those nights, and is in a hotel with breakfast.",
+    "rubric": [
+      "The reply says the room was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the hotel booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "corin.castellan@travel.example has one confirmed booking: the cheapest free room in Velmora that fits, in a hotel with breakfast, for those dates."
   },
@@ -161,6 +231,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, book a room for Basil Draycott (basil.draycott@travel.example) for 3 nights from 2027-04-19, for 2 adults: the cheapest room in Brenmoor that fits them, is free on every one of those nights, and is in a hotel with a gym.",
+    "rubric": [
+      "The reply says the room was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the hotel booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "basil.draycott@travel.example has one confirmed booking: the cheapest free room in Brenmoor that fits, in a hotel with a gym, for those dates."
   },
@@ -172,6 +247,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, Maren Sandoval (maren.sandoval9@example.com) has several bookings. Cancel only their stay at Zylo Suites that starts on 2027-06-11, and leave their other bookings as they are.",
+    "rubric": [
+      "The reply says the booking was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the hotel booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "maren.sandoval9@example.com's booking at HT-131 from 2027-06-11 is cancelled; their other confirmed bookings are still confirmed."
   },
@@ -183,6 +263,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, Bram Prewitt (bram.prewitt3@example.com) has several bookings. Cancel only their stay at Zyrenel Inn that starts on 2027-05-08, and leave their other bookings as they are.",
+    "rubric": [
+      "The reply says the booking was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the hotel booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "bram.prewitt3@example.com's booking at HT-101 from 2027-05-08 is cancelled; their other confirmed bookings are still confirmed."
   },
@@ -194,6 +279,11 @@
     ],
     "app": "hotels",
     "intent": "On the hotel booking site, Vesna Okonjo (vesna.okonjo9@example.com) has several bookings. Cancel only their stay at Silel Suites that starts on 2027-04-07, and leave their other bookings as they are.",
+    "rubric": [
+      "The reply says the booking was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the hotel booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "vesna.okonjo9@example.com's booking at HT-124 from 2027-04-07 is cancelled; their other confirmed bookings are still confirmed."
   },
@@ -205,6 +295,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, which flight from Tessalind to Brenmoor on 2027-04-19 has economy seats for 2 passengers, is nonstop and costs no more than $130 per passenger? Answer as JSON: {\"flight\": \"<the flight number>\"}.",
+    "rubric": [
+      "The answer gives the flight that meets every requirement as the flight booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the flight booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one flight from Tessalind to Brenmoor that day with economy seats for the party that meets every filter."
   },
@@ -216,6 +311,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, which flight from Velmora to Tessalind on 2027-03-01 has economy seats for 3 passengers, is flown by Ello Wings (EM) or Trulo Aviation (TF) and costs no more than $150 per passenger? Answer as JSON: {\"flight\": \"<the flight number>\"}.",
+    "rubric": [
+      "The answer gives the flight that meets every requirement as the flight booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the flight booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one flight from Velmora to Tessalind that day with economy seats for the party that meets every filter."
   },
@@ -227,6 +327,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, which flight from Velmora to Tessalind on 2027-04-18 has economy seats for 2 passengers, is nonstop and is flown by Quendor Air (QE) or Trulo Aviation (TF)? Answer as JSON: {\"flight\": \"<the flight number>\"}.",
+    "rubric": [
+      "The answer gives the flight that meets every requirement as the flight booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the flight booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one flight from Velmora to Tessalind that day with economy seats for the party that meets every filter."
   },
@@ -238,6 +343,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, is there a flight from Ostrand to Karrow on 2027-04-08 with business seats for 3 passengers that is nonstop and costs no more than $380 per passenger? Also name the flight that comes closest: the cheapest flight from Ostrand to Karrow that day with business seats for 3 passengers that is nonstop, at any fare. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the flight number>\"}.",
+    "rubric": [
+      "The answer gives whether any flight meets every requirement, and the one that comes closest, as the flight booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the flight booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No flight from Ostrand to Karrow that day meets every requirement; the closest is the cheapest that meets the filter at any fare."
   },
@@ -249,6 +359,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, is there a flight from Tessalind to Karrow on 2027-03-05 with premium seats for 2 passengers that departs between 04:00 and 08:00 and costs no more than $170 per passenger? Also name the flight that comes closest: the cheapest flight from Tessalind to Karrow that day with premium seats for 2 passengers that departs between 04:00 and 08:00, at any fare. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the flight number>\"}.",
+    "rubric": [
+      "The answer gives whether any flight meets every requirement, and the one that comes closest, as the flight booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the flight booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No flight from Tessalind to Karrow that day meets every requirement; the closest is the cheapest that meets the filter at any fare."
   },
@@ -260,6 +375,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, is there a flight from Quillhaven to Karrow on 2027-04-10 with economy seats for 3 passengers that is flown by Quendor Air (QE) or Silel Wings (SZ) and costs no more than $190 per passenger? Also name the flight that comes closest: the cheapest flight from Quillhaven to Karrow that day with economy seats for 3 passengers that is flown by Quendor Air (QE) or Silel Wings (SZ), at any fare. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the flight number>\"}.",
+    "rubric": [
+      "The answer gives whether any flight meets every requirement, and the one that comes closest, as the flight booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the flight booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No flight from Quillhaven to Karrow that day meets every requirement; the closest is the cheapest that meets the filter at any fare."
   },
@@ -271,6 +391,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, what would it cost in total to book 2 passengers in business on flight TF522 from Velmora to Quillhaven on 2027-06-06, each passenger with 1 checked bag? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the booking costs in total, its bag fees included, as the flight booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the flight booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "2 business fares on TF522, plus the carrier's bag fee for every bag of every passenger."
   },
@@ -282,6 +407,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, what would it cost in total to book 2 passengers in economy on flight QE130 from Tessalind to Brenmoor on 2027-05-14, each passenger with 1 checked bag? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the booking costs in total, its bag fees included, as the flight booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the flight booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "2 economy fares on QE130, plus the carrier's bag fee for every bag of every passenger."
   },
@@ -293,6 +423,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, what would it cost in total to book 2 passengers in business on flight SZ214 from Quillhaven to Brenmoor on 2027-06-06, each passenger with 1 checked bag? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the booking costs in total, its bag fees included, as the flight booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the flight booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "2 business fares on SZ214, plus the carrier's bag fee for every bag of every passenger."
   },
@@ -304,6 +439,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, book a round trip from Quillhaven to Brenmoor for Florin Fenwick and Aurelio Fenwick, with florin.fenwick@travel.example as the contact email: out on flight SZ214 on 2027-05-18 and back on flight EM431 on 2027-05-26, both in economy, with 1 checked bag for each passenger.",
+    "rubric": [
+      "The reply says both flights of the round trip were booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the flight booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "florin.fenwick@travel.example has one confirmed economy booking of SZ214 on 2027-05-18 and one of EM431 on 2027-05-26, each for both passengers with the bags asked."
   },
@@ -315,6 +455,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, book a round trip from Tessalind to Quillhaven for Cosmin Dunmore and Florin Dunmore, with cosmin.dunmore@travel.example as the contact email: out on flight QE554 on 2027-05-12 and back on flight EM612 on 2027-05-18, both in economy, with 2 checked bags for each passenger.",
+    "rubric": [
+      "The reply says both flights of the round trip were booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the flight booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "cosmin.dunmore@travel.example has one confirmed economy booking of QE554 on 2027-05-12 and one of EM612 on 2027-05-18, each for both passengers with the bags asked."
   },
@@ -326,6 +471,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, book a round trip from Tessalind to Brenmoor for Dagny Bracknell and Greer Bracknell, with dagny.bracknell@travel.example as the contact email: out on flight TF253 on 2027-05-24 and back on flight QE802 on 2027-05-28, both in premium, with 1 checked bag for each passenger.",
+    "rubric": [
+      "The reply says both flights of the round trip were booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the flight booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "dagny.bracknell@travel.example has one confirmed premium booking of TF253 on 2027-05-24 and one of QE802 on 2027-05-28, each for both passengers with the bags asked."
   },
@@ -337,6 +487,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, book the cheapest flight from Ostrand to Karrow on 2027-03-05 with business seats for all of Greer Cottrell and Brisa Cottrell, with greer.cottrell@travel.example as the contact email. No checked bags.",
+    "rubric": [
+      "The reply says the flight was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the flight booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "greer.cottrell@travel.example has one confirmed business booking for the whole party on the cheapest flight that day that has the seats."
   },
@@ -348,6 +503,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, book the cheapest flight from Velmora to Ostrand on 2027-04-14 that is nonstop with business seats for all of Eluned Cottrell and Hollis Cottrell, with eluned.cottrell@travel.example as the contact email. No checked bags.",
+    "rubric": [
+      "The reply says the flight was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the flight booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "eluned.cottrell@travel.example has one confirmed business booking for the whole party on the cheapest flight that day that has the seats and meets the filter."
   },
@@ -359,6 +519,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, book the cheapest flight from Velmora to Tessalind on 2027-03-22 with premium seats for all of Florin Elsworth and Aurelio Elsworth, with florin.elsworth@travel.example as the contact email. No checked bags.",
+    "rubric": [
+      "The reply says the flight was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the flight booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "florin.elsworth@travel.example has one confirmed premium booking for the whole party on the cheapest flight that day that has the seats."
   },
@@ -370,6 +535,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, Teodor Okonjo (contact email teodor.okonjo8@example.com) booked a round trip from Brenmoor to Tessalind, out on 2027-03-16 and back on 2027-03-20. Cancel only the return flight, and leave the outbound flight and their other bookings as they are.",
+    "rubric": [
+      "The reply says the return flight was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the flight booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "teodor.okonjo8@example.com's return flight on 2027-03-20 is cancelled; the outbound flight and their other confirmed bookings are still confirmed."
   },
@@ -381,6 +551,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, Bram Thorsby (contact email bram.thorsby4@example.com) booked a round trip from Karrow to Quillhaven, out on 2027-04-06 and back on 2027-04-13. Cancel only the return flight, and leave the outbound flight and their other bookings as they are.",
+    "rubric": [
+      "The reply says the return flight was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the flight booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "bram.thorsby4@example.com's return flight on 2027-04-13 is cancelled; the outbound flight and their other confirmed bookings are still confirmed."
   },
@@ -392,6 +567,11 @@
     ],
     "app": "flights",
     "intent": "On the flight booking site, Lior Kowalczyk (contact email lior.kowalczyk4@example.com) booked a round trip from Ostrand to Quillhaven, out on 2027-04-03 and back on 2027-04-12. Cancel only the return flight, and leave the outbound flight and their other bookings as they are.",
+    "rubric": [
+      "The reply says the return flight was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the flight booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "lior.kowalczyk4@example.com's return flight on 2027-04-12 is cancelled; the outbound flight and their other confirmed bookings are still confirmed."
   },
@@ -403,6 +583,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, which restaurant in Brenmoor has a terrace table free for 2 people on 2027-04-14 at 20:30 and offers a gluten-free menu? Answer as JSON: {\"restaurant\": \"<the restaurant's code, RS-…>\"}.",
+    "rubric": [
+      "The answer gives the restaurant that meets every requirement as the restaurant reservation site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the restaurant reservation site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one Brenmoor restaurant with a terrace table free for the party at that time that offers the menu."
   },
@@ -414,6 +599,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, which restaurant in Karrow has an indoor table free for 3 people on 2027-05-22 at 15:00 and offers a vegan menu? Answer as JSON: {\"restaurant\": \"<the restaurant's code, RS-…>\"}.",
+    "rubric": [
+      "The answer gives the restaurant that meets every requirement as the restaurant reservation site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the restaurant reservation site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one Karrow restaurant with an indoor table free for the party at that time that offers the menu."
   },
@@ -425,6 +615,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, which restaurant in Ostrand has an indoor table free for 2 people on 2027-05-22 at 18:30 and offers a vegetarian menu, with a price level of 3 or lower (the site rates 1 to 4)? Answer as JSON: {\"restaurant\": \"<the restaurant's code, RS-…>\"}.",
+    "rubric": [
+      "The answer gives the restaurant that meets every requirement as the restaurant reservation site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the restaurant reservation site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one Ostrand restaurant with an indoor table free for the party at that time that offers the menu within the price level."
   },
@@ -436,6 +631,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, is there a restaurant in Quillhaven with a terrace table free for 2 people on 2027-05-25 at 18:00 that offers a vegan menu? If there is none, find the closest: the first later time that same day at which a restaurant in Quillhaven that offers a vegan menu has a terrace table free for 2 people, and that restaurant. Answer as JSON: {\"exists\": <true or false>, \"restaurant\": \"<the restaurant's code, RS-…>\", \"time\": \"<HH:MM>\"}.",
+    "rubric": [
+      "The answer gives whether any restaurant meets every requirement at that time, and the first later time one does and which restaurant it is, as the restaurant reservation site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the restaurant reservation site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No Quillhaven restaurant meets every requirement at the asked time; the closest is the first later time that day when one does."
   },
@@ -447,6 +647,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, is there a restaurant in Brenmoor with a terrace table free for 2 people on 2027-05-30 at 14:00 that offers a gluten-free menu? If there is none, find the closest: the first later time that same day at which a restaurant in Brenmoor that offers a gluten-free menu has a terrace table free for 2 people, and that restaurant. Answer as JSON: {\"exists\": <true or false>, \"restaurant\": \"<the restaurant's code, RS-…>\", \"time\": \"<HH:MM>\"}.",
+    "rubric": [
+      "The answer gives whether any restaurant meets every requirement at that time, and the first later time one does and which restaurant it is, as the restaurant reservation site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the restaurant reservation site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No Brenmoor restaurant meets every requirement at the asked time; the closest is the first later time that day when one does."
   },
@@ -458,6 +663,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, is there a restaurant in Karrow with a private room free for 6 people on 2027-05-21 at 16:00 that offers a vegan menu? If there is none, find the closest: the first later time that same day at which a restaurant in Karrow that offers a vegan menu has a private room free for 6 people, and that restaurant. Answer as JSON: {\"exists\": <true or false>, \"restaurant\": \"<the restaurant's code, RS-…>\", \"time\": \"<HH:MM>\"}.",
+    "rubric": [
+      "The answer gives whether any restaurant meets every requirement at that time, and the first later time one does and which restaurant it is, as the restaurant reservation site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the restaurant reservation site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No Karrow restaurant meets every requirement at the asked time; the closest is the first later time that day when one does."
   },
@@ -469,6 +679,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, what deposit would Renren Grill (RS-105) take for a reservation of its private room for 9 people on 2027-10-27 at 17:30? Answer as JSON: {\"deposit\": <dollars>}.",
+    "rubric": [
+      "The answer gives the deposit the reservation would take as the restaurant reservation site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the restaurant reservation site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The per-guest deposit for the party plus RS-105's private-room fee."
   },
@@ -480,6 +695,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, what deposit would Thotrusil Bistro (RS-122) take for a reservation of its private room for 9 people on 2027-09-23 at 12:00? Answer as JSON: {\"deposit\": <dollars>}.",
+    "rubric": [
+      "The answer gives the deposit the reservation would take as the restaurant reservation site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the restaurant reservation site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The per-guest deposit for the party plus RS-122's private-room fee."
   },
@@ -491,6 +711,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, what deposit would Renzy Kitchen (RS-106) take for a reservation of its private room for 6 people on 2027-10-31 at 16:00? Answer as JSON: {\"deposit\": <dollars>}.",
+    "rubric": [
+      "The answer gives the deposit the reservation would take as the restaurant reservation site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the restaurant reservation site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The per-guest deposit for the party plus RS-106's private-room fee."
   },
@@ -502,6 +727,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, book a table at the bar at Nexlo Kitchen (RS-113) for Elodie Ashcombe (elodie.ashcombe@table.example, phone 555-279-3307): 2 people on 2027-04-08 at 16:30, with this special request, word for word: \"One guest has a severe nut allergy\".",
+    "rubric": [
+      "The reply says the table was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the restaurant reservation site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "elodie.ashcombe@table.example has one confirmed reservation at RS-113 on 2027-04-08 with the area, time, party and special request asked."
   },
@@ -513,6 +743,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, book an indoor table at Vitrudor Eatery (RS-120) for Benedikt Everleigh (benedikt.everleigh@table.example, phone 555-553-4691): 3 people on 2027-04-22 at 18:00, with this special request, word for word: \"Please seat us together, we may arrive separately\".",
+    "rubric": [
+      "The reply says the table was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the restaurant reservation site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "benedikt.everleigh@table.example has one confirmed reservation at RS-120 on 2027-04-22 with the area, time, party and special request asked."
   },
@@ -524,6 +759,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, book an indoor table at Losil Eatery (RS-126) for Florian Fenwick (florian.fenwick@table.example, phone 555-254-9423): 2 people on 2027-05-24 at 18:00, with this special request, word for word: \"One guest is gluten intolerant\".",
+    "rubric": [
+      "The reply says the table was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the restaurant reservation site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "florian.fenwick@table.example has one confirmed reservation at RS-126 on 2027-05-24 with the area, time, party and special request asked."
   },
@@ -535,6 +775,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, book an indoor table at Kalofal Dining Room (RS-103) for Cosima Fenwick (cosima.fenwick@table.example, phone 555-526-4930), 3 people on 2027-05-07: at 18:30, or if none is free then, at the earliest later time that day when one is.",
+    "rubric": [
+      "The reply says the table was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the restaurant reservation site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "cosima.fenwick@table.example has one confirmed reservation at RS-103 on 2027-05-07 in the area asked, at the earliest time from the asked one when a table is free."
   },
@@ -546,6 +791,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, book a terrace table at Thotrusil Bistro (RS-122) for Elodie Dunmore (elodie.dunmore@table.example, phone 555-738-6719), 3 people on 2027-05-03: at 14:00, or if none is free then, at the earliest later time that day when one is.",
+    "rubric": [
+      "The reply says the table was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the restaurant reservation site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "elodie.dunmore@table.example has one confirmed reservation at RS-122 on 2027-05-03 in the area asked, at the earliest time from the asked one when a table is free."
   },
@@ -557,6 +807,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, book a terrace table at Falfal Table (RS-124) for Cosima Calloway (cosima.calloway@table.example, phone 555-521-5122), 2 people on 2027-04-12: at 13:00, or if none is free then, at the earliest later time that day when one is.",
+    "rubric": [
+      "The reply says the table was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the restaurant reservation site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "cosima.calloway@table.example has one confirmed reservation at RS-124 on 2027-04-12 in the area asked, at the earliest time from the asked one when a table is free."
   },
@@ -568,6 +823,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, Teodor Thorsby (teodor.thorsby9@example.com) has several reservations. Change only their reservation at Renren Grill on 2027-05-23 to a party of 4, and leave their other reservations as they are.",
+    "rubric": [
+      "The reply says the party size was changed and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the restaurant reservation site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "teodor.thorsby9@example.com's reservation at RS-105 on 2027-05-23 is for the new party size; their other confirmed reservations are unchanged."
   },
@@ -579,6 +839,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, Teodor Prewitt (teodor.prewitt8@example.com) has several reservations. Change only their reservation at Thotrusil Bistro on 2027-04-07 to a party of 9, and leave their other reservations as they are.",
+    "rubric": [
+      "The reply says the party size was changed and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the restaurant reservation site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "teodor.prewitt8@example.com's reservation at RS-122 on 2027-04-07 is for the new party size; their other confirmed reservations are unchanged."
   },
@@ -590,6 +855,11 @@
     ],
     "app": "dining",
     "intent": "On the restaurant reservation site, Quill Thorsby (quill.thorsby4@example.com) has several reservations. Change only their reservation at Nexquenka Grill on 2027-04-27 to a party of 1, and leave their other reservations as they are.",
+    "rubric": [
+      "The reply says the party size was changed and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the restaurant reservation site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "quill.thorsby4@example.com's reservation at RS-114 on 2027-04-27 is for the new party size; their other confirmed reservations are unchanged."
   },
@@ -601,6 +871,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, place a pickup order at Ostrand Riverside (BR-104) for Aurelio Ashdown (aurelio.ashdown@order.example), in the 13:00 slot on 2027-10-20: one Thoka Garden (PZ-113) in the smallest size that serves 3 people, on the thin crust, without the wheat-protein sausage and with walnuts added.",
+    "rubric": [
+      "The reply says the order was placed and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the pizza ordering site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "aurelio.ashdown@order.example has one received pickup order at BR-104 for 2027-10-20 13:00: one PZ-113 in the size for 3 people, on the asked crust, with the asked topping off and the other on."
   },
@@ -612,6 +887,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, place a pickup order at Karrow Castle Hill (BR-112) for Caspian Brightwater (caspian.brightwater@order.example), in the 12:30 slot on 2027-10-20: one Lomar Original (PZ-104) in the smallest size that serves 2 people, on the cheese-stuffed crust, without the artichoke hearts and with walnuts added.",
+    "rubric": [
+      "The reply says the order was placed and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the pizza ordering site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "caspian.brightwater@order.example has one received pickup order at BR-112 for 2027-10-20 12:30: one PZ-104 in the size for 2 people, on the asked crust, with the asked topping off and the other on."
   },
@@ -623,6 +903,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, place a pickup order at Tessalind Mill Lane (BR-109) for Florin Copperfield (florin.copperfield@order.example), in the 18:00 slot on 2027-09-17: one Katho Garden (PZ-114) in the smallest size that serves 3 people, on the thin crust, without the red onion and with sweetcorn added.",
+    "rubric": [
+      "The reply says the order was placed and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the pizza ordering site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "florin.copperfield@order.example has one received pickup order at BR-109 for 2027-09-17 18:00: one PZ-114 in the size for 3 people, on the asked crust, with the asked topping off and the other on."
   },
@@ -634,6 +919,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, what would this order from Tessalind Market Street (BR-110) cost in total, delivered: 3 medium pizzas, each on the classic crust with garlic cream sauce and extra mozzarella, topped with artichoke hearts, feta and green peppers? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the order costs in total, delivered, as the pizza ordering site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the pizza ordering site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "3 × one medium configuration at BR-110, plus the branch's delivery fee unless the subtotal reaches its free-delivery threshold."
   },
@@ -645,6 +935,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, what would this order from Quillhaven Harbour Quay (BR-105) cost in total, delivered: 2 large pizzas, each on the classic crust with garlic cream sauce and cashew cheese, topped with artichoke hearts, goat cheese and green peppers? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the order costs in total, delivered, as the pizza ordering site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the pizza ordering site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "2 × one large configuration at BR-105, plus the branch's delivery fee unless the subtotal reaches its free-delivery threshold."
   },
@@ -656,6 +951,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, what would this order from Velmora Station Road (BR-102) cost in total, delivered: one medium pizza on the gluten-free crust with tomato sauce and cashew cheese, topped with anchovies and pineapple? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the order costs in total, delivered, as the pizza ordering site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the pizza ordering site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "1 × one medium configuration at BR-102, plus the branch's delivery fee unless the subtotal reaches its free-delivery threshold."
   },
@@ -667,6 +967,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, which large menu pizza is the cheapest one that is vegan and contains no nuts, among those the Ostrand Old Town branch (BR-103) can make with the toppings it has in stock? Answer as JSON: {\"pizza\": \"<the pizza's code, PZ-…>\"}.",
+    "rubric": [
+      "The answer gives the cheapest menu pizza that meets every requirement as the pizza ordering site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the pizza ordering site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The cheapest large menu pizza that is vegan and contains no nuts and that BR-103 can make."
   },
@@ -678,6 +983,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, which small menu pizza is the cheapest one that is free of dairy, among those the Brenmoor Harbour Quay branch (BR-107) can make with the toppings it has in stock? Answer as JSON: {\"pizza\": \"<the pizza's code, PZ-…>\"}.",
+    "rubric": [
+      "The answer gives the cheapest menu pizza that meets every requirement as the pizza ordering site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the pizza ordering site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The cheapest small menu pizza that is free of dairy and that BR-107 can make."
   },
@@ -689,6 +999,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, which extra large menu pizza is the cheapest one that is vegetarian and contains no nuts, among those the Velmora Old Town branch (BR-101) can make with the toppings it has in stock? Answer as JSON: {\"pizza\": \"<the pizza's code, PZ-…>\"}.",
+    "rubric": [
+      "The answer gives the cheapest menu pizza that meets every requirement as the pizza ordering site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the pizza ordering site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The cheapest xlarge menu pizza that is vegetarian and contains no nuts and that BR-101 can make."
   },
@@ -700,6 +1015,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, is there a medium menu pizza that is free of dairy, costs no more than $17, and that the Brenmoor North Gate branch (BR-108) can make with the toppings it has in stock? Also name the one that comes closest: the cheapest medium menu pizza that is free of dairy and that the branch can make, at any price. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the pizza's code, PZ-…>\"}.",
+    "rubric": [
+      "The answer gives whether any menu pizza meets every requirement, and the one that comes closest, as the pizza ordering site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the pizza ordering site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No medium menu pizza meets the filter and the cap at BR-108; the closest is the cheapest that meets the filter there at any price."
   },
@@ -711,6 +1031,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, is there a large menu pizza that is free of dairy, costs no more than $21, and that the Quillhaven Harbour Quay branch (BR-105) can make with the toppings it has in stock? Also name the one that comes closest: the cheapest large menu pizza that is free of dairy and that the branch can make, at any price. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the pizza's code, PZ-…>\"}.",
+    "rubric": [
+      "The answer gives whether any menu pizza meets every requirement, and the one that comes closest, as the pizza ordering site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the pizza ordering site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No large menu pizza meets the filter and the cap at BR-105; the closest is the cheapest that meets the filter there at any price."
   },
@@ -722,6 +1047,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, is there a small menu pizza that is free of dairy, costs no more than $13, and that the Ostrand Old Town branch (BR-103) can make with the toppings it has in stock? Also name the one that comes closest: the cheapest small menu pizza that is free of dairy and that the branch can make, at any price. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the pizza's code, PZ-…>\"}.",
+    "rubric": [
+      "The answer gives whether any menu pizza meets every requirement, and the one that comes closest, as the pizza ordering site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the pizza ordering site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No small menu pizza meets the filter and the cap at BR-103; the closest is the cheapest that meets the filter there at any price."
   },
@@ -733,6 +1063,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, place a pickup order at Ostrand Riverside (BR-104) for Caspian Dunmore (caspian.dunmore@order.example) on 2027-05-19: 2 small Sillo Original pizzas (PZ-103), in the earliest slot at or after 18:30 that has room for both.",
+    "rubric": [
+      "The reply says the order was placed and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the pizza ordering site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "caspian.dunmore@order.example has one received pickup order at BR-104 on 2027-05-19 for 2 × PZ-103, in the earliest slot from 18:30 with room for 2 pizzas."
   },
@@ -744,6 +1079,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, place a pickup order at Quillhaven Station Road (BR-106) for Elio Dunmore (elio.dunmore@order.example) on 2027-05-03: 3 medium Elfal Feast pizzas (PZ-107), in the earliest slot at or after 19:00 that has room for all 3.",
+    "rubric": [
+      "The reply says the order was placed and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the pizza ordering site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "elio.dunmore@order.example has one received pickup order at BR-106 on 2027-05-03 for 3 × PZ-107, in the earliest slot from 19:00 with room for 3 pizzas."
   },
@@ -755,6 +1095,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, place a pickup order at Brenmoor North Gate (BR-108) for Florin Everly (florin.everly@order.example) on 2027-05-19: 3 small Thoelmar Harvest pizzas (PZ-109), in the earliest slot at or after 16:30 that has room for all 3.",
+    "rubric": [
+      "The reply says the order was placed and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the pizza ordering site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "florin.everly@order.example has one received pickup order at BR-108 on 2027-05-19 for 3 × PZ-109, in the earliest slot from 16:30 with room for 3 pizzas."
   },
@@ -766,6 +1111,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, Vesna Prewitt (vesna.prewitt9@example.org) has several orders. Remove the beef meatballs from their order at Velmora Old Town for the 12:30 slot on 2027-05-07, and leave their other orders as they are.",
+    "rubric": [
+      "The reply says the topping was taken off and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the pizza ordering site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "vesna.prewitt9@example.org's BR-101 order for 2027-05-07 12:30 no longer has beef meatballs and is still received; their other orders still have it."
   },
@@ -777,6 +1127,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, Bram Halvard (bram.halvard1@example.org) has several orders. Remove the walnuts from their order at Velmora Station Road for the 18:30 slot on 2027-05-10, and leave their other orders as they are.",
+    "rubric": [
+      "The reply says the topping was taken off and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the pizza ordering site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "bram.halvard1@example.org's BR-102 order for 2027-05-10 18:30 no longer has walnuts and is still received; their other orders still have it."
   },
@@ -788,6 +1143,11 @@
     ],
     "app": "pizza",
     "intent": "On the pizza ordering site, Teodor Mbeki (teodor.mbeki7@example.org) has several orders. Remove the artichoke hearts from their order at Karrow Castle Hill for the 15:30 slot on 2027-05-11, and leave their other orders as they are.",
+    "rubric": [
+      "The reply says the topping was taken off and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the pizza ordering site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "teodor.mbeki7@example.org's BR-112 order for 2027-05-11 15:30 no longer has artichoke hearts and is still received; their other orders still have it."
   },
@@ -799,6 +1159,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, is there a showtime in Tessalind on 2027-05-15 of an action film in 2D, starting at 15:00 or later, with at least 3 free seats? Also name the showtime that comes closest: the earliest showtime of an action film in Tessalind on 2027-05-15 starting at 15:00 or later with at least 3 free seats, in any format. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the showtime's code, ST-…>\"}.",
+    "rubric": [
+      "The answer gives whether any showtime meets every requirement, and the one that comes closest, as the cinema booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the cinema booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No action showtime in Tessalind that day meets every requirement; the closest is the earliest with the seats in any format."
   },
@@ -810,6 +1175,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, is there a showtime in Karrow on 2027-05-15 of a drama film in 3D, starting at 15:00 or later, with at least 6 free seats? Also name the showtime that comes closest: the earliest showtime of a drama film in Karrow on 2027-05-15 starting at 15:00 or later with at least 6 free seats, in any format. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the showtime's code, ST-…>\"}.",
+    "rubric": [
+      "The answer gives whether any showtime meets every requirement, and the one that comes closest, as the cinema booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the cinema booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No drama showtime in Karrow that day meets every requirement; the closest is the earliest with the seats in any format."
   },
@@ -821,6 +1191,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, is there a showtime in Karrow on 2027-05-14 of a drama film in 2D, starting at 16:00 or later, with at least 6 free seats? Also name the showtime that comes closest: the earliest showtime of a drama film in Karrow on 2027-05-14 starting at 16:00 or later with at least 6 free seats, in any format. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the showtime's code, ST-…>\"}.",
+    "rubric": [
+      "The answer gives whether any showtime meets every requirement, and the one that comes closest, as the cinema booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the cinema booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No drama showtime in Karrow that day meets every requirement; the closest is the earliest with the seats in any format."
   },
@@ -832,6 +1207,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, which showtime in Karrow on 2027-05-16 is of a drama film in 3D, starts at 14:00 or later, and has at least 2 free seats? Answer as JSON: {\"showtime\": \"<the showtime's code, ST-…>\"}.",
+    "rubric": [
+      "The answer gives the showtime that meets every requirement as the cinema booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the cinema booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one drama showtime in Karrow on that date, in that format, from that time, with enough free seats."
   },
@@ -843,6 +1223,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, which showtime in Tessalind on 2027-05-14 is of a drama film in 2D, starts at 12:00 or later, and has at least 5 free seats? Answer as JSON: {\"showtime\": \"<the showtime's code, ST-…>\"}.",
+    "rubric": [
+      "The answer gives the showtime that meets every requirement as the cinema booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the cinema booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one drama showtime in Tessalind on that date, in that format, from that time, with enough free seats."
   },
@@ -854,6 +1239,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, which showtime in Ostrand on 2027-05-16 is of an animation film in 3D, starts at 15:00 or later, and has at least 6 free seats? Answer as JSON: {\"showtime\": \"<the showtime's code, ST-…>\"}.",
+    "rubric": [
+      "The answer gives the showtime that meets every requirement as the cinema booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the cinema booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one animation showtime in Ostrand on that date, in that format, from that time, with enough free seats."
   },
@@ -865,6 +1255,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, book 4 seats side by side (in one row, next to each other) for Evander Copperfield (evander.copperfield@film.example), as 2 adults and 2 students, at the earliest showtime of \"Eltrudor Lantern\" at Quenfal Picturehouse in Velmora that still has 4 free seats side by side.",
+    "rubric": [
+      "The reply says the seats were booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the cinema booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "evander.copperfield@film.example has one confirmed booking of 4 seats side by side at the earliest showtime of FM-114 at CN-101 that had them free."
   },
@@ -876,6 +1271,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, book 2 seats side by side (in one row, next to each other) for Florentyna Copperfield (florentyna.copperfield@film.example), as 1 senior and 1 student, at the earliest showtime of \"The Thoren Compass\" at Elfaltru Film Theatre in Tessalind that still has 2 free seats side by side.",
+    "rubric": [
+      "The reply says the seats were booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the cinema booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "florentyna.copperfield@film.example has one confirmed booking of 2 seats side by side at the earliest showtime of FM-103 at CN-105 that had them free."
   },
@@ -887,6 +1287,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, book 3 seats side by side (in one row, next to each other) for Dagny Dunmore (dagny.dunmore@film.example), as 3 students, at the earliest showtime of \"Loel Signal\" at Lozytho Picturehouse in Karrow that still has 3 free seats side by side.",
+    "rubric": [
+      "The reply says the seats were booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the cinema booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "dagny.dunmore@film.example has one confirmed booking of 3 seats side by side at the earliest showtime of FM-115 at CN-106 that had them free."
   },
@@ -898,6 +1303,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, what would these tickets for the 21:30 showing of \"Return to Kaloba\" at Quenfal Picturehouse on 2027-05-15 (ST-2056) cost in total: seats H1, H2, H3, as 1 adult, 1 child and 1 student? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the tickets cost in total, surcharge and fees included, as the cinema booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the cinema booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The 2D ticket prices for the mix, plus the premium-row surcharge and the booking fee for each of the 3 seats."
   },
@@ -909,6 +1319,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, what would these tickets for the 18:50 showing of \"Beyond Quenmarquen\" at Quenzyvi Screens on 2027-05-15 (ST-2067) cost in total: seats F3, F4, F5, F6, as 1 adult, 2 children and 1 student? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the tickets cost in total, surcharge and fees included, as the cinema booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the cinema booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The 2D ticket prices for the mix, plus the premium-row surcharge and the booking fee for each of the 4 seats."
   },
@@ -920,6 +1335,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, what would these tickets for the 18:30 showing of \"Frontier of Dordorlo\" at Quenzyvi Screens on 2027-05-14 (ST-2011) cost in total: seats G4, G5, G6, as 1 adult, 1 senior and 1 student? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the tickets cost in total, surcharge and fees included, as the cinema booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the cinema booking site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The large-format ticket prices for the mix, plus the premium-row surcharge and the booking fee for each of the 3 seats."
   },
@@ -931,6 +1351,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, book 4 seats side by side in row A for the 12:50 showing of \"Loel Signal\" at Elfaltru Film Theatre on 2027-05-14 (ST-2037), for Aurelio Ashdown (aurelio.ashdown@film.example): 1 adult and 3 seniors.",
+    "rubric": [
+      "The reply says the seats were booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the cinema booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "aurelio.ashdown@film.example has one confirmed booking at ST-2037: the 4 free seats side by side in row A, with the ticket mix asked."
   },
@@ -942,6 +1367,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, book 4 seats side by side in row B for the 15:50 showing of \"The Thoren Compass\" at Quenfal Picturehouse on 2027-05-15 (ST-2058), for Dagny Ashdown (dagny.ashdown@film.example): 3 seniors and 1 student.",
+    "rubric": [
+      "The reply says the seats were booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the cinema booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "dagny.ashdown@film.example has one confirmed booking at ST-2058: the 4 free seats side by side in row B, with the ticket mix asked."
   },
@@ -953,6 +1383,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, book 4 seats side by side in row D for the 18:50 showing of \"Rennexnex Orchard\" at Elfaltru Film Theatre on 2027-05-15 (ST-2091), for Florentyna Ashdown (florentyna.ashdown@film.example): 2 children, 1 senior and 1 student.",
+    "rubric": [
+      "The reply says the seats were booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the cinema booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "florentyna.ashdown@film.example has one confirmed booking at ST-2091: the 4 free seats side by side in row D, with the ticket mix asked."
   },
@@ -964,6 +1399,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, Lior Sandoval (lior.sandoval7@example.com) has several bookings. Cancel only their booking for \"The Omtho Frontier\" on 2027-05-16, and leave their other bookings as they are.",
+    "rubric": [
+      "The reply says the booking was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the cinema booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "lior.sandoval7@example.com's booking for FM-106 on 2027-05-16 is cancelled; their other confirmed bookings are still confirmed."
   },
@@ -975,6 +1415,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, Vesna Kowalczyk (vesna.kowalczyk4@example.com) has several bookings. Cancel only their booking for \"Beyond Batruvi\" on 2027-05-14, and leave their other bookings as they are.",
+    "rubric": [
+      "The reply says the booking was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the cinema booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "vesna.kowalczyk4@example.com's booking for FM-112 on 2027-05-14 is cancelled; their other confirmed bookings are still confirmed."
   },
@@ -986,6 +1431,11 @@
     ],
     "app": "cinema",
     "intent": "On the cinema booking site, Lior Voss (lior.voss4@example.com) has several bookings. Cancel only their booking for \"The Truom Echo\" on 2027-05-14, and leave their other bookings as they are.",
+    "rubric": [
+      "The reply says the booking was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the cinema booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "lior.voss4@example.com's booking for FM-109 on 2027-05-14 is cancelled; their other confirmed bookings are still confirmed."
   },
@@ -997,6 +1447,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, Orrin Kowalczyk (orrin.kowalczyk@example.org) has several orders on their way. Cancel only their order with the Zyom Trail Shoe in it that has not shipped yet, and leave their other orders as they are.",
+    "rubric": [
+      "The reply says the order was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the sports shop site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "orrin.kowalczyk@example.org's unshipped order with the Zyom Trail Shoe is cancelled; their other orders on the way are unchanged."
   },
@@ -1008,6 +1463,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, Teodor Okonjo (teodor.okonjo@example.org) has several orders on their way. Cancel only their order with the Kaquen Rain Shell in it that has not shipped yet, and leave their other orders as they are.",
+    "rubric": [
+      "The reply says the order was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the sports shop site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "teodor.okonjo@example.org's unshipped order with the Kaquen Rain Shell is cancelled; their other orders on the way are unchanged."
   },
@@ -1019,6 +1479,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, Quill Okonjo (quill.okonjo@example.org) has several orders on their way. Cancel only their order with the Omka Road Helmet in it that has not shipped yet, and leave their other orders as they are.",
+    "rubric": [
+      "The reply says the order was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the sports shop site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "quill.okonjo@example.org's unshipped order with the Omka Road Helmet is cancelled; their other orders on the way are unchanged."
   },
@@ -1030,6 +1495,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, place a new order for Lior Ferrante (lior.ferrante@example.org) that repeats their most recent delivered order: the same items in the same quantities, shipped to the same address.",
+    "rubric": [
+      "The reply says the order was placed again and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the sports shop site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "lior.ferrante@example.org has one new order with the lines and address of their most recent delivered order."
   },
@@ -1041,6 +1511,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, place a new order for Sable Kowalczyk (sable.kowalczyk@example.org) that repeats their most recent delivered order: the same items in the same quantities, shipped to the same address.",
+    "rubric": [
+      "The reply says the order was placed again and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the sports shop site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "sable.kowalczyk@example.org has one new order with the lines and address of their most recent delivered order."
   },
@@ -1052,6 +1527,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, place a new order for Teodor Sandoval (teodor.sandoval@example.org) that repeats their most recent delivered order: the same items in the same quantities, shipped to the same address.",
+    "rubric": [
+      "The reply says the order was placed again and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the sports shop site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "teodor.sandoval@example.org has one new order with the lines and address of their most recent delivered order."
   },
@@ -1063,6 +1543,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, Vesna Halvard (vesna.halvard@example.org) wants to return 1 of the 2 units of the Zyba Tennis Shoe (size 42, black) they received in order ORD-10031. Request that return with the reason \"too small\".",
+    "rubric": [
+      "The reply says the return was requested and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the sports shop site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "Order ORD-10031 has one return of that line, with the quantity and reason asked."
   },
@@ -1074,6 +1559,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, Vesna Thorsby (vesna.thorsby@example.org) wants to return 1 of the 2 units of the Omlo Training Swimsuit (size S, grey) they received in order ORD-10018. Request that return with the reason \"too large\".",
+    "rubric": [
+      "The reply says the return was requested and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the sports shop site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "Order ORD-10018 has one return of that line, with the quantity and reason asked."
   },
@@ -1085,6 +1575,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, Sable Larrabee (sable.larrabee@example.org) wants to return 1 of the 3 units of the Omom Climbing Shoe (size 43, black) they received in order ORD-10025. Request that return with the reason \"defective\".",
+    "rubric": [
+      "The reply says the return was requested and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the sports shop site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "Order ORD-10025 has one return of that line, with the quantity and reason asked."
   },
@@ -1096,6 +1591,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, what is the last day on which the Losil Daypack from order ORD-10004 can be returned? Answer as JSON: {\"lastDay\": \"<YYYY-MM-DD>\"}.",
+    "rubric": [
+      "The answer gives the last day the item can be returned as the sports shop site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the sports shop site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The order's delivery date plus the return window of the product's category."
   },
@@ -1107,6 +1607,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, what is the last day on which the Rennex Training Swimsuit from order ORD-10022 can be returned? Answer as JSON: {\"lastDay\": \"<YYYY-MM-DD>\"}.",
+    "rubric": [
+      "The answer gives the last day the item can be returned as the sports shop site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the sports shop site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The order's delivery date plus the return window of the product's category."
   },
@@ -1118,6 +1623,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, what is the last day on which the Thoren Climbing Shoe from order ORD-10028 can be returned? Answer as JSON: {\"lastDay\": \"<YYYY-MM-DD>\"}.",
+    "rubric": [
+      "The answer gives the last day the item can be returned as the sports shop site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the sports shop site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The order's delivery date plus the return window of the product's category."
   },
@@ -1129,6 +1639,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, Danae Okonjo (danae.okonjo@example.org) ordered a Nexel Chalk Bag in January 2027. On what date was that order delivered, and to which city? Answer as JSON: {\"deliveredOn\": \"<YYYY-MM-DD>\", \"city\": \"<the city>\"}.",
+    "rubric": [
+      "The answer gives the day the order was delivered and the city it went to as the sports shop site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the sports shop site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The delivery date and the delivery city of the one order of theirs placed that month with that product."
   },
@@ -1140,6 +1655,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, Sable Larrabee (sable.larrabee@example.org) ordered a Zynex Trail Shoe in March 2027. On what date was that order delivered, and to which city? Answer as JSON: {\"deliveredOn\": \"<YYYY-MM-DD>\", \"city\": \"<the city>\"}.",
+    "rubric": [
+      "The answer gives the day the order was delivered and the city it went to as the sports shop site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the sports shop site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The delivery date and the delivery city of the one order of theirs placed that month with that product."
   },
@@ -1151,6 +1671,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, Quill Okonjo (quill.okonjo@example.org) ordered a Zyom Trail Shoe in January 2027. On what date was that order delivered, and to which city? Answer as JSON: {\"deliveredOn\": \"<YYYY-MM-DD>\", \"city\": \"<the city>\"}.",
+    "rubric": [
+      "The answer gives the day the order was delivered and the city it went to as the sports shop site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the sports shop site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The delivery date and the delivery city of the one order of theirs placed that month with that product."
   },
@@ -1162,6 +1687,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, which item in size 42 and colour black, in any category, is the cheapest one that weighs at most 330 g and is in stock? What would 3 of it cost, shipping included? Answer as JSON: {\"sku\": \"<the variant's SKU>\", \"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives the cheapest item that meets every requirement, and what the quantity asked costs with shipping, as the sports shop site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the sports shop site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The cheapest in-stock variant in that size and colour within the weight cap, and 3 of it with shipping per the store's policy."
   },
@@ -1173,6 +1703,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, which item in size L and colour blue, in any category, is the cheapest one that weighs at most 120 g and is in stock? What would 1 of it cost, shipping included? Answer as JSON: {\"sku\": \"<the variant's SKU>\", \"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives the cheapest item that meets every requirement, and what the quantity asked costs with shipping, as the sports shop site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the sports shop site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The cheapest in-stock variant in that size and colour within the weight cap, and 1 of it with shipping per the store's policy."
   },
@@ -1184,6 +1719,11 @@
     ],
     "app": "sports",
     "intent": "On the sports shop site, which item in size 43 and colour blue, in any category, is the cheapest one that weighs at most 320 g and is in stock? What would 3 of it cost, shipping included? Answer as JSON: {\"sku\": \"<the variant's SKU>\", \"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives the cheapest item that meets every requirement, and what the quantity asked costs with shipping, as the sports shop site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the sports shop site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The cheapest in-stock variant in that size and colour within the weight cap, and 3 of it with shipping per the store's policy."
   },
@@ -1195,6 +1735,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, which active listing (not pending or sold) is a house in Tessalind with at least 3 bedrooms, at least 1 bathroom and solar panels, at an asking price of no more than $750,000? Answer as JSON: {\"listing\": \"<the listing's code, LS-…>\"}.",
+    "rubric": [
+      "The answer gives the listing that meets every requirement as the home listings site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the home listings site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one active Tessalind listing of that type, size and feature within the price cap."
   },
@@ -1206,6 +1751,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, which active listing (not pending or sold) is a house in Tessalind with at least 3 bedrooms, at least 1 bathroom and a garage, at an asking price of no more than $700,000? Answer as JSON: {\"listing\": \"<the listing's code, LS-…>\"}.",
+    "rubric": [
+      "The answer gives the listing that meets every requirement as the home listings site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the home listings site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one active Tessalind listing of that type, size and feature within the price cap."
   },
@@ -1217,6 +1767,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, which active listing (not pending or sold) is a house in Karrow with at least 2 bedrooms, at least 1 bathroom and air conditioning, at an asking price of no more than $1,500,000? Answer as JSON: {\"listing\": \"<the listing's code, LS-…>\"}.",
+    "rubric": [
+      "The answer gives the listing that meets every requirement as the home listings site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the home listings site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one active Karrow listing of that type, size and feature within the price cap."
   },
@@ -1228,6 +1783,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, is there an active listing (not pending or sold) that is a house in Velmora with at least 3 bedrooms, at least 1 bathroom, a garage and air conditioning, at an asking price of no more than $780,000? Also name the listing that comes closest: the cheapest active listing that is a house in Velmora with at least 3 bedrooms, at least 1 bathroom, a garage and air conditioning, at any price. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the listing's code, LS-…>\"}.",
+    "rubric": [
+      "The answer gives whether any listing meets every requirement, and the one that comes closest, as the home listings site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the home listings site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No active Velmora listing meets every requirement; the closest is the cheapest active one of that type, size and features at any price."
   },
@@ -1239,6 +1799,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, is there an active listing (not pending or sold) that is a house in Ostrand with at least 2 bedrooms and at least 1 bathroom, where pets are allowed, at an asking price of no more than $740,000? Also name the listing that comes closest: the cheapest active listing that is a house in Ostrand with at least 2 bedrooms and at least 1 bathroom, where pets are allowed, at any price. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the listing's code, LS-…>\"}.",
+    "rubric": [
+      "The answer gives whether any listing meets every requirement, and the one that comes closest, as the home listings site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the home listings site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No active Ostrand listing meets every requirement; the closest is the cheapest active one of that type, size and features at any price."
   },
@@ -1250,6 +1815,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, is there an active listing (not pending or sold) that is a house in Karrow with at least 2 bedrooms, at least 1 bathroom, a garden and air conditioning, at an asking price of no more than $1,490,000? Also name the listing that comes closest: the cheapest active listing that is a house in Karrow with at least 2 bedrooms, at least 1 bathroom, a garden and air conditioning, at any price. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the listing's code, LS-…>\"}.",
+    "rubric": [
+      "The answer gives whether any listing meets every requirement, and the one that comes closest, as the home listings site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the home listings site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No active Karrow listing meets every requirement; the closest is the cheapest active one of that type, size and features at any price."
   },
@@ -1261,6 +1831,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, what do the service fee and the property tax of the 2-bedroom townhouse at 79 Quenren Avenue, Kavi Park, Velmora (LS-3105) add up to over one year? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the service fee and the property tax come to over one year as the home listings site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the home listings site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "LS-3105's service fee for twelve months plus its annual property tax."
   },
@@ -1272,6 +1847,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, what do the service fee and the property tax of the 3-bedroom townhouse at 198 Falka Road, Falren Hill, Tessalind (LS-3176) add up to over one year? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the service fee and the property tax come to over one year as the home listings site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the home listings site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "LS-3176's service fee for twelve months plus its annual property tax."
   },
@@ -1283,6 +1863,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, what do the service fee and the property tax of the 2-bedroom house at 211 Falsil Way, Silmar Quarter, Karrow (LS-3185) add up to over one year? Answer as JSON: {\"total\": <dollars>}.",
+    "rubric": [
+      "The answer gives what the service fee and the property tax come to over one year as the home listings site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the home listings site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "LS-3185's service fee for twelve months plus its annual property tax."
   },
@@ -1294,6 +1879,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, request a viewing of the 1-bedroom apartment at 79 Quennex Way, Kavi Park, Velmora (LS-3109) for Clemence Cardew (clemence.cardew@homebuyer.example) in the earliest free viewing slot that starts at or after 13:00 on 2027-06-15.",
+    "rubric": [
+      "The reply says the viewing was requested and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the home listings site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "clemence.cardew@homebuyer.example has one requested viewing of LS-3109: its agent's first free slot from 2027-06-15 13:00 on."
   },
@@ -1305,6 +1895,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, request a viewing of the 2-bedroom apartment at 111 Dortru Avenue, Vimar Park, Quillhaven (LS-3133) for Benedikt Elsworth (benedikt.elsworth@homebuyer.example) in the earliest free viewing slot that starts at or after 10:00 on 2027-06-16.",
+    "rubric": [
+      "The reply says the viewing was requested and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the home listings site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "benedikt.elsworth@homebuyer.example has one requested viewing of LS-3133: its agent's first free slot from 2027-06-16 10:00 on."
   },
@@ -1316,6 +1911,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, request a viewing of the 1-bedroom apartment at 175 Omdor Way, Renba Hill, Quillhaven (LS-3144) for Aurelie Elsworth (aurelie.elsworth@homebuyer.example) in the earliest free viewing slot that starts at or after 14:00 on 2027-06-11.",
+    "rubric": [
+      "The reply says the viewing was requested and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the home listings site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "aurelie.elsworth@homebuyer.example has one requested viewing of LS-3144: its agent's first free slot from 2027-06-11 14:00 on."
   },
@@ -1327,6 +1927,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, request a viewing of the 4-bedroom house at 217 Martru Street, Kavi Park, Velmora (LS-3110) for Odile Brightwell (odile.brightwell@homebuyer.example) on 2027-06-08 at 14:30.",
+    "rubric": [
+      "The reply says the viewing was requested and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the home listings site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "odile.brightwell@homebuyer.example has one requested viewing of LS-3110 on 2027-06-08 at 14:30."
   },
@@ -1338,6 +1943,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, request a viewing of the 3-bedroom apartment at 4 Kalo Avenue, Lozy Hill, Brenmoor (LS-3158) for Rhoswen Fanshawe (rhoswen.fanshawe@homebuyer.example) on 2027-06-10 at 14:00.",
+    "rubric": [
+      "The reply says the viewing was requested and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the home listings site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "rhoswen.fanshawe@homebuyer.example has one requested viewing of LS-3158 on 2027-06-10 at 14:00."
   },
@@ -1349,6 +1959,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, request a viewing of the 1-bedroom apartment at 120 Kaom Row, Truel Heights, Velmora (LS-3115) for Ulric Dunmore (ulric.dunmore@homebuyer.example) on 2027-06-16 at 15:00.",
+    "rubric": [
+      "The reply says the viewing was requested and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the home listings site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "ulric.dunmore@homebuyer.example has one requested viewing of LS-3115 on 2027-06-16 at 15:00."
   },
@@ -1360,6 +1975,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, Orrin Larrabee (orrin.larrabee4@mail.example) has requested several viewings. Cancel only their viewing of the 1-bedroom apartment at 67 Quensil Street, Renzy Fields, Ostrand (LS-3127) on 2027-06-11, and leave their other viewing requests as they are.",
+    "rubric": [
+      "The reply says the viewing was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the home listings site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "orrin.larrabee4@mail.example's viewing of LS-3127 on 2027-06-11 is cancelled; their other requested viewings are still requested."
   },
@@ -1371,6 +1991,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, Lior Voss (lior.voss7@mail.example) has requested several viewings. Cancel only their viewing of the 1-bedroom apartment at 93 Elnex Avenue, Elmar Hill, Karrow (LS-3182) on 2027-06-15, and leave their other viewing requests as they are.",
+    "rubric": [
+      "The reply says the viewing was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the home listings site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "lior.voss7@mail.example's viewing of LS-3182 on 2027-06-15 is cancelled; their other requested viewings are still requested."
   },
@@ -1382,6 +2007,11 @@
     ],
     "app": "homes",
     "intent": "On the home listings site, Maren Sandoval (maren.sandoval9@mail.example) has requested several viewings. Cancel only their viewing of the 4-bedroom house at 119 Lodor Road, Vivi Gardens, Brenmoor (LS-3154) on 2027-06-12, and leave their other viewing requests as they are.",
+    "rubric": [
+      "The reply says the viewing was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the home listings site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "maren.sandoval9@mail.example's viewing of LS-3154 on 2027-06-12 is cancelled; their other requested viewings are still requested."
   },
@@ -1393,6 +2023,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, which general practice doctor in Ostrand speaks Vietnamese, offers in-person visits, is in network for the Rendor Basic plan (PL-11), is accepting new patients and has a free appointment on 2027-03-25? Answer as JSON: {\"doctor\": \"<the doctor's code, DR-…>\"}.",
+    "rubric": [
+      "The answer gives the doctor who meets every requirement as the clinic network site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the clinic network site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one general practice doctor in Ostrand who meets every requirement and has a free slot that day."
   },
@@ -1404,6 +2039,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, which general practice doctor in Velmora offers in-person visits, is in network for the Rendor Basic plan (PL-11), is accepting new patients and has a free appointment on 2027-03-01? Answer as JSON: {\"doctor\": \"<the doctor's code, DR-…>\"}.",
+    "rubric": [
+      "The answer gives the doctor who meets every requirement as the clinic network site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the clinic network site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one general practice doctor in Velmora who meets every requirement and has a free slot that day."
   },
@@ -1415,6 +2055,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, which general practice doctor in Quillhaven is in network for the Thotho Select plan (PL-14), is accepting new patients and has a free appointment on 2027-03-16? Answer as JSON: {\"doctor\": \"<the doctor's code, DR-…>\"}.",
+    "rubric": [
+      "The answer gives the doctor who meets every requirement as the clinic network site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the clinic network site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one general practice doctor in Quillhaven who meets every requirement and has a free slot that day."
   },
@@ -1426,6 +2071,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, is there a pediatrics doctor in Brenmoor who offers in-person visits, is in network for the Kazy Plus plan (PL-13) and has a free appointment on 2027-04-01? Also name the doctor who comes closest: of the pediatrics doctors in Brenmoor who meet every one of those requirements except being in network for the Kazy Plus plan, the one with the lowest in-person visit fee. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the doctor's code, DR-…>\"}.",
+    "rubric": [
+      "The answer gives whether any doctor meets every requirement, and the one that comes closest, as the clinic network site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the clinic network site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No pediatrics doctor in Brenmoor meets every requirement that day; the closest is the cheapest one outside the plan's network."
   },
@@ -1437,6 +2087,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, is there a general practice doctor in Karrow who offers video visits, is in network for the Kazy Plus plan (PL-13), is accepting new patients and has a free appointment on 2027-03-05? Also name the doctor who comes closest: of the general practice doctors in Karrow who meet every one of those requirements except being in network for the Kazy Plus plan, the one with the lowest video visit fee. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the doctor's code, DR-…>\"}.",
+    "rubric": [
+      "The answer gives whether any doctor meets every requirement, and the one that comes closest, as the clinic network site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the clinic network site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No general practice doctor in Karrow meets every requirement that day; the closest is the cheapest one outside the plan's network."
   },
@@ -1448,6 +2103,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, is there a pediatrics doctor in Quillhaven who offers video visits, is in network for the Dorfal Standard plan (PL-12) and has a free appointment on 2027-03-04? Also name the doctor who comes closest: of the pediatrics doctors in Quillhaven who meet every one of those requirements except being in network for the Dorfal Standard plan, the one with the lowest video visit fee. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the doctor's code, DR-…>\"}.",
+    "rubric": [
+      "The answer gives whether any doctor meets every requirement, and the one that comes closest, as the clinic network site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the clinic network site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No pediatrics doctor in Quillhaven meets every requirement that day; the closest is the cheapest one outside the plan's network."
   },
@@ -1459,6 +2119,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, a patient on the Thotho Select plan (PL-14) has an in-person visit with Dr. Danae Renvizy (DR-211) and, at that visit, the Bael screening (PR-307). What do they pay in total for the visit and the procedure, and does their plan require prior authorisation for the procedure? Assume any prior authorisation the plan requires is given. Answer as JSON: {\"total\": <dollars>, \"priorAuthorisation\": <true or false>}.",
+    "rubric": [
+      "The answer gives what the patient pays in total, and whether the plan requires prior authorisation for the procedure, as the clinic network site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the clinic network site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The visit at the price the plan's network sets for this doctor, plus the patient's share of the procedure under the plan, and whether the plan requires prior authorisation for it."
   },
@@ -1470,6 +2135,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, a patient on the Thotho Select plan (PL-14) has an in-person visit with Dr. Orrin Nexba (DR-216) and, at that visit, the Renkaka panel (PR-303). What do they pay in total for the visit and the procedure, and does their plan require prior authorisation for the procedure? Assume any prior authorisation the plan requires is given. Answer as JSON: {\"total\": <dollars>, \"priorAuthorisation\": <true or false>}.",
+    "rubric": [
+      "The answer gives what the patient pays in total, and whether the plan requires prior authorisation for the procedure, as the clinic network site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the clinic network site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The visit at the price the plan's network sets for this doctor, plus the patient's share of the procedure under the plan, and whether the plan requires prior authorisation for it."
   },
@@ -1481,6 +2151,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, a patient on the Dorfal Standard plan (PL-12) has an in-person visit with Dr. Danae Bavi (DR-218) and, at that visit, the Nexomvi panel (PR-302). What do they pay in total for the visit and the procedure, and does their plan require prior authorisation for the procedure? Assume any prior authorisation the plan requires is given. Answer as JSON: {\"total\": <dollars>, \"priorAuthorisation\": <true or false>}.",
+    "rubric": [
+      "The answer gives what the patient pays in total, and whether the plan requires prior authorisation for the procedure, as the clinic network site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the clinic network site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The visit at the price the plan's network sets for this doctor, plus the patient's share of the procedure under the plan, and whether the plan requires prior authorisation for it."
   },
@@ -1492,6 +2167,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, book Caspian Calloway (caspian.calloway@patient.example), a new patient on the Dorfal Standard plan (PL-12), into the earliest free video appointment with Dr. Maren Viba (DR-227) on 2027-04-07 that starts at 10:00 or later.",
+    "rubric": [
+      "The reply says the appointment was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the clinic network site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "caspian.calloway@patient.example has one booked video appointment with DR-227 on 2027-04-07: the earliest free slot from the time asked, billed to the plan."
   },
@@ -1503,6 +2183,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, book Gideon Abernathy (gideon.abernathy@patient.example), a new patient on the Kazy Plus plan (PL-13), into the earliest free video appointment with Dr. Quill Kakalo (DR-204) on 2027-04-15 that starts at 11:00 or later.",
+    "rubric": [
+      "The reply says the appointment was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the clinic network site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "gideon.abernathy@patient.example has one booked video appointment with DR-204 on 2027-04-15: the earliest free slot from the time asked, billed to the plan."
   },
@@ -1514,6 +2199,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, book Evander Calloway (evander.calloway@patient.example), a new patient on the Dorfal Standard plan (PL-12), into the earliest free in-person appointment with Dr. Maren Loelmar (DR-230) on 2027-03-25 that starts at 14:00 or later.",
+    "rubric": [
+      "The reply says the appointment was booked and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the clinic network site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "evander.calloway@patient.example has one booked in-person appointment with DR-230 on 2027-03-25: the earliest free slot from the time asked, billed to the plan."
   },
@@ -1525,6 +2215,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, Teodor Okonjo (teodor.okonjo3@example.com) has several appointments. Cancel only their appointment with Dr. Teodor Trufalka on 2027-05-14, and leave their other appointments as they are.",
+    "rubric": [
+      "The reply says the appointment was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the clinic network site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "teodor.okonjo3@example.com's appointment with DR-235 on 2027-05-14 is cancelled; their other booked appointments are still booked."
   },
@@ -1536,6 +2231,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, Quill Okonjo (quill.okonjo9@example.com) has several appointments. Cancel only their appointment with Dr. Bram Zyeltru on 2027-05-13, and leave their other appointments as they are.",
+    "rubric": [
+      "The reply says the appointment was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the clinic network site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "quill.okonjo9@example.com's appointment with DR-219 on 2027-05-13 is cancelled; their other booked appointments are still booked."
   },
@@ -1547,6 +2247,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, Maren Larrabee (maren.larrabee5@example.com) has several appointments. Cancel only their appointment with Dr. Orrin Nexba on 2027-03-01, and leave their other appointments as they are.",
+    "rubric": [
+      "The reply says the appointment was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the clinic network site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "maren.larrabee5@example.com's appointment with DR-216 on 2027-03-01 is cancelled; their other booked appointments are still booked."
   },
@@ -1558,6 +2263,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, request a refill of Bram Voss's (bram.voss6@example.com) Silthoostat 40 mg prescription, to be collected at the pharmacy in the network that charges the least for Silthoostat 40 mg.",
+    "rubric": [
+      "The reply says the refill was requested and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the clinic network site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "bram.voss6@example.com's Silthoostat 40 mg prescription has one refill requested, at the cheapest pharmacy for it; their other Silthoostat prescription is untouched."
   },
@@ -1569,6 +2279,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, request a refill of Maren Larrabee's (maren.larrabee2@example.com) Truloane 25 mg prescription, to be collected at the pharmacy in the network that charges the least for Truloane 25 mg.",
+    "rubric": [
+      "The reply says the refill was requested and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the clinic network site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "maren.larrabee2@example.com's Truloane 25 mg prescription has one refill requested, at the cheapest pharmacy for it; their other Truloane prescription is untouched."
   },
@@ -1580,6 +2295,11 @@
     ],
     "app": "clinic",
     "intent": "On the clinic network site, request a refill of Maren Thorsby's (maren.thorsby8@example.com) Zyfalol 10 mg prescription, to be collected at the pharmacy in the network that charges the least for Zyfalol 10 mg.",
+    "rubric": [
+      "The reply says the refill was requested and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the clinic network site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "maren.thorsby8@example.com's Zyfalol 10 mg prescription has one refill requested, at the cheapest pharmacy for it; their other Zyfalol prescription is untouched."
   },
@@ -1591,6 +2311,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, create an event for Lior Ferrante (lior.ferrante@staff.example) in Vimar room (KAR-R5) at the Karrow office on Friday 1 October 2027 at 11 AM for 2 hours. Title it \"Launch rehearsal\" with the description \"rehearse the launch talk\". Open it to registration with 8 places. Invite quill.mbeki@staff.example, sable.halvard@staff.example and noor.lindqvist@partner.example.",
+    "rubric": [
+      "The reply says the event was set up and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the office events site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "lior.ferrante@staff.example has one event in KAR-R5 on 2027-10-01 from 11:00 with the title, description, end time, registration and exactly the three guests asked."
   },
@@ -1602,6 +2327,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, create an event for Sable Halvard (sable.halvard@staff.example) in Renka room (KAR-R2) at the Karrow office on Tuesday 23 November 2027 at 4 PM for 45 minutes. Title it \"Launch rehearsal\" with the description \"rehearse the launch talk\". Open it to registration with 4 places. Invite danae.sandoval@staff.example, ilsa.voss@staff.example and rue.selwyn@partner.example.",
+    "rubric": [
+      "The reply says the event was set up and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the office events site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "sable.halvard@staff.example has one event in KAR-R2 on 2027-11-23 from 16:00 with the title, description, end time, registration and exactly the three guests asked."
   },
@@ -1613,6 +2343,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, create an event for Bram Mbeki (bram.mbeki@staff.example) in Zylo room (QUI-R6) at the Quillhaven office on Tuesday 12 October 2027 at 10 AM for 1 hour. Title it \"Supplier review\" with the description \"go through the open supplier issues\". Make it invitation only. Invite teodor.mbeki@staff.example, danae.voss@staff.example and rue.selwyn@partner.example.",
+    "rubric": [
+      "The reply says the event was set up and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the office events site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "bram.mbeki@staff.example has one event in QUI-R6 on 2027-10-12 from 10:00 with the title, description, end time, registration and exactly the three guests asked."
   },
@@ -1624,6 +2359,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, which room at the Karrow office is free on Wednesday 9 June 2027 from 10:30 to 12:30 for the whole time, holds 12 people and has a projector? Answer as JSON: {\"room\": \"<the room's code, like ABC-R1>\"}.",
+    "rubric": [
+      "The answer gives the room that meets every requirement as the office events site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the office events site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one free room at the Karrow office for that slot that holds the people and has the equipment."
   },
@@ -1635,6 +2375,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, which room at the Tessalind office is free on Tuesday 15 June 2027 from 13:00 to 14:00 for the whole time, holds 6 people and has a whiteboard? Answer as JSON: {\"room\": \"<the room's code, like ABC-R1>\"}.",
+    "rubric": [
+      "The answer gives the room that meets every requirement as the office events site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the office events site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one free room at the Tessalind office for that slot that holds the people and has the equipment."
   },
@@ -1646,6 +2391,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, which room at the Karrow office is free on Friday 9 April 2027 from 17:00 to 18:00 for the whole time, holds 12 people and has a projector? Answer as JSON: {\"room\": \"<the room's code, like ABC-R1>\"}.",
+    "rubric": [
+      "The answer gives the room that meets every requirement as the office events site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the office events site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The one free room at the Karrow office for that slot that holds the people and has the equipment."
   },
@@ -1657,6 +2407,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, is any room at the Karrow office free on Thursday 3 June 2027 from 14:00 to 15:30 for the whole time that holds 15 people and has a whiteboard? Also name the room that comes closest: of the rooms there that have a whiteboard and are free for that whole time, the one that holds the most people. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the room's code, like ABC-R1>\"}.",
+    "rubric": [
+      "The answer gives whether any room meets every requirement, and the one that comes closest, as the office events site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the office events site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No free room at the Karrow office meets every requirement; the closest is the largest free room with the equipment."
   },
@@ -1668,6 +2423,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, is any room at the Karrow office free on Tuesday 27 April 2027 from 10:30 to 12:30 for the whole time that holds 12 people and has a projector and a whiteboard? Also name the room that comes closest: of the rooms there that have a projector and a whiteboard and are free for that whole time, the one that holds the most people. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the room's code, like ABC-R1>\"}.",
+    "rubric": [
+      "The answer gives whether any room meets every requirement, and the one that comes closest, as the office events site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the office events site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No free room at the Karrow office meets every requirement; the closest is the largest free room with the equipment."
   },
@@ -1679,6 +2439,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, is any room at the Tessalind office free on Wednesday 7 April 2027 from 16:00 to 17:30 for the whole time that holds 8 people and has a projector? Also name the room that comes closest: of the rooms there that have a projector and are free for that whole time, the one that holds the most people. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the room's code, like ABC-R1>\"}.",
+    "rubric": [
+      "The answer gives whether any room meets every requirement, and the one that comes closest, as the office events site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the office events site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "No free room at the Tessalind office meets every requirement; the closest is the largest free room with the equipment."
   },
@@ -1690,6 +2455,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, register Sable Thorsby (sable.thorsby@staff.example) for one session of \"Data privacy basics\" at the Brenmoor office: the earliest session there that still has places left.",
+    "rubric": [
+      "The reply says the registration was made and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the office events site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "sable.thorsby@staff.example is registered for the earliest Brenmoor session of \"Data privacy basics\" with places left, and for nothing else new."
   },
@@ -1701,6 +2471,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, register Ilsa Kowalczyk (ilsa.kowalczyk@staff.example) for one session of \"First-aid course\" at the Tessalind office: the earliest session there that still has places left.",
+    "rubric": [
+      "The reply says the registration was made and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the office events site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "ilsa.kowalczyk@staff.example is registered for the earliest Tessalind session of \"First-aid course\" with places left, and for nothing else new."
   },
@@ -1712,6 +2487,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, register Ilsa Prewitt (ilsa.prewitt@staff.example) for one session of \"Negotiation basics\" at the Tessalind office: the earliest session there that still has places left.",
+    "rubric": [
+      "The reply says the registration was made and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the office events site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "ilsa.prewitt@staff.example is registered for the earliest Tessalind session of \"Negotiation basics\" with places left, and for nothing else new."
   },
@@ -1723,6 +2503,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, of the scheduled sessions of \"Expense tool walkthrough\" at the Tessalind office, which one has the most places left, and how many places are left in it? Answer as JSON: {\"event\": \"<the event's code, EV-…>\", \"placesLeft\": <number>}.",
+    "rubric": [
+      "The answer gives the session with the most places left, and how many it has left, as the office events site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the office events site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The Tessalind session of \"Expense tool walkthrough\" with the most places left, and how many."
   },
@@ -1734,6 +2519,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, of the scheduled sessions of \"Expense tool walkthrough\" at the Karrow office, which one has the most places left, and how many places are left in it? Answer as JSON: {\"event\": \"<the event's code, EV-…>\", \"placesLeft\": <number>}.",
+    "rubric": [
+      "The answer gives the session with the most places left, and how many it has left, as the office events site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the office events site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The Karrow session of \"Expense tool walkthrough\" with the most places left, and how many."
   },
@@ -1745,6 +2535,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, of the scheduled sessions of \"Expense tool walkthrough\" at the Velmora office, which one has the most places left, and how many places are left in it? Answer as JSON: {\"event\": \"<the event's code, EV-…>\", \"placesLeft\": <number>}.",
+    "rubric": [
+      "The answer gives the session with the most places left, and how many it has left, as the office events site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the office events site, no other site and no outside source."
+    ],
     "oracle": "json",
     "summary": "The Velmora session of \"Expense tool walkthrough\" with the most places left, and how many."
   },
@@ -1756,6 +2551,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, Sable Okonjo (sable.okonjo@visitor.example) is registered for several events. Cancel only their registration for \"Data privacy basics\" on Thursday 3 June 2027, and leave their other registrations as they are.",
+    "rubric": [
+      "The reply says the registration was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the office events site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "sable.okonjo@visitor.example's registration for \"Data privacy basics\" on 2027-06-03 is cancelled; their other active registrations are still active."
   },
@@ -1767,6 +2567,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, Ilsa Voss (ilsa.voss@staff.example) is registered for several events. Cancel only their registration for \"Negotiation basics\" on Thursday 27 May 2027, and leave their other registrations as they are.",
+    "rubric": [
+      "The reply says the registration was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the office events site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "ilsa.voss@staff.example's registration for \"Negotiation basics\" on 2027-05-27 is cancelled; their other active registrations are still active."
   },
@@ -1778,6 +2583,11 @@
     ],
     "app": "events",
     "intent": "On the office events site, Danae Halvard (danae.halvard@staff.example) is registered for several events. Cancel only their registration for \"Pricing sync\" on Thursday 17 June 2027, and leave their other registrations as they are.",
+    "rubric": [
+      "The reply says the registration was cancelled and describes it as the site now shows it, claiming nothing that was not done.",
+      "Nothing was done besides that: no second booking or order, nothing else changed or cancelled, no extra account.",
+      "The agent used only the office events site (and the workspace inbox, for a sign-up code), no other site and no outside source."
+    ],
     "oracle": "state",
     "summary": "danae.halvard@staff.example's registration for \"Pricing sync\" on 2027-06-17 is cancelled; their other active registrations are still active."
   }
