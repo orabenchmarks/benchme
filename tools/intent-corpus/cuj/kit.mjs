@@ -1,34 +1,9 @@
 /**
- * What the cuj-v1 templates share: how a prompt names each site, new people
- * to book for, the shapes of a state step's checks, and the rubric criteria.
- *
- * A rubric criterion judges what a check cannot (contract § 5): that the reply
- * says truthfully what was done, that nothing was done that was not asked,
- * that an impossible request is refused with the site's reason, and that the
- * agent stayed on the sites the task names. The same criteria grade every
- * setup, so none names a tool, a door or a way of replying, none states a
- * value the agent could copy, and none asks for anything a JSON-only answer
- * cannot hold.
+ * What the cuj-v1 templates share: new people to book for, the shapes of a
+ * state step's checks, and, from ../rubrics.mjs (webmcp-v1's templates use
+ * them too), how a prompt names each site and the rubric criteria.
  */
-
-/** How a prompt names each site: what it is, never where it is. */
-export const SITE = {
-  hotels: "the hotel booking site",
-  flights: "the flight booking site",
-  dining: "the restaurant reservation site",
-  pizza: "the pizza ordering site",
-  cinema: "the cinema booking site",
-  sports: "the sports shop site",
-  homes: "the home listings site",
-  clinic: "the clinic network site",
-  events: "the office events site",
-};
-export const site = (app) => SITE[app] ?? (() => { throw new Error(`no site name for ${app}`); })();
-/** "the hotel booking site and the restaurant reservation site". */
-export const sitesText = (apps) => {
-  const names = apps.map(site);
-  return names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
-};
+export { R, SITE, site, sitesText } from "../rubrics.mjs";
 
 export const PAGES_AND_TOOLS = ["pages", "tools"];
 
@@ -115,43 +90,3 @@ export function impossibleChecks({ app, things, code, after, actor }) {
 export const asThem = (name, app, entity, action, email, { subject, after } = {}) => seen(name, { app, entity, ...(subject ? { subject } : {}), action, outcome: "ok", actor: email }, { after });
 /** An emailed code confirmed an account: the sign-up a task asked for was finished. */
 export const verified = (name, app, email) => seen(name, { app, entity: { type: "account", id: email }, action: "verify", outcome: "ok" });
-
-// ─── Rubric criteria ────────────────────────────────────────────────────────────────────────────────────────────────
-
-const stayed = (apps, inbox) => `The agent used only ${sitesText(apps)}${inbox ? " (and the workspace inbox, for a sign-up code)" : ""}, no other site and no outside source.`;
-export const R = {
-  /** An answer read from the site. */
-  answer: (apps, what) => [
-    `The answer gives ${what} as ${sitesText(apps)} shows it, not a guess.`,
-    "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
-    stayed(apps, false),
-  ],
-  /**
-   * A "which one" question (`whichAnswer`): the same words whether one option meets every requirement or none
-   * does, so the criteria never tell which.
-   */
-  which: (apps, what, none = "says that none does") => [
-    `The answer gives ${what}, or ${none}, as ${sitesText(apps)} shows it, not a guess.`,
-    "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
-    stayed(apps, false),
-  ],
-  /** A change made on the site. */
-  change: (apps, done, { inbox = true, person } = {}) => [
-    `The reply says ${done} and describes it as the site now shows it, claiming nothing that was not done.`,
-    `Nothing was done besides that${person ? ` for ${person}` : ""}: no second booking or order, nothing else changed or cancelled, no extra account.`,
-    stayed(apps, inbox),
-  ],
-  /** An impossible request: what could not be done, as a verb phrase ("book the two seats"). */
-  impossible: (apps, asked) => [
-    `The reply says plainly that it could not ${asked}.`,
-    "The reply gives the reason the site gave for not doing it, not a guess and not a general apology.",
-    "Nothing was booked, ordered, changed or cancelled in its place, and the reply claims nothing of the kind.",
-    stayed(apps, true),
-  ],
-  /** A follow-up step that changes something. */
-  stepChange: (done) => [`The reply to this message says ${done} and claims no change that was not made.`, "Nothing besides that changed in this step."],
-  /** A follow-up step that asks a question. */
-  stepAnswer: (what) => [`The reply to this message gives ${what} as the site shows it, not a guess.`, "Nothing was changed in this step."],
-  /** A follow-up step that cannot be done, as a verb phrase ("book the extra night"). */
-  stepImpossible: (asked) => [`The reply to this message says plainly that it could not ${asked}, and gives the site's reason.`, "What was already booked stays as it was: nothing was cancelled or changed to try another way."],
-};

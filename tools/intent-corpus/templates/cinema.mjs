@@ -17,9 +17,19 @@
  * Claims: a booking or a cancellation changes which seats are free, so every
  * task that depends on, or changes, a showtime's free seats claims that
  * showtime (`cinema:show:<code>`), and every write claims its customer.
+ *
+ * Expected calls: a booking's `create_booking` of the showtime, the seats (the
+ * row's one run, in any order; any seats where the task leaves the run to the
+ * agent), every ticket type the mix has (a type it has none of left free), and
+ * the customer's email (the name left free); a cancellation's `cancel_booking`
+ * of the booking named. A search is answered by `search_showtimes` or by each
+ * film's showtimes read in turn, and a quote by the showtime or by its
+ * cinema's price table and fees, so neither declares a read.
  */
 import { CINEMA_ADULT_RATINGS, cinemaFreeRuns, cinemaSearchShowtimes, cinemaTakenSeats, shuffle } from "../../../packages/scenarios/dist/index.js";
+import { anyOrder, call, free, pattern, someOf } from "../calls.mjs";
 import { int, usd } from "../kit.mjs";
+import { R } from "../rubrics.mjs";
 
 const APP = "cinema";
 const BOOKINGS = "/api/v1/bookings";
@@ -83,6 +93,13 @@ const showtimesPath = (q) =>
       .map(([k, v]) => [k, String(v)]),
   )}`;
 const book = (api, body) => api.post(APP, BOOKINGS, body);
+/** Any seat of a screen (rows A to H): seats side by side the task leaves to the agent may be any free run. */
+const SEAT = pattern("^[A-Z][0-9]+$");
+/** A ticket type the mix has none of is free: a run may send 0 or leave it out. */
+const noneFree = (counts) => Object.fromEntries(TYPES.filter((t) => !counts[t]).map((t) => [t, free]));
+/** The booking a correct solution makes, through the tool: the seats as `seatsAs` publishes them, the mix, the customer. */
+const booking = (showtimeCode, seats, counts, customer, seatsAs) =>
+  call("create_booking", { showtimeCode, seats, ...counts, customerName: customer.name, customerEmail: customer.email }, { seats: seatsAs, customerName: free, ...noneFree(counts) });
 /** The first n free seats side by side on a served seat map (in one row when given), in seat order. */
 function firstRun(seatMap, n, row) {
   for (const r of seatMap) {
@@ -121,7 +138,9 @@ export const cinemaTemplates = [
           return {
             intent: `On the cinema booking site, is there a showtime in ${full.city} on ${full.date} of ${aFilm(full.genre)} ${FORMAT_TEXT[full.format]}, starting at ${after} or later, with at least ${seats} free seats? Also name the showtime that comes closest: the earliest showtime of ${aFilm(full.genre)} in ${full.city} on ${full.date} starting at ${after} or later with at least ${seats} free seats, in any format. Answer as JSON: {"exists": <true or false>, "closest": "<the showtime's code, ST-…>"}.`,
             summary: `No ${full.genre} showtime in ${full.city} that day meets every requirement; the closest is the earliest with the seats in any format.`,
+            rubric: R.answer([APP], "whether any showtime meets every requirement, and the one that comes closest,"),
             oracle: { kind: "json", expect: { exists: false, closest: closest.showtimeCode } },
+            calls: [],
             note: `${full.city} ${full.date} ${full.genre} ${full.format} from ${after}, ${seats} seats → none; closest ${closest.showtimeCode} (${closest.time}, ${closest.format}); ${full.showtimeCode} (${full.time}) fits but has ${full.freeSeats} free`,
             answer: async (api) => ({
               exists: (await api.get(APP, showtimesPath({ ...base, format: full.format, after, seats }))).length > 0,
@@ -164,7 +183,9 @@ export const cinemaTemplates = [
       return {
         intent: `On the cinema booking site, which showtime in ${full.city} on ${full.date} is of ${aFilm(full.genre)} ${FORMAT_TEXT[full.format]}, starts at ${after} or later, and has at least ${seats} free seats? Answer as JSON: {"showtime": "<the showtime's code, ST-…>"}.`,
         summary: `The one ${full.genre} showtime in ${full.city} on that date, in that format, from that time, with enough free seats.`,
+        rubric: R.answer([APP], "the showtime that meets every requirement"),
         oracle: { kind: "json", expect: { showtime: match.showtimeCode } },
+        calls: [],
         note: `${full.city} ${full.date} ${full.genre} ${full.format} from ${after}, ${seats} seats → ${match.showtimeCode} (${match.time}, ${match.freeSeats} free); ${full.showtimeCode} (${full.time}) fits but has ${full.freeSeats} free`,
         answer: async (api) => ({ showtime: api.only(await api.get(APP, showtimesPath(q))).showtimeCode }),
         miss: async () => ({ showtime: full.showtimeCode }),
@@ -198,6 +219,8 @@ export const cinemaTemplates = [
     build({ n, target, trap, customer }, ctx, rng) {
       const counts = mixFor(n, cin(ctx).film.get(target.filmCode), rng);
       const q = { cinemaCode: target.cinemaCode, filmCode: target.filmCode, seats: n };
+      const together = cin(ctx).runs(target).find((r) => r.length >= n)?.slice(0, n);
+      if (!together) return null;
       const bookAt = async (api, query, pickSeats) => {
         const o = (await api.get(APP, showtimesPath(query)))[0];
         const s = await api.get(APP, `/api/v1/showtimes/${o.showtimeCode}`);
@@ -206,6 +229,7 @@ export const cinemaTemplates = [
       return {
         intent: `On the cinema booking site, book ${n} seats side by side (in one row, next to each other) for ${customer.name} (${customer.email}), as ${mixText(counts)}, at the earliest showtime of "${target.filmTitle}" at ${target.cinemaName} in ${target.city} that still has ${n} free seats side by side.`,
         summary: `${customer.email} has one confirmed booking of ${n} seats side by side at the earliest showtime of ${target.filmCode} at ${target.cinemaCode} that had them free.`,
+        rubric: R.change([APP], "the seats were booked"),
         oracle: {
           kind: "state",
           checks: [
@@ -219,6 +243,7 @@ export const cinemaTemplates = [
             },
           ],
         },
+        calls: [booking(target.showtimeCode, together, counts, customer, someOf(n, SEAT))],
         note: `${target.filmCode} at ${target.cinemaCode}, ${n} together → ${target.showtimeCode} (${target.date} ${target.time}); ${trap.showtimeCode} (${trap.date} ${trap.time}) has ${trap.freeSeats} free, at most ${trap.bestRun} side by side`,
         solve: (api) => bookAt(api, { ...q, together: true }, (s) => firstRun(s.seatMap, n)),
         miss: (api) => bookAt(api, q, (s) => s.seatMap.flatMap((r) => r.free).slice(0, n)),
@@ -253,7 +278,9 @@ export const cinemaTemplates = [
       return {
         intent: `On the cinema booking site, what would these tickets for ${showText(o)} (${o.showtimeCode}) cost in total: seats ${seats.join(", ")}, as ${mixText(counts)}? Answer as JSON: {"total": <dollars>}.`,
         summary: `The ${FORMAT_WORD[o.format]} ticket prices for the mix, plus the premium-row surcharge and the booking fee for each of the ${n} seats.`,
+        rubric: R.answer([APP], "what the tickets cost in total, surcharge and fees included,"),
         oracle: { kind: "json", expect: { total: { value: total, tolerance: 0.01 } } },
+        calls: [],
         note: `${o.showtimeCode} ${o.format} ${seats.join(",")} (premium) ${mixText(counts)}: tickets ${usd(tickets)} + ${n} × (surcharge ${usd(cinema.premiumSurchargeCents)} + fee ${usd(cinema.bookingFeeCents)}) → $${total.toFixed(2)}`,
         answer: async (api) => {
           const s = await api.get(APP, `/api/v1/showtimes/${o.showtimeCode}`);
@@ -295,6 +322,7 @@ export const cinemaTemplates = [
       return {
         intent: `On the cinema booking site, book ${n} seats side by side in row ${row} for ${showText(o)} (${o.showtimeCode}), for ${customer.name} (${customer.email}): ${mixText(counts)}.`,
         summary: `${customer.email} has one confirmed booking at ${o.showtimeCode}: the ${n} free seats side by side in row ${row}, with the ticket mix asked.`,
+        rubric: R.change([APP], "the seats were booked"),
         oracle: {
           kind: "state",
           checks: [
@@ -308,6 +336,7 @@ export const cinemaTemplates = [
             },
           ],
         },
+        calls: [booking(o.showtimeCode, seats, counts, customer, anyOrder(seats))],
         note: `${customer.email} → ${o.showtimeCode} row ${row}: ${seats.join(",")} as ${mixText(counts)}`,
         solve: async (api) => book(api, body({ ...counts, seats: firstRun((await api.get(APP, `/api/v1/showtimes/${o.showtimeCode}`)).seatMap, n, row) })),
         miss: (api) => book(api, body({})),
@@ -342,7 +371,9 @@ export const cinemaTemplates = [
       return {
         intent: `On the cinema booking site, ${target.customerName} (${target.customerEmail}) has several bookings. Cancel only their booking for "${o.filmTitle}" on ${o.date}, and leave their other bookings as they are.`,
         summary: `${target.customerEmail}'s booking for ${o.filmCode} on ${o.date} is cancelled; their other confirmed bookings are still confirmed.`,
+        rubric: R.change([APP], "the booking was cancelled"),
         oracle: { kind: "state", checks: live.map((b) => ({ name: `${b.bookingNo}-${status(b)}`, app: APP, path: `${BOOKINGS}/${b.bookingNo}`, expect: { status: status(b) } })) },
+        calls: [call("cancel_booking", { bookingNo: target.bookingNo })],
         note: `${target.customerEmail}: ${target.bookingNo} (${o.filmCode}, ${o.date}, ${o.showtimeCode}) → cancelled; ${live.filter((b) => b !== target).map((b) => b.bookingNo).join(", ")} stay confirmed`,
         solve: async (api) => {
           const mine = await api.list(APP, `${BOOKINGS}?customerEmail=${encodeURIComponent(target.customerEmail)}`);

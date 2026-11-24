@@ -397,7 +397,35 @@ its answer keys are `intent-<kind>-NN.json` like every other), and
 `node tools/intent-integrity.mjs --scenario webmcp-v1` proves it against a
 live benchme.
 Those suites grade the tool calls an agent makes; these tasks grade the answer
-or the site's end state, so any door can be used.
+or the site's end state, so any door can be used. Each record also carries
+what a judge and a check of the calls need:
+
+```jsonc
+// webmcp-tasks.json: what an agent may be shown
+{ "id": "intent-stay-book-01", "surfaces": ["pages", "tools"], "app": "hotels", "intent": "…",
+  "rubric": ["The reply says the room was booked and …", "…", "…"],   // 2 to 6 judge criteria
+  "oracle": "state", "summary": "…" }
+// webmcp-corpus.json: the same, with the answer key
+  "key": { "blind": false, "oracle": { … },                            // the verifier's spec
+           "expectedCall": [ { "functionName": "create_booking",       // the calls every correct solution makes
+                               "arguments": { "roomCode": "HT-123-DBL", "checkIn": "2027-05-17", "nights": 3, "kids": 1,
+                                              "guestEmail": "emeric.fairweather@travel.example" } } ] }
+```
+
+The criteria (`rubric`, right after `intent`) follow cuj-v1's rules
+([Rubrics](docs/scenarios/cuj-v1.md#rubrics)): they judge what a check cannot
+(the reply is true to what was done, nothing else was done, the agent stayed
+on the site) and name no door, tool or value. `key.expectedCall`, present when
+a task has any, holds the site tool calls every correct solution through the
+tools must make, in webmcp-evals' own shape, with webmcp-evals' constraints
+for what may vary; the rule and the form are in
+[Expected calls](docs/scenarios/cuj-v1.md#expected-calls). Both corpora's calls
+are also webmcp-evals suites, `compose/specs/webmcp-v1.webmcp-evals.json` and
+`compose/specs/cuj-v1.webmcp-evals.json` (one case per task, or per step, that
+has calls). Like the keys they are answer-key material: a call can name what
+the task has the agent find. `node tools/intent-integrity.mjs` proves the calls
+too: in a second workspace, every task done with nothing but its calls, through
+MCP, passes.
 
 The same nine sites, with the same rows, are the `cuj-v1` scenario's, which
 adds the accounts some of their people already have, and gives all of their

@@ -19,9 +19,20 @@
  * depends on, or changes, what is free claims its day in its city
  * (`dining:day:<city>:<date>`). A party-size change frees and takes no table;
  * a deposit depends on prices only.
+ *
+ * Expected calls: a booking's `create_reservation` with what the task fixes or
+ * has the agent find (the restaurant, the area, the date, the time, the party,
+ * the guest's email; the name, the phone and the special request left free,
+ * which a run may write its own way: the site's check reads a request
+ * whatever its case); a change's `change_reservation` of the reservation
+ * named, with the new party. A deposit is in `get_restaurant` and in a search
+ * at that time, and a search has more than one way, so no question declares a
+ * call.
  */
 import { addDays, diningAvailability, diningDepositCents, diningMinutes, diningSearch, diningSeatingTimes, diningTablesLeft, shuffle } from "../../../packages/scenarios/dist/index.js";
+import { call, free } from "../calls.mjs";
 import { int, usd } from "../kit.mjs";
+import { R } from "../rubrics.mjs";
 
 const APP = "dining";
 const RESERVATIONS = "/api/v1/reservations";
@@ -82,6 +93,8 @@ const searchPath = (q) =>
   })}`;
 const availabilityPath = (code, date, partySize) => `/api/v1/restaurants/${code}/availability?date=${date}&partySize=${partySize}`;
 const reserve = (api, body) => api.post(APP, RESERVATIONS, body);
+/** The reservation a correct solution makes: the reference one's body, through the tool. */
+const reservation = (body) => call("create_reservation", body, { guestName: free, guestPhone: free, ...(body.note ? { note: free } : {}) });
 /** Half hours after `time`, to the latest any restaurant seats. */
 const laterThan = (time) => Array.from({ length: Math.max(0, (diningMinutes("21:30") - diningMinutes(time)) / 30) }, (_, i) => {
   const m = diningMinutes(time) + 30 * (i + 1);
@@ -132,7 +145,9 @@ export const diningTemplates = [
           return {
             intent: `On the restaurant reservation site, which restaurant in ${r.city} has ${AREA_TEXT[seating.area]} free for ${partySize} people on ${date} at ${time} and offers a ${menu} menu${capText}? Answer as JSON: {"restaurant": "<the restaurant's code, RS-…>"}.`,
             summary: `The one ${r.city} restaurant with ${AREA_TEXT[seating.area]} free for the party at that time that offers the menu${cap < 4 ? " within the price level" : ""}.`,
+            rubric: R.answer([APP], "the restaurant that meets every requirement"),
             oracle: { kind: "json", expect: { restaurant: matches[0].restaurantCode } },
+            calls: [],
             note: `${r.city} ${date} ${time}, ${partySize} people, ${seating.area}, ${menu}${cap < 4 ? `, level ≤ ${cap}` : ""} → ${matches[0].restaurantCode}; ${r.code} fits too but its ${seating.area} tables are all taken`,
             answer: async (api) => ({ restaurant: api.only(await api.get(APP, searchPath(q))).restaurantCode }),
             miss: async () => ({ restaurant: r.code }),
@@ -167,7 +182,9 @@ export const diningTemplates = [
         return {
           intent: `On the restaurant reservation site, is there a restaurant in ${r.city} with ${area} free for ${partySize} people on ${date} at ${time} that offers a ${menu} menu? If there is none, find the closest: the first later time that same day at which a restaurant in ${r.city} that offers a ${menu} menu has ${area} free for ${partySize} people, and that restaurant. Answer as JSON: {"exists": <true or false>, "restaurant": "<the restaurant's code, RS-…>", "time": "<HH:MM>"}.`,
           summary: `No ${r.city} restaurant meets every requirement at the asked time; the closest is the first later time that day when one does.`,
+          rubric: R.answer([APP], "whether any restaurant meets every requirement at that time, and the first later time one does and which restaurant it is,"),
           oracle: { kind: "json", expect: { exists: false, restaurant: next.offers[0].restaurantCode, time: next.t } },
+          calls: [],
           note: `${r.city} ${date} ${time}, ${partySize} people, ${seating.area}, ${menu} → none; first later: ${next.offers[0].restaurantCode} at ${next.t}; ${r.code}'s ${seating.area} tables would fit but are all taken`,
           answer: async (api) => {
             const exists = (await api.get(APP, searchPath(q))).length > 0;
@@ -203,7 +220,9 @@ export const diningTemplates = [
       return {
         intent: `On the restaurant reservation site, what deposit would ${r.name} (${r.code}) take for a reservation of its private room for ${partySize} people on ${date} at ${time}? Answer as JSON: {"deposit": <dollars>}.`,
         summary: `The per-guest deposit for the party plus ${r.code}'s private-room fee.`,
+        rubric: R.answer([APP], "the deposit the reservation would take"),
         oracle: { kind: "json", expect: { deposit: { value: deposit, tolerance: 0.01 } } },
+        calls: [],
         note: `${r.code}: ${partySize} × ${usd(r.depositPerGuestCents)} + room ${usd(r.privateRoomFeeCents)} → $${deposit.toFixed(2)}`,
         answer: async (api) => {
           const x = await api.get(APP, `/api/v1/restaurants/${r.code}`);
@@ -241,6 +260,7 @@ export const diningTemplates = [
       return {
         intent: `On the restaurant reservation site, book ${AREA_TEXT[seating.area]} at ${r.name} (${r.code}) for ${guest.name} (${guest.email}, phone ${phone}): ${partySize} people on ${date} at ${time}, with this special request, word for word: "${note}".`,
         summary: `${guest.email} has one confirmed reservation at ${r.code} on ${date} with the area, time, party and special request asked.`,
+        rubric: R.change([APP], "the table was booked"),
         oracle: {
           kind: "state",
           checks: [
@@ -254,6 +274,7 @@ export const diningTemplates = [
             },
           ],
         },
+        calls: [reservation(body)],
         note: `${guest.email} → ${r.code} ${seating.area}, ${date} ${time}, ${partySize} people, "${note}"`,
         solve: (api) => reserve(api, body),
         miss: (api) => reserve(api, { ...body, note: "" }),
@@ -274,16 +295,17 @@ export const diningTemplates = [
     build({ seating, restaurant: r, date, time, guest }, ctx, rng) {
       const rows = index(ctx).rows;
       const partySize = partyFor(seating, rng);
-      const free = diningAvailability(r, rows, date, partySize).filter((s) => s.area === seating.area && s.time > time && s.tablesLeft > 0).map((s) => s.time);
-      const [earliest] = free;
+      const open = diningAvailability(r, rows, date, partySize).filter((s) => s.area === seating.area && s.time > time && s.tablesLeft > 0).map((s) => s.time);
+      const [earliest] = open;
       if (!earliest) return null;
-      const wrong = earliest.endsWith(":30") ? free.find((t) => t.endsWith(":00")) : free[1];
+      const wrong = earliest.endsWith(":30") ? open.find((t) => t.endsWith(":00")) : open[1];
       if (!wrong) return null;
       const phone = phoneOf(rng);
       const bodyAt = (t) => ({ restaurantCode: r.code, area: seating.area, date, time: t, partySize, guestName: guest.name, guestEmail: guest.email, guestPhone: phone, note: "" });
       return {
         intent: `On the restaurant reservation site, book ${AREA_TEXT[seating.area]} at ${r.name} (${r.code}) for ${guest.name} (${guest.email}, phone ${phone}), ${partySize} people on ${date}: at ${time}, or if none is free then, at the earliest later time that day when one is.`,
         summary: `${guest.email} has one confirmed reservation at ${r.code} on ${date} in the area asked, at the earliest time from the asked one when a table is free.`,
+        rubric: R.change([APP], "the table was booked"),
         oracle: {
           kind: "state",
           checks: [
@@ -297,6 +319,7 @@ export const diningTemplates = [
             },
           ],
         },
+        calls: [reservation(bodyAt(earliest))],
         note: `${r.code} ${seating.area} ${date}: ${time} is full → ${earliest} for ${partySize} people (${guest.email}); the miss books ${wrong}`,
         solve: async (api) => {
           const { slots } = await api.get(APP, availabilityPath(r.code, date, partySize));
@@ -336,10 +359,12 @@ export const diningTemplates = [
       return {
         intent: `On the restaurant reservation site, ${target.guestName} (${target.guestEmail}) has several reservations. Change only their reservation at ${r.name} on ${target.date} to a party of ${size}, and leave their other reservations as they are.`,
         summary: `${target.guestEmail}'s reservation at ${r.code} on ${target.date} is for the new party size; their other confirmed reservations are unchanged.`,
+        rubric: R.change([APP], "the party size was changed"),
         oracle: {
           kind: "state",
           checks: live.map((b) => ({ name: `${b.reservationNo}-party-${after(b)}`, app: APP, path: `${RESERVATIONS}/${b.reservationNo}`, expect: { status: "confirmed", partySize: after(b) } })),
         },
+        calls: [call("change_reservation", { reservationNo: target.reservationNo, partySize: size })],
         note: `${target.guestEmail}: ${target.reservationNo} (${r.code}, ${target.date}) ${target.partySize} → ${size}; ${live.filter((b) => b !== target).map((b) => b.reservationNo).join(", ")} unchanged`,
         solve: async (api) => {
           const mine = await api.list(APP, `${RESERVATIONS}?guestEmail=${encodeURIComponent(target.guestEmail)}`);

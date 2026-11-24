@@ -25,7 +25,9 @@ const PROJECTIONS = [
 ] as const;
 // cuj-v1's pair holds records of another shape (an area, a level, steps): docs/scenarios/cuj-v1.md.
 const CUJ = { tasks: "cuj-tasks.json", corpus: "cuj-corpus.json" } as const;
-const NOT_A_SPEC = new Set<string>([...PROJECTIONS.flatMap((p) => [p.tasks, p.corpus]), CUJ.tasks, CUJ.corpus]);
+// The expected calls of webmcp-v1 and cuj-v1 as webmcp-evals suites: answer-key material, never a spec.
+const SUITES = { "webmcp-v1": "webmcp-v1.webmcp-evals.json", "cuj-v1": "cuj-v1.webmcp-evals.json" } as const;
+const NOT_A_SPEC = new Set<string>([...PROJECTIONS.flatMap((p) => [p.tasks, p.corpus]), CUJ.tasks, CUJ.corpus, ...Object.values(SUITES)]);
 
 describe("compose/specs", () => {
   const files = readdirSync(SPECS_DIR).filter((f) => f.endsWith(".json") && !NOT_A_SPEC.has(f));
@@ -92,13 +94,15 @@ for (const projection of PROJECTIONS) {
     const manifest = JSON.parse(readFileSync(join(SPECS_DIR, projection.tasks), "utf8"));
     const corpus = JSON.parse(readFileSync(join(SPECS_DIR, projection.corpus), "utf8"));
 
-    it(`is ${projection.tasks}, row for row, with each task's own spec as its key`, () => {
+    it(`is ${projection.tasks}, row for row, with each task's own spec as its key (and, in webmcp-v1's, its expected calls)`, () => {
       expect(corpus.map((r: { id: string }) => r.id)).toEqual(manifest.map((t: { id: string }) => t.id));
       for (const [i, row] of corpus.entries()) {
         const { key, ...publicRow } = row;
         expect(publicRow).toEqual(manifest[i]);
         const spec = taskSpecSchema.parse(JSON.parse(readFileSync(join(SPECS_DIR, `${row.id}.json`), "utf8")));
-        expect(key).toEqual({ blind: spec.blind, oracle: spec.oracle });
+        const { expectedCall, ...keyLess } = key;
+        expect(keyLess).toEqual({ blind: spec.blind, oracle: spec.oracle });
+        if (projection.corpus === "intent-corpus.json") expect(expectedCall).toBeUndefined();
       }
     });
   });
@@ -165,7 +169,9 @@ describe(`compose/specs/${CUJ.corpus}`, () => {
       expect(existsSync(file)).toBe(checkable);
       if (!checkable) continue;
       const spec = taskSpecSchema.parse(JSON.parse(readFileSync(file, "utf8")));
-      expect({ blind: spec.blind, oracle: spec.oracle, steps: spec.steps }).toEqual(r.key);
+      // The key is the spec and the expected calls beside its oracles, which are not the verifier's to read.
+      const { expectedCall: _calls, steps, ...key } = r.key as CujRecord["key"] & { expectedCall?: unknown };
+      expect({ blind: spec.blind, oracle: spec.oracle, steps: spec.steps }).toEqual({ ...key, steps: steps.map(({ oracle }) => ({ oracle })) });
     }
   });
 
@@ -236,4 +242,148 @@ describe("compose/specs corpora", () => {
     const ids = [...PROJECTIONS.map((p) => p.tasks), CUJ.tasks].flatMap((f) => JSON.parse(readFileSync(join(SPECS_DIR, f), "utf8")).map((t: { id: string }) => t.id));
     expect(new Set(ids).size).toBe(ids.length);
   });
+});
+
+// ─── Graded records: judge criteria and expected calls (tools/intent-corpus/rubrics.mjs, calls.mjs) ────────────────
+
+const readSpecs = (file: string) => JSON.parse(readFileSync(join(SPECS_DIR, file), "utf8"));
+const WEBMCP = PROJECTIONS[1];
+/** The rules a criterion follows in every corpus that has them (tools/intent-corpus/rubrics.mjs). */
+const NOT_IN_A_RUBRIC = /\b(mcp|webmcp|rest|api|endpoint|tool|tools|browser|click|curl|json|markdown|bullets?|formatted|concise|polite|tone)\b/i;
+
+describe(`compose/specs/${WEBMCP.corpus} judge criteria`, () => {
+  const corpus = readSpecs(WEBMCP.corpus);
+  const tasks = readSpecs(WEBMCP.tasks);
+
+  it("gives every record a rubric right after its intent: 2 to 6 criteria of at most 300 characters, none naming a door or a reply style", () => {
+    expect(corpus.length).toBeGreaterThan(0);
+    for (const [i, r] of corpus.entries()) {
+      expect(Object.keys(r)).toEqual(["id", "surfaces", "app", "intent", "rubric", "oracle", "summary", "key"]);
+      expect(Object.keys(tasks[i])).toEqual(["id", "surfaces", "app", "intent", "rubric", "oracle", "summary"]);
+      expect(r.rubric.length >= 2 && r.rubric.length <= 6).toBe(true);
+      for (const c of r.rubric) {
+        expect(typeof c === "string" && c.trim().length > 0 && c.length <= 300).toBe(true);
+        expect(c).not.toMatch(NOT_IN_A_RUBRIC);
+      }
+    }
+  });
+
+  it("states no value its key expects in a criterion", () => {
+    for (const r of corpus) {
+      if (r.key.oracle.kind !== "json") continue;
+      for (const v of Object.values(r.key.oracle.expect as Record<string, unknown>)) {
+        if (typeof v === "string" || (typeof v === "number" && Math.abs(v) >= 10)) for (const c of r.rubric) expect(c.toLowerCase()).not.toContain(String(v).toLowerCase());
+      }
+    }
+  });
+
+  it("leaves acme-v1's records as they were: no rubric, no expected calls", () => {
+    for (const r of readSpecs(PROJECTIONS[0].corpus)) {
+      expect(r).not.toHaveProperty("rubric");
+      expect(r.key).not.toHaveProperty("expectedCall");
+    }
+  });
+});
+
+describe("expected calls (in webmcp-evals' shape)", () => {
+  type Call = { functionName: string; arguments: Record<string, unknown> };
+  type Oracle = { kind: string; checks?: { kind?: string; match?: unknown }[]; [k: string]: unknown };
+  type Step = { id: string; n: number; stepped: boolean; apps: string[]; kind: string; oracle: Oracle; calls?: Call[]; intents: string[] };
+  /** Every step of webmcp-v1 and cuj-v1, in corpus order, with its key's calls. */
+  const stepsOf: Record<keyof typeof SUITES, Step[]> = {
+    "webmcp-v1": readSpecs(WEBMCP.corpus).map((r: { id: string; app: string; intent: string; oracle: string; key: { oracle: Oracle; expectedCall?: Call[] } }) => ({
+      id: r.id, n: 1, stepped: false, apps: [r.app], kind: r.oracle, oracle: r.key.oracle, calls: r.key.expectedCall, intents: [r.intent],
+    })),
+    "cuj-v1": readSpecs(CUJ.corpus).flatMap((r: { id: string; apps: string[]; intent: string; kind: string; steps: { intent: string; kind: string }[]; key: { oracle: Oracle; expectedCall?: Call[]; steps: { oracle: Oracle; expectedCall?: Call[] }[] } }) => {
+      const intents = [r.intent, ...r.steps.map((s) => s.intent)];
+      const all = [{ kind: r.kind, oracle: r.key.oracle, calls: r.key.expectedCall }, ...r.steps.map((s, i) => ({ kind: s.kind, oracle: r.key.steps[i]!.oracle, calls: r.key.steps[i]!.expectedCall }))];
+      return all.map((s, i) => ({ id: r.id, n: i + 1, stepped: r.steps.length > 0, apps: r.apps, ...s, intents: intents.slice(0, i + 1) }));
+    }),
+  };
+  const every = [...stepsOf["webmcp-v1"], ...stepsOf["cuj-v1"]];
+  const SIGN_IN = ["sign_up", "verify_email", "sign_in", "sign_out", "whoami"];
+  /** The sites' writes, by the one naming every site keeps (tools/intent-corpus/expected-calls.mjs `isWrite`). */
+  const WRITE = /^(create|cancel|change|place|request|register|book|reorder)(_|$)/;
+  type Matcher = { outcome?: string; action?: string };
+  const matchers = (o: Oracle) => (o.checks ?? []).filter((c) => c.kind === "ledger").flatMap((c) => [c.match].flat() as Matcher[]);
+  /**
+   * A state step that changes something: one of its checks stands on a row, or on a write the ledger shows made. An
+   * impossible step's checks say nothing changed, and that the agent looked or was refused: a refusal is what one
+   * of them stands on, and no changing step's check does.
+   */
+  const changes = (o: Oracle) =>
+    o.kind === "state" &&
+    !matchers(o).some((m) => m.outcome === "refused") &&
+    ((o.checks ?? []).some((c) => (c.kind ?? "row") === "row") || matchers(o).some((m) => m.outcome === "ok" && !["read", "verify", "sign_in", "sign_up"].includes(m.action ?? "")));
+  /** The one change no single call makes: a repeat, which `reorder` and a new `place_order` of the same lines make alike (the templates' `noCall`). */
+  const NO_ONE_WRITE = /-reorder-/;
+
+  it("sit in the keys only: no public record and no verifier spec carries one", () => {
+    for (const file of [WEBMCP.tasks, CUJ.tasks, PROJECTIONS[0].tasks]) expect(readFileSync(join(SPECS_DIR, file), "utf8")).not.toMatch(/"(expectedCall|functionName)"/);
+    for (const file of readdirSync(SPECS_DIR).filter((f) => f.endsWith(".json") && !NOT_A_SPEC.has(f))) expect(readFileSync(join(SPECS_DIR, file), "utf8")).not.toContain('"expectedCall"');
+    expect(every.filter((s) => s.calls).length).toBeGreaterThan(0);
+  });
+
+  it("are a non-empty list of { functionName, arguments }, arguments a partial match in webmcp-evals' constraint vocabulary, never a sign-in tool", () => {
+    const OPS: Record<string, (v: unknown) => boolean> = {
+      $pattern: (v) => typeof v === "string" && (() => { try { new RegExp(v); return true; } catch { return false; } })(),
+      $contains: (v) => typeof v === "string",
+      $lte: (v) => typeof v === "number", $gte: (v) => typeof v === "number", $lt: (v) => typeof v === "number", $gt: (v) => typeof v === "number",
+      $type: (v) => ["string", "number", "boolean", "array", "object", "null"].includes(v as string),
+      $any: (v) => v === true,
+    };
+    const walk = (v: unknown): void => {
+      if (Array.isArray(v)) return v.forEach(walk);
+      if (!v || typeof v !== "object") return;
+      const keys = Object.keys(v);
+      const ops = keys.filter((k) => k.startsWith("$"));
+      // An object is a constraint (every key an operator webmcp-evals reads) or a partial object (none is): never both.
+      expect(ops.length === 0 || ops.length === keys.length).toBe(true);
+      for (const k of ops) expect([k, OPS[k]?.((v as Record<string, unknown>)[k]) ?? false]).toEqual([k, true]);
+      if (!ops.length) Object.values(v).forEach(walk);
+    };
+    for (const s of every.filter((x) => x.calls)) {
+      expect(s.calls!.length).toBeGreaterThan(0);
+      for (const c of s.calls!) {
+        expect(Object.keys(c)).toEqual(["functionName", "arguments"]);
+        expect(c.functionName).toMatch(/^[a-z][a-z_]*$/);
+        expect(SIGN_IN).not.toContain(c.functionName);
+        expect(c.arguments !== null && typeof c.arguments === "object" && !Array.isArray(c.arguments)).toBe(true);
+        walk(c.arguments);
+      }
+    }
+  });
+
+  it("give every state step that changes something its writes, a question only reads, and a step that changes nothing none", () => {
+    for (const s of every) {
+      const at = `${s.id} step ${s.n}`;
+      const names = (s.calls ?? []).map((c) => c.functionName);
+      if (s.kind === "json") expect([at, names.filter((n) => WRITE.test(n))]).toEqual([at, []]);
+      else if (!changes(s.oracle)) expect([at, names]).toEqual([at, []]);
+      else if (NO_ONE_WRITE.test(s.id)) expect([at, names]).toEqual([at, []]);
+      else {
+        expect([at, names.length > 0]).toEqual([at, true]);
+        expect([at, names.filter((n) => !WRITE.test(n))]).toEqual([at, []]);
+      }
+    }
+    // The exception is there to see: changes that no single call makes, none of them given one.
+    expect(every.filter((s) => NO_ONE_WRITE.test(s.id) && changes(s.oracle)).length).toBeGreaterThan(0);
+  });
+
+  for (const [scenario, file] of Object.entries(SUITES) as [keyof typeof SUITES, string][]) {
+    it(`are compose/specs/${file}: one webmcp-evals case per step that has them, its prompts so far and its calls`, () => {
+      const suite = readSpecs(file);
+      const want = stepsOf[scenario].filter((s) => s.calls);
+      expect(suite.length).toBe(want.length);
+      for (const [i, s] of want.entries()) {
+        const c = suite[i];
+        expect(Object.keys(c)).toEqual(["name", "messages", "expectedCall"]);
+        const name = new RegExp(`^${s.id}${s.stepped ? ` step ${s.n}` : ""} \\(([a-z, ]+)\\)$`).exec(c.name);
+        expect([c.name, !!name]).toEqual([c.name, true]);
+        for (const app of name![1]!.split(", ")) expect(s.apps).toContain(app);
+        expect(c.messages).toEqual(s.intents.map((content) => ({ role: "user", type: "message", content })));
+        expect(c.expectedCall).toEqual(s.calls!.length === 1 ? s.calls : [{ unordered: s.calls }]);
+      }
+    });
+  }
 });

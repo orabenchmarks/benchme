@@ -3,11 +3,21 @@
  * refill, inside the site's rules — the return window of each item's category,
  * the stock, the refills left and the pharmacies that stock the dosage. The
  * impossible ones ask for what the rules have closed.
+ *
+ * Expected calls: each return's `request_return` with its order, item, units
+ * and reason; each refill's `request_refill` at the pharmacy the task names or
+ * has the agent find; the exchange's new size its `place_order`. A repeat
+ * declares none (`noCall`): `reorder` of the order and a new `place_order` of
+ * its lines to the address asked make the same order, so neither is necessary. A cost asked after a write is in that
+ * write's answer, so it declares no read; an impossible request declares none.
  */
 import { SPORTS_TODAY, clinicPrescriptionPrices, sportsReturnDeadline, sportsReturnedQty, sportsShippingCents } from "../../../../packages/scenarios/dist/index.js";
+import { call } from "../../calls.mjs";
 import { R, absent, dollars, variantText, impossibleChecks, jsonOracle, money, row, site, stateOracle, PAGES_AND_TOOLS } from "../kit.mjs";
 import { clinicPath, sportsPath } from "../paths.mjs";
 
+/** Why a repeat declares no call: two tools make the same order. */
+const REPEATED = "reorder of the order, or place_order of its lines to the address asked, makes the same order: neither is necessary";
 const AREA = "return-or-repeat";
 const processingOf = (email) => `${sportsPath.ordersOf(email)}&status=processing`;
 const linesOf = (ctx, orderNo) => ctx.sports.linesOf.get(orderNo) ?? [];
@@ -79,6 +89,7 @@ export const repeatTemplates = [
             intent: `On ${site("sports")}, ${c.name} (${c.email}) wants to send back one of ${itemText(ctx, line.sku)} from their order ${o.orderNo}, because it is too small.`,
             rubric: R.change(["sports"], "the return was requested"),
             oracle: stateOracle(returnRow("returned", o.orderNo, line.sku, { qty: 1, reason: "too small" })),
+            calls: [call("request_return", { orderNo: o.orderNo, sku: line.sku, qty: 1, reason: "too small" })],
             solve: (api) => api.post("sports", sportsPath.returns, { orderNo: o.orderNo, sku: line.sku, qty: 1, reason: "too small" }),
           },
           {
@@ -87,6 +98,7 @@ export const repeatTemplates = [
             intent: `Now order one of the same ${product.name} in the same colour in size ${next.size} instead, sent to the same address as that order.`,
             rubric: R.stepChange("the new size was ordered"),
             oracle: stateOracle(row("new size ordered", "sports", processingOf(c.email), { where: { status: "processing" }, expect: { addressCode: o.addressCode, lineCount: 1, lines: { sku: next.sku, qty: 1 } }, entity: { type: "order", id: "{orderNo}" } })),
+            calls: [call("place_order", { customerEmail: c.email, addressCode: o.addressCode, lines: [{ sku: next.sku, qty: 1 }] })],
             solve: (api) => api.post("sports", sportsPath.orders, { customerEmail: c.email, addressCode: o.addressCode, lines: [{ sku: next.sku, qty: 1 }] }),
           },
           {
@@ -95,6 +107,7 @@ export const repeatTemplates = [
             intent: `What does that new order cost in all, shipping included? Answer as JSON: {"total": <dollars>}.`,
             rubric: R.stepAnswer("the new order's total"),
             oracle: jsonOracle({ total: money(total) }),
+            calls: [],
             answer: async (api) => ({ total: (await api.list("sports", processingOf(c.email))).find((x) => x.lines.some((l) => l.sku === next.sku)).totalCents / 100 }),
           },
         ],
@@ -134,6 +147,7 @@ export const repeatTemplates = [
             returnRow("returned", o.orderNo, open.sku, { qty: open.qty, reason: "no longer needed" }),
             ...closed.map((l) => absent(`${l.sku} kept`, "sports", sportsPath.returnsOf(o.orderNo), { where: { sku: l.sku } })),
           ),
+          calls: [call("request_return", { orderNo: o.orderNo, sku: open.sku, qty: open.qty, reason: "no longer needed" })],
           solve: async (api) => {
             const [order, policies] = [await api.get("sports", sportsPath.order(o.orderNo)), await api.get("sports", sportsPath.policies)];
             const windows = new Map(policies.categories.map((x) => [x.key, x.returnWindowDays]));
@@ -171,6 +185,7 @@ export const repeatTemplates = [
           intent: `On ${site("sports")}, ${c.name} wants to send back ${itemText(ctx, line.sku)} from their order ${o.orderNo}: ${how}, because ${left === 1 ? "it is" : "they are"} ${reason}.`,
           rubric: R.change(["sports"], "the return was requested"),
           oracle: stateOracle(row("returned", "sports", sportsPath.returnsOf(o.orderNo), { where: { sku: line.sku, reason }, count: { min: 1, max: 1 }, expect: { qty: left }, entity: { type: "return", id: "{returnNo}" } })),
+          calls: [call("request_return", { orderNo: o.orderNo, sku: line.sku, qty: left, reason })],
           solve: (api) => api.post("sports", sportsPath.returns, { orderNo: o.orderNo, sku: line.sku, qty: left, reason }),
         }],
       };
@@ -197,6 +212,7 @@ export const repeatTemplates = [
           intent: `On ${site("clinic")}, request a refill of ${rxText(ctx, rx)}, to collect at the pharmacy of ${pharmacy.name} (${pharmacy.code}).`,
           rubric: R.change(["clinic"], "the refill was requested"),
           oracle: stateOracle(...refillChecks(rx, pharmacy.code)),
+          calls: [call("request_refill", { rxNo: rx.rxNo, pharmacyCode: pharmacy.code })],
           solve: (api) => api.post("clinic", clinicPath.refill(rx.rxNo), { pharmacyCode: pharmacy.code }),
         }],
       };
@@ -224,6 +240,8 @@ export const repeatTemplates = [
           intent: `On ${site("sports")}, place a new order for ${c.name} (${c.email}) that repeats their order ${o.orderNo}: the same items in the same quantities, sent to the same address.`,
           rubric: R.change(["sports"], "the order was placed again"),
           oracle: stateOracle(...repeatChecks(c.email, lines, o.addressCode)),
+          calls: [],
+          noCall: REPEATED,
           solve: (api) => api.post("sports", sportsPath.reorder(o.orderNo), {}),
         }],
       };
@@ -257,6 +275,8 @@ export const repeatTemplates = [
           intent: `On ${site("sports")}, ${c.name} (${c.email}) wants their most recent order again: the same items in the same quantities, but sent to their ${address.label} address this time.`,
           rubric: R.change(["sports"], "the order was placed again"),
           oracle: stateOracle(...repeatChecks(c.email, lines, address.code)),
+          calls: [],
+          noCall: REPEATED,
           solve: async (api) => {
             const mine = (await api.list("sports", sportsPath.ordersOf(c.email))).sort((x, y) => y.placedOn.localeCompare(x.placedOn) || y.orderNo.localeCompare(x.orderNo));
             const to = (await api.get("sports", sportsPath.customer(c.email))).addresses.find((a) => a.label === address.label);
@@ -292,6 +312,7 @@ export const repeatTemplates = [
           intent: `On ${site("clinic")}, request a refill of ${rxText(ctx, rx)}, to collect at a pharmacy in ${city} that stocks it.`,
           rubric: R.change(["clinic"], "the refill was requested"),
           oracle: stateOracle(...refillChecks(rx, pharmacy.code)),
+          calls: [call("request_refill", { rxNo: rx.rxNo, pharmacyCode: pharmacy.code })],
           solve: async (api) => {
             const offers = (await api.get("clinic", clinicPath.prices(rx.medicationCode, rx.dosage))).filter((x) => x.city === city);
             return api.post("clinic", clinicPath.refill(rx.rxNo), { pharmacyCode: api.only(offers).clinicCode });
@@ -328,6 +349,7 @@ export const repeatTemplates = [
           intent: `On ${site("clinic")}, request a refill of ${rxText(ctx, rx)} at whichever pharmacy charges the least for it.`,
           rubric: R.change(["clinic"], "the refill was requested"),
           oracle: stateOracle(...refillChecks(rx, mine[0].clinicCode)),
+          calls: [call("request_refill", { rxNo: rx.rxNo, pharmacyCode: mine[0].clinicCode })],
           solve: async (api) => {
             const offers = await api.get("clinic", clinicPath.prices(rx.medicationCode, rx.dosage));
             return api.post("clinic", clinicPath.refill(rx.rxNo), { pharmacyCode: offers[0].clinicCode });
@@ -367,6 +389,8 @@ export const repeatTemplates = [
           intent: `On ${site("sports")}, place a new order for ${c.name} (${c.email}) that repeats their most recent delivered order: the same items in the same quantities, sent to the same address.`,
           rubric: R.change(["sports"], "the order was placed again"),
           oracle: stateOracle(...repeatChecks(c.email, lines, delivered.addressCode)),
+          calls: [],
+          noCall: REPEATED,
           solve: async (api) => {
             const mine = (await api.list("sports", sportsPath.ordersOf(c.email))).filter((o) => o.status === "delivered").sort((x, y) => y.placedOn.localeCompare(x.placedOn) || y.orderNo.localeCompare(x.orderNo));
             return api.post("sports", sportsPath.reorder(mine[0].orderNo), {});
@@ -397,6 +421,7 @@ export const repeatTemplates = [
           intent: `On ${site("sports")}, ${c.name} wants to send back ${itemText(ctx, line.sku)} from their order ${o.orderNo}, because it is defective.`,
           rubric: R.impossible(["sports"], "send the item back"),
           oracle: stateOracle(...impossibleChecks({ app: "sports", things: [{ type: "order", id: o.orderNo }], code: "RETURN_WINDOW_CLOSED" })),
+          calls: [],
           solve: (api) => api.attempt("sports", sportsPath.returns, { orderNo: o.orderNo, sku: line.sku, qty: 1, reason: "defective" }),
         }],
       };
@@ -424,6 +449,7 @@ export const repeatTemplates = [
           intent: `On ${site("clinic")}, request a refill of ${rxText(ctx, rx)}, to collect at the pharmacy of ${pharmacy.name} (${pharmacy.code}).`,
           rubric: R.impossible(["clinic"], "request the refill"),
           oracle: stateOracle(...impossibleChecks({ app: "clinic", things: [{ type: "prescription", id: rx.rxNo }], code: "NO_REFILLS_LEFT" })),
+          calls: [],
           solve: (api) => api.attempt("clinic", clinicPath.refill(rx.rxNo), { pharmacyCode: pharmacy.code }),
         }],
       };

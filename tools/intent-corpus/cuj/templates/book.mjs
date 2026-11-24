@@ -4,12 +4,18 @@
  * rule (the party decides the area, the people decide the size) or to two or
  * three requirements; hard ones have a tempting option that does not fit, or
  * run over three prompts. The impossible ones ask for what is sold out.
+ *
+ * Expected calls: each booking's write with what the task fixes (or has the
+ * agent find: the area a party fits, the size that serves the people, the
+ * slot, the session); names and phones left free, seats in any order, and an
+ * impossible request none.
  */
 import {
   addDays, cinemaFreeRuns, cinemaSearchShowtimes, cinemaSeatMap, cinemaTakenSeats, diningAreaLabel, diningSeatingTimes, diningTablesLeft, eventPlacesLeft,
   eventRegisterProblem, flightSeatsLeft, homeSlotsOf, nightsOf, pizzaOutOfStock, pizzaPlaceOrder, pizzaSizeFor, pizzaSlotLeft, pizzaSlots,
   clinicFreeSlots,
 } from "../../../../packages/scenarios/dist/index.js";
+import { anyOrder, call, free, ofType, pattern, someOf } from "../../calls.mjs";
 import { R, about, dollars, impossibleChecks, jsonOracle, money, newPerson, row, seen, site, stateOracle, PAGES_AND_TOOLS } from "../kit.mjs";
 import { cinemaPath, clinicPath, diningPath, eventsPath, flightsPath, homesPath, hotelsPath, pizzaPath, sportsPath } from "../paths.mjs";
 
@@ -34,6 +40,16 @@ const liveRun = (seatMap, n) => {
   return null;
 };
 const counts = (adult, child = 0, senior = 0, student = 0) => ({ adult, child, senior, student });
+/**
+ * A ticket type the mix has none of is free (a run may send 0 or leave it out), and so are adults in a mix of adults
+ * alone: with no counts at all, every seat is an adult ticket.
+ */
+const noneFree = (mix) => {
+  const adultsOnly = Object.entries(mix).every(([type, n]) => type === "adult" || !n);
+  return Object.fromEntries(Object.entries(mix).filter(([type, n]) => !n || adultsOnly).map(([type]) => [type, free]));
+};
+/** Any seat of the screen: a booking of seats side by side may take any free run. */
+const SEAT = pattern("^[A-Z][0-9]+$");
 const visitText = (type) => (type === "in-person" ? "an in-person" : "a video");
 const WORD = ["no", "one", "two", "three", "four", "five", "six"];
 /** "two adult tickets and one child ticket". */
@@ -66,6 +82,7 @@ export const bookTemplates = [
           intent: `On ${site("hotels")}, book the ${room.name} (${room.code}) at ${hotel.name} for ${guest.name} (${guest.email}): three nights from 2027-10-04, for two adults.`,
           rubric: R.change(["hotels"], "the room was booked"),
           oracle: stateOracle(row("booked", "hotels", hotelsPath.bookingsOf(guest.email), { where: { roomCode: room.code, checkIn: "2027-10-04", status: "confirmed" }, count: { min: 1, max: 1 }, expect: { nights: 3, adults: 2, kids: 0 }, entity: { type: "booking", id: "{bookingNo}" } })),
+          calls: [call("create_booking", body, { hotelCode: free, guestName: free })],
           solve: (api) => api.post("hotels", hotelsPath.bookings, body),
         }],
       };
@@ -93,6 +110,7 @@ export const bookTemplates = [
           intent: `On ${site("homes")}, request a viewing of the ${l.type} at ${l.address} (${l.code}) for ${viewer.name} (${viewer.email}) on ${slot.date} at ${slot.time}.`,
           rubric: R.change(["homes"], "the viewing was requested"),
           oracle: stateOracle(row("requested", "homes", homesPath.viewingsOf(viewer.email), { where: { listingCode: l.code, status: "requested" }, count: { min: 1, max: 1 }, expect: { date: slot.date, time: slot.time }, entity: { type: "viewing", id: "{viewingNo}" } })),
+          calls: [call("request_viewing", body, { viewerName: free })],
           solve: (api) => api.post("homes", homesPath.viewings, body),
         }],
       };
@@ -107,23 +125,24 @@ export const bookTemplates = [
     candidates: (ctx) => ctx.rows.clinic.doctors.filter((d) => d.acceptingNewPatients && d.networkPlans.length).flatMap((d) => [16, 30, 44].map((o) => ({ d, date: addDays("2027-08-02", o) }))),
     claims: ({ d, date }) => [`doctor:${d.code}:${date}`],
     build({ d, date }, ctx) {
-      const free = clinicFreeSlots(d, ctx.rows.clinic.appointments, date);
-      if (!free.length) return null;
+      const open = clinicFreeSlots(d, ctx.rows.clinic.appointments, date);
+      if (!open.length) return null;
       const patient = newPerson("book-appointment", 0);
       const plan = ctx.clinic.plan.get(d.networkPlans[0]);
       const visitType = d.visitTypes[0];
-      const body = { doctorCode: d.code, date, time: free[0], visitType, planCode: plan.code, patientName: patient.name, patientEmail: patient.email };
+      const body = { doctorCode: d.code, date, time: open[0], visitType, planCode: plan.code, patientName: patient.name, patientEmail: patient.email };
       return {
         apps: ["clinic"],
         target: d.code,
         effort: { reads: 0, writes: 1 },
-        summary: `${patient.email} has one appointment booked with ${d.code} at ${date} ${free[0]}, ${visitText(visitType)} visit on ${plan.code}.`,
-        note: `${patient.email} → ${d.code} ${date} ${free[0]}, ${visitType}, ${plan.code}`,
+        summary: `${patient.email} has one appointment booked with ${d.code} at ${date} ${open[0]}, ${visitText(visitType)} visit on ${plan.code}.`,
+        note: `${patient.email} → ${d.code} ${date} ${open[0]}, ${visitType}, ${plan.code}`,
         steps: [{
           kind: "state",
-          intent: `On ${site("clinic")}, book ${patient.name} (${patient.email}), a new patient on the ${plan.name} plan, for ${visitText(visitType)} visit with ${d.name} (${d.code}) on ${date} at ${free[0]}.`,
+          intent: `On ${site("clinic")}, book ${patient.name} (${patient.email}), a new patient on the ${plan.name} plan, for ${visitText(visitType)} visit with ${d.name} (${d.code}) on ${date} at ${open[0]}.`,
           rubric: R.change(["clinic"], "the appointment was booked"),
-          oracle: stateOracle(row("booked", "clinic", clinicPath.appointmentsOf(patient.email), { where: { doctorCode: d.code, status: "booked" }, count: { min: 1, max: 1 }, expect: { date, time: free[0], visitType, planCode: plan.code }, entity: { type: "appointment", id: "{appointmentNo}" } })),
+          oracle: stateOracle(row("booked", "clinic", clinicPath.appointmentsOf(patient.email), { where: { doctorCode: d.code, status: "booked" }, count: { min: 1, max: 1 }, expect: { date, time: open[0], visitType, planCode: plan.code }, entity: { type: "appointment", id: "{appointmentNo}" } })),
+          calls: [call("book_appointment", body, { patientName: free })],
           solve: (api) => api.post("clinic", clinicPath.appointments, body),
         }],
       };
@@ -151,6 +170,7 @@ export const bookTemplates = [
           intent: `On ${site("events")}, register ${who.name} (${who.email}) for "${e.title}" (${e.code}) on ${e.date}.`,
           rubric: R.change(["events"], "the registration was made"),
           oracle: stateOracle(row("registered", "events", eventsPath.registrationsOf(who.email), { where: { eventCode: e.code, status: "registered" }, count: { min: 1, max: 1 }, expect: { email: who.email }, entity: { type: "registration", id: "{regNo}" } })),
+          calls: [call("register_for_event", { eventCode: e.code, name: who.name, email: who.email }, { name: free })],
           solve: (api) => api.post("events", eventsPath.register(e.code), { name: who.name, email: who.email }),
         }],
       };
@@ -182,6 +202,7 @@ export const bookTemplates = [
           intent: `On ${site("flights")}, book economy seats on flight ${c.flightNo} on ${date} for ${a.name} and ${b.name}, with no checked bags; the contact email is ${a.email}.`,
           rubric: R.change(["flights"], "the flight was booked"),
           oracle: stateOracle(row("booked", "flights", flightsPath.bookingsOf(a.email), { where: { flightNo: c.flightNo, date, status: "confirmed" }, count: { min: 1, max: 1 }, expect: { cabin: "economy", passengerCount: 2, bags: 0 }, entity: { type: "booking", id: "{bookingNo}" } })),
+          calls: [call("create_booking", body, { passengers: someOf(2, ofType("string")) })],
           solve: (api) => api.post("flights", flightsPath.bookings, body),
         }],
       };
@@ -221,6 +242,7 @@ export const bookTemplates = [
           intent: `On ${site("dining")}, book a table for ${party} at ${r.name} (${r.code}) on ${date} at ${time} for ${guest.name} (${guest.email}, phone ${guest.phone}).`,
           rubric: R.change(["dining"], "the table was booked"),
           oracle: stateOracle(row("booked", "dining", diningPath.reservationsOf(guest.email), { where: { restaurantCode: r.code, date, time, status: "confirmed" }, count: { min: 1, max: 1 }, expect: { partySize: party, area: fitting[0].area }, entity: { type: "reservation", id: "{reservationNo}" } })),
+          calls: [call("create_reservation", body, { guestName: free, guestPhone: free })],
           solve: async (api) => {
             const x = await api.get("dining", diningPath.restaurant(r.code));
             return api.post("dining", diningPath.reservations, { ...body, area: x.seating.find((s) => s.seats >= party).area });
@@ -258,6 +280,7 @@ export const bookTemplates = [
           intent: `On ${site("pizza")}, order one ${p.name} (${p.code}) big enough for ${people} people, for pickup from the ${b.name} branch (${b.code}) at 18:30 on 2027-09-17, for ${customer.name} (${customer.email}).`,
           rubric: R.change(["pizza"], "the order was placed"),
           oracle: stateOracle(row("ordered", "pizza", pizzaPath.ordersOf(customer.email), { where: { branchCode: b.code, slotDate: "2027-09-17", status: "received" }, count: { min: 1, max: 1 }, expect: { slotTime: "18:30", lineCount: 1, lines: { pizzaCode: p.code, size: size.key, quantity: 1 } }, entity: { type: "order", id: "{orderNo}" } })),
+          calls: [call("place_order", body, { customerName: free })],
           solve: async (api) => {
             const sizes = (await api.get("pizza", pizzaPath.builder)).sizes.filter((s) => s.serves >= people).sort((x, y) => x.serves - y.serves);
             return api.post("pizza", pizzaPath.orders, { ...body, lines: [{ pizzaCode: p.code, size: sizes[0].key, quantity: 1 }] });
@@ -301,6 +324,7 @@ export const bookTemplates = [
             intent: `On ${site("cinema")}, book three seats side by side in row ${r.row} for the ${s.time} showing of ${film.title} at ${cinema.name} on ${s.date} (${s.code}), as ${mixText(mix)}, for ${customer.name} (${customer.email}).`,
             rubric: R.change(["cinema"], "the seats were booked"),
             oracle: stateOracle(row("booked", "cinema", cinemaPath.bookingsOf(customer.email), { where: { showtimeCode: s.code, status: "confirmed" }, count: { min: 1, max: 1 }, expect: { seats: seats.join(","), together: true, ticketCounts: mix }, entity: { type: "booking", id: "{bookingNo}" } })),
+            calls: [call("create_booking", body, { seats: anyOrder(seats), customerName: free, ...noneFree(mix) })],
             solve: async (api) => {
               const x = await api.get("cinema", cinemaPath.showtime(s.code));
               return api.post("cinema", cinemaPath.bookings, { ...body, seats: liveRun(x.seatMap.filter((m) => m.row === r.row), n) });
@@ -342,6 +366,7 @@ export const bookTemplates = [
           intent: `On ${site("sports")}, place an order for ${c.name} (${c.email}): one ${product.name} (${product.code}) in size ${v.size}, in whichever colour is in stock in that size, sent to their ${address.label} address.`,
           rubric: R.change(["sports"], "the order was placed"),
           oracle: stateOracle(row("ordered", "sports", sportsPath.ordersOf(c.email), { where: { status: "processing" }, count: { min: 1, max: 1 }, expect: { addressCode: address.code, lineCount: 1, lines: { sku: v.sku, qty: 1 } }, entity: { type: "order", id: "{orderNo}" } })),
+          calls: [call("place_order", { customerEmail: c.email, addressCode: address.code, lines: [{ sku: v.sku, qty: 1 }] })],
           solve: async (api) => {
             const live = (await api.get("sports", sportsPath.product(product.code))).variants.find((x) => x.size === v.size && x.stock > 0);
             const to = (await api.get("sports", sportsPath.customer(c.email))).addresses.find((a) => a.label === address.label);
@@ -373,6 +398,9 @@ export const bookTemplates = [
       const film = ctx.cinema.film.get(target.filmCode);
       const mix = ["15", "18"].includes(film.rating) ? counts(n) : counts(n - 1, 1);
       const customer = newPerson("book-earliest-together", 0);
+      const shown = ctx.cinema.showtime.get(target.showtimeCode);
+      const together = runOf(ctx.cinema.screen.get(shown.screenCode), cinemaTakenSeats(ctx.rows.cinema.bookings, shown.code), n);
+      if (!together) return null;
       return {
         apps: ["cinema"],
         target: target.filmCode,
@@ -386,6 +414,7 @@ export const bookTemplates = [
           intent: `On ${site("cinema")}, book ${n} seats side by side (in one row, next to each other), as ${mixText(mix)}, for ${customer.name} (${customer.email}) at the earliest showing of ${film.title} (${film.code}) at ${target.cinemaName} that still has ${n} free seats side by side.`,
           rubric: R.change(["cinema"], "the seats were booked"),
           oracle: stateOracle(row("booked earliest together", "cinema", cinemaPath.bookingsOf(customer.email), { where: { status: "confirmed" }, count: { min: 1, max: 1 }, expect: { showtimeCode: target.showtimeCode, seatCount: n, together: true }, entity: { type: "booking", id: "{bookingNo}" } })),
+          calls: [call("create_booking", { showtimeCode: target.showtimeCode, seats: together, ...mix, customerName: customer.name, customerEmail: customer.email }, { seats: someOf(n, SEAT), customerName: free, ...noneFree(mix) })],
           solve: async (api) => {
             const o = (await api.get("cinema", cinemaPath.search({ cinemaCode: target.cinemaCode, filmCode: target.filmCode, seats: n, together: true })))[0];
             const x = await api.get("cinema", cinemaPath.showtime(o.showtimeCode));
@@ -434,6 +463,7 @@ export const bookTemplates = [
           intent: `On ${site("pizza")}, order three medium ${p.name} pizzas (${p.code}) for pickup from the ${b.name} branch (${b.code}) on ${date}, for ${customer.name} (${customer.email}), in the earliest pickup slot at or after ${time} that can take all three.`,
           rubric: R.change(["pizza"], "the order was placed"),
           oracle: stateOracle(row("ordered", "pizza", pizzaPath.ordersOf(customer.email), { where: { branchCode: b.code, slotDate: date, status: "received" }, count: { min: 1, max: 1 }, expect: { slotTime: slot.time, lines: { pizzaCode: p.code, quantity: n } }, entity: { type: "order", id: "{orderNo}" } })),
+          calls: [call("place_order", { ...body, slotTime: slot.time }, { customerName: free })],
           solve: async (api) => {
             const first = (await api.get("pizza", pizzaPath.slots(b.code, date, n, time)))[0];
             return api.post("pizza", pizzaPath.orders, { ...body, slotTime: first.time });
@@ -471,6 +501,7 @@ export const bookTemplates = [
             intent: `On ${site("flights")}, book ${a.name} (${a.email}) an economy seat on flight ${out.flightNo} from ${from} to ${to} on 2027-05-24, with no checked bag.`,
             rubric: R.change(["flights"], "the outbound flight was booked"),
             oracle: stateOracle(check("outbound booked", out, "2027-05-24")),
+            calls: [call("create_booking", leg(out, "2027-05-24"), { passengers: someOf(1, ofType("string")) })],
             solve: (api) => api.post("flights", flightsPath.bookings, leg(out, "2027-05-24")),
           },
           {
@@ -479,6 +510,7 @@ export const bookTemplates = [
             intent: `Now the way back: book the same traveller an economy seat on flight ${back.flightNo} on 2027-05-28, again with no checked bag.`,
             rubric: R.stepChange("the return flight was booked"),
             oracle: stateOracle(check("return booked", back, "2027-05-28")),
+            calls: [call("create_booking", leg(back, "2027-05-28"), { passengers: someOf(1, ofType("string")) })],
             solve: (api) => api.post("flights", flightsPath.bookings, leg(back, "2027-05-28")),
           },
           {
@@ -487,6 +519,7 @@ export const bookTemplates = [
             intent: `What do both bookings cost together? Answer as JSON: {"total": <dollars>}.`,
             rubric: R.stepAnswer("what the two bookings cost together"),
             oracle: jsonOracle({ total: money(total) }),
+            calls: [],
             answer: async (api) => ({ total: (await api.list("flights", flightsPath.bookingsOf(a.email))).filter((b) => b.status === "confirmed").reduce((n, b) => n + b.totalCents, 0) / 100 }),
           },
         ],
@@ -526,6 +559,7 @@ export const bookTemplates = [
           intent: `On ${site("events")}, register ${who.name} (${who.email}) for "${answer.title}" at the ${office.name}: the earliest session there that still has places.`,
           rubric: R.change(["events"], "the registration was made"),
           oracle: stateOracle(row("registered", "events", eventsPath.registrationsOf(who.email), { where: { status: "registered" }, count: { min: 1, max: 1 }, expect: { eventCode: answer.code }, entity: { type: "registration", id: "{regNo}" } })),
+          calls: [call("register_for_event", { eventCode: answer.code, name: who.name, email: who.email }, { name: free })],
           solve: async (api) => {
             const live = (await api.list("events", eventsPath.eventsWhere({ office: office.code, q: answer.title, status: "scheduled", hasPlaces: "true", limit: 200 }))).filter((e) => e.title === answer.title);
             return api.post("events", eventsPath.register(live[0].code), { name: who.name, email: who.email });
@@ -559,6 +593,7 @@ export const bookTemplates = [
           intent: `On ${site("cinema")}, book two adult seats together for the ${s.time} showing of ${film.title} at ${cinema.name} on ${s.date} (${s.code}), for ${guest.name} (${guest.email}).`,
           rubric: R.impossible(["cinema"], "book the two seats"),
           oracle: stateOracle(...impossibleChecks({ app: "cinema", things: [{ type: "showtime", id: s.code }], code: "SOLD_OUT" })),
+          calls: [],
           solve: (api) => api.attempt("cinema", cinemaPath.bookings, body),
         }],
       };
@@ -593,6 +628,7 @@ export const bookTemplates = [
           intent: `On ${site("flights")}, book one ${CABIN[c.cabin]} seat on flight ${c.flightNo} on ${date} for ${a.name} (${a.email}), with no checked bag.`,
           rubric: R.impossible(["flights"], "book the seat"),
           oracle: stateOracle(...impossibleChecks({ app: "flights", things: [{ type: "flight", id: c.flightNo }], code: "SOLD_OUT" })),
+          calls: [],
           solve: (api) => api.attempt("flights", flightsPath.bookings, body),
         }],
       };

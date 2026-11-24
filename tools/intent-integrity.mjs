@@ -22,11 +22,16 @@
  *      question asks it is accepted, and a wrong answer is refused — the key
  *      matches what the apps actually show;
  *   3. each state task's reference solution runs through the REST API, then it PASSES;
- *   4. every state task STILL passes once all of them ran — no task undid another.
+ *   4. every state task STILL passes once all of them ran — no task undid another;
+ *   5. for a corpus whose keys carry expected calls (webmcp-v1's), in a SECOND
+ *      fresh workspace, every task done with nothing but its expected calls,
+ *      through MCP, after which every state task that has calls PASSES — the
+ *      calls a key publishes are enough (tools/intent-integrity/calls.mjs).
  *
  * Exits 1 on any surprise, naming the task and the verifier's own words.
  */
 import { buildCorpus } from "./intent-corpus/corpus.mjs";
+import { proveExpectedCalls, taskStepsOf } from "./intent-integrity/calls.mjs";
 import { liveBenchme, perturb } from "./intent-integrity/live.mjs";
 
 const argv = process.argv.slice(2);
@@ -179,6 +184,11 @@ for (const t of solved) {
   if (r.verdict !== "OK") surprise(t.id, `passed, then failed once the other solutions ran — ${said(r)}`);
 }
 passed("pass 4 — every state task still passes after all of them ran", solved.length);
+
+if (Object.keys(corpus.calls ?? {}).length) {
+  const proven = await proveExpectedCalls({ live, scenario: SCENARIO, seed: SEED, tasks: taskStepsOf(corpus), surprise });
+  passed("pass 5 — every state task passes with nothing but its expected calls, made through MCP in a second workspace", proven);
+}
 
 if (surprises.length) {
   console.error(`\n${surprises.length} surprise(s) in ${corpus.tasks.length} tasks`);

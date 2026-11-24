@@ -5,8 +5,17 @@
  * hard ones have a tempting option that does not fit, and the two longest span
  * two sites whose parts depend on each other, with a request refused part-way.
  * The impossible ones ask for what no option can give.
+ *
+ * Expected calls: each booking's write, of the option the task has the agent
+ * find (the room, the showing, the slot, the flight, the table), with what the
+ * task fixes; names and phones left free, the counts of all-adult tickets free
+ * (with no count every seat is an adult's), named seats in any order and, when
+ * any seats side by side will do, any seats of the screen. The refused first
+ * try of a step that recovers is not declared; an impossible request declares
+ * none.
  */
 import { addDays, cinemaSearchShowtimes, cinemaSeatMap, cinemaTakenSeats, diningSeatingTimes, diningTablesLeft, homeSlotsOf, nightsOf, searchFlights, searchStays } from "../../../../packages/scenarios/dist/index.js";
+import { anyOrder, call, free, ofType, pattern, someOf } from "../../calls.mjs";
 import { R, about, dollars, impossibleChecks, newPerson, row, site, sitesText, stateOracle, PAGES_AND_TOOLS } from "../kit.mjs";
 import { cinemaPath, diningPath, flightsPath, homesPath, hotelsPath } from "../paths.mjs";
 
@@ -33,6 +42,10 @@ const hotelBooked = (name, guest, roomCode, checkIn, nights, expect) =>
   row(name, "hotels", hotelsPath.bookingsOf(guest.email), { where: { roomCode, checkIn, status: "confirmed" }, count: { min: 1, max: 1 }, expect: { nights, ...expect }, entity: { type: "booking", id: "{bookingNo}" } });
 const flightBooked = (name, contact, flightNo, date, expect) =>
   row(name, "flights", flightsPath.bookingsOf(contact.email), { where: { flightNo, date, status: "confirmed" }, count: { min: 1, max: 1 }, expect, entity: { type: "booking", id: "{bookingNo}" } });
+/** Any seat of the screen: a booking of seats side by side may take any free run. */
+const SEAT = pattern("^[A-Z][0-9]+$");
+/** The first `n` seats side by side free at a showtime as the rows hold it: what a fresh workspace's seat map shows. */
+const runAt = (ctx, screenCode, showtimeCode, n) => liveRun(cinemaSeatMap(ctx.cinema.screen.get(screenCode), cinemaTakenSeats(ctx.rows.cinema.bookings, showtimeCode)), n);
 
 export const bestTemplates = [
   {
@@ -64,6 +77,7 @@ export const bestTemplates = [
             intent: `On ${site("hotels")}, book the cheapest room at ${hotel.name} (${hotel.code}) that sleeps ${party}, for two nights from ${AUTUMN}, for ${guest.name} (${guest.email}).`,
             rubric: R.change(["hotels"], "the room was booked"),
             oracle: stateOracle(hotelBooked("booked", guest, rooms[0].code, AUTUMN, 2, { adults, kids })),
+            calls: [call("create_booking", { roomCode: rooms[0].code, hotelCode: hotel.code, checkIn: AUTUMN, nights: 2, adults, kids, pets: 0, lateCheckout: false, guestName: guest.name, guestEmail: guest.email }, { hotelCode: free, guestName: free })],
             solve: async (api) => {
               const h = await api.get("hotels", hotelsPath.hotel(hotel.code));
               const room = h.rooms.filter((r) => r.maxAdults >= adults && r.maxKids >= kids).sort((x, y) => x.nightlyCents - y.nightlyCents)[0];
@@ -91,8 +105,8 @@ export const bestTemplates = [
       const first = shows[0];
       const map = cinemaSeatMap(ctx.cinema.screen.get(first.screenCode), cinemaTakenSeats(ctx.rows.cinema.bookings, first.showtimeCode));
       for (const r of [...map].sort((x, y) => Math.abs(x.row.charCodeAt(0) - 69) - Math.abs(y.row.charCodeAt(0) - 69))) {
-        const free = new Set(r.free);
-        const pair = r.seats.map((x) => x.seat).find((seat) => free.has(seat) && free.has(`${r.row}${Number(seat.slice(1)) + 1}`));
+        const open = new Set(r.free);
+        const pair = r.seats.map((x) => x.seat).find((seat) => open.has(seat) && open.has(`${r.row}${Number(seat.slice(1)) + 1}`));
         if (!pair) continue;
         const seats = [pair, `${r.row}${Number(pair.slice(1)) + 1}`];
         const film = ctx.cinema.film.get(first.filmCode);
@@ -109,6 +123,7 @@ export const bestTemplates = [
             intent: `On ${site("cinema")}, book seats ${seats[0]} and ${seats[1]}, two adult tickets, for ${customer.name} (${customer.email}) at the earliest showing of ${film.title} (${film.code}) at ${first.cinemaName} on ${first.date}.`,
             rubric: R.change(["cinema"], "the seats were booked"),
             oracle: stateOracle(row("booked", "cinema", cinemaPath.bookingsOf(customer.email), { where: { status: "confirmed" }, count: { min: 1, max: 1 }, expect: { showtimeCode: first.showtimeCode, seats: seats.join(",") }, entity: { type: "booking", id: "{bookingNo}" } })),
+            calls: [call("create_booking", { showtimeCode: first.showtimeCode, seats, adult: 2, customerName: customer.name, customerEmail: customer.email }, { seats: anyOrder(seats), adult: free, customerName: free })],
             solve: async (api) => {
               const o = (await api.get("cinema", cinemaPath.search({ cinemaCode: first.cinemaCode, filmCode: film.code, date: first.date })))[0];
               return api.post("cinema", cinemaPath.bookings, { showtimeCode: o.showtimeCode, seats, adult: 2, customerName: customer.name, customerEmail: customer.email });
@@ -146,6 +161,7 @@ export const bestTemplates = [
           intent: `On ${site("homes")}, request the earliest viewing you can get of the ${l.type} at ${l.address} (${l.code}), on ${from} or later, for ${viewer.name} (${viewer.email}).`,
           rubric: R.change(["homes"], "the viewing was requested"),
           oracle: stateOracle(row("requested", "homes", homesPath.viewingsOf(viewer.email), { where: { listingCode: l.code, status: "requested" }, count: { min: 1, max: 1 }, expect: { date: first.date, time: first.time }, entity: { type: "viewing", id: "{viewingNo}" } })),
+          calls: [call("request_viewing", { listingCode: l.code, date: first.date, time: first.time, viewerName: viewer.name, viewerEmail: viewer.email }, { viewerName: free })],
           solve: async (api) => {
             const s = (await api.get("homes", homesPath.slots(l.code, `${from}T00:00`)))[0];
             return api.post("homes", homesPath.viewings, { listingCode: l.code, date: s.date, time: s.time, viewerName: viewer.name, viewerEmail: viewer.email });
@@ -185,6 +201,7 @@ export const bestTemplates = [
           intent: `On ${site("flights")}, book the cheapest nonstop flight from ${from} to ${to} on ${date} in economy for ${a.name} and ${b.name}, with no checked bags; the contact email is ${a.email}.`,
           rubric: R.change(["flights"], "the flight was booked"),
           oracle: stateOracle(flightBooked("booked", a, nonstop[0].flightNo, date, { cabin: "economy", passengerCount: 2 })),
+          calls: [call("create_booking", { flightNo: nonstop[0].flightNo, date, cabin: "economy", passengers: [a.name, b.name], bags: 0, contactEmail: a.email }, { passengers: someOf(2, ofType("string")) })],
           solve: async (api) => {
             const o = (await api.get("flights", flightsPath.search({ ...q, maxStops: 0 }))).outbound[0];
             return api.post("flights", flightsPath.bookings, { flightNo: o.flightNo, date, cabin: "economy", passengers: [a.name, b.name], bags: 0, contactEmail: a.email });
@@ -220,6 +237,7 @@ export const bestTemplates = [
           intent: `On ${site("dining")}, book a table for four ${area} at ${r.name} (${r.code}) on ${date}, at 19:00 or as soon after as one is free, for ${guest.name} (${guest.email}, phone ${guest.phone}).`,
           rubric: R.change(["dining"], "the table was booked"),
           oracle: stateOracle(row("booked", "dining", diningPath.reservationsOf(guest.email), { where: { restaurantCode: r.code, date, status: "confirmed" }, count: { min: 1, max: 1 }, expect: { time: first, area: s.area, partySize: 4 }, entity: { type: "reservation", id: "{reservationNo}" } })),
+          calls: [call("create_reservation", { restaurantCode: r.code, area: s.area, date, time: first, partySize: 4, guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone, note: "" }, { guestName: free, guestPhone: free })],
           solve: async (api) => {
             const slots = (await api.get("dining", diningPath.availability(r.code, date, 4))).slots.filter((x) => x.area === s.area && x.time >= "19:00" && x.tablesLeft >= 1).sort((x, y) => x.time.localeCompare(y.time));
             return api.post("dining", diningPath.reservations, { restaurantCode: r.code, area: s.area, date, time: slots[0].time, partySize: 4, guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone, note: "" });
@@ -255,6 +273,7 @@ export const bestTemplates = [
           intent: `On ${site("hotels")}, book the cheapest room in ${city} for two adults for three nights from 2027-11-08, at a hotel with ${AMENITY[amenity]}, for ${guest.name} (${guest.email}).`,
           rubric: R.change(["hotels"], "the room was booked"),
           oracle: stateOracle(hotelBooked("booked", guest, fit[0].roomCode, "2027-11-08", 3, { adults: 2 })),
+          calls: [call("create_booking", { roomCode: fit[0].roomCode, hotelCode: fit[0].hotelCode, checkIn: q.checkIn, nights: 3, adults: 2, kids: 0, pets: 0, lateCheckout: false, guestName: guest.name, guestEmail: guest.email }, { hotelCode: free, guestName: free })],
           solve: async (api) => {
             const o = (await api.get("hotels", hotelsPath.search({ ...q, amenities: [amenity] })))[0];
             return api.post("hotels", hotelsPath.bookings, { roomCode: o.roomCode, hotelCode: o.hotelCode, checkIn: q.checkIn, nights: 3, adults: 2, kids: 0, pets: 0, lateCheckout: false, guestName: guest.name, guestEmail: guest.email });
@@ -296,6 +315,7 @@ export const bestTemplates = [
           intent: `On ${site("flights")}, ${a.name} and ${b.name} fly economy from ${from} to ${to} on ${date}, each with two checked bags. Book the flight that costs them least, bags included; the contact email is ${a.email}.`,
           rubric: R.change(["flights"], "the flight was booked"),
           oracle: stateOracle(flightBooked("booked", a, totals[0].o.flightNo, date, { cabin: "economy", passengerCount: 2, bags: 2 })),
+          calls: [call("create_booking", { flightNo: totals[0].o.flightNo, date, cabin: "economy", passengers: [a.name, b.name], bags: 2, contactEmail: a.email }, { passengers: someOf(2, ofType("string")) })],
           solve: async (api) => {
             const carriers = new Map((await api.get("flights", flightsPath.carriers)).map((c) => [c.code, c]));
             const list = (await api.get("flights", flightsPath.search({ origin, destination, date, passengers: 2, cabin: "economy" }))).outbound.filter((o) => carriers.get(o.carrierCode).maxBags >= 2);
@@ -333,6 +353,7 @@ export const bestTemplates = [
           intent: `On ${site("hotels")}, book the cheapest room in ${city} for two nights from 2027-11-22 for ${guest.name} (${guest.email}), who is bringing their dog.`,
           rubric: R.change(["hotels"], "the room was booked"),
           oracle: stateOracle(hotelBooked("booked", guest, pets[0].roomCode, "2027-11-22", 2, { adults: 1, pets: 1 })),
+          calls: [call("create_booking", { roomCode: pets[0].roomCode, hotelCode: pets[0].hotelCode, checkIn: q.checkIn, nights: 2, adults: 1, kids: 0, pets: 1, lateCheckout: false, guestName: guest.name, guestEmail: guest.email }, { hotelCode: free, guestName: free })],
           solve: async (api) => {
             const o = (await api.get("hotels", hotelsPath.search({ ...q, pets: 1 })))[0];
             return api.post("hotels", hotelsPath.bookings, { roomCode: o.roomCode, hotelCode: o.hotelCode, checkIn: q.checkIn, nights: 2, adults: 1, kids: 0, pets: 1, lateCheckout: false, guestName: guest.name, guestEmail: guest.email });
@@ -354,7 +375,7 @@ export const bestTemplates = [
       return [...groups.values()].filter((g) => g.length >= 3);
     },
     claims: (shows) => [...shows.map((o) => `showtime:${o.showtimeCode}`), `cinema:${shows[0].city}:${shows[0].date}`],
-    build(shows) {
+    build(shows, ctx) {
       for (const after of ["17:00", "18:00", "19:00", "20:00"]) {
         const later = shows.filter((o) => o.time >= after).sort((x, y) => x.adultPriceCents - y.adultPriceCents);
         const trap = shows.filter((o) => o.time < after).sort((x, y) => x.adultPriceCents - y.adultPriceCents)[0];
@@ -374,6 +395,7 @@ export const bestTemplates = [
             intent: `On ${site("cinema")}, book three seats side by side, three adult tickets, for ${customer.name} (${customer.email}) at whichever showing of ${best.filmTitle} (${best.filmCode}) in ${best.city} on ${best.date} starting at ${after} or later has the lowest adult ticket price and still has three seats together.`,
             rubric: R.change(["cinema"], "the seats were booked"),
             oracle: stateOracle(row("booked", "cinema", cinemaPath.bookingsOf(customer.email), { where: { status: "confirmed" }, count: { min: 1, max: 1 }, expect: { showtimeCode: best.showtimeCode, seatCount: 3, together: true }, entity: { type: "booking", id: "{bookingNo}" } })),
+            calls: [call("create_booking", { showtimeCode: best.showtimeCode, seats: runAt(ctx, best.screenCode, best.showtimeCode, 3), adult: 3, customerName: customer.name, customerEmail: customer.email }, { seats: someOf(3, SEAT), adult: free, customerName: free })],
             solve: async (api) => {
               const o = (await api.get("cinema", cinemaPath.search({ city: best.city, filmCode: best.filmCode, date: best.date, after, seats: 3, together: true }))).sort((x, y) => x.adultPriceCents - y.adultPriceCents)[0];
               const x = await api.get("cinema", cinemaPath.showtime(o.showtimeCode));
@@ -446,6 +468,10 @@ export const bestTemplates = [
               flightBooked("flight booked", a, second.flightNo, date, { cabin: "economy", passengerCount: 2, bags: 2 }),
               hotelBooked("hotel booked", a, chosen.roomCode, date, 2, { adults: 2 }),
             ),
+            calls: [
+              call("create_booking", { flightNo: second.flightNo, date, cabin: "economy", passengers: [a.name, b.name], bags: 2, contactEmail: a.email }, { passengers: someOf(2, ofType("string")) }, { app: "flights" }),
+              call("create_booking", { roomCode: chosen.roomCode, hotelCode: chosen.hotelCode, checkIn: date, nights: 2, adults: 2, kids: 0, pets: 0, lateCheckout: false, guestName: a.name, guestEmail: a.email }, { hotelCode: free, guestName: free }, { app: "hotels" }),
+            ],
             solve: async (api) => {
               const carriers = new Map((await api.get("flights", flightsPath.carriers)).map((c) => [c.code, c]));
               const list = (await api.get("flights", flightsPath.search({ origin, destination, date, passengers: 2, cabin: "economy", maxStops: 0 }))).outbound.sort((x, y) => x.departs.localeCompare(y.departs) || x.flightNo.localeCompare(y.flightNo));
@@ -508,6 +534,7 @@ export const bestTemplates = [
             intent: `Five of us are going out on ${o.date}. On ${site("cinema")}, book five seats side by side, five adult tickets, at the earliest showing of ${film.title} (${film.code}) at ${o.cinemaName} that starts at 17:00 or later, for ${guest.name} (${guest.email}).`,
             rubric: R.change(["cinema"], "the seats were booked"),
             oracle: stateOracle(row("film booked", "cinema", cinemaPath.bookingsOf(guest.email), { where: { status: "confirmed" }, count: { min: 1, max: 1 }, expect: { showtimeCode: o.showtimeCode, seatCount: 5, together: true }, entity: { type: "booking", id: "{bookingNo}" } })),
+            calls: [call("create_booking", { showtimeCode: o.showtimeCode, seats: runAt(ctx, o.screenCode, o.showtimeCode, 5), adult: 5, customerName: guest.name, customerEmail: guest.email }, { seats: someOf(5, SEAT), adult: free, customerName: free })],
             solve: async (api) => {
               const s = (await api.get("cinema", cinemaPath.search({ cinemaCode: o.cinemaCode, filmCode: film.code, date: o.date, after: "17:00", seats: 5, together: true })))[0];
               const x = await api.get("cinema", cinemaPath.showtime(s.showtimeCode));
@@ -525,6 +552,7 @@ export const bestTemplates = [
               "Nothing besides that one reservation was made or changed in this step.",
             ],
             oracle: stateOracle(row("dinner booked", "dining", diningPath.reservationsOf(guest.email), { where: { restaurantCode: r.code, date: o.date, status: "confirmed" }, count: { min: 1, max: 1 }, expect: { partySize: 5, area: "indoor", time: dinner }, entity: { type: "reservation", id: "{reservationNo}" } })),
+            calls: [call("create_reservation", { restaurantCode: r.code, area: "indoor", date: o.date, time: dinner, partySize: 5, guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone, note: "" }, { guestName: free, guestPhone: free })],
             solve: async (api) => {
               // What the agent knows from the first step: when the film it booked ends.
               const end = ends;
@@ -563,6 +591,7 @@ export const bestTemplates = [
           intent: `On ${site("dining")}, book the earliest table you can get at ${r.name} (${r.code}) on ${date} for a party of fourteen, for ${guest.name} (${guest.email}, phone ${guest.phone}).`,
           rubric: R.impossible(["dining"], "book a table for fourteen"),
           oracle: stateOracle(...impossibleChecks({ app: "dining", things: [{ type: "restaurant", id: r.code }], code: "PARTY_LIMIT" })),
+          calls: [],
           solve: (api) => api.attempt("dining", diningPath.reservations, body),
         }],
       };
@@ -592,6 +621,7 @@ export const bestTemplates = [
           intent: `On ${site("homes")}, request the earliest viewing you can get of the ${l.type} at ${l.address} (${l.code}) for ${viewer.name} (${viewer.email}).`,
           rubric: R.impossible(["homes"], "request a viewing of it"),
           oracle: stateOracle(...impossibleChecks({ app: "homes", things: [{ type: "listing", id: l.code }], code: "NOT_ACTIVE" })),
+          calls: [],
           solve: (api) => api.attempt("homes", homesPath.viewings, { listingCode: l.code, date: slot.date, time: slot.time, viewerName: viewer.name, viewerEmail: viewer.email }),
         }],
       };

@@ -19,9 +19,18 @@
  * route-date it touches (`flights:route:<from>-<to>:<date>`), and every task
  * that reads or writes one contact's bookings claims that contact. A price
  * quote depends on fares only.
+ *
+ * Expected calls: a booking's `create_booking` with what the task fixes (the
+ * flight, the date, the cabin, the bags, the contact email; each passenger
+ * only as a name, written as the run likes), one per leg of a round trip; a
+ * cancellation's `cancel_booking` of the booking named. A fare is in
+ * `get_flight`, `list_flights` and a search, and a bag fee in `get_flight` and
+ * `list_carriers`, so a quote declares none; a search has as many ways.
  */
 import { addDays, flightSeatsLeft, flightTotalCents, searchFlights, shuffle } from "../../../packages/scenarios/dist/index.js";
+import { call, ofType, someOf } from "../calls.mjs";
 import { int, usd } from "../kit.mjs";
+import { R } from "../rubrics.mjs";
 
 const APP = "flights";
 const BOOKINGS = "/api/v1/bookings";
@@ -79,6 +88,8 @@ const searchPath = (q) =>
   })}`;
 const outbound = async (api, q) => (await api.get(APP, searchPath(q))).outbound;
 const book = (api, body) => api.post(APP, BOOKINGS, body);
+/** The booking a correct solution makes: the reference one's body, through the tool; the passengers by count, as names. */
+const booking = (body) => call("create_booking", body, { passengers: someOf(body.passengers.length, ofType("string")) });
 const withAll = (base, filters) => Object.assign({ ...base }, ...filters.map((c) => c.q));
 
 /**
@@ -162,7 +173,9 @@ export const flightsTemplates = [
           return {
             intent: `On the flight booking site, which flight ${routeText(x, flight)} on ${date} has ${cabin.cabin} seats for ${pax(passengers)}, ${andList(set.map((c) => c.text))}? Answer as JSON: {"flight": "<the flight number>"}.`,
             summary: `The one flight ${routeText(x, flight)} that day with ${cabin.cabin} seats for the party that meets every filter.`,
+            rubric: R.answer([APP], "the flight that meets every requirement"),
             oracle: { kind: "json", expect: { flight: matches[0].flightNo } },
+            calls: [],
             note: `${flight.origin}→${flight.destination} ${date}, ${cabin.cabin} × ${passengers}, ${set.map((c) => c.text).join("; ")} → ${matches[0].flightNo}; ${flight.flightNo} meets every filter but has ${left} ${cabin.cabin} seat(s) left`,
             answer: async (api) => ({ flight: api.only(await outbound(api, q)).flightNo }),
             miss: async () => ({ flight: flight.flightNo }),
@@ -196,7 +209,9 @@ export const flightsTemplates = [
         return {
           intent: `On the flight booking site, is there a flight ${routeText(x, flight)} on ${date} with ${asked} that ${filter.text} and ${cap.text}? Also name the flight that comes closest: the cheapest flight ${routeText(x, flight)} that day with ${asked} that ${filter.text}, at any fare. Answer as JSON: {"exists": <true or false>, "closest": "<the flight number>"}.`,
           summary: `No flight ${routeText(x, flight)} that day meets every requirement; the closest is the cheapest that meets the filter at any fare.`,
+          rubric: R.answer([APP], "whether any flight meets every requirement, and the one that comes closest,"),
           oracle: { kind: "json", expect: { exists: false, closest: closest.flightNo } },
+          calls: [],
           note: `${flight.origin}→${flight.destination} ${date}, ${cabin.cabin} × ${passengers}, ${filter.text}, ≤ ${dollars(cap.q.maxPriceCents)} → none; closest ${closest.flightNo} at ${usd(closest.priceCents)}; ${flight.flightNo} would fit but has ${left} seat(s) left`,
           answer: async (api) => ({
             exists: (await outbound(api, withAll(base, [filter, cap]))).length > 0,
@@ -232,7 +247,9 @@ export const flightsTemplates = [
       return {
         intent: `On the flight booking site, what would it cost in total to book ${pax(passengers)} in ${cabin.cabin} on flight ${flight.flightNo} ${routeText(x, flight)} on ${date}, each passenger with ${bagsText(bags)}? Answer as JSON: {"total": <dollars>}.`,
         summary: `${passengers} ${cabin.cabin} fares on ${flight.flightNo}, plus the carrier's bag fee for every bag of every passenger.`,
+        rubric: R.answer([APP], "what the booking costs in total, its bag fees included,"),
         oracle: { kind: "json", expect: { total: { value: total, tolerance: 0.01 } } },
+        calls: [],
         note: `${flight.flightNo} ${cabin.cabin} ${usd(cabin.priceCents)} × ${passengers} + ${carrier.code} bag fee ${usd(carrier.bagFeeCents)} × ${bags} × ${passengers} → $${total.toFixed(2)}`,
         answer: async (api) => {
           const f = await api.get(APP, `/api/v1/flights/${flight.flightNo}`);
@@ -284,7 +301,9 @@ export const flightsTemplates = [
       return {
         intent: `On the flight booking site, book a round trip ${routeText(x, out)} for ${andList(party)}, with ${traveller.email} as the contact email: out on flight ${out.flightNo} on ${date} and back on flight ${back.flightNo} on ${returnDate}, both in ${cabin}, with ${bagsText(bags)} for each passenger.`,
         summary: `${traveller.email} has one confirmed ${cabin} booking of ${out.flightNo} on ${date} and one of ${back.flightNo} on ${returnDate}, each for both passengers with the bags asked.`,
+        rubric: R.change([APP], "both flights of the round trip were booked"),
         oracle: { kind: "state", checks: [...legChecks("outbound", out, date), ...legChecks("return", back, returnDate)] },
+        calls: [booking(bodyFor(out, date)), booking(bodyFor(back, returnDate))],
         note: `${traveller.email}: ${out.flightNo} ${date} + ${back.flightNo} ${returnDate}, ${cabin}, ${party.join(" & ")}, ${bags} bag(s) each`,
         solve: async (api) => {
           await book(api, bodyFor(out, date));
@@ -320,6 +339,7 @@ export const flightsTemplates = [
         return {
           intent: `On the flight booking site, book the cheapest flight ${routeText(x, flight)} on ${date}${filter ? ` that ${filter.text}` : ""} with ${cabin.cabin} seats for ${party.length === 1 ? party[0] : `all of ${andList(party)}`}, with ${traveller.email} as the contact email. No checked bags.`,
           summary: `${traveller.email} has one confirmed ${cabin.cabin} booking for the whole party on the cheapest flight that day that has the seats${filter ? " and meets the filter" : ""}.`,
+          rubric: R.change([APP], "the flight was booked"),
           oracle: {
             kind: "state",
             checks: [
@@ -333,6 +353,7 @@ export const flightsTemplates = [
               },
             ],
           },
+          calls: [booking(bodyFor(best))],
           note: `${flight.origin}→${flight.destination} ${date}, ${cabin.cabin} × ${passengers}${filter ? `, ${filter.text}` : ""} → ${best.flightNo} at ${usd(best.priceCents)}; ${flight.flightNo} at ${usd(cabin.priceCents)} has ${left} seat(s) left; miss ${wrong.flightNo}`,
           solve: async (api) => book(api, bodyFor((await outbound(api, q))[0])),
           miss: (api) => book(api, bodyFor(wrong)),
@@ -379,7 +400,9 @@ export const flightsTemplates = [
       return {
         intent: `On the flight booking site, ${lead} (contact email ${out.contactEmail}) booked a round trip ${routeText(x, f)}, out on ${out.date} and back on ${back.date}. Cancel only the return flight, and leave the outbound flight and their other bookings as they are.`,
         summary: `${out.contactEmail}'s return flight on ${back.date} is cancelled; the outbound flight and their other confirmed bookings are still confirmed.`,
+        rubric: R.change([APP], "the return flight was cancelled"),
         oracle: { kind: "state", checks: live.map((b) => ({ name: `${b.bookingNo}-${status(b)}`, app: APP, path: `${BOOKINGS}/${b.bookingNo}`, expect: { status: status(b) } })) },
+        calls: [call("cancel_booking", { bookingNo: back.bookingNo })],
         note: `${out.contactEmail}: ${back.bookingNo} (${back.flightNo}, ${back.date}) → cancelled; ${live.filter((b) => b !== back).map((b) => b.bookingNo).join(", ")} stay confirmed`,
         solve: async (api) => {
           const mine = await api.list(APP, `${BOOKINGS}?contactEmail=${encodeURIComponent(out.contactEmail)}&status=confirmed`);

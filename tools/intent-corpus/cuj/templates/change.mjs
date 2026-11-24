@@ -7,8 +7,19 @@
  * tempting option or run over several prompts, the longest with a request the
  * site refuses part-way. The impossible ones ask for a change the site's rules
  * will not make.
+ *
+ * Expected calls: each change's one write, with the booking it changes and
+ * every field of the change (and the organiser's email, which the events site
+ * asks of every change to an event): the new time, the party and the area that
+ * seats it, the size, the room. A guest added or taken off, or a topping taken
+ * off, can be written two ways (the change, or the whole new list), so only
+ * the booking is published for it. An attempt the site refuses on the way is
+ * no call every solution makes, and an impossible change declares none. A
+ * question here (a total, a floor) is answered by what the changes returned or
+ * by one of two reads, so it declares none.
  */
 import { diningSeatingTimes, diningTablesLeft, eventChangeProblem, eventFreeRooms, eventHeadcount, pizzaChangeLine, pizzaSizeFor, pizzaToppingsKey, shuffle } from "../../../../packages/scenarios/dist/index.js";
+import { call, free } from "../../calls.mjs";
 import { R, about, dollars, impossibleChecks, jsonOracle, leftAlone, money, newPerson, row, site, stateOracle, wrote, PAGES_AND_TOOLS } from "../kit.mjs";
 import { diningPath, eventsPath, pizzaPath } from "../paths.mjs";
 
@@ -80,6 +91,7 @@ export const changeTemplates = [
             row("moved", "dining", diningPath.reservation(target.reservationNo), { expect: { status: "confirmed", time, date: target.date, partySize: target.partySize, area: target.area }, entity: reservationRef(target) }),
             leftAlone("other reservations untouched", "dining", others.map(reservationRef)),
           ),
+          calls: [call("change_reservation", { reservationNo: target.reservationNo, time })],
           solve: (api) => api.post("dining", diningPath.change(target.reservationNo), { time }),
         }],
       };
@@ -113,6 +125,7 @@ export const changeTemplates = [
             row("party changed", "dining", diningPath.reservation(target.reservationNo), { expect: { status: "confirmed", partySize: size, time: target.time, date: target.date, area: target.area }, entity: reservationRef(target) }),
             leftAlone("other reservations untouched", "dining", others.map(reservationRef)),
           ),
+          calls: [call("change_reservation", { reservationNo: target.reservationNo, partySize: size })],
           solve: (api) => api.post("dining", diningPath.change(target.reservationNo), { partySize: size }),
         }],
       };
@@ -147,6 +160,7 @@ export const changeTemplates = [
                 ...rest.map((i) => row(`line ${i.line} as it was`, "pizza", pizzaPath.order(target.orderNo), { expect: { lines: { line: i.line, size: i.size, toppingsKey: pizzaToppingsKey(i.toppings), quantity: i.quantity } } })),
                 leftAlone("other orders untouched", "pizza", others.map(orderRef)),
               ),
+              calls: [call("change_order_line", { orderNo: target.orderNo, line: item.line, size })],
               solve: (api) => api.post("pizza", pizzaPath.line(target.orderNo, item.line), { size }),
             }],
           };
@@ -185,6 +199,7 @@ export const changeTemplates = [
               row("moved", "events", eventsPath.event(target.code), { expect: { status: "scheduled", date: target.date, startTime: next.startTime, endTime: next.endTime, roomCode: target.roomCode }, entity: eventRef(target) }),
               leftAlone("other events untouched", "events", others.map(eventRef)),
             ),
+            calls: [call("change_event", { eventCode: target.code, organiserEmail: who.email, startTime: next.startTime, endTime: next.endTime })],
             solve: (api) => api.post("events", eventsPath.change(target.code), { organiserEmail: who.email, startTime: next.startTime, endTime: next.endTime }),
           }],
         };
@@ -223,6 +238,7 @@ export const changeTemplates = [
               row("seated", "dining", diningPath.reservation(target.reservationNo), { expect: { status: "confirmed", partySize: size, area: fit[0].area, time: target.time, date: target.date }, entity: reservationRef(target) }),
               leftAlone("other reservations untouched", "dining", others.map(reservationRef)),
             ),
+            calls: [call("change_reservation", { reservationNo: target.reservationNo, partySize: size, area: fit[0].area })],
             solve: async (api) => {
               const slots = (await api.get("dining", diningPath.availability(r.code, target.date, size))).slots.filter((x) => x.time === target.time && x.tablesLeft >= 1 && x.area !== "private");
               return api.post("dining", diningPath.change(target.reservationNo), { partySize: size, area: api.only(slots).area });
@@ -269,6 +285,7 @@ export const changeTemplates = [
               row("moved", "events", eventsPath.event(target.code), { expect: { status: "scheduled", roomCode: found[0].roomCode, date: target.date, startTime: target.startTime, endTime: target.endTime }, entity: eventRef(target) }),
               leftAlone("other events untouched", "events", others.map(eventRef)),
             ),
+            calls: [call("change_event", { eventCode: target.code, organiserEmail: who.email, roomCode: found[0].roomCode })],
             solve: async (api) => {
               const free = (await api.get("events", eventsPath.freeRooms({ ...q, equipment: [equipment], accessible: true }))).filter((x) => x.roomCode !== target.roomCode);
               return api.post("events", eventsPath.change(target.code), { organiserEmail: who.email, roomCode: api.only(free).roomCode });
@@ -309,6 +326,7 @@ export const changeTemplates = [
                 ...rest.map((i) => row(`line ${i.line} as it was`, "pizza", pizzaPath.order(target.orderNo), { expect: { lines: { line: i.line, size: i.size, toppingsKey: pizzaToppingsKey(i.toppings), quantity: i.quantity } } })),
                 leftAlone("other orders untouched", "pizza", others.map(orderRef)),
               ),
+              calls: [call("change_order_line", { orderNo: target.orderNo, line: item.line, size: size.key })],
               solve: async (api) => {
                 const fits = (await api.get("pizza", pizzaPath.builder)).sizes.filter((s) => s.serves >= people).sort((x, y) => x.serves - y.serves);
                 return api.post("pizza", pizzaPath.line(target.orderNo, item.line), { size: fits[0].key });
@@ -353,6 +371,7 @@ export const changeTemplates = [
               row("moved", "dining", diningPath.reservation(target.reservationNo), { expect: { status: "confirmed", time: answer, area: target.area, partySize: target.partySize, date: target.date }, entity: reservationRef(target) }),
               leftAlone("other reservations untouched", "dining", others.map(reservationRef)),
             ),
+            calls: [call("change_reservation", { reservationNo: target.reservationNo, time: answer })],
             solve: async (api) => {
               const slots = (await api.get("dining", diningPath.availability(r.code, target.date, target.partySize))).slots.filter((x) => x.area === target.area && x.time >= from && x.tablesLeft >= 1 && x.time !== target.time);
               return api.post("dining", diningPath.change(target.reservationNo), { time: slots.sort((x, y) => x.time.localeCompare(y.time))[0].time });
@@ -396,6 +415,7 @@ export const changeTemplates = [
                 intent: `On ${site("pizza")}, ${target.customerName} wants ${pizzaName(ctx, item)} on their order ${target.orderNo} as ${an(sizeName(ctx, size))} instead. Change only that; they have other orders, which stay as they are.`,
                 rubric: R.change(["pizza"], "the pizza's size was changed"),
                 oracle: stateOracle(wrote("resized", "pizza", ref, "change"), row("in the new size", "pizza", pizzaPath.order(target.orderNo), { expect: { lines: { line: item.line, size } } })),
+                calls: [call("change_order_line", { orderNo: target.orderNo, line: item.line, size })],
                 solve: (api) => api.post("pizza", pizzaPath.line(target.orderNo, item.line), { size }),
               },
               {
@@ -408,6 +428,7 @@ export const changeTemplates = [
                   row("without the topping", "pizza", pizzaPath.order(target.orderNo), { expect: { status: "received", lines: { line: item.line, size, toppingsKey: pizzaToppingsKey(kept) } } }),
                   leftAlone("other orders untouched", "pizza", others.map(orderRef)),
                 ),
+                calls: [call("change_order_line", { orderNo: target.orderNo, line: item.line, removeToppings: [topping] }, { removeToppings: free })],
                 solve: (api) => api.post("pizza", pizzaPath.line(target.orderNo, item.line), { removeToppings: [topping] }),
               },
               {
@@ -416,6 +437,7 @@ export const changeTemplates = [
                 intent: `What does the whole order come to now? Answer as JSON: {"total": <dollars>}.`,
                 rubric: R.stepAnswer("the order's new total"),
                 oracle: jsonOracle({ total: money(second.order.totalCents) }),
+                calls: [],
                 answer: async (api) => ({ total: (await api.get("pizza", pizzaPath.order(target.orderNo))).totalCents / 100 }),
               },
             ],
@@ -462,6 +484,7 @@ export const changeTemplates = [
               row("moved", "events", eventsPath.event(target.code), { expect: { status: "scheduled", roomCode: free[0].roomCode, startTime: target.startTime, date: target.date }, entity: eventRef(target) }),
               leftAlone("other events untouched", "events", others.map(eventRef)),
             ),
+            calls: [call("change_event", { eventCode: target.code, organiserEmail: who.email, roomCode: free[0].roomCode })],
             solve: async (api) => {
               const list = (await api.get("events", eventsPath.freeRooms({ ...q, equipment: [equipment] }))).filter((x) => x.roomCode !== target.roomCode);
               return api.post("events", eventsPath.change(target.code), { organiserEmail: who.email, roomCode: api.only(list).roomCode });
@@ -520,6 +543,7 @@ export const changeTemplates = [
               intent: `On ${site("events")}, ${who.name} (${who.email}) organises ${eventText(target)}. Add ${added.name} (${added.email}) to its guest list. Their other events stay as they are.`,
               rubric: R.change(["events"], "the guest was added"),
               oracle: stateOracle(wrote("guest added", "events", ref, "change"), row("on the guest list", "events", eventsPath.event(target.code), { expect: { guests: { email: added.email } } })),
+              calls: [call("change_event", { eventCode: target.code, organiserEmail: who.email, addGuestEmails: [added.email] }, { addGuestEmails: free })],
               solve: (api) => api.post("events", eventsPath.change(target.code), { organiserEmail: who.email, addGuestEmails: [added.email] }),
             },
             {
@@ -528,6 +552,7 @@ export const changeTemplates = [
               intent: `Now move it to ${time.startTime}–${time.endTime} the same day.`,
               rubric: R.stepChange("the event was moved to the new time"),
               oracle: stateOracle(wrote("time moved", "events", ref, "change", { after: "guest added" }), row("at the new time", "events", eventsPath.event(target.code), { expect: { date: target.date, startTime: time.startTime, endTime: time.endTime } })),
+              calls: [call("change_event", { eventCode: target.code, organiserEmail: who.email, ...time })],
               solve: (api) => api.post("events", eventsPath.change(target.code), { organiserEmail: who.email, ...time }),
             },
             {
@@ -539,6 +564,7 @@ export const changeTemplates = [
                 "Nothing besides the room changed in this step.",
               ],
               oracle: stateOracle(wrote("room changed", "events", ref, "change", { after: "time moved" }), row("in the room that holds everyone", "events", eventsPath.event(target.code), { expect: { roomCode: roomy.code, startTime: time.startTime } })),
+              calls: [call("change_event", { eventCode: target.code, organiserEmail: who.email, roomCode: roomy.code })],
               solve: async (api) => {
                 await api.attempt("events", eventsPath.change(target.code), { organiserEmail: who.email, roomCode: tooSmall.code });
                 return api.post("events", eventsPath.change(target.code), { organiserEmail: who.email, roomCode: roomy.code });
@@ -550,6 +576,7 @@ export const changeTemplates = [
               intent: `Take ${ctx.events.person.get(removed)?.name ?? "the guest"} (${removed}) off the guest list.`,
               rubric: R.stepChange("the guest was taken off"),
               oracle: stateOracle(wrote("guest removed", "events", ref, "change", { after: "room changed" }), row("one guest fewer", "events", eventsPath.event(target.code), { expect: { guestCount: guests4.length, guests: { email: added.email } } })),
+              calls: [call("change_event", { eventCode: target.code, organiserEmail: who.email, removeGuestEmails: [removed] }, { removeGuestEmails: free })],
               solve: (api) => api.post("events", eventsPath.change(target.code), { organiserEmail: who.email, removeGuestEmails: [removed] }),
             },
             {
@@ -562,6 +589,7 @@ export const changeTemplates = [
                 row("open with places", "events", eventsPath.event(target.code), { expect: { status: "scheduled", registration: "open", places, roomCode: roomy.code, guestCount: guests4.length } }),
                 leftAlone("other events untouched", "events", others.map(eventRef)),
               ),
+              calls: [call("change_event", { eventCode: target.code, organiserEmail: who.email, registration: "open", places })],
               solve: (api) => api.post("events", eventsPath.change(target.code), { organiserEmail: who.email, registration: "open", places }),
             },
             {
@@ -570,6 +598,7 @@ export const changeTemplates = [
               intent: `Which floor is the room it is in now on? Answer as JSON: {"floor": <number>}.`,
               rubric: R.stepAnswer("the room's floor"),
               oracle: jsonOracle({ floor: roomy.floor }),
+              calls: [],
               answer: async (api) => ({ floor: (await api.get("events", eventsPath.room((await api.get("events", eventsPath.event(target.code))).roomCode))).floor }),
             },
           ],
@@ -601,6 +630,7 @@ export const changeTemplates = [
           intent: `On ${site("pizza")}, ${target.customerName} wants ${pizzaName(ctx, item)} on their order ${target.orderNo} as ${an(sizeName(ctx, size))} instead.`,
           rubric: R.impossible(["pizza"], "make the change"),
           oracle: stateOracle(...impossibleChecks({ app: "pizza", things: [orderRef(target)], code: "ORDER_LOCKED" })),
+          calls: [],
           solve: (api) => api.attempt("pizza", pizzaPath.line(target.orderNo, item.line), { size }),
         }],
       };
@@ -633,6 +663,7 @@ export const changeTemplates = [
             intent: `On ${site("events")}, ${who.name} (${who.email}) organises ${eventText(target)}. Move it to ${room.name} (${room.code}), at the same time.`,
             rubric: R.impossible(["events"], "move the event"),
             oracle: stateOracle(...impossibleChecks({ app: "events", things: [eventRef(target), { type: "room", id: room.code }], code: "ROOM_TAKEN" })),
+            calls: [],
             solve: (api) => api.attempt("events", eventsPath.change(target.code), { organiserEmail: who.email, roomCode: room.code }),
           }],
         };

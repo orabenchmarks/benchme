@@ -20,9 +20,21 @@
  * (`sports:order:<no>`) and the state tasks their customer. A new order is dated
  * SPORTS_TODAY, so a reorder also claims the customer's orders of that month,
  * which the delivery question reads.
+ *
+ * Expected calls: a cancellation's `cancel_order` of the order named; a
+ * return's `request_return` of the line, the units and the reason. A repeat
+ * declares none (`noCall`): `reorder` of the order and a new `place_order` of
+ * its lines to its address make the same order, so neither is necessary.
+ * The return windows and the shipping fee are in `get_store_policies` alone, a
+ * customer's orders are found through `list_orders` alone, and variants across
+ * the catalog through `search_products` alone, so a question that needs one of
+ * them declares that read (with no argument fixed: a run may filter there or
+ * itself).
  */
 import { SPORTS_RETURN_REASONS, SPORTS_TODAY, searchSportsVariants, sportsOrderTotals, sportsReturnDeadline, sportsReturnedQty } from "../../../packages/scenarios/dist/index.js";
+import { call, free } from "../calls.mjs";
 import { int, pick, usd } from "../kit.mjs";
+import { R } from "../rubrics.mjs";
 
 const APP = "sports";
 const ORDERS = "/api/v1/orders";
@@ -68,6 +80,10 @@ const lastOfMonth = (ym) => new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.
 const searchPath = (q) => `/api/v1/search?${new URLSearchParams({ size: q.size, colour: q.colour, maxWeight: String(q.maxWeightGrams), inStock: "true" })}`;
 /** (sku, qty) pairs of an order's lines, as one comparable string. */
 const lineSet = (lines) => lines.map((l) => `${l.sku}×${l.qty}`).sort().join(",");
+/** The store's rules (return windows, shipping): read only there. */
+const policies = () => call("get_store_policies", {});
+/** Why a repeat declares no call: two tools make the same order. */
+const REPEATED = "reorder of the order, or place_order of its lines to its address, makes the same order: neither is necessary";
 
 export const sportsTemplates = [
   {
@@ -103,7 +119,9 @@ export const sportsTemplates = [
       return {
         intent: `On the sports shop site, ${customer.name} (${customer.email}) has several orders on their way. Cancel only their order with the ${product.name} in it that has not shipped yet, and leave their other orders as they are.`,
         summary: `${customer.email}'s unshipped order with the ${product.name} is cancelled; their other orders on the way are unchanged.`,
+        rubric: R.change([APP], "the order was cancelled"),
         oracle: { kind: "state", checks: live.map((o) => ({ name: `${o.orderNo}-${status(o)}`, app: APP, path: `${ORDERS}/${o.orderNo}`, expect: { status: status(o) } })) },
+        calls: [call("cancel_order", { orderNo: target.orderNo })],
         note: `${customer.email}: ${target.orderNo} (${product.code}) → cancelled; ${live.filter((o) => o !== target).map((o) => `${o.orderNo} stays ${o.status}`).join(", ")}`,
         solve: async (api) => {
           const mine = await api.list(APP, `${ORDERS}?customerEmail=${enc(customer.email)}&status=processing`);
@@ -152,6 +170,7 @@ export const sportsTemplates = [
       return {
         intent: `On the sports shop site, place a new order for ${customer.name} (${customer.email}) that repeats their most recent delivered order: the same items in the same quantities, shipped to the same address.`,
         summary: `${customer.email} has one new order with the lines and address of their most recent delivered order.`,
+        rubric: R.change([APP], "the order was placed again"),
         oracle: {
           kind: "state",
           checks: [
@@ -159,6 +178,8 @@ export const sportsTemplates = [
             { name: "same-address", ...on, expect: { addressCode: target.addressCode, lineCount: lines.length } },
           ],
         },
+        calls: [],
+        noCall: REPEATED,
         note: `${customer.email}: repeat ${target.orderNo} (${lineSet(lines)} to ${target.addressCode}); their latest, ${latest.orderNo}, is ${latest.status}`,
         solve: (api) => reorder(api, target.orderNo),
         miss: (api) => reorder(api, latest.orderNo),
@@ -191,10 +212,12 @@ export const sportsTemplates = [
       return {
         intent: `On the sports shop site, ${customer.name} (${customer.email}) wants to return ${qty} of the ${line.qty} units of the ${product.name} (${variantText(x.variant.get(line.sku))}) they received in order ${order.orderNo}. Request that return with the reason "${reason}".`,
         summary: `Order ${order.orderNo} has one return of that line, with the quantity and reason asked.`,
+        rubric: R.change([APP], "the return was requested"),
         oracle: {
           kind: "state",
           checks: [{ name: "returned", app: APP, path: `/api/v1/returns?orderNo=${order.orderNo}`, where: { sku: line.sku }, count: { min: 1, max: 1 }, expect: { qty, reason } }],
         },
+        calls: [call("request_return", { orderNo: order.orderNo, sku: line.sku, qty, reason })],
         note: `${order.orderNo} ${line.sku}: return ${qty} of ${line.qty}, "${reason}"`,
         solve: ask(qty),
         miss: ask(line.qty),
@@ -223,7 +246,9 @@ export const sportsTemplates = [
       return {
         intent: `On the sports shop site, what is the last day on which the ${product.name} from order ${order.orderNo} can be returned? Answer as JSON: {"lastDay": "<YYYY-MM-DD>"}.`,
         summary: `The order's delivery date plus the return window of the product's category.`,
+        rubric: R.answer([APP], "the last day the item can be returned"),
         oracle: { kind: "json", expect: { lastDay: sportsReturnDeadline(order.deliveredOn, window) } },
+        calls: [policies()],
         note: `${order.orderNo} delivered ${order.deliveredOn}, ${product.category} window ${window} days → ${sportsReturnDeadline(order.deliveredOn, window)}`,
         answer: async (api) => {
           const o = await api.get(APP, `${ORDERS}/${order.orderNo}`);
@@ -259,7 +284,9 @@ export const sportsTemplates = [
       return {
         intent: `On the sports shop site, ${customer.name} (${customer.email}) ordered a ${product.name} in ${MONTHS[Number(ym.slice(5)) - 1]} ${ym.slice(0, 4)}. On what date was that order delivered, and to which city? Answer as JSON: {"deliveredOn": "<YYYY-MM-DD>", "city": "<the city>"}.`,
         summary: `The delivery date and the delivery city of the one order of theirs placed that month with that product.`,
+        rubric: R.answer([APP], "the day the order was delivered and the city it went to"),
         oracle: { kind: "json", expect: { deliveredOn: order.deliveredOn, city } },
+        calls: [call("list_orders", { customerEmail: customer.email }, { customerEmail: free })],
         note: `${customer.email} ${ym} ${product.code} → ${order.orderNo}, delivered ${order.deliveredOn} to ${order.addressCode} in ${city} (default address in ${x.defaultAddress(order.customerEmail).city}; shipped ${order.shippedOn})`,
         answer: async (api) => {
           const mine = await api.list(APP, `${ORDERS}?customerEmail=${enc(customer.email)}&placedFrom=${ym}-01&placedTo=${lastOfMonth(ym)}`);
@@ -305,7 +332,9 @@ export const sportsTemplates = [
       return {
         intent: `On the sports shop site, which item in size ${size} and colour ${colour}, in any category, is the cheapest one that weighs at most ${cap} g and is in stock? What would ${qty} of it cost, shipping included? Answer as JSON: {"sku": "<the variant's SKU>", "total": <dollars>}.`,
         summary: `The cheapest in-stock variant in that size and colour within the weight cap, and ${qty} of it with shipping per the store's policy.`,
+        rubric: R.answer([APP], "the cheapest item that meets every requirement, and what the quantity asked costs with shipping,"),
         oracle: { kind: "json", expect: { sku: best.sku, total: { value: totalOf(best), tolerance: 0.01 } } },
+        calls: [call("search_products", {}), policies()],
         note: `${size} ${colour} ≤ ${cap} g → ${best.sku} at ${usd(best.priceCents)} × ${qty} = $${totalOf(best).toFixed(2)} with shipping; ${oos.sku} at ${usd(oos.priceCents)} is out of stock`,
         answer: async (api) => {
           const found = (await api.get(APP, searchPath(q)))[0];

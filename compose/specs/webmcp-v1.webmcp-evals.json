@@ -1,0 +1,2388 @@
+[
+  {
+    "name": "intent-stay-quote-01 (hotels)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the hotel booking site, what would this stay at Eltru House (HT-119) cost in total: one Double room (HT-119-DBL) for 3 nights from 2027-10-03, for 2 adults and 1 child, bringing one dog? Answer as JSON: {\"total\": <dollars>}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_hotel",
+        "arguments": {
+          "hotelCode": "HT-119"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-stay-quote-02 (hotels)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the hotel booking site, what would this stay at Thovi Hotel (HT-109) cost in total: one Family suite (HT-109-FAM) for 4 nights from 2027-10-25, for 3 adults, with late checkout? Answer as JSON: {\"total\": <dollars>}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_hotel",
+        "arguments": {
+          "hotelCode": "HT-109"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-stay-quote-03 (hotels)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the hotel booking site, what would this stay at Marsil Inn (HT-102) cost in total: one Family suite (HT-102-FAM) for 2 nights from 2027-09-11, for 4 adults and 1 child, bringing one dog? Answer as JSON: {\"total\": <dollars>}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_hotel",
+        "arguments": {
+          "hotelCode": "HT-102"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-stay-book-01 (hotels)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the hotel booking site, book the Double room (HT-123-DBL) at Trutrumar Lodge for Emeric Fairweather (emeric.fairweather@travel.example): 3 nights from 2027-05-17, for 1 adult and 1 child."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "roomCode": "HT-123-DBL",
+          "checkIn": "2027-05-17",
+          "nights": 3,
+          "kids": 1,
+          "guestEmail": "emeric.fairweather@travel.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-stay-book-02 (hotels)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the hotel booking site, book the Single room (HT-126-SGL) at Thoom House for Fenna Esterhazy (fenna.esterhazy@travel.example): 4 nights from 2027-04-20, for 1 adult."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "roomCode": "HT-126-SGL",
+          "checkIn": "2027-04-20",
+          "nights": 4,
+          "guestEmail": "fenna.esterhazy@travel.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-stay-book-03 (hotels)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the hotel booking site, book the Single room (HT-120-SGL) at Renlolo Inn for Fenna Fairweather (fenna.fairweather@travel.example): 4 nights from 2027-06-12, for 1 adult, with late checkout."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "roomCode": "HT-120-SGL",
+          "checkIn": "2027-06-12",
+          "nights": 4,
+          "lateCheckout": true,
+          "guestEmail": "fenna.fairweather@travel.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-stay-book-cheapest-01 (hotels)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the hotel booking site, book a room for Corin Esterhazy (corin.esterhazy@travel.example) for 3 nights from 2027-04-22, for 1 adult: the cheapest room in Brenmoor that fits them, is free on every one of those nights, and is in a hotel with a gym."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "roomCode": "HT-117-FAM",
+          "checkIn": "2027-04-22",
+          "nights": 3,
+          "guestEmail": "corin.esterhazy@travel.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-stay-book-cheapest-02 (hotels)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the hotel booking site, book a room for Corin Castellan (corin.castellan@travel.example) for 3 nights from 2027-04-20, for 1 adult and 1 child: the cheapest room in Velmora that fits them, is free on every one of those nights, and is in a hotel with breakfast."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "roomCode": "HT-104-FAM",
+          "checkIn": "2027-04-20",
+          "nights": 3,
+          "kids": 1,
+          "guestEmail": "corin.castellan@travel.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-stay-book-cheapest-03 (hotels)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the hotel booking site, book a room for Basil Draycott (basil.draycott@travel.example) for 3 nights from 2027-04-19, for 2 adults: the cheapest room in Brenmoor that fits them, is free on every one of those nights, and is in a hotel with a gym."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "roomCode": "HT-117-FAM",
+          "checkIn": "2027-04-19",
+          "nights": 3,
+          "adults": 2,
+          "guestEmail": "basil.draycott@travel.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-stay-cancel-one-01 (hotels)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the hotel booking site, Maren Sandoval (maren.sandoval9@example.com) has several bookings. Cancel only their stay at Zylo Suites that starts on 2027-06-11, and leave their other bookings as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_booking",
+        "arguments": {
+          "bookingNo": "BK-10176"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-stay-cancel-one-02 (hotels)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the hotel booking site, Bram Prewitt (bram.prewitt3@example.com) has several bookings. Cancel only their stay at Zyrenel Inn that starts on 2027-05-08, and leave their other bookings as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_booking",
+        "arguments": {
+          "bookingNo": "BK-10021"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-stay-cancel-one-03 (hotels)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the hotel booking site, Vesna Okonjo (vesna.okonjo9@example.com) has several bookings. Cancel only their stay at Silel Suites that starts on 2027-04-07, and leave their other bookings as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_booking",
+        "arguments": {
+          "bookingNo": "BK-10062"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-flight-book-round-trip-01 (flights)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the flight booking site, book a round trip from Quillhaven to Brenmoor for Florin Fenwick and Aurelio Fenwick, with florin.fenwick@travel.example as the contact email: out on flight SZ214 on 2027-05-18 and back on flight EM431 on 2027-05-26, both in economy, with 1 checked bag for each passenger."
+      }
+    ],
+    "expectedCall": [
+      {
+        "unordered": [
+          {
+            "functionName": "create_booking",
+            "arguments": {
+              "flightNo": "SZ214",
+              "date": "2027-05-18",
+              "passengers": [
+                {
+                  "$type": "string"
+                },
+                {
+                  "$type": "string"
+                }
+              ],
+              "bags": 1,
+              "contactEmail": "florin.fenwick@travel.example"
+            }
+          },
+          {
+            "functionName": "create_booking",
+            "arguments": {
+              "flightNo": "EM431",
+              "date": "2027-05-26",
+              "passengers": [
+                {
+                  "$type": "string"
+                },
+                {
+                  "$type": "string"
+                }
+              ],
+              "bags": 1,
+              "contactEmail": "florin.fenwick@travel.example"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "intent-flight-book-round-trip-02 (flights)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the flight booking site, book a round trip from Tessalind to Quillhaven for Cosmin Dunmore and Florin Dunmore, with cosmin.dunmore@travel.example as the contact email: out on flight QE554 on 2027-05-12 and back on flight EM612 on 2027-05-18, both in economy, with 2 checked bags for each passenger."
+      }
+    ],
+    "expectedCall": [
+      {
+        "unordered": [
+          {
+            "functionName": "create_booking",
+            "arguments": {
+              "flightNo": "QE554",
+              "date": "2027-05-12",
+              "passengers": [
+                {
+                  "$type": "string"
+                },
+                {
+                  "$type": "string"
+                }
+              ],
+              "bags": 2,
+              "contactEmail": "cosmin.dunmore@travel.example"
+            }
+          },
+          {
+            "functionName": "create_booking",
+            "arguments": {
+              "flightNo": "EM612",
+              "date": "2027-05-18",
+              "passengers": [
+                {
+                  "$type": "string"
+                },
+                {
+                  "$type": "string"
+                }
+              ],
+              "bags": 2,
+              "contactEmail": "cosmin.dunmore@travel.example"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "intent-flight-book-round-trip-03 (flights)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the flight booking site, book a round trip from Tessalind to Brenmoor for Dagny Bracknell and Greer Bracknell, with dagny.bracknell@travel.example as the contact email: out on flight TF253 on 2027-05-24 and back on flight QE802 on 2027-05-28, both in premium, with 1 checked bag for each passenger."
+      }
+    ],
+    "expectedCall": [
+      {
+        "unordered": [
+          {
+            "functionName": "create_booking",
+            "arguments": {
+              "flightNo": "TF253",
+              "date": "2027-05-24",
+              "cabin": "premium",
+              "passengers": [
+                {
+                  "$type": "string"
+                },
+                {
+                  "$type": "string"
+                }
+              ],
+              "bags": 1,
+              "contactEmail": "dagny.bracknell@travel.example"
+            }
+          },
+          {
+            "functionName": "create_booking",
+            "arguments": {
+              "flightNo": "QE802",
+              "date": "2027-05-28",
+              "cabin": "premium",
+              "passengers": [
+                {
+                  "$type": "string"
+                },
+                {
+                  "$type": "string"
+                }
+              ],
+              "bags": 1,
+              "contactEmail": "dagny.bracknell@travel.example"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "intent-flight-book-cheapest-01 (flights)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the flight booking site, book the cheapest flight from Ostrand to Karrow on 2027-03-05 with business seats for all of Greer Cottrell and Brisa Cottrell, with greer.cottrell@travel.example as the contact email. No checked bags."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "flightNo": "TF341",
+          "date": "2027-03-05",
+          "cabin": "business",
+          "passengers": [
+            {
+              "$type": "string"
+            },
+            {
+              "$type": "string"
+            }
+          ],
+          "contactEmail": "greer.cottrell@travel.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-flight-book-cheapest-02 (flights)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the flight booking site, book the cheapest flight from Velmora to Ostrand on 2027-04-14 that is nonstop with business seats for all of Eluned Cottrell and Hollis Cottrell, with eluned.cottrell@travel.example as the contact email. No checked bags."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "flightNo": "SZ203",
+          "date": "2027-04-14",
+          "cabin": "business",
+          "passengers": [
+            {
+              "$type": "string"
+            },
+            {
+              "$type": "string"
+            }
+          ],
+          "contactEmail": "eluned.cottrell@travel.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-flight-book-cheapest-03 (flights)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the flight booking site, book the cheapest flight from Velmora to Tessalind on 2027-03-22 with premium seats for all of Florin Elsworth and Aurelio Elsworth, with florin.elsworth@travel.example as the contact email. No checked bags."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "flightNo": "TF132",
+          "date": "2027-03-22",
+          "cabin": "premium",
+          "passengers": [
+            {
+              "$type": "string"
+            },
+            {
+              "$type": "string"
+            }
+          ],
+          "contactEmail": "florin.elsworth@travel.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-flight-cancel-return-01 (flights)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the flight booking site, Teodor Okonjo (contact email teodor.okonjo8@example.com) booked a round trip from Brenmoor to Tessalind, out on 2027-03-16 and back on 2027-03-20. Cancel only the return flight, and leave the outbound flight and their other bookings as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_booking",
+        "arguments": {
+          "bookingNo": "BK-10056"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-flight-cancel-return-02 (flights)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the flight booking site, Bram Thorsby (contact email bram.thorsby4@example.com) booked a round trip from Karrow to Quillhaven, out on 2027-04-06 and back on 2027-04-13. Cancel only the return flight, and leave the outbound flight and their other bookings as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_booking",
+        "arguments": {
+          "bookingNo": "BK-10070"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-flight-cancel-return-03 (flights)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the flight booking site, Lior Kowalczyk (contact email lior.kowalczyk4@example.com) booked a round trip from Ostrand to Quillhaven, out on 2027-04-03 and back on 2027-04-12. Cancel only the return flight, and leave the outbound flight and their other bookings as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_booking",
+        "arguments": {
+          "bookingNo": "BK-10076"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-dining-book-note-01 (dining)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the restaurant reservation site, book a table at the bar at Nexlo Kitchen (RS-113) for Elodie Ashcombe (elodie.ashcombe@table.example, phone 555-279-3307): 2 people on 2027-04-08 at 16:30, with this special request, word for word: \"One guest has a severe nut allergy\"."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_reservation",
+        "arguments": {
+          "restaurantCode": "RS-113",
+          "area": "bar",
+          "date": "2027-04-08",
+          "time": "16:30",
+          "partySize": 2,
+          "guestEmail": "elodie.ashcombe@table.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-dining-book-note-02 (dining)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the restaurant reservation site, book an indoor table at Vitrudor Eatery (RS-120) for Benedikt Everleigh (benedikt.everleigh@table.example, phone 555-553-4691): 3 people on 2027-04-22 at 18:00, with this special request, word for word: \"Please seat us together, we may arrive separately\"."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_reservation",
+        "arguments": {
+          "restaurantCode": "RS-120",
+          "area": "indoor",
+          "date": "2027-04-22",
+          "time": "18:00",
+          "partySize": 3,
+          "guestEmail": "benedikt.everleigh@table.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-dining-book-note-03 (dining)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the restaurant reservation site, book an indoor table at Losil Eatery (RS-126) for Florian Fenwick (florian.fenwick@table.example, phone 555-254-9423): 2 people on 2027-05-24 at 18:00, with this special request, word for word: \"One guest is gluten intolerant\"."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_reservation",
+        "arguments": {
+          "restaurantCode": "RS-126",
+          "area": "indoor",
+          "date": "2027-05-24",
+          "time": "18:00",
+          "partySize": 2,
+          "guestEmail": "florian.fenwick@table.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-dining-book-earliest-01 (dining)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the restaurant reservation site, book an indoor table at Kalofal Dining Room (RS-103) for Cosima Fenwick (cosima.fenwick@table.example, phone 555-526-4930), 3 people on 2027-05-07: at 18:30, or if none is free then, at the earliest later time that day when one is."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_reservation",
+        "arguments": {
+          "restaurantCode": "RS-103",
+          "area": "indoor",
+          "date": "2027-05-07",
+          "time": "20:30",
+          "partySize": 3,
+          "guestEmail": "cosima.fenwick@table.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-dining-book-earliest-02 (dining)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the restaurant reservation site, book a terrace table at Thotrusil Bistro (RS-122) for Elodie Dunmore (elodie.dunmore@table.example, phone 555-738-6719), 3 people on 2027-05-03: at 14:00, or if none is free then, at the earliest later time that day when one is."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_reservation",
+        "arguments": {
+          "restaurantCode": "RS-122",
+          "area": "terrace",
+          "date": "2027-05-03",
+          "time": "16:00",
+          "partySize": 3,
+          "guestEmail": "elodie.dunmore@table.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-dining-book-earliest-03 (dining)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the restaurant reservation site, book a terrace table at Falfal Table (RS-124) for Cosima Calloway (cosima.calloway@table.example, phone 555-521-5122), 2 people on 2027-04-12: at 13:00, or if none is free then, at the earliest later time that day when one is."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_reservation",
+        "arguments": {
+          "restaurantCode": "RS-124",
+          "area": "terrace",
+          "date": "2027-04-12",
+          "time": "15:00",
+          "partySize": 2,
+          "guestEmail": "cosima.calloway@table.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-dining-change-party-01 (dining)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the restaurant reservation site, Teodor Thorsby (teodor.thorsby9@example.com) has several reservations. Change only their reservation at Renren Grill on 2027-05-23 to a party of 4, and leave their other reservations as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "change_reservation",
+        "arguments": {
+          "reservationNo": "RV-10095",
+          "partySize": 4
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-dining-change-party-02 (dining)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the restaurant reservation site, Teodor Prewitt (teodor.prewitt8@example.com) has several reservations. Change only their reservation at Thotrusil Bistro on 2027-04-07 to a party of 9, and leave their other reservations as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "change_reservation",
+        "arguments": {
+          "reservationNo": "RV-10034",
+          "partySize": 9
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-dining-change-party-03 (dining)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the restaurant reservation site, Quill Thorsby (quill.thorsby4@example.com) has several reservations. Change only their reservation at Nexquenka Grill on 2027-04-27 to a party of 1, and leave their other reservations as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "change_reservation",
+        "arguments": {
+          "reservationNo": "RV-10077",
+          "partySize": 1
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-pizza-custom-order-01 (pizza)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the pizza ordering site, place a pickup order at Ostrand Riverside (BR-104) for Aurelio Ashdown (aurelio.ashdown@order.example), in the 13:00 slot on 2027-10-20: one Thoka Garden (PZ-113) in the smallest size that serves 3 people, on the thin crust, without the wheat-protein sausage and with walnuts added."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "place_order",
+        "arguments": {
+          "branchCode": "BR-104",
+          "slotDate": "2027-10-20",
+          "slotTime": "13:00",
+          "customerEmail": "aurelio.ashdown@order.example",
+          "lines": [
+            {
+              "pizzaCode": "PZ-113",
+              "size": "large",
+              "crust": "thin",
+              "toppings": [
+                {
+                  "$pattern": "^(?:black-olive|mushroom|pineapple|walnut)$"
+                },
+                {
+                  "$pattern": "^(?:black-olive|mushroom|pineapple|walnut)$"
+                },
+                {
+                  "$pattern": "^(?:black-olive|mushroom|pineapple|walnut)$"
+                },
+                {
+                  "$pattern": "^(?:black-olive|mushroom|pineapple|walnut)$"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-pizza-custom-order-02 (pizza)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the pizza ordering site, place a pickup order at Karrow Castle Hill (BR-112) for Caspian Brightwater (caspian.brightwater@order.example), in the 12:30 slot on 2027-10-20: one Lomar Original (PZ-104) in the smallest size that serves 2 people, on the cheese-stuffed crust, without the artichoke hearts and with walnuts added."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "place_order",
+        "arguments": {
+          "branchCode": "BR-112",
+          "slotDate": "2027-10-20",
+          "slotTime": "12:30",
+          "customerEmail": "caspian.brightwater@order.example",
+          "lines": [
+            {
+              "pizzaCode": "PZ-104",
+              "size": "medium",
+              "crust": "stuffed",
+              "toppings": [
+                {
+                  "$pattern": "^(?:feta|walnut)$"
+                },
+                {
+                  "$pattern": "^(?:feta|walnut)$"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-pizza-custom-order-03 (pizza)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the pizza ordering site, place a pickup order at Tessalind Mill Lane (BR-109) for Florin Copperfield (florin.copperfield@order.example), in the 18:00 slot on 2027-09-17: one Katho Garden (PZ-114) in the smallest size that serves 3 people, on the thin crust, without the red onion and with sweetcorn added."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "place_order",
+        "arguments": {
+          "branchCode": "BR-109",
+          "slotDate": "2027-09-17",
+          "slotTime": "18:00",
+          "customerEmail": "florin.copperfield@order.example",
+          "lines": [
+            {
+              "pizzaCode": "PZ-114",
+              "size": "large",
+              "crust": "thin",
+              "toppings": [
+                {
+                  "$pattern": "^(?:anchovy|meatball|sweetcorn)$"
+                },
+                {
+                  "$pattern": "^(?:anchovy|meatball|sweetcorn)$"
+                },
+                {
+                  "$pattern": "^(?:anchovy|meatball|sweetcorn)$"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-pizza-earliest-slot-01 (pizza)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the pizza ordering site, place a pickup order at Ostrand Riverside (BR-104) for Caspian Dunmore (caspian.dunmore@order.example) on 2027-05-19: 2 small Sillo Original pizzas (PZ-103), in the earliest slot at or after 18:30 that has room for both."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "place_order",
+        "arguments": {
+          "branchCode": "BR-104",
+          "slotDate": "2027-05-19",
+          "slotTime": "20:00",
+          "customerEmail": "caspian.dunmore@order.example",
+          "lines": [
+            {
+              "pizzaCode": "PZ-103",
+              "size": "small",
+              "quantity": 2
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-pizza-earliest-slot-02 (pizza)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the pizza ordering site, place a pickup order at Quillhaven Station Road (BR-106) for Elio Dunmore (elio.dunmore@order.example) on 2027-05-03: 3 medium Elfal Feast pizzas (PZ-107), in the earliest slot at or after 19:00 that has room for all 3."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "place_order",
+        "arguments": {
+          "branchCode": "BR-106",
+          "slotDate": "2027-05-03",
+          "slotTime": "21:00",
+          "customerEmail": "elio.dunmore@order.example",
+          "lines": [
+            {
+              "pizzaCode": "PZ-107",
+              "size": "medium",
+              "quantity": 3
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-pizza-earliest-slot-03 (pizza)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the pizza ordering site, place a pickup order at Brenmoor North Gate (BR-108) for Florin Everly (florin.everly@order.example) on 2027-05-19: 3 small Thoelmar Harvest pizzas (PZ-109), in the earliest slot at or after 16:30 that has room for all 3."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "place_order",
+        "arguments": {
+          "branchCode": "BR-108",
+          "slotDate": "2027-05-19",
+          "slotTime": "17:30",
+          "customerEmail": "florin.everly@order.example",
+          "lines": [
+            {
+              "pizzaCode": "PZ-109",
+              "size": "small",
+              "quantity": 3
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-pizza-remove-topping-01 (pizza)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the pizza ordering site, Vesna Prewitt (vesna.prewitt9@example.org) has several orders. Remove the beef meatballs from their order at Velmora Old Town for the 12:30 slot on 2027-05-07, and leave their other orders as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "change_order_line",
+        "arguments": {
+          "orderNo": "PO-10136",
+          "line": 1
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-pizza-remove-topping-02 (pizza)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the pizza ordering site, Bram Halvard (bram.halvard1@example.org) has several orders. Remove the walnuts from their order at Velmora Station Road for the 18:30 slot on 2027-05-10, and leave their other orders as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "change_order_line",
+        "arguments": {
+          "orderNo": "PO-10093",
+          "line": 1
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-pizza-remove-topping-03 (pizza)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the pizza ordering site, Teodor Mbeki (teodor.mbeki7@example.org) has several orders. Remove the artichoke hearts from their order at Karrow Castle Hill for the 15:30 slot on 2027-05-11, and leave their other orders as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "change_order_line",
+        "arguments": {
+          "orderNo": "PO-10059",
+          "line": 1
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-cinema-book-earliest-together-01 (cinema)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the cinema booking site, book 4 seats side by side (in one row, next to each other) for Evander Copperfield (evander.copperfield@film.example), as 2 adults and 2 students, at the earliest showtime of \"Eltrudor Lantern\" at Quenfal Picturehouse in Velmora that still has 4 free seats side by side."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "showtimeCode": "ST-2111",
+          "seats": [
+            {
+              "$pattern": "^[A-Z][0-9]+$"
+            },
+            {
+              "$pattern": "^[A-Z][0-9]+$"
+            },
+            {
+              "$pattern": "^[A-Z][0-9]+$"
+            },
+            {
+              "$pattern": "^[A-Z][0-9]+$"
+            }
+          ],
+          "adult": 2,
+          "student": 2,
+          "customerEmail": "evander.copperfield@film.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-cinema-book-earliest-together-02 (cinema)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the cinema booking site, book 2 seats side by side (in one row, next to each other) for Florentyna Copperfield (florentyna.copperfield@film.example), as 1 senior and 1 student, at the earliest showtime of \"The Thoren Compass\" at Elfaltru Film Theatre in Tessalind that still has 2 free seats side by side."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "showtimeCode": "ST-2090",
+          "seats": [
+            {
+              "$pattern": "^[A-Z][0-9]+$"
+            },
+            {
+              "$pattern": "^[A-Z][0-9]+$"
+            }
+          ],
+          "senior": 1,
+          "student": 1,
+          "customerEmail": "florentyna.copperfield@film.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-cinema-book-earliest-together-03 (cinema)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the cinema booking site, book 3 seats side by side (in one row, next to each other) for Dagny Dunmore (dagny.dunmore@film.example), as 3 students, at the earliest showtime of \"Loel Signal\" at Lozytho Picturehouse in Karrow that still has 3 free seats side by side."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "showtimeCode": "ST-2103",
+          "seats": [
+            {
+              "$pattern": "^[A-Z][0-9]+$"
+            },
+            {
+              "$pattern": "^[A-Z][0-9]+$"
+            },
+            {
+              "$pattern": "^[A-Z][0-9]+$"
+            }
+          ],
+          "student": 3,
+          "customerEmail": "dagny.dunmore@film.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-cinema-book-row-01 (cinema)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the cinema booking site, book 4 seats side by side in row A for the 12:50 showing of \"Loel Signal\" at Elfaltru Film Theatre on 2027-05-14 (ST-2037), for Aurelio Ashdown (aurelio.ashdown@film.example): 1 adult and 3 seniors."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "showtimeCode": "ST-2037",
+          "seats": [
+            {
+              "$pattern": "^(?:A3|A4|A5|A6)$"
+            },
+            {
+              "$pattern": "^(?:A3|A4|A5|A6)$"
+            },
+            {
+              "$pattern": "^(?:A3|A4|A5|A6)$"
+            },
+            {
+              "$pattern": "^(?:A3|A4|A5|A6)$"
+            }
+          ],
+          "adult": 1,
+          "senior": 3,
+          "customerEmail": "aurelio.ashdown@film.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-cinema-book-row-02 (cinema)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the cinema booking site, book 4 seats side by side in row B for the 15:50 showing of \"The Thoren Compass\" at Quenfal Picturehouse on 2027-05-15 (ST-2058), for Dagny Ashdown (dagny.ashdown@film.example): 3 seniors and 1 student."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "showtimeCode": "ST-2058",
+          "seats": [
+            {
+              "$pattern": "^(?:B1|B2|B3|B4)$"
+            },
+            {
+              "$pattern": "^(?:B1|B2|B3|B4)$"
+            },
+            {
+              "$pattern": "^(?:B1|B2|B3|B4)$"
+            },
+            {
+              "$pattern": "^(?:B1|B2|B3|B4)$"
+            }
+          ],
+          "senior": 3,
+          "student": 1,
+          "customerEmail": "dagny.ashdown@film.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-cinema-book-row-03 (cinema)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the cinema booking site, book 4 seats side by side in row D for the 18:50 showing of \"Rennexnex Orchard\" at Elfaltru Film Theatre on 2027-05-15 (ST-2091), for Florentyna Ashdown (florentyna.ashdown@film.example): 2 children, 1 senior and 1 student."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_booking",
+        "arguments": {
+          "showtimeCode": "ST-2091",
+          "seats": [
+            {
+              "$pattern": "^(?:D1|D2|D3|D4)$"
+            },
+            {
+              "$pattern": "^(?:D1|D2|D3|D4)$"
+            },
+            {
+              "$pattern": "^(?:D1|D2|D3|D4)$"
+            },
+            {
+              "$pattern": "^(?:D1|D2|D3|D4)$"
+            }
+          ],
+          "child": 2,
+          "senior": 1,
+          "student": 1,
+          "customerEmail": "florentyna.ashdown@film.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-cinema-cancel-one-01 (cinema)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the cinema booking site, Lior Sandoval (lior.sandoval7@example.com) has several bookings. Cancel only their booking for \"The Omtho Frontier\" on 2027-05-16, and leave their other bookings as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_booking",
+        "arguments": {
+          "bookingNo": "TK-30018"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-cinema-cancel-one-02 (cinema)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the cinema booking site, Vesna Kowalczyk (vesna.kowalczyk4@example.com) has several bookings. Cancel only their booking for \"Beyond Batruvi\" on 2027-05-14, and leave their other bookings as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_booking",
+        "arguments": {
+          "bookingNo": "TK-30164"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-cinema-cancel-one-03 (cinema)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the cinema booking site, Lior Voss (lior.voss4@example.com) has several bookings. Cancel only their booking for \"The Truom Echo\" on 2027-05-14, and leave their other bookings as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_booking",
+        "arguments": {
+          "bookingNo": "TK-30062"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-cancel-one-01 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, Orrin Kowalczyk (orrin.kowalczyk@example.org) has several orders on their way. Cancel only their order with the Zyom Trail Shoe in it that has not shipped yet, and leave their other orders as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_order",
+        "arguments": {
+          "orderNo": "ORD-10058"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-cancel-one-02 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, Teodor Okonjo (teodor.okonjo@example.org) has several orders on their way. Cancel only their order with the Kaquen Rain Shell in it that has not shipped yet, and leave their other orders as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_order",
+        "arguments": {
+          "orderNo": "ORD-10056"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-cancel-one-03 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, Quill Okonjo (quill.okonjo@example.org) has several orders on their way. Cancel only their order with the Omka Road Helmet in it that has not shipped yet, and leave their other orders as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_order",
+        "arguments": {
+          "orderNo": "ORD-10052"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-return-item-01 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, Vesna Halvard (vesna.halvard@example.org) wants to return 1 of the 2 units of the Zyba Tennis Shoe (size 42, black) they received in order ORD-10031. Request that return with the reason \"too small\"."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "request_return",
+        "arguments": {
+          "orderNo": "ORD-10031",
+          "sku": "SP-118-BLK-42",
+          "qty": 1,
+          "reason": "too small"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-return-item-02 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, Vesna Thorsby (vesna.thorsby@example.org) wants to return 1 of the 2 units of the Omlo Training Swimsuit (size S, grey) they received in order ORD-10018. Request that return with the reason \"too large\"."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "request_return",
+        "arguments": {
+          "orderNo": "ORD-10018",
+          "sku": "SP-116-GRY-S",
+          "qty": 1,
+          "reason": "too large"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-return-item-03 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, Sable Larrabee (sable.larrabee@example.org) wants to return 1 of the 3 units of the Omom Climbing Shoe (size 43, black) they received in order ORD-10025. Request that return with the reason \"defective\"."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "request_return",
+        "arguments": {
+          "orderNo": "ORD-10025",
+          "sku": "SP-119-BLK-43",
+          "qty": 1,
+          "reason": "defective"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-return-by-01 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, what is the last day on which the Losil Daypack from order ORD-10004 can be returned? Answer as JSON: {\"lastDay\": \"<YYYY-MM-DD>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_store_policies",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-return-by-02 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, what is the last day on which the Rennex Training Swimsuit from order ORD-10022 can be returned? Answer as JSON: {\"lastDay\": \"<YYYY-MM-DD>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_store_policies",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-return-by-03 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, what is the last day on which the Thoren Climbing Shoe from order ORD-10028 can be returned? Answer as JSON: {\"lastDay\": \"<YYYY-MM-DD>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_store_policies",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-delivered-where-01 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, Danae Okonjo (danae.okonjo@example.org) ordered a Nexel Chalk Bag in January 2027. On what date was that order delivered, and to which city? Answer as JSON: {\"deliveredOn\": \"<YYYY-MM-DD>\", \"city\": \"<the city>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "list_orders",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-delivered-where-02 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, Sable Larrabee (sable.larrabee@example.org) ordered a Zynex Trail Shoe in March 2027. On what date was that order delivered, and to which city? Answer as JSON: {\"deliveredOn\": \"<YYYY-MM-DD>\", \"city\": \"<the city>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "list_orders",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-delivered-where-03 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, Quill Okonjo (quill.okonjo@example.org) ordered a Zyom Trail Shoe in January 2027. On what date was that order delivered, and to which city? Answer as JSON: {\"deliveredOn\": \"<YYYY-MM-DD>\", \"city\": \"<the city>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "list_orders",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-cheapest-fit-01 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, which item in size 42 and colour black, in any category, is the cheapest one that weighs at most 330 g and is in stock? What would 3 of it cost, shipping included? Answer as JSON: {\"sku\": \"<the variant's SKU>\", \"total\": <dollars>}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "unordered": [
+          {
+            "functionName": "search_products",
+            "arguments": {}
+          },
+          {
+            "functionName": "get_store_policies",
+            "arguments": {}
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-cheapest-fit-02 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, which item in size L and colour blue, in any category, is the cheapest one that weighs at most 120 g and is in stock? What would 1 of it cost, shipping included? Answer as JSON: {\"sku\": \"<the variant's SKU>\", \"total\": <dollars>}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "unordered": [
+          {
+            "functionName": "search_products",
+            "arguments": {}
+          },
+          {
+            "functionName": "get_store_policies",
+            "arguments": {}
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "intent-sport-cheapest-fit-03 (sports)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the sports shop site, which item in size 43 and colour blue, in any category, is the cheapest one that weighs at most 320 g and is in stock? What would 3 of it cost, shipping included? Answer as JSON: {\"sku\": \"<the variant's SKU>\", \"total\": <dollars>}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "unordered": [
+          {
+            "functionName": "search_products",
+            "arguments": {}
+          },
+          {
+            "functionName": "get_store_policies",
+            "arguments": {}
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "intent-home-only-match-01 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, which active listing (not pending or sold) is a house in Tessalind with at least 3 bedrooms, at least 1 bathroom and solar panels, at an asking price of no more than $750,000? Answer as JSON: {\"listing\": \"<the listing's code, LS-…>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "search_listings",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-home-only-match-02 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, which active listing (not pending or sold) is a house in Tessalind with at least 3 bedrooms, at least 1 bathroom and a garage, at an asking price of no more than $700,000? Answer as JSON: {\"listing\": \"<the listing's code, LS-…>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "search_listings",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-home-only-match-03 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, which active listing (not pending or sold) is a house in Karrow with at least 2 bedrooms, at least 1 bathroom and air conditioning, at an asking price of no more than $1,500,000? Answer as JSON: {\"listing\": \"<the listing's code, LS-…>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "search_listings",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-home-no-match-01 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, is there an active listing (not pending or sold) that is a house in Velmora with at least 3 bedrooms, at least 1 bathroom, a garage and air conditioning, at an asking price of no more than $780,000? Also name the listing that comes closest: the cheapest active listing that is a house in Velmora with at least 3 bedrooms, at least 1 bathroom, a garage and air conditioning, at any price. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the listing's code, LS-…>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "search_listings",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-home-no-match-02 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, is there an active listing (not pending or sold) that is a house in Ostrand with at least 2 bedrooms and at least 1 bathroom, where pets are allowed, at an asking price of no more than $740,000? Also name the listing that comes closest: the cheapest active listing that is a house in Ostrand with at least 2 bedrooms and at least 1 bathroom, where pets are allowed, at any price. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the listing's code, LS-…>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "search_listings",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-home-no-match-03 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, is there an active listing (not pending or sold) that is a house in Karrow with at least 2 bedrooms, at least 1 bathroom, a garden and air conditioning, at an asking price of no more than $1,490,000? Also name the listing that comes closest: the cheapest active listing that is a house in Karrow with at least 2 bedrooms, at least 1 bathroom, a garden and air conditioning, at any price. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the listing's code, LS-…>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "search_listings",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-home-viewing-earliest-01 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, request a viewing of the 1-bedroom apartment at 79 Quennex Way, Kavi Park, Velmora (LS-3109) for Clemence Cardew (clemence.cardew@homebuyer.example) in the earliest free viewing slot that starts at or after 13:00 on 2027-06-15."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "request_viewing",
+        "arguments": {
+          "listingCode": "LS-3109",
+          "date": "2027-06-17",
+          "time": "11:30",
+          "viewerEmail": "clemence.cardew@homebuyer.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-home-viewing-earliest-02 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, request a viewing of the 2-bedroom apartment at 111 Dortru Avenue, Vimar Park, Quillhaven (LS-3133) for Benedikt Elsworth (benedikt.elsworth@homebuyer.example) in the earliest free viewing slot that starts at or after 10:00 on 2027-06-16."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "request_viewing",
+        "arguments": {
+          "listingCode": "LS-3133",
+          "date": "2027-06-18",
+          "time": "10:00",
+          "viewerEmail": "benedikt.elsworth@homebuyer.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-home-viewing-earliest-03 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, request a viewing of the 1-bedroom apartment at 175 Omdor Way, Renba Hill, Quillhaven (LS-3144) for Aurelie Elsworth (aurelie.elsworth@homebuyer.example) in the earliest free viewing slot that starts at or after 14:00 on 2027-06-11."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "request_viewing",
+        "arguments": {
+          "listingCode": "LS-3144",
+          "date": "2027-06-15",
+          "time": "10:00",
+          "viewerEmail": "aurelie.elsworth@homebuyer.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-home-viewing-book-01 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, request a viewing of the 4-bedroom house at 217 Martru Street, Kavi Park, Velmora (LS-3110) for Odile Brightwell (odile.brightwell@homebuyer.example) on 2027-06-08 at 14:30."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "request_viewing",
+        "arguments": {
+          "listingCode": "LS-3110",
+          "date": "2027-06-08",
+          "time": "14:30",
+          "viewerEmail": "odile.brightwell@homebuyer.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-home-viewing-book-02 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, request a viewing of the 3-bedroom apartment at 4 Kalo Avenue, Lozy Hill, Brenmoor (LS-3158) for Rhoswen Fanshawe (rhoswen.fanshawe@homebuyer.example) on 2027-06-10 at 14:00."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "request_viewing",
+        "arguments": {
+          "listingCode": "LS-3158",
+          "date": "2027-06-10",
+          "time": "14:00",
+          "viewerEmail": "rhoswen.fanshawe@homebuyer.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-home-viewing-book-03 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, request a viewing of the 1-bedroom apartment at 120 Kaom Row, Truel Heights, Velmora (LS-3115) for Ulric Dunmore (ulric.dunmore@homebuyer.example) on 2027-06-16 at 15:00."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "request_viewing",
+        "arguments": {
+          "listingCode": "LS-3115",
+          "date": "2027-06-16",
+          "time": "15:00",
+          "viewerEmail": "ulric.dunmore@homebuyer.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-home-viewing-cancel-one-01 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, Orrin Larrabee (orrin.larrabee4@mail.example) has requested several viewings. Cancel only their viewing of the 1-bedroom apartment at 67 Quensil Street, Renzy Fields, Ostrand (LS-3127) on 2027-06-11, and leave their other viewing requests as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_viewing",
+        "arguments": {
+          "viewingNo": "VW-1061"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-home-viewing-cancel-one-02 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, Lior Voss (lior.voss7@mail.example) has requested several viewings. Cancel only their viewing of the 1-bedroom apartment at 93 Elnex Avenue, Elmar Hill, Karrow (LS-3182) on 2027-06-15, and leave their other viewing requests as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_viewing",
+        "arguments": {
+          "viewingNo": "VW-1105"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-home-viewing-cancel-one-03 (homes)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the home listings site, Maren Sandoval (maren.sandoval9@mail.example) has requested several viewings. Cancel only their viewing of the 4-bedroom house at 119 Lodor Road, Vivi Gardens, Brenmoor (LS-3154) on 2027-06-12, and leave their other viewing requests as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_viewing",
+        "arguments": {
+          "viewingNo": "VW-1088"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-only-doctor-01 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, which general practice doctor in Ostrand speaks Vietnamese, offers in-person visits, is in network for the Rendor Basic plan (PL-11), is accepting new patients and has a free appointment on 2027-03-25? Answer as JSON: {\"doctor\": \"<the doctor's code, DR-…>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "find_doctors",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-only-doctor-02 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, which general practice doctor in Velmora offers in-person visits, is in network for the Rendor Basic plan (PL-11), is accepting new patients and has a free appointment on 2027-03-01? Answer as JSON: {\"doctor\": \"<the doctor's code, DR-…>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "find_doctors",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-only-doctor-03 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, which general practice doctor in Quillhaven is in network for the Thotho Select plan (PL-14), is accepting new patients and has a free appointment on 2027-03-16? Answer as JSON: {\"doctor\": \"<the doctor's code, DR-…>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "find_doctors",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-no-doctor-01 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, is there a pediatrics doctor in Brenmoor who offers in-person visits, is in network for the Kazy Plus plan (PL-13) and has a free appointment on 2027-04-01? Also name the doctor who comes closest: of the pediatrics doctors in Brenmoor who meet every one of those requirements except being in network for the Kazy Plus plan, the one with the lowest in-person visit fee. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the doctor's code, DR-…>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "find_doctors",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-no-doctor-02 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, is there a general practice doctor in Karrow who offers video visits, is in network for the Kazy Plus plan (PL-13), is accepting new patients and has a free appointment on 2027-03-05? Also name the doctor who comes closest: of the general practice doctors in Karrow who meet every one of those requirements except being in network for the Kazy Plus plan, the one with the lowest video visit fee. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the doctor's code, DR-…>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "find_doctors",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-no-doctor-03 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, is there a pediatrics doctor in Quillhaven who offers video visits, is in network for the Dorfal Standard plan (PL-12) and has a free appointment on 2027-03-04? Also name the doctor who comes closest: of the pediatrics doctors in Quillhaven who meet every one of those requirements except being in network for the Dorfal Standard plan, the one with the lowest video visit fee. Answer as JSON: {\"exists\": <true or false>, \"closest\": \"<the doctor's code, DR-…>\"}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "find_doctors",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-visit-cost-01 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, a patient on the Thotho Select plan (PL-14) has an in-person visit with Dr. Danae Renvizy (DR-211) and, at that visit, the Bael screening (PR-307). What do they pay in total for the visit and the procedure, and does their plan require prior authorisation for the procedure? Assume any prior authorisation the plan requires is given. Answer as JSON: {\"total\": <dollars>, \"priorAuthorisation\": <true or false>}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_plan",
+        "arguments": {
+          "planCode": "PL-14"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-visit-cost-02 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, a patient on the Thotho Select plan (PL-14) has an in-person visit with Dr. Orrin Nexba (DR-216) and, at that visit, the Renkaka panel (PR-303). What do they pay in total for the visit and the procedure, and does their plan require prior authorisation for the procedure? Assume any prior authorisation the plan requires is given. Answer as JSON: {\"total\": <dollars>, \"priorAuthorisation\": <true or false>}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_plan",
+        "arguments": {
+          "planCode": "PL-14"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-visit-cost-03 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, a patient on the Dorfal Standard plan (PL-12) has an in-person visit with Dr. Danae Bavi (DR-218) and, at that visit, the Nexomvi panel (PR-302). What do they pay in total for the visit and the procedure, and does their plan require prior authorisation for the procedure? Assume any prior authorisation the plan requires is given. Answer as JSON: {\"total\": <dollars>, \"priorAuthorisation\": <true or false>}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_plan",
+        "arguments": {
+          "planCode": "PL-12"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-book-earliest-01 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, book Caspian Calloway (caspian.calloway@patient.example), a new patient on the Dorfal Standard plan (PL-12), into the earliest free video appointment with Dr. Maren Viba (DR-227) on 2027-04-07 that starts at 10:00 or later."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "book_appointment",
+        "arguments": {
+          "doctorCode": "DR-227",
+          "date": "2027-04-07",
+          "time": "10:30",
+          "visitType": "video",
+          "planCode": "PL-12",
+          "patientEmail": "caspian.calloway@patient.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-book-earliest-02 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, book Gideon Abernathy (gideon.abernathy@patient.example), a new patient on the Kazy Plus plan (PL-13), into the earliest free video appointment with Dr. Quill Kakalo (DR-204) on 2027-04-15 that starts at 11:00 or later."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "book_appointment",
+        "arguments": {
+          "doctorCode": "DR-204",
+          "date": "2027-04-15",
+          "time": "11:30",
+          "visitType": "video",
+          "planCode": "PL-13",
+          "patientEmail": "gideon.abernathy@patient.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-book-earliest-03 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, book Evander Calloway (evander.calloway@patient.example), a new patient on the Dorfal Standard plan (PL-12), into the earliest free in-person appointment with Dr. Maren Loelmar (DR-230) on 2027-03-25 that starts at 14:00 or later."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "book_appointment",
+        "arguments": {
+          "doctorCode": "DR-230",
+          "date": "2027-03-25",
+          "time": "14:30",
+          "visitType": "in-person",
+          "planCode": "PL-12",
+          "patientEmail": "evander.calloway@patient.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-cancel-one-01 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, Teodor Okonjo (teodor.okonjo3@example.com) has several appointments. Cancel only their appointment with Dr. Teodor Trufalka on 2027-05-14, and leave their other appointments as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_appointment",
+        "arguments": {
+          "appointmentNo": "AP-30157"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-cancel-one-02 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, Quill Okonjo (quill.okonjo9@example.com) has several appointments. Cancel only their appointment with Dr. Bram Zyeltru on 2027-05-13, and leave their other appointments as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_appointment",
+        "arguments": {
+          "appointmentNo": "AP-30010"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-cancel-one-03 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, Maren Larrabee (maren.larrabee5@example.com) has several appointments. Cancel only their appointment with Dr. Orrin Nexba on 2027-03-01, and leave their other appointments as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_appointment",
+        "arguments": {
+          "appointmentNo": "AP-30079"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-refill-cheapest-01 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, request a refill of Bram Voss's (bram.voss6@example.com) Silthoostat 40 mg prescription, to be collected at the pharmacy in the network that charges the least for Silthoostat 40 mg."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "request_refill",
+        "arguments": {
+          "rxNo": "RX-60004",
+          "pharmacyCode": "CL-11"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-refill-cheapest-02 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, request a refill of Maren Larrabee's (maren.larrabee2@example.com) Truloane 25 mg prescription, to be collected at the pharmacy in the network that charges the least for Truloane 25 mg."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "request_refill",
+        "arguments": {
+          "rxNo": "RX-60062",
+          "pharmacyCode": "CL-11"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-clinic-refill-cheapest-03 (clinic)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the clinic network site, request a refill of Maren Thorsby's (maren.thorsby8@example.com) Zyfalol 10 mg prescription, to be collected at the pharmacy in the network that charges the least for Zyfalol 10 mg."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "request_refill",
+        "arguments": {
+          "rxNo": "RX-60021",
+          "pharmacyCode": "CL-16"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-event-create-01 (events)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the office events site, create an event for Lior Ferrante (lior.ferrante@staff.example) in Vimar room (KAR-R5) at the Karrow office on Friday 1 October 2027 at 11 AM for 2 hours. Title it \"Launch rehearsal\" with the description \"rehearse the launch talk\". Open it to registration with 8 places. Invite quill.mbeki@staff.example, sable.halvard@staff.example and noor.lindqvist@partner.example."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_event",
+        "arguments": {
+          "date": "2027-10-01",
+          "startTime": "11:00",
+          "endTime": "13:00",
+          "roomCode": "KAR-R5",
+          "organiserEmail": "lior.ferrante@staff.example",
+          "guestEmails": [
+            {
+              "$pattern": "^(?:quill\\.mbeki@staff\\.example|sable\\.halvard@staff\\.example|noor\\.lindqvist@partner\\.example)$"
+            },
+            {
+              "$pattern": "^(?:quill\\.mbeki@staff\\.example|sable\\.halvard@staff\\.example|noor\\.lindqvist@partner\\.example)$"
+            },
+            {
+              "$pattern": "^(?:quill\\.mbeki@staff\\.example|sable\\.halvard@staff\\.example|noor\\.lindqvist@partner\\.example)$"
+            }
+          ],
+          "registration": "open",
+          "places": 8
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-event-create-02 (events)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the office events site, create an event for Sable Halvard (sable.halvard@staff.example) in Renka room (KAR-R2) at the Karrow office on Tuesday 23 November 2027 at 4 PM for 45 minutes. Title it \"Launch rehearsal\" with the description \"rehearse the launch talk\". Open it to registration with 4 places. Invite danae.sandoval@staff.example, ilsa.voss@staff.example and rue.selwyn@partner.example."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_event",
+        "arguments": {
+          "date": "2027-11-23",
+          "startTime": "16:00",
+          "endTime": "16:45",
+          "roomCode": "KAR-R2",
+          "organiserEmail": "sable.halvard@staff.example",
+          "guestEmails": [
+            {
+              "$pattern": "^(?:danae\\.sandoval@staff\\.example|ilsa\\.voss@staff\\.example|rue\\.selwyn@partner\\.example)$"
+            },
+            {
+              "$pattern": "^(?:danae\\.sandoval@staff\\.example|ilsa\\.voss@staff\\.example|rue\\.selwyn@partner\\.example)$"
+            },
+            {
+              "$pattern": "^(?:danae\\.sandoval@staff\\.example|ilsa\\.voss@staff\\.example|rue\\.selwyn@partner\\.example)$"
+            }
+          ],
+          "registration": "open",
+          "places": 4
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-event-create-03 (events)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the office events site, create an event for Bram Mbeki (bram.mbeki@staff.example) in Zylo room (QUI-R6) at the Quillhaven office on Tuesday 12 October 2027 at 10 AM for 1 hour. Title it \"Supplier review\" with the description \"go through the open supplier issues\". Make it invitation only. Invite teodor.mbeki@staff.example, danae.voss@staff.example and rue.selwyn@partner.example."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "create_event",
+        "arguments": {
+          "date": "2027-10-12",
+          "startTime": "10:00",
+          "endTime": "11:00",
+          "roomCode": "QUI-R6",
+          "organiserEmail": "bram.mbeki@staff.example",
+          "guestEmails": [
+            {
+              "$pattern": "^(?:teodor\\.mbeki@staff\\.example|danae\\.voss@staff\\.example|rue\\.selwyn@partner\\.example)$"
+            },
+            {
+              "$pattern": "^(?:teodor\\.mbeki@staff\\.example|danae\\.voss@staff\\.example|rue\\.selwyn@partner\\.example)$"
+            },
+            {
+              "$pattern": "^(?:teodor\\.mbeki@staff\\.example|danae\\.voss@staff\\.example|rue\\.selwyn@partner\\.example)$"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-event-register-session-01 (events)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the office events site, register Sable Thorsby (sable.thorsby@staff.example) for one session of \"Data privacy basics\" at the Brenmoor office: the earliest session there that still has places left."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "register_for_event",
+        "arguments": {
+          "eventCode": "EV-1055",
+          "email": "sable.thorsby@staff.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-event-register-session-02 (events)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the office events site, register Ilsa Kowalczyk (ilsa.kowalczyk@staff.example) for one session of \"First-aid course\" at the Tessalind office: the earliest session there that still has places left."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "register_for_event",
+        "arguments": {
+          "eventCode": "EV-1079",
+          "email": "ilsa.kowalczyk@staff.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-event-register-session-03 (events)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the office events site, register Ilsa Prewitt (ilsa.prewitt@staff.example) for one session of \"Negotiation basics\" at the Tessalind office: the earliest session there that still has places left."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "register_for_event",
+        "arguments": {
+          "eventCode": "EV-1063",
+          "email": "ilsa.prewitt@staff.example"
+        }
+      }
+    ]
+  },
+  {
+    "name": "intent-event-most-places-01 (events)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the office events site, of the scheduled sessions of \"Expense tool walkthrough\" at the Tessalind office, which one has the most places left, and how many places are left in it? Answer as JSON: {\"event\": \"<the event's code, EV-…>\", \"placesLeft\": <number>}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "list_events",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-event-most-places-02 (events)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the office events site, of the scheduled sessions of \"Expense tool walkthrough\" at the Karrow office, which one has the most places left, and how many places are left in it? Answer as JSON: {\"event\": \"<the event's code, EV-…>\", \"placesLeft\": <number>}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "list_events",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-event-most-places-03 (events)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the office events site, of the scheduled sessions of \"Expense tool walkthrough\" at the Velmora office, which one has the most places left, and how many places are left in it? Answer as JSON: {\"event\": \"<the event's code, EV-…>\", \"placesLeft\": <number>}."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "list_events",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-event-cancel-registration-01 (events)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the office events site, Sable Okonjo (sable.okonjo@visitor.example) is registered for several events. Cancel only their registration for \"Data privacy basics\" on Thursday 3 June 2027, and leave their other registrations as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_registration",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-event-cancel-registration-02 (events)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the office events site, Ilsa Voss (ilsa.voss@staff.example) is registered for several events. Cancel only their registration for \"Negotiation basics\" on Thursday 27 May 2027, and leave their other registrations as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_registration",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "intent-event-cancel-registration-03 (events)",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "On the office events site, Danae Halvard (danae.halvard@staff.example) is registered for several events. Cancel only their registration for \"Pricing sync\" on Thursday 17 June 2027, and leave their other registrations as they are."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "cancel_registration",
+        "arguments": {}
+      }
+    ]
+  }
+]
