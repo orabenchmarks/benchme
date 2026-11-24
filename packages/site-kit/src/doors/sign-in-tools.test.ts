@@ -46,6 +46,20 @@ describe("the sign-in tools", () => {
     }
   });
 
+  // The tools take the email they verify; the page must too. A hidden email field, empty when the page was reached
+  // again after leaving for the inbox, made every code on it fail (production pilot c53d5c6a).
+  it("put the email on the verify page as a field a reader sees and fills, filled in when known, and say what a second sign-up does", () => {
+    const known = authPages.verify("/p", "newcomer@elsewhere.example");
+    const blank = authPages.verify("/p", "");
+    expect(known).toContain('<input name="email" type="email" required value="newcomer@elsewhere.example">');
+    expect(blank).toContain('<input name="email" type="email" required value="">');
+    expect(blank).toContain("Enter the email you signed up with");
+    for (const page of [known, blank]) expect(page).not.toMatch(/type="hidden"/);
+    const verifyTool = tools.list().find((t) => t.name === "verify_email")!.description;
+    const signUpTool = tools.list().find((t) => t.name === "sign_up")!.description;
+    for (const said of [known, verifyTool, signUpTool]) expect(said).toMatch(/replaces the earlier code|the earlier one stops working/);
+  });
+
   it("refuse to run outside a door", async () => {
     const whoami = tools.list().find((t) => t.name === "whoami")!;
     await expect(whoami.handler({}, { workspaceId: "ws_0123456789ab" })).rejects.toThrow(/outside a door/);

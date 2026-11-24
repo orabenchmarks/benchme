@@ -1530,6 +1530,16 @@ docker compose down -v               # stop and drop the database volume
 
 ## Release
 
+_Chart 0.14.1: signing up through the pages no longer strands a browser. A
+sign-up redirects to its own verify page (`/verify?email=…`), so a reader who
+leaves for the inbox comes back to it, and a reload no longer signs up again
+(which replaced the code just mailed). The verify page shows the email as a
+field the reader sees and fills, never a hidden one. An address with no code
+waiting answers `NO_CODE`, naming the address, instead of `BAD_CODE`; a wrong
+code is still `BAD_CODE`, and says to use the newest code. The sign-up and
+verify tools say the same about a second sign-up. No new image, no migration and
+no new secret._
+
 _Chart 0.14.0: a front page that says what benchme is in one screen (a
 copyable command that mints a workspace, the answer it returns, and how an
 agent reaches its own isolated workspace of web apps), and a page per scenario

@@ -59,7 +59,9 @@ export function registerAuthRoutes(app: FastifyInstance, d: AuthRoutesDeps): voi
     const f = form(req);
     try {
       await d.auth.signup(req.workspaceId, f.email ?? "", f.password ?? "", f.name ?? "");
-      return html(reply, shell(await d.shellCtx(req), "Verify", authPages.verify(req.prefix, (f.email ?? "").trim().toLowerCase())));
+      // A page of its own after the post: the verify page at an address that names the email. A reader who leaves for
+      // the inbox comes back to it, and a reload does not sign up again, which would replace the code just mailed.
+      return reply.redirect(`${req.prefix}/verify?email=${encodeURIComponent((f.email ?? "").trim().toLowerCase())}`, 303);
     } catch (err) {
       return authErr(req, reply, err, "Sign up", authPages.signup(req.prefix, (err as Error).message));
     }

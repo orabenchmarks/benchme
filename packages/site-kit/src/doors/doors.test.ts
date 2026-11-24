@@ -414,7 +414,7 @@ describe("no door is a dead end", () => {
     const email = "pages@example.com";
     const from = await lastSeq();
     const form = (url: string, payload: Record<string, string>) => app.inject({ method: "POST", url, payload, headers: gateway() });
-    expect((await form("/signup", { name: "Pia", email, password: "correct-horse-9" })).statusCode).toBe(200);
+    expect((await form("/signup", { name: "Pia", email, password: "correct-horse-9" })).statusCode).toBe(303);
     expect((await form("/verify", { email, code: mailedCode(email) })).statusCode).toBe(200);
     const login = await form("/login", { email, password: "correct-horse-9" });
     expect([login.statusCode, login.cookies.map((c) => c.name)]).toEqual([303, [COOKIE]]);

@@ -7,7 +7,7 @@ const email = (address: string) => address.trim().toLowerCase();
  * What a site's ledger keeps of signing up and in, whichever door it was done
  * through (the pages' forms and the sign-in tools both call the one
  * AuthService): each step with the account's email, and a refused one with its
- * reason (`EXISTS`, `BAD_CODE`, `TOO_MANY_ATTEMPTS`, `BAD_CREDENTIALS`,
+ * reason (`EXISTS`, `BAD_CODE`, `NO_CODE`, `TOO_MANY_ATTEMPTS`, `BAD_CREDENTIALS`,
  * `UNVERIFIED`). They are `auth` entries: an account is not a change to what
  * the site sells. Looking a session up, which every request does, is not
  * recorded. Verifying is an attempt: a code tried is spent even when it is

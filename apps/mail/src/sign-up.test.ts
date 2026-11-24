@@ -99,7 +99,7 @@ afterAll(async () => {
 
 describe.skipIf(!DB)("signing up on a site, as someone the workspace holds or as a new person (real Postgres, real HTTP)", () => {
   it("in a cuj-v1 workspace, leaves an organiser's code where no agent can read it, so the sign-up cannot be finished", async () => {
-    expect((await form(ws.private, "/signup", { name: "Organiser", email: ORGANISER.toUpperCase(), password: PASSWORD })).statusCode).toBe(200);
+    expect((await form(ws.private, "/signup", { name: "Organiser", email: ORGANISER.toUpperCase(), password: PASSWORD })).statusCode).toBe(303);
     const code = await issued(ws.private, ORGANISER);
     expect(code).toMatch(/^\d{6}$/);
     // Nothing is lost: the inbox stored the mail with the code in it.
@@ -111,7 +111,7 @@ describe.skipIf(!DB)("signing up on a site, as someone the workspace holds or as
   });
 
   it("in a cuj-v1 workspace, leaves a new person's code in the inbox, and they sign up and in", async () => {
-    expect((await form(ws.private, "/signup", { name: "Keira Greystone", email: NEWCOMER, password: PASSWORD })).statusCode).toBe(200);
+    expect((await form(ws.private, "/signup", { name: "Keira Greystone", email: NEWCOMER, password: PASSWORD })).statusCode).toBe(303);
     const code = await issued(ws.private, NEWCOMER);
     expect(await readable(ws.private, NEWCOMER)).toEqual([code]);
     expect((await form(ws.private, "/verify", { email: NEWCOMER, code: code as string })).body).toContain("Email verified");
@@ -120,7 +120,7 @@ describe.skipIf(!DB)("signing up on a site, as someone the workspace holds or as
   });
 
   it("in a webmcp-v1 workspace, leaves the organiser's code in the shared inbox, as it always did", async () => {
-    expect((await form(ws.shared, "/signup", { name: "Organiser", email: ORGANISER, password: PASSWORD })).statusCode).toBe(200);
+    expect((await form(ws.shared, "/signup", { name: "Organiser", email: ORGANISER, password: PASSWORD })).statusCode).toBe(303);
     const code = await issued(ws.shared, ORGANISER);
     expect(await readable(ws.shared, ORGANISER)).toEqual([code]);
     expect((await form(ws.shared, "/verify", { email: ORGANISER, code: code as string })).body).toContain("Email verified");

@@ -29,7 +29,7 @@ export function registerSignInTools<C extends { workspaceId: string }>(tools: To
   return tools
     .register({
       name: "sign_up",
-      description: "Create an account on this site, with any email address. A 6-digit verification code is mailed to it: the workspace inbox (the mail app) shows mail to an address new to the workspace, while mail to someone the workspace already has may go to their own mailbox instead. Then call verify_email. Signing up again with an email that is not verified yet mails a new code. Writes on this site need a signed-in account.",
+      description: "Create an account on this site, with any email address. A 6-digit verification code is mailed to it: the workspace inbox (the mail app) shows mail to an address new to the workspace, while mail to someone the workspace already has may go to their own mailbox instead. Then call verify_email. Signing up again with an email that is not verified yet mails a new code, and the earlier one stops working: use the newest. Writes on this site need a signed-in account.",
       input: { name: z.string().describe("the account holder's name"), email: z.string().describe("the account's email address"), password: z.string().describe("8 characters or more") },
       handler: async (a, c) => {
         const user = await d.auth.signup(c.workspaceId, a.email, a.password, a.name);
@@ -38,7 +38,7 @@ export function registerSignInTools<C extends { workspaceId: string }>(tools: To
     })
     .register({
       name: "verify_email",
-      description: `Verify a new account's email address with the 6-digit code mailed to it at sign-up. Then call sign_in. A code can be tried ${CODE_ATTEMPTS} times: after that it no longer works, and only a new code does (call sign_up again).`,
+      description: `Verify a new account's email address with the 6-digit code mailed to it at sign-up. Then call sign_in. A code can be tried ${CODE_ATTEMPTS} times: after that it no longer works, and only a new code does (call sign_up again, which replaces the earlier code).`,
       input: { email: z.string(), code: z.string().describe("the 6-digit code from the verification mail") },
       handler: async (a, c) => {
         await d.auth.verify(c.workspaceId, a.email, a.code);

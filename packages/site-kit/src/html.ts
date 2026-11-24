@@ -78,9 +78,11 @@ export const authPages = {
   signup: (p: string, error?: string) => `<h1>Create an account</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<form class="card" method="post" action="${p}/signup">
 <label>Name</label><input name="name" required><label>Email</label><input name="email" type="email" required><label>Password (8+ characters)</label><input name="password" type="password" required>
 <button>Sign up</button></form><p class="muted">A verification code is mailed to the address. The workspace inbox shows mail to an address new to the workspace; enter the code on the next screen.</p>`,
-  verify: (p: string, email: string, error?: string) => `<h1>Verify your email</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<p>We sent a 6-digit code to <strong>${esc(email)}</strong>. The workspace inbox shows it if that address is new to the workspace.</p>
-<form class="card" method="post" action="${p}/verify"><input type="hidden" name="email" value="${esc(email)}"><label>Code</label><input name="code" required pattern="[0-9]{6}"><button>Verify</button></form>
-<p class="muted">A code can be tried ${CODE_ATTEMPTS} times. Lost it, or it stopped working? <a href="${p}/signup">Sign up again</a> with the same email to be sent a new one.</p>`,
+  // The email is a field a reader can see and fill, never a hidden one: a page reached without it (from a link, or
+  // after leaving for the inbox) still verifies, as the tools do with the email they are given.
+  verify: (p: string, email: string, error?: string) => `<h1>Verify your email</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}${email ? `<p>We sent a 6-digit code to <strong>${esc(email)}</strong>. The workspace inbox shows it if that address is new to the workspace.</p>` : `<p>Enter the email you signed up with and the 6-digit code mailed to it. The workspace inbox shows the code if that address is new to the workspace.</p>`}
+<form class="card" method="post" action="${p}/verify"><label>Email</label><input name="email" type="email" required value="${esc(email)}"><label>Code</label><input name="code" required pattern="[0-9]{6}"><button>Verify</button></form>
+<p class="muted">A code can be tried ${CODE_ATTEMPTS} times. Signing up again sends a new code, and the earlier one stops working: use the newest. Lost it, or it stopped working? <a href="${p}/signup">Sign up again</a> with the same email.</p>`,
   login: (p: string, error?: string) => `<h1>Sign in</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<form class="card" method="post" action="${p}/login">
 <label>Email</label><input name="email" type="email" required><label>Password</label><input name="password" type="password" required><button>Sign in</button></form>
 <p class="muted">No account? <a href="${p}/signup">Sign up</a>.</p>`,

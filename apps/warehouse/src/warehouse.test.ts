@@ -115,8 +115,13 @@ describe.skipIf(!DB)("warehouse (real Postgres)", () => {
   it("runs the signup → mail → verify → login → session flow through the UI", async () => {
     const before = mailer.sent.length;
     const signup = await app.inject(scoped({ method: "POST", url: "/signup", payload: "name=Ilsa&email=ilsa%40example.test&password=correct-horse-9", headers: { "content-type": "application/x-www-form-urlencoded" } }));
-    expect(signup.statusCode).toBe(200);
-    expect(signup.body).toContain("Verify your email");
+    // The post answers with the verify page's own address, naming the email: a reader who leaves comes back to it.
+    expect(signup.statusCode).toBe(303);
+    expect(signup.headers.location).toMatch(/\/verify\?email=ilsa%40example\.test$/);
+    const verifyPage = await app.inject(scoped({ method: "GET", url: "/verify?email=ilsa%40example.test" }));
+    expect(verifyPage.body).toContain("Verify your email");
+    // The email is a field the reader sees, filled in, never a hidden one.
+    expect(verifyPage.body).toContain('<input name="email" type="email" required value="ilsa@example.test">');
     const mail = mailer.sent[before]!;
     expect(mail.ws).toBe(ws);
     expect(mail.to).toBe("ilsa@example.test");
