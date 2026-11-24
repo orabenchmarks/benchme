@@ -8,8 +8,19 @@
  * six prompts, with a request the site refuses part-way and a requirement
  * from an early prompt that limits a later one. The impossible ones end on a
  * change the site's rules will not make.
+ *
+ * Expected calls: each step's write. The booking or order that starts the
+ * conversation, with what its prompt fixes; then each change of that same
+ * booking, named by the number the site gave it when it was made (`madeBy`: no
+ * task can hold it), with what the change fixes. A guest list or a topping is
+ * changed by the booking's number (and the line) alone, since a run may add or
+ * take off one, or set the whole list. A refused attempt on the way, an
+ * impossible last request and every question declare none: a question's answer
+ * is in what the writes returned, and in more than one read. Names, phones and
+ * titles are free, invited guests in any order.
  */
 import { addDays, diningDepositCents, diningSeatingTimes, eventDraftProblem, eventHeadcount, nightsOf, pizzaChangeLine, pizzaOutOfStock, pizzaPlaceOrder, pizzaSizeFor, pizzaToppingsKey, roomsLeft, shuffle, stayProblem } from "../../../../packages/scenarios/dist/index.js";
+import { anyOrder, call, free, madeBy, pattern } from "../../calls.mjs";
 import { R, about, dollars, impossibleChecks, jsonOracle, money, newPerson, row, site, stateOracle, unchanged, wrote, PAGES_AND_TOOLS } from "../kit.mjs";
 import { diningPath, eventsPath, hotelsPath, pizzaPath } from "../paths.mjs";
 
@@ -26,6 +37,14 @@ const orderNow = (name, guest, branch, date, expect) => row(name, "pizza", pizza
 const reservationOf = async (api, guest, code, date) => api.only((await api.list("dining", diningPath.reservationsOf(guest.email))).filter((x) => x.restaurantCode === code && x.date === date && x.status === "confirmed"));
 const orderOf = async (api, guest, branch, date) => api.only((await api.list("pizza", pizzaPath.ordersOf(guest.email))).filter((x) => x.branchCode === branch && x.slotDate === date && x.status === "received"));
 const toppingName = (ctx, key) => ctx.rows.pizza.toppings.find((t) => t.key === key).name.toLowerCase();
+/** The numbers the sites give what a conversation makes: a booking, a reservation, an order, an event. */
+const BOOKING = pattern("^BK-\\d+$"), RESERVATION = pattern("^RV-\\d+$"), ORDER = pattern("^PO-\\d+$"), EVENT = pattern("^EV-\\d+$");
+/** A reservation as a correct solution makes it: the guest's name and phone written as the run likes. */
+const reserving = (body) => call("create_reservation", body, { guestName: free, guestPhone: free });
+/** A booking as a correct solution makes it: the hotel's code beside the room's free, as is the guest's name. */
+const booking = (body) => call("create_booking", body, { hotelCode: free, guestName: free });
+/** An event's draft as create_event takes it: an invitation-only one has no places (the tool takes a number or none). */
+const asCreated = ({ places, ...draft }) => (places === null || places === undefined ? draft : { ...draft, places });
 
 /** A seating plan that only one area takes: the party size decides it. */
 function partyPlan(ctx, r) {
@@ -67,6 +86,7 @@ export const convTemplates = [
             intent: `On ${site("dining")}, book a table for ${plan.party} at ${r.name} (${r.code}) on 2027-11-05 at ${time} for ${guest.name} (${guest.email}, phone ${guest.phone}).`,
             rubric: R.change(["dining"], "the table was booked"),
             oracle: stateOracle(row("booked", "dining", diningPath.reservationsOf(guest.email), { where: { restaurantCode: r.code, date: "2027-11-05", status: "confirmed" }, count: { min: 1, max: 1 }, expect: { time, partySize: plan.party, area: plan.area.area }, entity: { type: "reservation", id: "{reservationNo}" } })),
+            calls: [reserving({ restaurantCode: r.code, area: plan.area.area, date: "2027-11-05", time, partySize: plan.party, guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone, note: "" })],
             solve: async (api) => {
               const x = await api.get("dining", diningPath.restaurant(r.code));
               return api.post("dining", diningPath.reservations, { restaurantCode: r.code, area: x.seating.find((s) => s.seats >= plan.party && s.area !== "private").area, date: "2027-11-05", time, partySize: plan.party, guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone, note: "" });
@@ -78,6 +98,7 @@ export const convTemplates = [
             intent: `What deposit did the restaurant take for that reservation? Answer as JSON: {"deposit": <dollars>}.`,
             rubric: R.stepAnswer("the deposit taken"),
             oracle: jsonOracle({ deposit: money(deposit) }),
+            calls: [],
             answer: async (api) => ({ deposit: (await reservationOf(api, guest, r.code, "2027-11-05")).depositCents / 100 }),
           },
         ],
@@ -115,6 +136,7 @@ export const convTemplates = [
             intent: `On ${site("pizza")}, order one ${p.name} (${p.code}) big enough for ${people} people, for pickup from the ${b.name} branch (${b.code}) at 18:00 on 2027-10-08, for ${guest.name} (${guest.email}).`,
             rubric: R.change(["pizza"], "the order was placed"),
             oracle: stateOracle(row("ordered", "pizza", pizzaPath.ordersOf(guest.email), { where: { branchCode: b.code, slotDate: "2027-10-08", status: "received" }, count: { min: 1, max: 1 }, expect: { slotTime: "18:00", lineCount: 1, lines: { pizzaCode: p.code, size: size.key, quantity: 1 } }, entity: { type: "order", id: "{orderNo}" } })),
+            calls: [call("place_order", body, { customerName: free })],
             solve: async (api) => {
               const fit = (await api.get("pizza", pizzaPath.builder)).sizes.filter((s) => s.serves >= people).sort((x, y) => x.serves - y.serves)[0];
               return api.post("pizza", pizzaPath.orders, { ...body, lines: [{ pizzaCode: p.code, size: fit.key, quantity: 1 }] });
@@ -126,6 +148,7 @@ export const convTemplates = [
             intent: `What does that order cost? Answer as JSON: {"total": <dollars>}.`,
             rubric: R.stepAnswer("the order's total"),
             oracle: jsonOracle({ total: money(placed.quote.totalCents) }),
+            calls: [],
             answer: async (api) => ({ total: (await orderOf(api, guest, b.code, "2027-10-08")).totalCents / 100 }),
           },
         ],
@@ -162,6 +185,7 @@ export const convTemplates = [
             intent: `On ${site("hotels")}, book the ${ours.name} (${ours.code}) at ${hotel.name} for three nights from 2027-11-15, for two adults, in the name of ${guest.name} (${guest.email}).`,
             rubric: R.change(["hotels"], "the room was booked"),
             oracle: stateOracle(row("our room booked", "hotels", hotelsPath.bookingsOf(guest.email), { where: { roomCode: ours.code, checkIn: "2027-11-15" }, count: { min: 1, max: 1 }, expect: { status: "confirmed", nights: 3, adults: 2 }, entity: { type: "booking", id: "{bookingNo}", at: "first" } })),
+            calls: [booking({ roomCode: ours.code, ...stay })],
             solve: (api) => api.post("hotels", hotelsPath.bookings, { ...stay, roomCode: ours.code }),
           },
           {
@@ -170,6 +194,7 @@ export const convTemplates = [
             intent: `My parents are coming too: book them the cheapest room at the same hotel that sleeps two, for the same nights, in the same name.`,
             rubric: R.stepChange("a second room was booked"),
             oracle: stateOracle(row("their room booked", "hotels", hotelsPath.bookingsOf(guest.email), { where: { roomCode: theirs.code, checkIn: "2027-11-15" }, count: { min: 1, max: 1 }, expect: { nights: 3, adults: 2 }, entity: { type: "booking", id: "{bookingNo}", at: "first" } })),
+            calls: [booking({ roomCode: theirs.code, ...stay })],
             solve: async (api) => {
               const h = await api.get("hotels", hotelsPath.hotel(hotel.code));
               const cheapest = h.rooms.filter((r) => r.maxAdults >= 2).sort((x, y) => x.nightlyCents - y.nightlyCents)[0];
@@ -186,6 +211,8 @@ export const convTemplates = [
               unchanged("our room kept", { apps: ["hotels"], entity: { type: "booking", id: "@our room booked" } }, { after: "our room booked" }),
               row("our room still booked", "hotels", hotelsPath.bookingsOf(guest.email), { where: { roomCode: ours.code, checkIn: "2027-11-15", status: "confirmed" }, expect: { nights: 3 } }),
             ),
+            // The latest booking the run made is the parents' room, booked in the step before.
+            calls: [call("cancel_booking", { bookingNo: madeBy("create_booking", "bookingNo", BOOKING) })],
             solve: async (api) => api.post("hotels", hotelsPath.cancel((await bookingOf(api, theirs.code)).bookingNo), {}),
           },
         ],
@@ -223,6 +250,7 @@ export const convTemplates = [
             intent: `On ${site("events")}, ${organiser.name} (${organiser.email}) wants an invitation-only event called "${draft.title}" in ${room.name} (${room.code}) on 2027-11-10 from 14:00 to 15:00, with ${g1.name} (${g1.email}) and ${g2.name} (${g2.email}) invited. Set it up for them.`,
             rubric: R.change(["events"], "the event was set up"),
             oracle: stateOracle(made),
+            calls: [call("create_event", asCreated(draft), { title: free, guestEmails: anyOrder(draft.guestEmails) })],
             solve: (api) => api.post("events", eventsPath.events, draft),
           },
           {
@@ -231,6 +259,7 @@ export const convTemplates = [
             intent: `Invite ${g3.name} (${g3.email}) and ${g4.name} (${g4.email}) to it as well.`,
             rubric: R.stepChange("the two guests were added"),
             oracle: stateOracle(wrote("guests added", "events", eventRef, "change", { after: "event made" }), row("two more invited", "events", eventsPath.eventsWhere({ organiser: organiser.email, date: "2027-11-10" }), { where: { title: draft.title }, expect: { guests: { email: g3.email } } })),
+            calls: [call("change_event", { eventCode: madeBy("create_event", "code", EVENT), organiserEmail: organiser.email, addGuestEmails: [g3.email, g4.email] }, { addGuestEmails: free })],
             solve: async (api) => api.post("events", eventsPath.change(await codeOf(api)), { organiserEmail: organiser.email, addGuestEmails: [g3.email, g4.email] }),
           },
           {
@@ -242,6 +271,7 @@ export const convTemplates = [
               wrote("guest taken off", "events", eventRef, "change", { after: "guests added" }),
               row("three guests left", "events", eventsPath.eventsWhere({ organiser: organiser.email, date: "2027-11-10" }), { where: { title: draft.title, status: "scheduled" }, expect: { guestCount: 3, guests: { email: g3.email }, roomCode: room.code } }),
             ),
+            calls: [call("change_event", { eventCode: madeBy("create_event", "code", EVENT), organiserEmail: organiser.email, removeGuestEmails: [g4.email] }, { removeGuestEmails: free })],
             solve: async (api) => api.post("events", eventsPath.change(await codeOf(api)), { organiserEmail: organiser.email, removeGuestEmails: [g4.email] }),
           },
         ],
@@ -270,6 +300,8 @@ export const convTemplates = [
       const deposit = diningDepositCents(r, "private", 4);
       const ref = { type: "reservation", id: "@booked" };
       const change = (body) => async (api) => api.post("dining", diningPath.change((await reservationOf(api, guest, r.code, date)).reservationNo), body);
+      /** A change of the reservation the first step made, by the number the site gave it. */
+      const changing = (body) => call("change_reservation", { reservationNo: madeBy("create_reservation", "reservationNo", RESERVATION), ...body });
       return {
         apps: ["dining"],
         target: r.code,
@@ -284,6 +316,7 @@ export const convTemplates = [
             intent: `On ${site("dining")}, book a table for four indoors at ${r.name} (${r.code}) on ${date} at 19:00 for ${guest.name} (${guest.email}, phone ${guest.phone}). We have to be out by 22:00.`,
             rubric: R.change(["dining"], "the table was booked"),
             oracle: stateOracle(reservationMade("booked", guest, r.code, date)),
+            calls: [reserving({ restaurantCode: r.code, area: "indoor", date, time: "19:00", partySize: 4, guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone, note: "" })],
             solve: (api) => api.post("dining", diningPath.reservations, { restaurantCode: r.code, area: "indoor", date, time: "19:00", partySize: 4, guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone, note: "" }),
           },
           {
@@ -292,6 +325,7 @@ export const convTemplates = [
             intent: `We are six now. Change the reservation.`,
             rubric: R.stepChange("the party size was changed"),
             oracle: stateOracle(wrote("made six", "dining", ref, "change", { after: "booked" })),
+            calls: [changing({ partySize: 6 })],
             solve: change({ partySize: 6 }),
           },
           {
@@ -300,6 +334,8 @@ export const convTemplates = [
             intent: `Move us to the terrace if its tables seat six; otherwise put us in the private room.`,
             rubric: ["The reply says where the table is now and, if the terrace could not be had, the reason the site gave.", "Nothing besides the area changed in this step."],
             oracle: stateOracle(wrote("moved", "dining", ref, "change", { after: "made six" }), reservationNow("in the private room", guest, r.code, date, { area: "private" })),
+            // The terrace refused on the way is not declared: a run that read its tables first need not try it.
+            calls: [changing({ area: "private" })],
             solve: async (api) => {
               const no = (await reservationOf(api, guest, r.code, date)).reservationNo;
               await api.attempt("dining", diningPath.change(no), { area: "terrace" });
@@ -312,6 +348,7 @@ export const convTemplates = [
             intent: `Push it back as late as we can and still be out in time.`,
             rubric: R.stepChange("the reservation was moved later"),
             oracle: stateOracle(wrote("pushed back", "dining", ref, "change", { after: "moved" }), reservationNow("at the latest time that still fits", guest, r.code, date, { time: "20:00" })),
+            calls: [changing({ time: clock(mins("22:00") - 120) })],
             solve: change({ time: clock(mins("22:00") - 120) }),
           },
           {
@@ -320,6 +357,7 @@ export const convTemplates = [
             intent: `Two of us dropped out: make it four again, and keep the rest as it is.`,
             rubric: R.stepChange("the party size was changed back"),
             oracle: stateOracle(wrote("four again", "dining", ref, "change", { after: "pushed back" }), reservationNow("as it stands", guest, r.code, date, { partySize: 4, area: "private", time: "20:00" })),
+            calls: [changing({ partySize: 4 })],
             solve: change({ partySize: 4 }),
           },
           {
@@ -328,6 +366,7 @@ export const convTemplates = [
             intent: `What deposit does the restaurant hold for it now? Answer as JSON: {"deposit": <dollars>}.`,
             rubric: R.stepAnswer("the deposit held now"),
             oracle: jsonOracle({ deposit: money(deposit) }),
+            calls: [],
             answer: async (api) => ({ deposit: (await reservationOf(api, guest, r.code, date)).depositCents / 100 }),
           },
         ],
@@ -362,6 +401,8 @@ export const convTemplates = [
       const where = eventsPath.eventsWhere({ organiser: organiser.email, date: base.date });
       const codeOf = async (api) => api.only((await api.list("events", where)).filter((e) => e.title === base.title)).code;
       const change = (body) => async (api) => api.post("events", eventsPath.change(await codeOf(api)), { organiserEmail: organiser.email, ...body });
+      /** A change of the event the first step made, by the code the site gave it, as its organiser. */
+      const changing = (body, as = {}) => call("change_event", { eventCode: madeBy("create_event", "code", EVENT), organiserEmail: organiser.email, ...body }, as);
       const ref = { type: "event", id: "@event made" };
       const now = (name, expect) => row(name, "events", where, { where: { title: base.title, status: "scheduled" }, expect });
       const headcount = eventHeadcount({ guestEmails: three, organiserEmail: organiser.email, places: null });
@@ -379,6 +420,7 @@ export const convTemplates = [
             intent: `On ${site("events")}, ${organiser.name} (${organiser.email}) wants an invitation-only event called "${base.title}" in ${first.name} (${first.code}) on ${base.date} from 10:00 to 11:00, with ${g1.name} (${g1.email}) and ${g2.name} (${g2.email}) invited. Set it up for them.`,
             rubric: R.change(["events"], "the event was set up"),
             oracle: stateOracle(row("event made", "events", where, { where: { title: base.title }, count: { min: 1, max: 1 }, expect: { status: "scheduled" }, entity: { type: "event", id: "{code}", at: "first" } })),
+            calls: [call("create_event", { ...asCreated(base), roomCode: first.code, guestEmails: two }, { title: free, guestEmails: anyOrder(two) })],
             solve: (api) => api.post("events", eventsPath.events, { ...base, roomCode: first.code, guestEmails: two }),
           },
           {
@@ -387,6 +429,7 @@ export const convTemplates = [
             intent: `Invite ${g3.name} (${g3.email}) and ${g4.name} (${g4.email}) too.`,
             rubric: R.stepChange("the two guests were added"),
             oracle: stateOracle(wrote("guests added", "events", ref, "change", { after: "event made" }), now("the first added is invited", { guests: { email: g3.email } })),
+            calls: [changing({ addGuestEmails: [g3.email, g4.email] }, { addGuestEmails: free })],
             solve: change({ addGuestEmails: [g3.email, g4.email] }),
           },
           {
@@ -395,6 +438,8 @@ export const convTemplates = [
             intent: `Move it to ${small.name} (${small.code}). If that room cannot take everyone, use ${big.name} (${big.code}) instead.`,
             rubric: ["The reply says which room the event is in now and, if the first room could not be used, the reason the site gave.", "Nothing besides the room changed in this step."],
             oracle: stateOracle(wrote("room changed", "events", ref, "change", { after: "guests added" }), now("in the room that holds everyone", { roomCode: big.code })),
+            // The smaller room refused on the way is not declared: a run that read its capacity first need not try it.
+            calls: [changing({ roomCode: big.code })],
             solve: async (api) => {
               const code = await codeOf(api);
               await api.attempt("events", eventsPath.change(code), { organiserEmail: organiser.email, roomCode: small.code });
@@ -407,6 +452,7 @@ export const convTemplates = [
             intent: `Make it an hour later, the same length.`,
             rubric: R.stepChange("the event was moved an hour later"),
             oracle: stateOracle(wrote("an hour later", "events", ref, "change", { after: "room changed" }), now("at the new time", { startTime: later.startTime, endTime: later.endTime })),
+            calls: [changing(later)],
             solve: change(later),
           },
           {
@@ -415,6 +461,7 @@ export const convTemplates = [
             intent: `${g4.name} can't come after all: take them off the guest list.`,
             rubric: R.stepChange("the guest was taken off"),
             oracle: stateOracle(wrote("guest taken off", "events", ref, "change", { after: "an hour later" }), now("as it stands", { guestCount: 3, roomCode: big.code, startTime: later.startTime, guests: { email: g3.email } })),
+            calls: [changing({ removeGuestEmails: [g4.email] }, { removeGuestEmails: free })],
             solve: change({ removeGuestEmails: [g4.email] }),
           },
           {
@@ -423,6 +470,7 @@ export const convTemplates = [
             intent: `How many people does the room have to hold for it now, the organiser included? Answer as JSON: {"people": <number>}.`,
             rubric: R.stepAnswer("how many people the room must hold"),
             oracle: jsonOracle({ people: headcount }),
+            calls: [],
             answer: async (api) => {
               const e = api.only((await api.list("events", where)).filter((x) => x.title === base.title));
               return { people: 1 + e.guestCount + (e.places ?? 0) };
@@ -471,6 +519,8 @@ export const convTemplates = [
       if (!o5) return null;
       const ref = { type: "order", id: "@ordered" };
       const change = (line, c) => async (api) => api.post("pizza", pizzaPath.line((await orderOf(api, guest, b.code, "2027-10-22")).orderNo, line), c);
+      /** A change of one line of the order the first step placed, by the number the site gave it. */
+      const changing = (line, c, as = {}) => call("change_order_line", { orderNo: madeBy("place_order", "orderNo", ORDER), line, ...c }, as);
       return {
         apps: ["pizza"],
         target: p1.code,
@@ -485,6 +535,7 @@ export const convTemplates = [
             intent: `On ${site("pizza")}, order a medium ${p1.name} (${p1.code}) and a medium ${p2.name} (${p2.code}) for pickup from the ${b.name} branch (${b.code}) at 18:30 on 2027-10-22, for ${guest.name} (${guest.email}). We have ${dollars(budget)} for the whole order.`,
             rubric: R.change(["pizza"], "the order was placed"),
             oracle: stateOracle(orderMade("ordered", guest, b.code, "2027-10-22")),
+            calls: [call("place_order", body, { customerName: free })],
             solve: (api) => api.post("pizza", pizzaPath.orders, body),
           },
           {
@@ -493,6 +544,7 @@ export const convTemplates = [
             intent: `Make the second pizza a large.`,
             rubric: R.stepChange("the second pizza was made a large"),
             oracle: stateOracle(wrote("second made large", "pizza", ref, "change", { after: "ordered" })),
+            calls: [changing(2, { size: "large" })],
             solve: change(2, { size: "large" }),
           },
           {
@@ -501,6 +553,9 @@ export const convTemplates = [
             intent: `Add ${toppingName(ctx, missing.key)} to the first pizza; if they are out of it, add ${toppingName(ctx, extra.key)} instead.`,
             rubric: ["The reply says which topping went on and, if the first one could not be added, the reason the site gave.", "Nothing besides that topping changed in this step."],
             oracle: stateOracle(wrote("topping added", "pizza", ref, "change", { after: "second made large" })),
+            // The topping refused on the way is not declared (a run that read the branch's stock need not try it), and
+            // the one added may come as an added topping or the whole new set: the line alone is declared.
+            calls: [changing(1, { addToppings: [extra.key] }, { addToppings: free })],
             solve: async (api) => {
               const no = (await orderOf(api, guest, b.code, "2027-10-22")).orderNo;
               await api.attempt("pizza", pizzaPath.line(no, 1), { addToppings: [missing.key] });
@@ -513,6 +568,7 @@ export const convTemplates = [
             intent: `Make it two of the first pizza if the order still stays within our budget; if it would not, make the second pizza a medium again instead.`,
             rubric: ["The reply says what was changed and why, as the site's prices show it.", "Only one of the two changes was made in this step."],
             oracle: stateOracle(wrote("budget kept", "pizza", ref, "change", { after: "topping added" }), orderNow("second back to medium", guest, b.code, "2027-10-22", { lines: { line: 2, size: "medium" } })),
+            calls: [changing(2, { size: "medium" })],
             solve: change(2, { size: "medium" }),
           },
           {
@@ -525,6 +581,7 @@ export const convTemplates = [
               orderNow("as it stands", guest, b.code, "2027-10-22", { lineCount: 2, lines: { line: 1, size: "medium", quantity: 1, toppingsKey: pizzaToppingsKey(p1.toppings) } }),
               orderNow("second as it stands", guest, b.code, "2027-10-22", { lines: { line: 2, size: "medium", quantity: 1 } }),
             ),
+            calls: [changing(1, { removeToppings: [extra.key] }, { removeToppings: free })],
             solve: change(1, { removeToppings: [extra.key] }),
           },
           {
@@ -533,6 +590,7 @@ export const convTemplates = [
             intent: `What is the order's total now? Answer as JSON: {"total": <dollars>}.`,
             rubric: R.stepAnswer("the order's total now"),
             oracle: jsonOracle({ total: money(o5.totalCents) }),
+            calls: [],
             answer: async (api) => ({ total: (await orderOf(api, guest, b.code, "2027-10-22")).totalCents / 100 }),
           },
         ],
@@ -565,6 +623,7 @@ export const convTemplates = [
             intent: `On ${site("dining")}, book a table for four indoors at ${r.name} (${r.code}) on ${date} at 19:30 for ${guest.name} (${guest.email}, phone ${guest.phone}).`,
             rubric: R.change(["dining"], "the table was booked"),
             oracle: stateOracle(reservationMade("booked", guest, r.code, date)),
+            calls: [reserving({ restaurantCode: r.code, area: "indoor", date, time: "19:30", partySize: 4, guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone, note: "" })],
             solve: (api) => api.post("dining", diningPath.reservations, { restaurantCode: r.code, area: "indoor", date, time: "19:30", partySize: 4, guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone, note: "" }),
           },
           {
@@ -573,6 +632,7 @@ export const convTemplates = [
             intent: `More people are coming: make it fourteen of us.`,
             rubric: R.stepImpossible("make it fourteen"),
             oracle: stateOracle(...impossibleChecks({ app: "dining", things: [{ type: "reservation", id: "@booked" }, { type: "restaurant", id: r.code }], code: "PARTY_LIMIT", after: "booked" }), reservationNow("still for four", guest, r.code, date, { partySize: 4 })),
+            calls: [],
             solve: async (api) => api.attempt("dining", diningPath.change((await reservationOf(api, guest, r.code, date)).reservationNo), { partySize: 14 }),
           },
         ],
@@ -615,6 +675,7 @@ export const convTemplates = [
             intent: `On ${site("hotels")}, book the ${room.name} (${room.code}) at ${hotel.name} for two nights from ${checkIn}, for one adult, for ${guest.name} (${guest.email}).`,
             rubric: R.change(["hotels"], "the room was booked"),
             oracle: stateOracle(row("booked", "hotels", hotelsPath.bookingsOf(guest.email), { where: { roomCode: room.code, checkIn }, count: { min: 1, max: 1 }, expect: { status: "confirmed", nights: 2 }, entity: { type: "booking", id: "{bookingNo}", at: "first" } })),
+            calls: [booking({ roomCode: room.code, ...stay, hotelCode: hotel.code, guestName: guest.name, guestEmail: guest.email })],
             solve: (api) => api.post("hotels", hotelsPath.bookings, { ...stay, roomCode: room.code, hotelCode: hotel.code, guestName: guest.name, guestEmail: guest.email }),
           },
           {
@@ -623,6 +684,7 @@ export const convTemplates = [
             intent: `I'll stay one more night: book the same room type for the night of ${night} as well.`,
             rubric: R.stepImpossible("book the extra night"),
             oracle: stateOracle(...impossibleChecks({ app: "hotels", things: [{ type: "room", id: room.code }, { type: "booking", id: "@booked" }], code: "SOLD_OUT", after: "booked" })),
+            calls: [],
             solve: (api) => api.attempt("hotels", hotelsPath.bookings, { ...stay, checkIn: night, nights: 1, roomCode: room.code, hotelCode: hotel.code, guestName: guest.name, guestEmail: guest.email }),
           },
         ],

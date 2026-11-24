@@ -18,9 +18,15 @@
  *       target?, hidden?, constraints?, rule?, tempting?, signUp?, interacting?, recover?, impossible?,
  *       claims?,      // keys of what the built task writes about, known only once built (kit.mjs `about`)
  *       effort: { reads, writes },   // what the reference solution does, signing in left out
- *       steps: [{ kind, intent, rubric, oracle, apps?, fact?, solve? | answer? }],
+ *       steps: [{ kind, intent, rubric, oracle, calls, apps?, fact?, noCall?, solve? | answer? }],
  *     }
  *   }
+ *
+ * A step's `calls` are the site tool calls every correct solution makes
+ * (../../calls.mjs; an empty list when none is necessary, and `noCall` says why
+ * a change declares none): ../build.mjs checks them against the site's
+ * registry and publishes them in the key (docs/scenarios/cuj-v1.md § Expected
+ * calls).
  *
  * Within the list, append new templates LAST: claims are shared, so a template
  * placed earlier could take rows a later one already picked.

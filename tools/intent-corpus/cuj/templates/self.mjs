@@ -5,11 +5,21 @@
  * the code the site mails to the workspace inbox. A check reads who was signed
  * in when the change was made (the ledger's actor), so a change made from some
  * other account does not count.
+ *
+ * Expected calls: the write each errand makes (the booking cancelled, the
+ * viewing, the refill, the order, the table, the seats, the registration, the
+ * appointment), with what the task fixes or has the agent find; names and
+ * phones left free, the counts of all-adult tickets free, named seats in any
+ * order and, when any seats side by side will do, any seats of the screen.
+ * Signing up and in are never declared: who was signed in is the checks' to
+ * read. The refused first try of a step that recovers is not declared; an
+ * impossible request declares none.
  */
 import {
   addDays, cinemaSearchShowtimes, cinemaSeatMap, cinemaTakenSeats, clinicFreeSlots, diningSeatingTimes, diningTablesLeft, eventPlacesLeft, eventRegisterProblem, homeSlotsOf, nightsOf, pizzaOutOfStock, pizzaPlaceOrder, pizzaSizeFor,
   SPORTS_TODAY, sportsReturnDeadline,
 } from "../../../../packages/scenarios/dist/index.js";
+import { anyOrder, call, free, pattern, someOf } from "../../calls.mjs";
 import { R, about, asThem, variantText, impossibleChecks, leftAlone, newPerson, passwordFor, row, site, stateOracle, verified, PAGES_AND_TOOLS } from "../kit.mjs";
 import { cinemaPath, clinicPath, diningPath, eventsPath, flightsPath, homesPath, hotelsPath, pizzaPath, sportsPath } from "../paths.mjs";
 
@@ -21,6 +31,8 @@ const nightClaims = (city, checkIn, nights) => nightsOf(checkIn, nights).map((d)
 const accountsOf = (ctx, app) => ctx.accounts[app] ?? [];
 const signIn = (a) => `sign in with their account (${a.email}, password ${a.password})`;
 const signUp = (p) => `create an account for ${p.name} with the email ${p.email} and the password ${passwordFor(p.email)}, and confirm it with the code that is emailed`;
+/** Any seat of the screen: a booking of seats side by side may take any free run. */
+const SEAT = pattern("^[A-Z][0-9]+$");
 const liveRun = (seatMap, n, skip = []) => {
   for (const r of seatMap) {
     const free = new Set(r.free);
@@ -60,6 +72,7 @@ export const selfTemplates = [
             asThem("cancelled as them", "hotels", ref, "cancel", a.email),
             ...(others.length ? [leftAlone("others left alone", "hotels", others.map((x) => ({ type: "booking", id: x.bookingNo })))] : []),
           ),
+          calls: [call("cancel_booking", { bookingNo: b.bookingNo })],
           solve: async (api) => (await api.as("hotels", a)).post("hotels", hotelsPath.cancel(b.bookingNo), {}),
         }],
       };
@@ -92,6 +105,7 @@ export const selfTemplates = [
             row("requested", "homes", homesPath.viewingsOf(a.email), { where: { listingCode: l.code, date: slot.date, status: "requested" }, count: { min: 1, max: 1 }, expect: { time: slot.time }, entity: { type: "viewing", id: "{viewingNo}" } }),
             asThem("requested as them", "homes", { type: "viewing" }, "create", a.email, { subject: { type: "listing", id: l.code } }),
           ),
+          calls: [call("request_viewing", { listingCode: l.code, date: slot.date, time: slot.time, viewerName: a.name, viewerEmail: a.email }, { viewerName: free })],
           solve: async (api) => (await api.as("homes", a)).post("homes", homesPath.viewings, { listingCode: l.code, date: slot.date, time: slot.time, viewerName: a.name, viewerEmail: a.email }),
         }],
       };
@@ -127,6 +141,7 @@ export const selfTemplates = [
             row("refill requested", "clinic", clinicPath.refillsOf(rx.rxNo), { where: { status: "requested" }, count: { min: 1, max: 1 }, expect: { pharmacyCode: pharmacy.code }, entity: { type: "refill", id: "{refillNo}" } }),
             asThem("requested as them", "clinic", { type: "refill" }, "create", a.email, { subject: { type: "prescription", id: rx.rxNo } }),
           ),
+          calls: [call("request_refill", { rxNo: rx.rxNo, pharmacyCode: pharmacy.code })],
           solve: async (api) => (await api.as("clinic", a)).post("clinic", clinicPath.refill(rx.rxNo), { pharmacyCode: pharmacy.code }),
         }],
       };
@@ -167,6 +182,7 @@ export const selfTemplates = [
             asThem("cancelled as them", "flights", ref, "cancel", a.email),
             leftAlone("others left alone", "flights", others.map((x) => ({ type: "booking", id: x.bookingNo }))),
           ),
+          calls: [call("cancel_booking", { bookingNo: b.bookingNo })],
           solve: async (api) => {
             const me = await api.as("flights", a);
             const mine = (await me.list("flights", flightsPath.bookingsOf(a.email))).filter((x) => x.status === "confirmed" && x.origin === f.origin && x.destination === f.destination && x.date === b.date);
@@ -207,6 +223,7 @@ export const selfTemplates = [
             row("ordered", "pizza", pizzaPath.ordersOf(a.email), { where: { branchCode: b.code, slotDate: "2027-09-24", status: "received" }, count: { min: 1, max: 1 }, expect: { slotTime: "19:00", lineCount: 1, lines: { pizzaCode: p.code, size: size.key, quantity: 1 } }, entity: { type: "order", id: "{orderNo}" } }),
             asThem("ordered as them", "pizza", { type: "order" }, "create", a.email, { subject: { type: "branch", id: b.code } }),
           ),
+          calls: [call("place_order", body, { customerName: free })],
           solve: async (api) => {
             const me = await api.as("pizza", a);
             const fit = (await me.get("pizza", pizzaPath.builder)).sizes.filter((s) => s.serves >= people).sort((x, y) => x.serves - y.serves)[0];
@@ -249,6 +266,7 @@ export const selfTemplates = [
             row("booked", "dining", diningPath.reservationsOf(a.email), { where: { restaurantCode: r.code, date: "2027-10-29", status: "confirmed" }, count: { min: 1, max: 1 }, expect: { time, partySize: party, area: fitting[0].area }, entity: { type: "reservation", id: "{reservationNo}" } }),
             asThem("booked as them", "dining", { type: "reservation" }, "create", a.email, { subject: { type: "restaurant", id: r.code } }),
           ),
+          calls: [call("create_reservation", { ...body, area: fitting[0].area }, { guestName: free, guestPhone: free })],
           solve: async (api) => {
             const me = await api.as("dining", a);
             const x = await me.get("dining", diningPath.restaurant(r.code));
@@ -289,6 +307,7 @@ export const selfTemplates = [
             row("booked", "cinema", cinemaPath.bookingsOf(me.email), { where: { showtimeCode: s.code, status: "confirmed" }, count: { min: 1, max: 1 }, expect: { seats: seats.join(",") }, entity: { type: "booking", id: "{bookingNo}" } }),
             asThem("booked as them", "cinema", { type: "booking" }, "create", me.email, { subject: { type: "showtime", id: s.code } }),
           ),
+          calls: [call("create_booking", { showtimeCode: s.code, seats, adult: 2, customerName: me.name, customerEmail: me.email }, { seats: anyOrder(seats), adult: free, customerName: free })],
           solve: async (api) => (await api.signUp("cinema", { ...me, password: passwordFor(me.email) })).post("cinema", cinemaPath.bookings, { showtimeCode: s.code, seats, adult: 2, customerName: me.name, customerEmail: me.email }),
         }],
       };
@@ -321,6 +340,7 @@ export const selfTemplates = [
             row("registered", "events", eventsPath.registrationsOf(me.email), { where: { eventCode: e.code, status: "registered" }, count: { min: 1, max: 1 }, expect: { email: me.email }, entity: { type: "registration", id: "{regNo}" } }),
             asThem("registered as them", "events", { type: "registration" }, "create", me.email, { subject: { type: "event", id: e.code } }),
           ),
+          calls: [call("register_for_event", { eventCode: e.code, name: me.name, email: me.email }, { name: free })],
           solve: async (api) => (await api.signUp("events", { ...me, password: passwordFor(me.email) })).post("events", eventsPath.register(e.code), { name: me.name, email: me.email }),
         }],
       };
@@ -335,10 +355,10 @@ export const selfTemplates = [
     candidates: (ctx) => ctx.rows.clinic.doctors.filter((d) => d.acceptingNewPatients && d.visitTypes.includes("in-person")).flatMap((d) => [23, 51].map((o) => ({ d, date: addDays("2027-08-02", o) }))),
     claims: ({ d, date }, ctx) => [`doctor:${d.code}:${date}`, `clinic:${ctx.clinic.clinic.get(d.clinicCode).city}:${date}`],
     build({ d, date }, ctx) {
-      const free = clinicFreeSlots(d, ctx.rows.clinic.appointments, date);
-      if (!free.length) return null;
+      const open = clinicFreeSlots(d, ctx.rows.clinic.appointments, date);
+      if (!open.length) return null;
       const me = newPerson("self-signup-appointment", 0);
-      const time = free.at(-1);
+      const time = open.at(-1);
       return {
         apps: ["clinic"],
         target: d.code,
@@ -355,6 +375,7 @@ export const selfTemplates = [
             row("booked", "clinic", clinicPath.appointmentsOf(me.email), { where: { doctorCode: d.code, status: "booked" }, count: { min: 1, max: 1 }, expect: { date, time, visitType: "in-person" }, entity: { type: "appointment", id: "{appointmentNo}" } }),
             asThem("booked as them", "clinic", { type: "appointment" }, "create", me.email, { subject: { type: "doctor", id: d.code } }),
           ),
+          calls: [call("book_appointment", { doctorCode: d.code, date, time, visitType: "in-person", patientName: me.name, patientEmail: me.email }, { patientName: free })],
           solve: async (api) => (await api.signUp("clinic", { ...me, password: passwordFor(me.email) })).post("clinic", clinicPath.appointments, { doctorCode: d.code, date, time, visitType: "in-person", patientName: me.name, patientEmail: me.email }),
         }],
       };
@@ -388,6 +409,7 @@ export const selfTemplates = [
         if (want.filter((x) => taken.has(x)).length === 1) named = want;
       }
       if (!named || !liveRun(map, 3)) return null;
+      const together = liveRun(map, 3);
       const film = ctx.cinema.film.get(o.filmCode);
       const ends = mins(o.time) + film.runtimeMinutes;
       const indoor = (ctx.dining.seatingOf.get(r.code) ?? []).filter((s) => s.area !== "private" && s.seats >= 3);
@@ -423,6 +445,7 @@ export const selfTemplates = [
               row("film booked", "cinema", cinemaPath.bookingsOf(me.email), { where: { status: "confirmed" }, count: { min: 1, max: 1 }, expect: { showtimeCode: o.showtimeCode, seatCount: 3, together: true }, entity: { type: "booking", id: "{bookingNo}" } }),
               asThem("film booked as them", "cinema", { type: "booking" }, "create", me.email, { subject: { type: "showtime", id: o.showtimeCode } }),
             ),
+            calls: [call("create_booking", { showtimeCode: o.showtimeCode, seats: together, adult: 3, customerName: me.name, customerEmail: me.email }, { seats: someOf(3, SEAT), adult: free, customerName: free })],
             solve: async (api) => {
               const as = await api.signUp("cinema", { ...me, password: passwordFor(me.email) });
               const s = (await as.get("cinema", cinemaPath.search({ cinemaCode: o.cinemaCode, filmCode: film.code, date: o.date, after: "18:00", seats: 3, together: true })))[0];
@@ -446,6 +469,7 @@ export const selfTemplates = [
               row("dinner booked", "dining", diningPath.reservationsOf(me.email), { where: { restaurantCode: r.code, date: o.date, status: "confirmed" }, count: { min: 1, max: 1 }, expect: { partySize: 3, time: dinner }, entity: { type: "reservation", id: "{reservationNo}" } }),
               asThem("dinner booked as them", "dining", { type: "reservation" }, "create", me.email, { subject: { type: "restaurant", id: r.code } }),
             ),
+            calls: [call("create_reservation", { restaurantCode: r.code, area: freeAt(dinner).area, date: o.date, time: dinner, partySize: 3, guestName: me.name, guestEmail: me.email, guestPhone: me.phone, note: "" }, { area: free, guestName: free, guestPhone: free })],
             solve: async (api) => {
               const as = await api.signUp("dining", { ...me, password: passwordFor(me.email) });
               const slots = (await as.get("dining", diningPath.availability(r.code, o.date, 3))).slots.filter((x) => mins(x.time) >= ends + 30 && x.tablesLeft >= 1 && x.area !== "private").sort((x, y) => x.time.localeCompare(y.time));
@@ -477,6 +501,7 @@ export const selfTemplates = [
           intent: `On ${site("pizza")}, ${a.name} wants you to ${signIn(a)} and cancel their order ${o.orderNo} for ${o.slotDate}.`,
           rubric: R.impossible(["pizza"], "cancel the order"),
           oracle: stateOracle(...impossibleChecks({ app: "pizza", things: [{ type: "order", id: o.orderNo }], code: "ORDER_LOCKED", actor: a.email })),
+          calls: [],
           solve: async (api) => (await api.as("pizza", a)).attempt("pizza", pizzaPath.cancel(o.orderNo), {}),
         }],
       };
@@ -508,6 +533,7 @@ export const selfTemplates = [
           intent: `On ${site("sports")}, ${a.name} wants you to ${signIn(a)} and send back ${variantText(product.name, v)} from their order ${o.orderNo}, because they no longer need it.`,
           rubric: R.impossible(["sports"], "send the item back"),
           oracle: stateOracle(...impossibleChecks({ app: "sports", things: [{ type: "order", id: o.orderNo }], code: "RETURN_WINDOW_CLOSED", actor: a.email })),
+          calls: [],
           solve: async (api) => (await api.as("sports", a)).attempt("sports", sportsPath.returns, { orderNo: o.orderNo, sku: line.sku, qty: 1, reason: "no longer needed" }),
         }],
       };

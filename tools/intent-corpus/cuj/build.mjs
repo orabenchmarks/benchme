@@ -1,7 +1,7 @@
 /**
  * Builds the cuj-v1 corpus from its templates (./templates/index.mjs).
  *
- *   buildCujCorpus(rows, { seed, scale }) → { problems, specs, tasks, corpus, md, plans }
+ *   buildCujCorpus(rows, { seed, scale }) → { problems, specs, tasks, corpus, md, suite, plans }
  *
  * `corpus` is one record per task in the shape the contract fixes
  * (docs/scenarios/cuj-v1.md § The corpus record); `tasks` is the same records
@@ -16,10 +16,17 @@
  * same rows and every task's checks stay true in one workspace whatever the
  * others do. Every task that changes something gets one more check on its
  * last state step, from ./actors.mjs: no change made as anyone else.
+ *
+ * Every step declares the site tool calls every correct solution makes
+ * (`calls`, ../expected-calls.mjs: checked against the site's registry): the
+ * record's key publishes them (`expectedCall`), the verifier's spec does not
+ * carry them, and `suite` is them as a webmcp-evals suite (../suite.mjs).
  */
 import { shuffle } from "../../../packages/scenarios/dist/index.js";
+import { siteOf, stepCalls } from "../expected-calls.mjs";
 import { streamFor } from "../kit.mjs";
 import { criteriaProblem, expectedValues, said } from "../rubrics.mjs";
+import { webmcpEvalsSuite } from "../suite.mjs";
 import { heldAddresses, ownAccounts, withActorGuard } from "./actors.mjs";
 import { contextOf } from "./context.mjs";
 import { AREAS, LEVELS, LEVEL_TEXT, NO_EASY, levelOf } from "./levels.mjs";
@@ -41,6 +48,14 @@ function pickIssue(built) {
   return null;
 }
 
+/** The index of the step a site refuses (an impossible task's; a "which one" question no option meets is answered, not refused), or -1. */
+const refusedStep = (built) => (built.impossible && built.impossible.none === undefined ? (built.impossible.step ?? built.steps.length - 1) : -1);
+/** A step's expected calls, checked and published (../expected-calls.mjs). */
+const callsOf = (built, i) => {
+  const s = built.steps[i];
+  return stepCalls(s.calls, { apps: s.apps ?? built.apps, kind: s.kind, impossible: i === refusedStep(built), noCall: s.noCall });
+};
+
 /** Why a built task is not a task at all: a template's mistake, which refuses the corpus rather than skip the pick. */
 function templateProblem(built) {
   const steps = built.steps ?? [];
@@ -59,6 +74,8 @@ function templateProblem(built) {
     for (const re of NOT_IN_A_PROMPT) if (re.test(s.intent)) return `${where}'s intent says ${re} (a prompt names no place and no grading)`;
     const criteria = criteriaProblem(s.rubric, { where, lo: i === 0 ? 2 : 1, hi: 6, oracles: steps.map((x) => x.oracle), intents, hidden: built.hidden });
     if (criteria) return criteria;
+    const calls = callsOf(built, i);
+    if (calls.problem) return `${where}: ${calls.problem}`;
     if (s.kind !== s.oracle?.kind || !["json", "state"].includes(s.kind)) return `${where}: kind ${s.kind} and oracle ${s.oracle?.kind} disagree`;
     if (s.kind === "json" && typeof s.answer !== "function") return `${where} is json and has no answer reader`;
     if (s.kind === "state" && typeof s.solve !== "function") return `${where} is state and has no reference solution`;
@@ -112,6 +129,11 @@ function recordOf(id, template, built, lv) {
   // Present, and true, when a step's oracle is a state check; absent otherwise (never false): a consumer that
   // asks whether the field is there to decide whether to call the verifier never calls it for a reply-only task.
   const stateChecked = built.steps.some((s) => s.oracle.kind === "state");
+  // A step's expected calls sit beside its oracle in the key, when it has any.
+  const calls = (i) => {
+    const { published } = callsOf(built, i);
+    return published.length ? { expectedCall: published } : {};
+  };
   return {
     id,
     area: template.area,
@@ -126,7 +148,7 @@ function recordOf(id, template, built, lv) {
     kind: first.kind,
     ...(stateChecked ? { stateChecked: true } : {}),
     summary: built.summary,
-    key: { blind: false, oracle: first.oracle, steps: rest.map((s) => ({ oracle: s.oracle })) },
+    key: { blind: false, oracle: first.oracle, ...calls(0), steps: rest.map((s, i) => ({ oracle: s.oracle, ...calls(i + 1) })) },
   };
 }
 
@@ -135,7 +157,7 @@ export function buildCujCorpus(rows, { seed, scale = 1, templates = CUJ_TEMPLATE
   const held = heldAddresses(rows);
   // A person who already has an account belongs to the journeys that sign in as them; no other task names them.
   const claims = new Set(ctx.accountPeople);
-  const out = { problems: [], specs: [], tasks: [], corpus: [], plans: {}, sections: [] };
+  const out = { problems: [], specs: [], tasks: [], corpus: [], plans: {}, suite: [], sections: [] };
   /** Every task as built, in corpus order: records are written once all are known (the actor guard needs them all). */
   const picked = [];
   const keys = new Set();
@@ -183,9 +205,15 @@ export function buildCujCorpus(rows, { seed, scale = 1, templates = CUJ_TEMPLATE
     out.corpus.push(record);
     const { key: _key, ...task } = record;
     out.tasks.push(task);
-    // A task whose every step is answered in a reply has nothing for the verifier to check (it would refuse it).
-    if (record.stateChecked || built.steps.length === 1) out.specs.push({ id, blind: false, oracle: record.key.oracle, steps: record.key.steps });
+    // A task whose every step is answered in a reply has nothing for the verifier to check (it would refuse it); the
+    // verifier's spec is the key less the expected calls, which are not its to read.
+    if (record.stateChecked || built.steps.length === 1) out.specs.push({ id, blind: false, oracle: record.key.oracle, steps: record.key.steps.map((s) => ({ oracle: s.oracle })) });
     out.plans[id] = { props, built, level: lv };
+    for (const [i, step] of built.steps.entries()) {
+      const { published } = callsOf(built, i);
+      const apps = [...new Set(step.calls.map((c) => siteOf(c, step.apps ?? built.apps)))];
+      out.suite.push({ id, step: built.steps.length > 1 ? i + 1 : undefined, apps, intents: built.steps.slice(0, i + 1).map((x) => x.intent), calls: published });
+    }
   }
   // A new person a prompt names (an address of the corpus's own) is in one task only: two tasks booking for one
   // person would read each other's bookings.
@@ -205,7 +233,7 @@ export function buildCujCorpus(rows, { seed, scale = 1, templates = CUJ_TEMPLATE
       if (!out.corpus.some((r) => r.area === area && r.level === level)) out.problems.push(`no ${level} task in ${area}`);
     }
   }
-  return { problems: out.problems, specs: out.specs, tasks: out.tasks, corpus: out.corpus, plans: out.plans, accounts: ctx.accounts, md: describe(out, seed, scale) };
+  return { problems: out.problems, specs: out.specs, tasks: out.tasks, corpus: out.corpus, plans: out.plans, accounts: ctx.accounts, suite: webmcpEvalsSuite(out.suite), md: describe(out, seed, scale) };
 }
 
 function describe(out, seed, scale) {

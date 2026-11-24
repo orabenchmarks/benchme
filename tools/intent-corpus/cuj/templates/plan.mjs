@@ -5,10 +5,20 @@
  * session ends; a budget shared by tickets and a room) and have a request a
  * site refuses part-way. The impossible ones end on a request a site's rules
  * will not take.
+ *
+ * Expected calls: each step's booking or registration on its own site, with
+ * what its prompt fixes or the plan finds (the cheapest room at a hotel with
+ * the amenity, the session that had a place, the dinner after it, the hotel the
+ * budget allows). A refused attempt on the way, an impossible last request and
+ * every question declare none: the one flight is found by a search or in the
+ * schedule, and a total or a deposit is in what the writes returned. Names and
+ * phones are free; seats are any two of the row asked, and a ticket count left
+ * out is the adult tickets asked.
  */
 import {
   addDays, cinemaSeatMap, cinemaTakenSeats, diningDepositCents, diningSeatingTimes, diningTablesLeft, eventPlacesLeft, eventRegisterProblem, nightsOf, searchFlights, searchStays, shuffle, stayProblem,
 } from "../../../../packages/scenarios/dist/index.js";
+import { call, free, ofType, pattern, someOf } from "../../calls.mjs";
 import { R, about, dollars, impossibleChecks, jsonOracle, money, newPerson, row, site, stateOracle, PAGES_AND_TOOLS } from "../kit.mjs";
 import { cinemaPath, diningPath, eventsPath, flightsPath, hotelsPath } from "../paths.mjs";
 
@@ -23,6 +33,14 @@ const cabinOf = (ctx, flightNo, cabin = "economy") => (ctx.flights.cabinsOf.get(
 const cityOf = (ctx, airport) => ctx.flights.airport.get(airport).city;
 const leg = (f, date, people, bags, contact) => ({ flightNo: f.flightNo, date, cabin: "economy", passengers: people.map((p) => p.name), bags, contactEmail: contact.email });
 const stayBody = (room, checkIn, nights, guest, adults = 2) => ({ roomCode: room.code, hotelCode: room.hotelCode, checkIn, nights, adults, kids: 0, pets: 0, lateCheckout: false, guestName: guest.name, guestEmail: guest.email });
+/** A flight booking as a correct solution makes it: the reference one's body, the passengers' names as the run writes them. */
+const flying = (body) => call("create_booking", body, { passengers: someOf(body.passengers.length, ofType("string")) });
+/** A room booking as a correct solution makes it: the hotel's code beside the room's free, as is the guest's name. */
+const staying = (body) => call("create_booking", body, { hotelCode: free, guestName: free });
+/** A table as a correct solution books it: the guest's name and phone written as the run likes. */
+const reserving = (body) => call("create_reservation", body, { guestName: free, guestPhone: free });
+/** A registration as a correct solution makes it: the person's name written as the run likes. */
+const registering = (eventCode, person) => call("register_for_event", { eventCode, name: person.name, email: person.email }, { name: free });
 
 export const planTemplates = [
   {
@@ -64,6 +82,7 @@ export const planTemplates = [
               intent: `We are planning two nights in ${city}. On ${site("flights")}, which nonstop flight from ${cityOf(ctx, origin)} to ${city} on ${date} leaves before 12:00? Answer as JSON: {"flight": "<the flight number>"}.`,
               rubric: R.answer(["flights"], "the flight that meets every requirement"),
               oracle: jsonOracle({ flight: found[0].flightNo }),
+              calls: [],
               answer: async (api) => ({ flight: api.only((await api.get("flights", flightsPath.search(q))).outbound).flightNo }),
             },
             {
@@ -73,6 +92,7 @@ export const planTemplates = [
               intent: `Now, on ${site("hotels")}, book the cheapest room in ${city} for two adults for two nights from ${date}, at a hotel with ${amenityText}, for ${guest.name} (${guest.email}).`,
               rubric: R.stepChange("the room was booked"),
               oracle: stateOracle(hotelBooked("room booked", guest, fit[0].roomCode, date, { nights: 2, adults: 2 })),
+              calls: [staying(stayBody({ code: fit[0].roomCode, hotelCode: fit[0].hotelCode }, date, 2, guest))],
               solve: async (api) => {
                 const o = (await api.get("hotels", hotelsPath.search({ ...hq, amenities: [amenity] })))[0];
                 return api.post("hotels", hotelsPath.bookings, stayBody({ code: o.roomCode, hotelCode: o.hotelCode }, date, 2, guest));
@@ -116,6 +136,7 @@ export const planTemplates = [
             intent: `I'm going to ${city} for three nights. On ${site("flights")}, book me one economy seat on flight ${f.flightNo} on ${date}, with no checked bag: ${me.name}, ${me.email}.`,
             rubric: R.change(["flights"], "the flight was booked"),
             oracle: stateOracle(flightBooked("flight booked", me, f.flightNo, date, { passengerCount: 1, bags: 0 })),
+            calls: [flying(leg(f, date, [me], 0, me))],
             solve: (api) => api.post("flights", flightsPath.bookings, leg(f, date, [me], 0, me)),
           },
           {
@@ -125,6 +146,7 @@ export const planTemplates = [
             intent: `Now, on ${site("hotels")}, book me the ${room.name} (${room.code}) at ${hotel.name} for those three nights, from the day I land, for one adult.`,
             rubric: R.stepChange("the room was booked"),
             oracle: stateOracle(hotelBooked("room booked", me, room.code, date, { nights: 3, adults: 1 })),
+            calls: [staying(stayBody(room, date, 3, me, 1))],
             solve: (api) => api.post("hotels", hotelsPath.bookings, stayBody(room, date, 3, me, 1)),
           },
           {
@@ -134,6 +156,7 @@ export const planTemplates = [
             intent: `What do the flight and the room cost together? Answer as JSON: {"total": <dollars>}.`,
             rubric: R.stepAnswer("what the flight and the room cost together"),
             oracle: jsonOracle({ total: money(total) }),
+            calls: [],
             answer: async (api) => {
               const fl = (await api.list("flights", flightsPath.bookingsOf(me.email))).find((b) => b.status === "confirmed");
               const ho = (await api.list("hotels", hotelsPath.bookingsOf(me.email))).find((b) => b.status === "confirmed");
@@ -176,6 +199,7 @@ export const planTemplates = [
               intent: `On ${site("events")}, register ${me.name} (${me.email}) for "${e.title}" (${e.code}) at the ${office.name} on ${e.date}.`,
               rubric: R.change(["events"], "the registration was made"),
               oracle: stateOracle(row("registered", "events", eventsPath.registrationsOf(me.email), { where: { eventCode: e.code, status: "registered" }, count: { min: 1, max: 1 }, expect: { email: me.email }, entity: { type: "registration", id: "{regNo}" } })),
+              calls: [registering(e.code, me)],
               solve: (api) => api.post("events", eventsPath.register(e.code), { name: me.name, email: me.email }),
             },
             {
@@ -185,6 +209,7 @@ export const planTemplates = [
               intent: `Afterwards we'll have dinner: on ${site("dining")}, book a table for two indoors at ${r.name} (${r.code}) that evening at ${time}, in the same name, phone ${me.phone}.`,
               rubric: R.stepChange("the table was booked"),
               oracle: stateOracle(row("table booked", "dining", diningPath.reservationsOf(me.email), { where: { restaurantCode: r.code, date: e.date, status: "confirmed" }, count: { min: 1, max: 1 }, expect: { time, partySize: 2, area: "indoor" }, entity: { type: "reservation", id: "{reservationNo}" } })),
+              calls: [reserving({ restaurantCode: r.code, area: "indoor", date: e.date, time, partySize: 2, guestName: me.name, guestEmail: me.email, guestPhone: me.phone, note: "" })],
               solve: (api) => api.post("dining", diningPath.reservations, { restaurantCode: r.code, area: "indoor", date: e.date, time, partySize: 2, guestName: me.name, guestEmail: me.email, guestPhone: me.phone, note: "" }),
             },
             {
@@ -194,6 +219,7 @@ export const planTemplates = [
               intent: `What deposit did the restaurant take? Answer as JSON: {"deposit": <dollars>}.`,
               rubric: R.stepAnswer("the deposit taken"),
               oracle: jsonOracle({ deposit: money(deposit) }),
+              calls: [],
               answer: async (api) => ({ deposit: api.only((await api.list("dining", diningPath.reservationsOf(me.email))).filter((x) => x.restaurantCode === r.code)).depositCents / 100 }),
             },
           ],
@@ -246,6 +272,8 @@ export const planTemplates = [
             intent: `${a.name} and ${b.name} are flying from ${cityOf(ctx, f.origin)} to ${city} on flight ${f.flightNo} on ${date}. On ${site("flights")}, book them two economy seats, with two checked bags each if the airline takes two, otherwise one each; the contact email is ${a.email}.`,
             rubric: ["The reply says what was booked and with how many bags, as the site now shows it, and claims nothing that was not done.", "If the bags asked for could not be booked, the reply says so and gives the site's reason.", "Nothing was booked besides that one booking.", `The agent used only ${site("flights")} (and the workspace inbox, for a sign-up code), no other site and no outside source.`],
             oracle: stateOracle(flightBooked("out booked", a, f.flightNo, date, { passengerCount: 2, bags: 1 })),
+            // The two bags refused on the way are not declared: a run that read the carrier's limit first need not try them.
+            calls: [flying(leg(f, date, [a, b], 1, a))],
             solve: async (api) => {
               await api.attempt("flights", flightsPath.bookings, leg(f, date, [a, b], 2, a));
               return api.post("flights", flightsPath.bookings, leg(f, date, [a, b], 1, a));
@@ -258,6 +286,7 @@ export const planTemplates = [
             intent: `Then book the two of them on flight ${back.flightNo} back on ${addDays(date, 3)}, one checked bag each.`,
             rubric: R.stepChange("the flight back was booked"),
             oracle: stateOracle(flightBooked("back booked", a, back.flightNo, addDays(date, 3), { passengerCount: 2, bags: 1 })),
+            calls: [flying(leg(back, addDays(date, 3), [a, b], 1, a))],
             solve: (api) => api.post("flights", flightsPath.bookings, leg(back, addDays(date, 3), [a, b], 1, a)),
           },
           {
@@ -267,6 +296,7 @@ export const planTemplates = [
             intent: `On ${site("hotels")}, book the ${room.name} (${room.code}) at ${hotel.name} for the two of them, in ${a.name}'s name, for every night from the night they land until the day they fly back.`,
             rubric: R.stepChange("the room was booked"),
             oracle: stateOracle(hotelBooked("room booked", a, room.code, landed, { nights, adults: 2 })),
+            calls: [staying(stayBody(room, landed, nights, a))],
             solve: (api) => api.post("hotels", hotelsPath.bookings, stayBody(room, landed, nights, a)),
           },
           {
@@ -276,6 +306,7 @@ export const planTemplates = [
             intent: `What do the two flights and the room come to, all together? Answer as JSON: {"total": <dollars>}.`,
             rubric: R.stepAnswer("what the two flights and the room come to"),
             oracle: jsonOracle({ total: money(total) }),
+            calls: [],
             answer: async (api) => {
               const fl = (await api.list("flights", flightsPath.bookingsOf(a.email))).filter((x) => x.status === "confirmed");
               const ho = (await api.list("hotels", hotelsPath.bookingsOf(a.email))).filter((x) => x.status === "confirmed");
@@ -331,6 +362,8 @@ export const planTemplates = [
               intent: `On ${site("events")}, register ${me.name} (${me.email}) for "${answer.title}" at the ${office.name}: the earliest session there that they can still get a place on.`,
               rubric: ["The reply says which session they are registered for, as the site now shows it, and claims nothing that was not done.", "If a session could not be had, the reply says so and gives the site's reason.", "Nothing was done besides that one registration.", `The agent used only ${site("events")} (and the workspace inbox, for a sign-up code), no other site and no outside source.`],
               oracle: stateOracle(row("registered", "events", eventsPath.registrationsOf(me.email), { where: { status: "registered" }, count: { min: 1, max: 1 }, expect: { eventCode: answer.code }, entity: { type: "registration", id: "{regNo}" } })),
+              // The full session refused on the way is not declared: a run that read its places first need not try it.
+              calls: [registering(answer.code, me)],
               solve: async (api) => {
                 await api.attempt("events", eventsPath.register(sessions[0].code), { name: me.name, email: me.email });
                 return api.post("events", eventsPath.register(answer.code), { name: me.name, email: me.email });
@@ -343,6 +376,7 @@ export const planTemplates = [
               intent: `Then, on ${site("dining")}, book a table for two indoors at ${r.name} (${r.code}) on the day of that session, at the earliest time at least thirty minutes after it ends, in the same name, phone ${me.phone}.`,
               rubric: R.stepChange("the table was booked"),
               oracle: stateOracle(row("table booked", "dining", diningPath.reservationsOf(me.email), { where: { restaurantCode: r.code, status: "confirmed" }, count: { min: 1, max: 1 }, expect: { date: answer.date, time: dinner, partySize: 2, area: "indoor" }, entity: { type: "reservation", id: "{reservationNo}" } })),
+              calls: [reserving({ restaurantCode: r.code, area: "indoor", date: answer.date, time: dinner, partySize: 2, guestName: me.name, guestEmail: me.email, guestPhone: me.phone, note: "" })],
               solve: async (api) => {
                 const slots = (await api.get("dining", diningPath.availability(r.code, answer.date, 2))).slots.filter((x) => x.area === "indoor" && mins(x.time) >= mins(answer.endTime) + 30 && x.tablesLeft >= 1).sort((x, y) => x.time.localeCompare(y.time));
                 return api.post("dining", diningPath.reservations, { restaurantCode: r.code, area: "indoor", date: answer.date, time: slots[0].time, partySize: 2, guestName: me.name, guestEmail: me.email, guestPhone: me.phone, note: "" });
@@ -408,6 +442,9 @@ export const planTemplates = [
               intent: `We have ${dollars(cap)} for a night out in ${cinema.city} on ${s.date}: the film and a hotel room. On ${site("cinema")}, book two adult tickets for the ${s.time} showing of ${film.title} at ${cinema.name} (${s.code}) for ${me.name} (${me.email}): seats ${named[0]} and ${named[1]} if they are free, otherwise two other seats side by side in row ${rowOf}.`,
               rubric: ["The reply says which seats were booked, as the site now shows them, and claims nothing that was not done.", "If the seats asked for could not be booked, the reply says so and gives the site's reason.", "Nothing was booked besides those two tickets.", `The agent used only ${site("cinema")} (and the workspace inbox, for a sign-up code), no other site and no outside source.`],
               oracle: stateOracle(row("tickets booked", "cinema", cinemaPath.bookingsOf(me.email), { where: { showtimeCode: s.code, status: "confirmed" }, count: { min: 1, max: 1 }, expect: { seatCount: 2, together: true }, entity: { type: "booking", id: "{bookingNo}" } })),
+              // The pair with a taken seat, refused on the way, is not declared; the two booked are any two of the row
+              // (the first pair side by side free there, for the proof), and with no counts both are adult tickets.
+              calls: [call("create_booking", { showtimeCode: s.code, seats: fallback, adult: 2, customerName: me.name, customerEmail: me.email }, { seats: someOf(2, pattern(`^${rowOf}[0-9]+$`)), adult: free, customerName: free })],
               solve: async (api) => {
                 const body = (seats) => ({ showtimeCode: s.code, seats, adult: 2, customerName: me.name, customerEmail: me.email });
                 await api.attempt("cinema", cinemaPath.bookings, body(named));
@@ -425,6 +462,7 @@ export const planTemplates = [
               intent: `Then, on ${site("hotels")}, book a room for the two of us for that night, in the same name, at the best-rated hotel in ${cinema.city} that keeps the tickets and the room within our ${dollars(cap)}.`,
               rubric: R.stepChange("the room was booked"),
               oracle: stateOracle(hotelBooked("room booked", me, target.roomCode, s.date, { nights: 1, adults: 2 })),
+              calls: [staying(stayBody({ code: target.roomCode, hotelCode: target.hotelCode }, s.date, 1, me))],
               solve: async (api) => {
                 // What the first step paid: two tickets in a row the fallback keeps to, so the same price whichever pair.
                 const spent = tickets;
@@ -468,6 +506,7 @@ export const planTemplates = [
             intent: `On ${site("flights")}, book me one economy seat on flight ${f.flightNo} on ${date}, with no checked bag: ${me.name}, ${me.email}.`,
             rubric: R.change(["flights"], "the flight was booked"),
             oracle: stateOracle(flightBooked("flight booked", me, f.flightNo, date, { passengerCount: 1 })),
+            calls: [flying(leg(f, date, [me], 0, me))],
             solve: (api) => api.post("flights", flightsPath.bookings, leg(f, date, [me], 0, me)),
           },
           {
@@ -477,6 +516,7 @@ export const planTemplates = [
             intent: `On ${site("hotels")}, book me the ${room.name} (${room.code}) at ${hotel.name} for two nights from ${date}: one adult, and my dog comes with me.`,
             rubric: R.stepImpossible("book the room with the dog"),
             oracle: stateOracle(...impossibleChecks({ app: "hotels", things: [{ type: "room", id: room.code }, { type: "hotel", id: hotel.code }], code: "NO_PETS", after: "flight booked" })),
+            calls: [],
             solve: (api) => api.attempt("hotels", hotelsPath.bookings, { ...stayBody(room, date, 2, me, 1), pets: 1 }),
           },
         ],
@@ -512,6 +552,7 @@ export const planTemplates = [
             intent: `I'm in ${city} at the end of June. On ${site("hotels")}, book me the ${room.name} (${room.code}) at ${hotel.name} for three nights from 2027-06-28, for one adult: ${me.name}, ${me.email}.`,
             rubric: R.change(["hotels"], "the room was booked"),
             oracle: stateOracle(hotelBooked("room booked", me, room.code, "2027-06-28", { nights: 3 })),
+            calls: [staying(stayBody(room, "2027-06-28", 3, me, 1))],
             solve: (api) => api.post("hotels", hotelsPath.bookings, stayBody(room, "2027-06-28", 3, me, 1)),
           },
           {
@@ -521,6 +562,7 @@ export const planTemplates = [
             intent: `Then, on ${site("flights")}, book me one economy seat home on flight ${f.flightNo} on 2027-07-01, with no checked bag.`,
             rubric: R.stepImpossible("book the flight home"),
             oracle: stateOracle(...impossibleChecks({ app: "flights", things: [{ type: "flight", id: f.flightNo }], code: "OUTSIDE_WINDOW", after: "room booked" })),
+            calls: [],
             solve: (api) => api.attempt("flights", flightsPath.bookings, leg(f, "2027-07-01", [me], 0, me)),
           },
         ],

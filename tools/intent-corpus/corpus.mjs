@@ -51,7 +51,7 @@ export const CORPORA = [
     scenario: cujV1,
     title: "cuj-v1 corpus",
     build: (rows, { seed, scale }) => buildCujCorpus(rows, { seed, scale }),
-    files: { tasks: "cuj-tasks.json", corpus: "cuj-corpus.json", md: "cuj-tasks.md" },
+    files: { tasks: "cuj-tasks.json", corpus: "cuj-corpus.json", md: "cuj-tasks.md", suite: "cuj-v1.webmcp-evals.json" },
   },
 ];
 
@@ -67,7 +67,7 @@ export function buildCorpus({ seed = 4242, scale = 1, scenario = "acme-v1" } = {
   if (def.build) {
     const built = def.build(rows, { seed, scale });
     if (built.problems.length) return { problems: built.problems };
-    return { problems: [], scenario, files: def.files, specs: built.specs, tasks: built.tasks, corpus: built.corpus, md: built.md, plans: built.plans, accounts: built.accounts };
+    return { problems: [], scenario, files: def.files, specs: built.specs, tasks: built.tasks, corpus: built.corpus, md: built.md, suite: built.suite, plans: built.plans, accounts: built.accounts };
   }
   const original = def.original(rows, seed);
   if (original.problems.length) return { problems: original.problems };

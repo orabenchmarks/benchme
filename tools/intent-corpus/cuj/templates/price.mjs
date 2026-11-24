@@ -2,8 +2,19 @@
  * Price it (answer; hotels, flights, pizza, clinic, sports, cinema): the full
  * cost of a named choice, fees and extras included. The impossible ones ask
  * the price of what the site's rules will not sell.
+ *
+ * Expected calls: a price is a question, so at most the one read that is the
+ * only way to it: a room type's nightly price is in `get_hotel` alone, a
+ * pharmacy's prices in `get_prescription_prices` (named by the medication's
+ * name or its code, so neither is fixed), the shop's shipping fee and its
+ * free-shipping threshold in `get_store_policies`, read in the first step
+ * that needs them. Every other price can be read from two tools (a flight's
+ * fares and bag fee from `get_flight` or `list_flights`, a quote from
+ * `quote_order` or the menu and the branch), so it declares none; so does an
+ * impossible request.
  */
 import { addDays, cinemaQuote, cinemaSeatMap, cinemaTakenSeats, pizzaOutOfStock, pizzaQuote, searchFlights, shuffle, sportsShippingCents, stayTotalCents } from "../../../../packages/scenarios/dist/index.js";
+import { call, free } from "../../calls.mjs";
 import { R, about, dollars, variantText, impossibleChecks, jsonOracle, money, newPerson, site, stateOracle, PAGES_AND_TOOLS } from "../kit.mjs";
 import { cinemaPath, clinicPath, flightsPath, hotelsPath, pizzaPath, sportsPath } from "../paths.mjs";
 
@@ -34,6 +45,7 @@ export const priceTemplates = [
           intent: `On ${site("hotels")}, what does one night in the ${room.name} (${room.code}) at ${hotel.name} cost? Answer as JSON: {"nightly": <dollars>}.`,
           rubric: R.answer(["hotels"], "the nightly price"),
           oracle: jsonOracle({ nightly: money(room.nightlyCents) }),
+          calls: [call("get_hotel", { hotelCode: hotel.code })],
           answer: async (api) => ({ nightly: (await api.get("hotels", hotelsPath.hotel(hotel.code))).rooms.find((r) => r.code === room.code).nightlyCents / 100 }),
         }],
       };
@@ -59,6 +71,7 @@ export const priceTemplates = [
           intent: `On ${site("flights")}, what is the ${CABIN[cabin.cabin]} fare for one passenger on flight ${cabin.flightNo}? Answer as JSON: {"fare": <dollars>}.`,
           rubric: R.answer(["flights"], "the fare"),
           oracle: jsonOracle({ fare: money(cabin.priceCents) }),
+          calls: [],
           answer: async (api) => ({ fare: (await api.get("flights", flightsPath.flight(cabin.flightNo))).cabins.find((c) => c.cabin === cabin.cabin).priceCents / 100 }),
         }],
       };
@@ -86,6 +99,7 @@ export const priceTemplates = [
           intent: `On ${site("clinic")}, what does the pharmacy at ${clinic.name} (${clinic.code}) charge for ${med.name} (${med.code}) ${price.dosage}? Answer as JSON: {"price": <dollars>}.`,
           rubric: R.answer(["clinic"], "the pharmacy's price"),
           oracle: jsonOracle({ price: money(price.priceCents) }),
+          calls: [call("get_prescription_prices", { medication: med.code, dosage: price.dosage }, { medication: free, dosage: free })],
           answer: async (api) => ({ price: (await api.get("clinic", clinicPath.medication(med.code))).prices.find((x) => x.clinicCode === clinic.code && x.dosage === price.dosage).priceCents / 100 }),
         }],
       };
@@ -112,6 +126,7 @@ export const priceTemplates = [
           intent: `On ${site("sports")}, what does ${variantText(product.name, v)} cost? Answer as JSON: {"price": <dollars>}.`,
           rubric: R.answer(["sports"], "the price"),
           oracle: jsonOracle({ price: money(v.priceCents) }),
+          calls: [],
           answer: async (api) => ({ price: (await api.get("sports", sportsPath.variant(v.sku))).priceCents / 100 }),
         }],
       };
@@ -146,6 +161,7 @@ export const priceTemplates = [
           intent: `On ${site("hotels")}, what would this stay at ${hotel.name} cost in total: the ${room.name} (${room.code}) for ${nights} nights from ${checkIn}, for one adult bringing a dog, with late checkout? Answer as JSON: {"total": <dollars>}.`,
           rubric: R.answer(["hotels"], "the stay's total"),
           oracle: jsonOracle({ total: money(total) }),
+          calls: [call("get_hotel", { hotelCode: hotel.code })],
           answer: async (api) => {
             const h = await api.get("hotels", hotelsPath.hotel(hotel.code));
             return { total: (h.rooms.find((r) => r.code === room.code).nightlyCents * nights + h.petFeeCents + h.lateCheckoutFeeCents) / 100 };
@@ -179,6 +195,7 @@ export const priceTemplates = [
           intent: `On ${site("flights")}, what would it cost in total for ${people(passengers)} passengers to fly ${CABIN[cabin.cabin]} on flight ${cabin.flightNo}, each with ${bags} checked bag${bags === 1 ? "" : "s"}? Answer as JSON: {"total": <dollars>}.`,
           rubric: R.answer(["flights"], "the total for the party with their bags"),
           oracle: jsonOracle({ total: money(total) }),
+          calls: [],
           answer: async (api) => {
             const f = await api.get("flights", flightsPath.flight(cabin.flightNo));
             return { total: (passengers * f.cabins.find((c) => c.cabin === cabin.cabin).priceCents + passengers * bags * f.carrier.bagFeeCents) / 100 };
@@ -215,6 +232,7 @@ export const priceTemplates = [
           intent: `On ${site("pizza")}, what would two ${size} ${p.name} pizzas (${p.code}) cost delivered from the ${b.name} branch (${b.code})? Answer as JSON: {"total": <dollars>}.`,
           rubric: R.answer(["pizza"], "the order's total"),
           oracle: jsonOracle({ total: money(q.totalCents) }),
+          calls: [],
           answer: async (api) => ({ total: (await api.ask("pizza", pizzaPath.quote, { branchCode: b.code, fulfilment: "delivery", lines })).totalCents / 100 }),
         }],
       };
@@ -254,6 +272,7 @@ export const priceTemplates = [
           intent: `On ${site("cinema")}, what would seats ${seats.join(" and ")} for the ${s.time} showing of ${film.title} at ${cinema.name} on ${s.date} (${s.code}) cost in all, for an adult and ${other}? Answer as JSON: {"total": <dollars>}.`,
           rubric: R.answer(["cinema"], "the total for the two tickets"),
           oracle: jsonOracle({ total: money(q.totalCents) }),
+          calls: [],
           answer: async (api) => {
             const x = await api.get("cinema", cinemaPath.showtime(s.code));
             const ticket = (type) => x.prices[type] + x.premiumSurchargeCents + x.bookingFeeCents;
@@ -299,6 +318,7 @@ export const priceTemplates = [
           intent: `On ${site("flights")}, two of us want to fly economy from ${from} to ${to} on ${date}, each with two checked bags. Which flight is the cheapest for that, and what will it cost us in total? Answer as JSON: {"flight": "<the flight number>", "total": <dollars>}.`,
           rubric: R.answer(["flights"], "the cheapest flight for the party with their bags, and its total"),
           oracle: jsonOracle({ flight: best.o.flightNo, total: money(best.total) }),
+          calls: [],
           answer: async (api) => {
             const carriers = new Map((await api.get("flights", flightsPath.carriers)).map((c) => [c.code, c]));
             const all = (await api.get("flights", flightsPath.search({ origin, destination, date, passengers: 2, cabin: "economy" }))).outbound;
@@ -339,6 +359,7 @@ export const priceTemplates = [
             intent: `On ${site("flights")}, what would it cost for two passengers to fly economy on flight ${f.flightNo}, each with one checked bag? Answer as JSON: {"total": <dollars>}.`,
             rubric: R.answer(["flights"], "the total for two with one bag each"),
             oracle: jsonOracle({ total: money(total(eco, 1)) }),
+            calls: [],
             answer: read("economy", 1),
           },
           {
@@ -347,6 +368,7 @@ export const priceTemplates = [
             intent: `And if we each take two checked bags instead? Answer as JSON: {"total": <dollars>}.`,
             rubric: R.stepAnswer("the new total"),
             oracle: jsonOracle({ total: money(total(eco, 2)) }),
+            calls: [],
             answer: read("economy", 2),
           },
           {
@@ -355,6 +377,7 @@ export const priceTemplates = [
             intent: `What if we fly premium economy on that flight instead, still with the two bags each? Answer as JSON: {"total": <dollars>}.`,
             rubric: R.stepAnswer("the total in that cabin"),
             oracle: jsonOracle({ total: money(total(prem, 2)) }),
+            calls: [],
             answer: read("premium", 2),
           },
         ],
@@ -394,6 +417,7 @@ export const priceTemplates = [
             intent: `On ${site("sports")}, what would ${variantText(pa.name, a).replace(/^the /, "one ")} cost delivered, shipping included? Answer as JSON: {"total": <dollars>}.`,
             rubric: R.answer(["sports"], "the total with shipping"),
             oracle: jsonOracle({ total: money(total(s1)) }),
+            calls: [call("get_store_policies")],
             answer: read(1, 0),
           },
           {
@@ -402,6 +426,7 @@ export const priceTemplates = [
             intent: `And if I add two of ${variantText(pb.name, b)} to the same order? Answer as JSON: {"total": <dollars>}.`,
             rubric: R.stepAnswer("the new total"),
             oracle: jsonOracle({ total: money(total(s2)) }),
+            calls: [],
             answer: read(1, 2),
           },
           {
@@ -410,6 +435,7 @@ export const priceTemplates = [
             intent: `Make that three of the ${pb.name} instead of two: what is the total now? Answer as JSON: {"total": <dollars>}.`,
             rubric: R.stepAnswer("the new total"),
             oracle: jsonOracle({ total: money(total(s3)) }),
+            calls: [],
             answer: read(1, 3),
           },
         ],
@@ -445,6 +471,7 @@ export const priceTemplates = [
           intent: `On ${site("cinema")}, book two adult tickets and one child ticket for the ${s.time} showing of ${film.title} at ${cinema.name} on ${s.date} (${s.code}), for ${guest.name} (${guest.email}), and tell me what they cost in all.`,
           rubric: R.impossible(["cinema"], "book the three tickets"),
           oracle: stateOracle(...impossibleChecks({ app: "cinema", things: [{ type: "showtime", id: s.code }, { type: "film", id: film.code }], code: "CHILD_NOT_ALLOWED" })),
+          calls: [],
           solve: (api) => api.attempt("cinema", cinemaPath.bookings, body),
         }],
       };
@@ -476,6 +503,7 @@ export const priceTemplates = [
           intent: `On ${site("flights")}, book economy seats on flight ${f.flightNo} on ${date} for ${a.name} and ${b.name} (contact ${a.email}), each with ${bags} checked bags, and tell me the total.`,
           rubric: R.impossible(["flights"], "book that many bags"),
           oracle: stateOracle(...impossibleChecks({ app: "flights", things: [{ type: "flight", id: f.flightNo }], code: "TOO_MANY_BAGS" })),
+          calls: [],
           solve: (api) => api.attempt("flights", flightsPath.bookings, body),
         }],
       };
