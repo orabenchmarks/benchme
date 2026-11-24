@@ -103,6 +103,9 @@ spec:
               value: "warehouse,helpdesk,vaultdocs"
             - name: WEBMCP_APPS
               value: "warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events,mail"
+            # The doors a workspace is served through unless created with its own (README § Doors): values.doors.
+            - name: BENCHME_DOORS
+              value: {{ include "benchme.doors" $root | quote }}
             - name: WORKSPACE_TTL_SECONDS
               value: {{ $root.Values.workspaces.ttlSeconds | quote }}
             - name: WORKSPACE_MAX_TTL_SECONDS

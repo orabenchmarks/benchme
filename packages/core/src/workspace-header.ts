@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { DoorSet, splitList } from "./doors.js";
 
 /**
  * The gateway binds a workspace from the URL prefix and forwards it to the app
@@ -10,14 +11,21 @@ export const WORKSPACE_SIG_HEADER = "x-benchme-workspace-sig";
 /** The mount prefix the gateway stripped, so apps render absolute links and cookie paths. */
 export const FORWARDED_PREFIX_HEADER = "x-forwarded-prefix";
 
+const hmac = (secret: string, message: string): string => createHmac("sha256", secret).update(message).digest("hex");
+
+/** Whether `given` is `expected`, compared in constant time. */
+function same(expected: string, given: string): boolean {
+  const a = Buffer.from(expected);
+  const b = Buffer.from(given);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export function signWorkspaceHeader(secret: string, workspaceId: string): string {
-  return createHmac("sha256", secret).update(workspaceId).digest("hex");
+  return hmac(secret, workspaceId);
 }
 
 export function verifyWorkspaceHeader(secret: string, workspaceId: string, signature: string): boolean {
-  const expected = Buffer.from(signWorkspaceHeader(secret, workspaceId));
-  const given = Buffer.from(signature);
-  return expected.length === given.length && timingSafeEqual(expected, given);
+  return same(signWorkspaceHeader(secret, workspaceId), signature);
 }
 
 /**
@@ -29,11 +37,46 @@ export function verifyWorkspaceHeader(secret: string, workspaceId: string, signa
 export const VERIFIER_SIG_HEADER = "x-benchme-verifier-sig";
 
 export function signVerifierHeader(secret: string, workspaceId: string): string {
-  return createHmac("sha256", secret).update(`verifier:${workspaceId}`).digest("hex");
+  return hmac(secret, `verifier:${workspaceId}`);
 }
 
 export function verifyVerifierHeader(secret: string, workspaceId: string, signature: string): boolean {
-  const expected = Buffer.from(signVerifierHeader(secret, workspaceId));
-  const given = Buffer.from(signature);
-  return expected.length === given.length && timingSafeEqual(expected, given);
+  return same(signVerifierHeader(secret, workspaceId), signature);
+}
+
+/**
+ * The doors the gateway serves a request's workspace through, forwarded beside
+ * the workspace header as a comma list (`page,webmcp`) and signed with the
+ * gateway secret over the workspace id and the list. The gateway decides the
+ * set and replaces whatever a client sent under these names; the signature
+ * binds the list to its workspace, so one made for a workspace opens no other.
+ */
+export const DOORS_HEADER = "x-benchme-doors";
+export const DOORS_SIG_HEADER = "x-benchme-doors-sig";
+
+export function signDoorsHeader(secret: string, workspaceId: string, doors: string): string {
+  return hmac(secret, `doors:${workspaceId}:${doors}`);
+}
+
+export function verifyDoorsHeader(secret: string, workspaceId: string, doors: string, signature: string): boolean {
+  return same(signDoorsHeader(secret, workspaceId, doors), signature);
+}
+
+/** The two headers that carry `doors` for `workspaceId` from the gateway to an app. */
+export function doorsHeaders(secret: string, workspaceId: string, doors: DoorSet): Record<typeof DOORS_HEADER | typeof DOORS_SIG_HEADER, string> {
+  const list = doors.toString();
+  return { [DOORS_HEADER]: list, [DOORS_SIG_HEADER]: signDoorsHeader(secret, workspaceId, list) };
+}
+
+/**
+ * The doors an app serves a request through, read from the gateway's two
+ * headers. Neither sent is a gateway older than doors, which served every
+ * door: so does the app. Anything else must be a list signed for this
+ * workspace, or it is null, and the request is refused as one that did not
+ * come through the gateway.
+ */
+export function doorsFromHeaders(secret: string, workspaceId: string, list: string | undefined, signature: string | undefined): DoorSet | null {
+  if (list === undefined && signature === undefined) return DoorSet.ALL;
+  if (list === undefined || signature === undefined || !verifyDoorsHeader(secret, workspaceId, list, signature)) return null;
+  return DoorSet.read(splitList(list));
 }

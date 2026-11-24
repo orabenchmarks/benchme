@@ -243,6 +243,8 @@ services:
       ASK_APPS: warehouse,helpdesk,vaultdocs
       # hotels and the other errand sites have no NLWeb /ask (they are not in ASK_APPS).
       WEBMCP_APPS: warehouse,helpdesk,vaultdocs,hotels,flights,dining,pizza,cinema,sports,homes,clinic,events,mail
+      # The doors a workspace is served through unless created with its own (README § Doors); pages are always served.
+      BENCHME_DOORS: ${BENCHME_DOORS:-page,rest,mcp,webmcp}
       WORKSPACE_TTL_SECONDS: ${WORKSPACE_TTL_SECONDS:-86400}
       WORKSPACE_MAX_TTL_SECONDS: ${WORKSPACE_MAX_TTL_SECONDS:-604800}
       # Your own machine: no need to throttle yourself.

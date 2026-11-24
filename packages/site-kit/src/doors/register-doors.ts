@@ -1,5 +1,5 @@
 import "@fastify/cookie";
-import { VERIFIER_SIG_HEADER, verifyVerifierHeader, type Transactions } from "@benchme/core";
+import type { Transactions } from "@benchme/core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AuthService } from "../auth-service.js";
 import { AUTH_LEDGER } from "../ledger/auth-rules.js";
@@ -8,9 +8,10 @@ import type { Ledger } from "../ledger/ledger.js";
 import { ledgered } from "../ledger/ledgered.js";
 import type { LedgerRules } from "../ledger/rules.js";
 import type { ToolRegistry } from "../tool-registry.js";
-import { header } from "../workspace-scope.js";
+import { header } from "../request-header.js";
 import { CallerScope, once, type Caller } from "./caller.js";
-import { doorOf, type Door } from "./door.js";
+import type { Door } from "./door.js";
+import { isObserver } from "./request-door.js";
 import { CookieCarrier, McpSessionCarrier, NoCarrier, isMcpSessionId, type SessionCarrier } from "./session-carrier.js";
 import { registerSignInTools } from "./sign-in-tools.js";
 import { SignInRequired } from "./sign-in.js";
@@ -57,9 +58,10 @@ export function registerDoors(app: FastifyInstance, d: DoorsDeps): Doors {
   const units = { ledger, callers, transactions: d.transactions };
   const auth = ledgered(d.auth, AUTH_LEDGER, units);
 
-  // A callback hook on purpose: the rest of the request runs inside `done`, so inside the scope.
+  // A callback hook on purpose: the rest of the request runs inside `done`, so inside the scope. The door is the one the
+  // workspace scope read off the request (its route, and at /mcp the page's bridge credential).
   app.addHook("preHandler", (req, reply, done) => {
-    const door = doorOf(req.url, req.headers);
+    const door = req.door;
     if (!door) return done();
     callers.run(callerOf(app, req, reply, door, d), done);
   });
@@ -97,7 +99,7 @@ function callerOf(app: FastifyInstance, req: FastifyRequest, reply: FastifyReply
   const session = carrierOf(app, req, reply, door, d.cookie);
   return {
     door,
-    observer: verifyVerifierHeader(d.gatewaySecret, ws, header(req, VERIFIER_SIG_HEADER) ?? ""),
+    observer: isObserver(req, d.gatewaySecret),
     session,
     actor: once(async () => {
       const user = (await d.auth.userForApiToken(ws, bearer || undefined)) ?? (await d.auth.userForSession(ws, req.cookies[d.cookie])) ?? (await d.auth.userForSession(ws, session.token));

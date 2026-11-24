@@ -1,4 +1,4 @@
-import { PgWorkspaceRepo, createApp, type Pool, type ReceiptSigner } from "@benchme/core";
+import { DoorSet, PgWorkspaceRepo, createApp, type Pool, type ReceiptSigner } from "@benchme/core";
 import { errorCodes, type FastifyInstance } from "fastify";
 import type { ScenarioRegistry } from "@benchme/scenarios";
 import { AppRegistry } from "./app-registry.js";
@@ -28,6 +28,8 @@ export type BuildDeps = {
   sharedSeed: number;
   /** Services fronted at the root, outside any workspace (SERVICE_TARGETS): /<name>/* → <url>/*. */
   services?: Record<string, string>;
+  /** The doors a workspace is served through unless it was created with its own (BENCHME_DOORS); default every door. */
+  doors?: DoorSet;
   logLevel?: string;
 };
 
@@ -44,6 +46,7 @@ export async function buildGateway(d: BuildDeps): Promise<{ app: FastifyInstance
     internalBaseUrl: d.internalBaseUrl,
     defaultTtlSeconds: d.defaultTtlSeconds,
     maxTtlSeconds: d.maxTtlSeconds,
+    doors: d.doors ?? DoorSet.ALL,
   });
   const app = createApp({
     name: "gateway",
@@ -65,7 +68,7 @@ export async function buildGateway(d: BuildDeps): Promise<{ app: FastifyInstance
   });
   app.addContentTypeParser("*", { parseAs: "buffer" }, (_req, body, done) => done(null, body));
   registerWorkspaceRoutes(app, { service, limiter: d.limiter, operatorKey: d.operatorKey });
-  registerPortal(app, { apps: d.apps, scenarios: d.scenarios, service, publicBaseUrl: d.publicBaseUrl });
+  registerPortal(app, { apps: d.apps, scenarios: d.scenarios, service, publicBaseUrl: d.publicBaseUrl, doors: service.defaultDoors });
   // Registered before the /w/ proxy's catch-all so /robots.txt is never
   // swallowed by the "/w/:id/:app/*" route.
   registerRobots(app, { apps: d.apps, scenarios: d.scenarios, publicBaseUrl: d.publicBaseUrl, sharedSeed: d.sharedSeed });

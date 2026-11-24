@@ -1,5 +1,5 @@
 import { PIZZA_STATUSES, isDate, type PizzaOrderStatus } from "@benchme/scenarios";
-import { registerAuthRoutes, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
+import { registerAuthRoutes, sessionUser, shell, webmcpBridge, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { fromSearchQuery, searchQuery } from "../api/inputs.js";
 import type { PizzaRepo } from "../db/pizza-repo.js";
@@ -31,7 +31,7 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
     nav: NAV,
     user: await user(req),
     flash,
-    scripts: [webmcpScript(d.tools, req.prefix)],
+    scripts: [webmcpBridge(req, d.tools)],
   });
   const html = (reply: FastifyReply, body: string, code = 200) => reply.code(code).type("text/html; charset=utf-8").send(body);
   const authDeps = { auth: d.auth, cookie: SESSION_COOKIE, shellCtx: ctx };

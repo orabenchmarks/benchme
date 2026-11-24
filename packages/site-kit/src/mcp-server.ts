@@ -3,7 +3,6 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { randomUUID } from "node:crypto";
-import { doorOf } from "./doors/door.js";
 import { refusalOf } from "./refusal.js";
 import type { ToolRegistry } from "./tool-registry.js";
 
@@ -86,12 +85,13 @@ export function registerMcp<C>(app: FastifyInstance, d: McpDeps<C>): void {
 /**
  * One transport per request, as ever. The request that initializes gets a
  * session id to repeat; every later one is taken as it comes, with no session
- * held here to check it against. A page's bridge reads one JSON body.
+ * held here to check it against. A page's bridge (a call that proved it is
+ * one: `req.door`, from the workspace scope) reads one JSON body.
  */
 function sessionOptions(req: FastifyRequest): ConstructorParameters<typeof StreamableHTTPServerTransport>[0] {
   const messages: unknown[] = Array.isArray(req.body) ? req.body : [req.body];
   return {
     sessionIdGenerator: messages.some((m) => isInitializeRequest(m)) ? newMcpSessionId : undefined,
-    enableJsonResponse: doorOf(req.url, req.headers) === "webmcp",
+    enableJsonResponse: req.door === "webmcp",
   };
 }

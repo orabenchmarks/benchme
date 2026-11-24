@@ -1,5 +1,5 @@
 import cookie from "@fastify/cookie";
-import { VERIFIER_SIG_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, signVerifierHeader, signWorkspaceHeader } from "@benchme/core";
+import { DoorSet, VERIFIER_SIG_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, doorsHeaders, signVerifierHeader, signWorkspaceHeader } from "@benchme/core";
 import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -12,8 +12,9 @@ import { read, unrecorded, write, type LedgerRules } from "../ledger/rules.js";
 import { DomainError, registerMcp } from "../mcp-server.js";
 import { ToolRegistry } from "../tool-registry.js";
 import { MemoryUsersRepo } from "../users-repo.js";
+import { webmcpBridge } from "../webmcp.js";
 import { registerWorkspaceScope } from "../workspace-scope.js";
-import { DOOR_HEADER } from "./door.js";
+import { BRIDGE_COOKIE, BRIDGE_TOKEN_HEADER } from "./bridge-credential.js";
 import { MCP_SESSION_HEADER, registerDoors } from "./register-doors.js";
 import { SIGN_IN_TOOLS } from "./sign-in-tools.js";
 
@@ -66,8 +67,8 @@ let ledger: MemoryLedger;
 let auth: AuthService;
 const mailer = new CapturingMailer();
 
-/** The headers the gateway puts on what it forwards. */
-const gateway = (ws = WS) => ({ [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws), "x-forwarded-prefix": `/w/${ws}/toy` });
+/** The headers the gateway puts on what it forwards: the workspace and its prefix, and the workspace's doors when it names them. */
+const gateway = (ws = WS, doors?: DoorSet) => ({ [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws), "x-forwarded-prefix": `/w/${ws}/toy`, ...(doors ? doorsHeaders(SECRET, ws, doors) : {}) });
 /** The headers the verifier reads an app with: the gateway's, and its own signature. */
 const verifier = (ws = WS) => ({ ...gateway(ws), [VERIFIER_SIG_HEADER]: signVerifierHeader(SECRET, ws) });
 
@@ -85,8 +86,18 @@ async function rpc(method: string, params: Record<string, unknown>, headers: Rec
 const callTool = async (name: string, args: Record<string, unknown>, headers: Record<string, string> = {}) => (await rpc("tools/call", { name, arguments: args }, headers)).message.result;
 /** A tool's answer as the caller reads it: the JSON it printed, with `error` the refusal's code, or false for an answer that is no refusal. */
 const said = (result: { isError?: boolean; content: { text: string }[] }): Record<string, unknown> => ({ error: false, ...(JSON.parse(result.content[0]!.text) as Record<string, unknown>) });
-/** A page's WebMCP tool calling home: the bridge's header, and whatever cookies the browser holds for the site. */
-const bridge = (cookies = "") => ({ [DOOR_HEADER]: "webmcp", ...(cookies ? { cookie: cookies } : {}) });
+/** A browser on one of the site's pages: the bridge cookie the page set, and the token the page embedded for it. */
+type Browser = { cookie: string; token: string };
+let browser: Browser;
+/** Opens the site's home page in a fresh browser (no cookie yet), as the gateway forwards it for `ws`: what the page handed it. */
+async function openPage(ws = WS): Promise<Browser> {
+  const res = await app.inject({ url: "/", headers: gateway(ws) });
+  const cookie = String(res.headers["set-cookie"]).split(";")[0]!;
+  const token = /"token":"([0-9a-f]+)"/.exec(res.body)![1]!;
+  return { cookie, token };
+}
+/** A page's WebMCP tool calling home: the page's token, and the cookies the browser holds for the site (the bridge cookie, and whatever else). */
+const bridge = (cookies = "", b: Browser = browser) => ({ [BRIDGE_TOKEN_HEADER]: b.token, cookie: [b.cookie, cookies].filter(Boolean).join("; ") });
 /** A fresh MCP client's connection: the session id `initialize` answers with, as the header to repeat. */
 async function connect() {
   const { res } = await rpc("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "test", version: "0" } });
@@ -140,10 +151,13 @@ beforeAll(async () => {
       .register({ name: "get_thing", description: "One thing.", input: { id: z.string() }, handler: (a, c) => things.getThing(c.workspaceId, a.id) })
       .register({ name: "paint_thing", description: "Paint a thing.", input: { id: z.string(), colour: z.string() }, handler: (a, c) => things.paintThing(c.workspaceId, a.id, a.colour) }),
   );
+  // The site's home page renders the page's WebMCP bridge, as every site's pages do.
+  app.get("/", async (req, reply) => reply.type("text/html").send(`<h1>Toy</h1>${webmcpBridge(req, tools)}`));
   await app.register(async (scope) => registerMcp(scope, { serverName: "toy", version: "0", tools, context: (workspaceId) => ({ workspaceId }), sessions: true }));
   await app.listen({ port: 0, host: "127.0.0.1" });
   const addr = app.server.address();
   baseUrl = `http://127.0.0.1:${typeof addr === "object" && addr ? addr.port : 0}`;
+  browser = await openPage();
 });
 afterAll(async () => {
   await app?.close();
@@ -155,7 +169,7 @@ describe("a site's doors", () => {
     await app.inject({ url: "/things/T-1", headers: gateway() });
     await app.inject({ url: "/api/v1/things/T-1", headers: gateway() });
     await callTool("get_thing", { id: "T-1" });
-    await callTool("get_thing", { id: "T-1" }, { [DOOR_HEADER]: "webmcp" });
+    await callTool("get_thing", { id: "T-1" }, bridge());
     expect((await since(from)).map((e) => [e.door, e.kind, e.entity.type, e.entity.id, e.outcome])).toEqual([
       ["page", "read", "thing", "T-1", "ok"],
       ["rest", "read", "thing", "T-1", "ok"],
@@ -182,6 +196,46 @@ describe("a site's doors", () => {
     // Only the signature makes a read the verifier's: one made for another workspace is a visitor's read like any other.
     await app.inject({ url: "/api/v1/things/T-1", headers: { ...gateway(), [VERIFIER_SIG_HEADER]: signVerifierHeader(SECRET, OTHER_WS) } });
     expect((await since(from)).map((e) => e.door)).toEqual(["rest"]);
+  });
+});
+
+// The WebMCP door is the page's bridge, which proves it is one with the page's own cookie. A label any client can write,
+// or a token copied out of a page without the cookie it was minted for, is a direct MCP client.
+describe("the WebMCP door", () => {
+  /** The door the ledger records for one read through /mcp, sent with `headers`. */
+  const doorOfRead = async (headers: Record<string, string>) => {
+    const from = await lastSeq();
+    await callTool("get_thing", { id: "T-1" }, headers);
+    return (await since(from)).map((e) => e.door);
+  };
+
+  it("is the page's bridge only with the page's token and the cookie it was minted for", async () => {
+    const anotherBrowser = await openPage();
+    const anotherWorkspace = await openPage(OTHER_WS);
+    const cases: [string, Record<string, string>, string][] = [
+      ["the page's token and its cookie", bridge(), "webmcp"],
+      ["the label the bridge used to send", { "x-benchme-door": "webmcp" }, "mcp"],
+      ["the label, with the browser's cookies", { "x-benchme-door": "webmcp", cookie: browser.cookie }, "mcp"],
+      ["the token copied out of the page, without its cookie", { [BRIDGE_TOKEN_HEADER]: browser.token }, "mcp"],
+      ["the cookie without the token", { cookie: browser.cookie }, "mcp"],
+      ["another browser's token, with this one's cookie", { [BRIDGE_TOKEN_HEADER]: anotherBrowser.token, cookie: browser.cookie }, "mcp"],
+      ["another workspace's page's token and cookie", bridge("", anotherWorkspace), "mcp"],
+      ["a cookie of the right shape and a token for another", { [BRIDGE_TOKEN_HEADER]: browser.token, cookie: `${BRIDGE_COOKIE}=${"0".repeat(32)}` }, "mcp"],
+    ];
+    for (const [name, headers, door] of cases) expect([name, await doorOfRead(headers)]).toEqual([name, [door]]);
+  });
+
+  it("leaves a token copied out of a page nothing to reach where the MCP door is closed; the page's bridge still gets in", async () => {
+    const pagesAndBridge = gateway(WS, DoorSet.of(["webmcp"]));
+    const from = await lastSeq();
+    const copied = await fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream", ...pagesAndBridge, [BRIDGE_TOKEN_HEADER]: browser.token },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_thing", arguments: { id: "T-1" } } }),
+    });
+    expect([copied.status, await copied.json()]).toEqual([404, { error: "NOT_FOUND" }]);
+    expect(said(await callTool("get_thing", { id: "T-1" }, { ...pagesAndBridge, ...bridge() }))).toMatchObject({ error: false, id: "T-1" });
+    expect((await since(from)).map((e) => e.door)).toEqual(["webmcp"]);
   });
 });
 

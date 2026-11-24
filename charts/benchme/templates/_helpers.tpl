@@ -87,6 +87,18 @@ seccompProfile:
   value: {{ .Values.ranker.override | ternary "1" "0" | quote }}
 {{- end -}}
 
+{{- /* BENCHME_DOORS from .Values.doors: a list (page always among them, so [] is the pages alone) or a comma string. */ -}}
+{{- define "benchme.doors" -}}
+{{- $doors := .Values.doors -}}
+{{- if kindIs "slice" $doors -}}
+{{ prepend $doors "page" | uniq | join "," }}
+{{- else if $doors -}}
+{{ $doors }}
+{{- else -}}
+page,rest,mcp,webmcp
+{{- end -}}
+{{- end -}}
+
 {{- define "benchme.pullSecrets" -}}
 {{- with .Values.image.pullSecrets }}
 imagePullSecrets:

@@ -1,6 +1,6 @@
 import { VERIFIER_SIG_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signVerifierHeader, signWorkspaceHeader, type Pool } from "@benchme/core";
 import { webmcpV1, addDays, eventFreeRooms, eventPlacesLeft, eventWeekday, scenarios, type EventRows, type OfficeEvent } from "@benchme/scenarios";
-import { SIGN_IN_TOOLS, type LedgerEntry, type Mailer } from "@benchme/site-kit";
+import { BRIDGE_COOKIE, SIGN_IN_TOOLS, type LedgerEntry, type Mailer } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { FastifyInstance, InjectOptions } from "fastify";
@@ -240,7 +240,9 @@ describe.skipIf(!DB)("events (real Postgres)", () => {
     const got: Record<string, number> = {};
     for (const [blank] of same) got[blank] = await status(blank);
     expect(got).toEqual(Object.fromEntries(same.map(([blank]) => [blank, 200])));
-    for (const [blank, bare] of same) expect((await app.inject(scoped({ method: "GET", url: blank }))).body).toBe((await app.inject(scoped({ method: "GET", url: bare }))).body);
+    // Asked by one browser (one bridge cookie), so its pages carry one bridge token.
+    const asOneBrowser = { cookie: `${BRIDGE_COOKIE}=${"0".repeat(32)}` };
+    for (const [blank, bare] of same) expect((await app.inject(scoped({ method: "GET", url: blank, headers: asOneBrowser }))).body).toBe((await app.inject(scoped({ method: "GET", url: bare, headers: asOneBrowser }))).body);
     // The default page, not everything: a blank limit is the default limit.
     expect((await get("/api/v1/events?limit=")).items).toHaveLength(50);
     expect((await get("/api/v1/registrations?limit=")).items).toHaveLength(50);

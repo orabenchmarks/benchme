@@ -6,7 +6,8 @@ export { ToolRegistry, type ToolDef } from "./tool-registry.js";
 export { toolInputJsonSchema, type JsonSchemaObject } from "./tool-schema.js";
 export { DomainError, buildMcpServer, newMcpSessionId, registerMcp, type McpDeps } from "./mcp-server.js";
 export { refusalOf, type Refusal } from "./refusal.js";
-export { DOORS, DOOR_HEADER, WEBMCP_DOOR_VALUE, doorOf, type Door } from "./doors/door.js";
+export { DOORS, DoorSet, doorOf, type Door } from "./doors/door.js";
+export { BRIDGE_COOKIE, BRIDGE_TOKEN_HEADER, BridgeCredential, bridgeToken } from "./doors/bridge-credential.js";
 export { CallerScope, once, type Caller } from "./doors/caller.js";
 export { MCP_SESSION_HEADER, registerDoors, type Doors, type DoorsDeps } from "./doors/register-doors.js";
 export { SIGN_IN_REQUIRED_CODE, SignInRequired } from "./doors/sign-in.js";
@@ -20,7 +21,7 @@ export { ledgered, untransacted, type LedgeredDeps } from "./ledger/ledgered.js"
 export { about, authStep, read, unrecorded, write, type LedgerRule, type LedgerRules, type Recorded, type Subject, type Unrecorded } from "./ledger/rules.js";
 export { LEDGER_MIGRATIONS, ledgerSql, ledgerSubjectSql, ledgerTableSql } from "./ledger/schema.js";
 export { esc, money, shell, authPages, type NavLink, type ShellCtx } from "./html.js";
-export { webmcpScript, WEBMCP_SCRIPT_MARKER, WEBMCP_REGISTER_GLOBAL } from "./webmcp.js";
+export { bridgeScript, webmcpBridge, WEBMCP_SCRIPT_MARKER, WEBMCP_REGISTER_GLOBAL } from "./webmcp.js";
 export { registerAuthRoutes, requireSession, sessionUser, apiUser, type AuthRoutesDeps, type SessionUser } from "./auth-routes.js";
 export {
   SCHEMA_CONTEXT,

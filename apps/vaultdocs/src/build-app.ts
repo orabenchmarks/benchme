@@ -1,6 +1,6 @@
 import { createApp, type Pool } from "@benchme/core";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
-import { esc, defaultPublicBaseUrl, registerMcp, registerNlweb, registerWorkspaceScope, shell, webmcpScript, type Ranker, type ShellCtx } from "@benchme/site-kit";
+import { esc, defaultPublicBaseUrl, registerMcp, registerNlweb, registerWorkspaceScope, shell, webmcpBridge, type Ranker, type ShellCtx } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { PgDocsRepo } from "./docs-repo.js";
@@ -25,7 +25,7 @@ export async function buildVaultdocs(d: BuildDeps): Promise<FastifyInstance> {
   const tools = vaultTools();
   const app = createApp({ name: "vaultdocs", readiness: async () => (await d.pool.query("SELECT 1")).rowCount === 1, ...(d.logLevel ? { logLevel: d.logLevel } : {}) });
   registerWorkspaceScope(app, d.gatewaySecret);
-  const ctx = (req: FastifyRequest, flash?: string): ShellCtx => ({ site: "Vault", accent: "#2f5d50", prefix: req.prefix, nav: [{ href: "/documents", label: "Documents" }, { href: "/search", label: "Search" }], user: null, flash, scripts: [webmcpScript(tools, req.prefix)] });
+  const ctx = (req: FastifyRequest, flash?: string): ShellCtx => ({ site: "Vault", accent: "#2f5d50", prefix: req.prefix, nav: [{ href: "/documents", label: "Documents" }, { href: "/search", label: "Search" }], user: null, flash, scripts: [webmcpBridge(req, tools)] });
 
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
     if (req.params.id !== req.workspaceId) return reply.code(400).send({ error: "WORKSPACE_MISMATCH" });
@@ -48,7 +48,10 @@ export async function buildVaultdocs(d: BuildDeps): Promise<FastifyInstance> {
   });
 
   const html = (body: string) => body;
-  app.get("/", async (req, reply) => reply.type("text/html").send(html(shell(ctx(req), "Vault", `<h1>Document vault</h1><p>${(await repo.list(req.workspaceId)).length} documents. <a href="${req.prefix}/documents">Browse</a> or <a href="${req.prefix}/search">search</a>.</p><p class="muted">Also available as MCP resources (<code>docs://&lt;id&gt;</code>) with <code>search</code>, <code>get_document</code> and <code>list_documents</code> tools at <code>${esc(req.prefix)}/mcp</code>.</p>`))));
+  // The MCP server is named on the home page only where the workspace is served through the MCP door.
+  const mcpNote = (req: FastifyRequest) =>
+    req.doors.has("mcp") ? `<p class="muted">Also available as MCP resources (<code>docs://&lt;id&gt;</code>) with <code>search</code>, <code>get_document</code> and <code>list_documents</code> tools at <code>${esc(req.prefix)}/mcp</code>.</p>` : "";
+  app.get("/", async (req, reply) => reply.type("text/html").send(html(shell(ctx(req), "Vault", `<h1>Document vault</h1><p>${(await repo.list(req.workspaceId)).length} documents. <a href="${req.prefix}/documents">Browse</a> or <a href="${req.prefix}/search">search</a>.</p>${mcpNote(req)}`))));
   app.get("/documents", async (req, reply) => {
     const kind = (req.query as { kind?: string }).kind;
     const docs = await repo.list(req.workspaceId, kind);

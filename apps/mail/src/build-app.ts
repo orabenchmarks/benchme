@@ -1,5 +1,5 @@
 import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createApp, isWorkspaceId, verifyWorkspaceHeader, type Pool } from "@benchme/core";
-import { header, registerMcp, registerWorkspaceScope, webmcpScript } from "@benchme/site-kit";
+import { header, registerMcp, registerWorkspaceScope, webmcpBridge } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
@@ -65,12 +65,12 @@ export async function buildMail(d: BuildDeps): Promise<FastifyInstance> {
     const note = await inboxNote(held, req.workspaceId);
     const msgs = await repo.list(req.workspaceId, to);
     const rows = msgs.map((m: Message) => `<tr class="${m.readAt ? "" : "unread"}"><td><a href="${req.prefix}/m/${m.id}">${esc(m.subject)}</a></td><td>${esc(m.to)}</td><td>${esc(m.from)}</td><td>${esc(m.receivedAt)}</td></tr>`).join("");
-    return reply.type("text/html").send(page("Inbox", `<h1>Workspace inbox</h1>${note}<form method="get"><input name="to" placeholder="filter by recipient" value="${esc(to ?? "")}"> <button>Filter</button></form><table><tr><th>Subject</th><th>To</th><th>From</th><th>Received</th></tr>${rows || "<tr><td colspan=4>No messages yet.</td></tr>"}</table>`, webmcpScript(tools, req.prefix)));
+    return reply.type("text/html").send(page("Inbox", `<h1>Workspace inbox</h1>${note}<form method="get"><input name="to" placeholder="filter by recipient" value="${esc(to ?? "")}"> <button>Filter</button></form><table><tr><th>Subject</th><th>To</th><th>From</th><th>Received</th></tr>${rows || "<tr><td colspan=4>No messages yet.</td></tr>"}</table>`, webmcpBridge(req, tools)));
   });
   app.get<{ Params: { id: string } }>("/m/:id", async (req, reply) => {
     const m = await repo.get(req.workspaceId, req.params.id, true);
-    if (!m) return reply.code(404).type("text/html").send(page("Not found", "<h1>No such message</h1>", webmcpScript(tools, req.prefix)));
-    return reply.type("text/html").send(page(m.subject, `<p><a href="${req.prefix}/">← Inbox</a></p><h1>${esc(m.subject)}</h1><p>From ${esc(m.from)} to ${esc(m.to)} at ${esc(m.receivedAt)}</p><pre>${esc(m.body)}</pre>`, webmcpScript(tools, req.prefix)));
+    if (!m) return reply.code(404).type("text/html").send(page("Not found", "<h1>No such message</h1>", webmcpBridge(req, tools)));
+    return reply.type("text/html").send(page(m.subject, `<p><a href="${req.prefix}/">← Inbox</a></p><h1>${esc(m.subject)}</h1><p>From ${esc(m.from)} to ${esc(m.to)} at ${esc(m.receivedAt)}</p><pre>${esc(m.body)}</pre>`, webmcpBridge(req, tools)));
   });
 
   // MCP lives in its own plugin scope: it replaces the content-type parsers for /mcp only.
