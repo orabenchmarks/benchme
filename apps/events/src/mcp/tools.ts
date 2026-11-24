@@ -81,7 +81,7 @@ export function eventTools(): ToolRegistry<ToolContext> {
     .register({
       name: "change_event",
       description:
-        "Change an event: only its organiser can (organiserEmail). Fields left out stay as they are; guestEmails replaces the guest list, addGuestEmails/removeGuestEmails edit it. Held to the same rules as create_event, and never fewer places than people registered.",
+        "Change an event in its organiser's name: organiserEmail must be the event's own organiser's, and any signed-in account can make the change. Fields left out stay as they are; guestEmails replaces the guest list, addGuestEmails/removeGuestEmails edit it. Held to the same rules as create_event, and never fewer places than people registered.",
       input: {
         eventCode: z.string(), organiserEmail: z.string().email(), title: z.string().optional(), description: z.string().optional(), date: dateOf().optional(), startTime: timeOf().optional(), endTime: timeOf().optional(),
         roomCode: z.string().optional(), guestEmails: emails("the whole new guest list"), addGuestEmails: emails("guests to add"), removeGuestEmails: emails("guests to remove"), registration: mode.optional(),
@@ -91,7 +91,7 @@ export function eventTools(): ToolRegistry<ToolContext> {
     })
     .register({
       name: "cancel_event",
-      description: "Cancel a scheduled event: only its organiser can. Its room is free again; a cancelled event cannot be restored.",
+      description: "Cancel a scheduled event in its organiser's name: organiserEmail must be the event's own organiser's, and any signed-in account can. Its room is free again; a cancelled event cannot be restored.",
       input: { eventCode: z.string(), organiserEmail: z.string().email() },
       handler: (a, c) => c.events.cancelEvent(c.workspaceId, a.eventCode, a.organiserEmail),
     })

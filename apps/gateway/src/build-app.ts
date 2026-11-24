@@ -3,6 +3,7 @@ import { errorCodes, type FastifyInstance } from "fastify";
 import type { ScenarioRegistry } from "@benchme/scenarios";
 import { AppRegistry } from "./app-registry.js";
 import type { RateLimiter } from "./rate-limit.js";
+import type { ITaskLists } from "./landing/task-lists.js";
 import { registerPortal } from "./routes/portal.js";
 import { registerProxy } from "./routes/proxy.js";
 import { registerRobots } from "./routes/robots.js";
@@ -30,8 +31,13 @@ export type BuildDeps = {
   services?: Record<string, string>;
   /** The doors a workspace is served through unless it was created with its own (BENCHME_DOORS); default every door. */
   doors?: DoorSet;
+  /** The public task lists the scenario pages show (PUBLIC_TASKS_DIR); default none, and the pages say so. */
+  lists?: ITaskLists;
   logLevel?: string;
 };
+
+/** No public task lists: every scenario page says this deployment does not carry its list. */
+const NO_LISTS: ITaskLists = { listOf: () => null };
 
 /** Composition root shared by server.ts and the tests (which inject a stub seeder + memory limiter). */
 export async function buildGateway(d: BuildDeps): Promise<{ app: FastifyInstance; service: WorkspaceService }> {
@@ -68,7 +74,7 @@ export async function buildGateway(d: BuildDeps): Promise<{ app: FastifyInstance
   });
   app.addContentTypeParser("*", { parseAs: "buffer" }, (_req, body, done) => done(null, body));
   registerWorkspaceRoutes(app, { service, limiter: d.limiter, operatorKey: d.operatorKey });
-  registerPortal(app, { apps: d.apps, scenarios: d.scenarios, service, publicBaseUrl: d.publicBaseUrl, doors: service.defaultDoors });
+  registerPortal(app, { apps: d.apps, scenarios: d.scenarios, service, publicBaseUrl: d.publicBaseUrl, doors: service.defaultDoors, lists: d.lists ?? NO_LISTS });
   // Registered before the /w/ proxy's catch-all so /robots.txt is never
   // swallowed by the "/w/:id/:app/*" route.
   registerRobots(app, { apps: d.apps, scenarios: d.scenarios, publicBaseUrl: d.publicBaseUrl, sharedSeed: d.sharedSeed });

@@ -159,7 +159,7 @@ describe("events rules", () => {
     expect(eventDraftProblem(rows, { ...draft, startTime: "10:30" }, "EV-1")).toBeNull();
   });
 
-  it("lets only the organiser change or cancel, never a cancelled event, never below the registrations", () => {
+  it("changes or cancels only in the organiser's name, never a cancelled event, never below the registrations", () => {
     const withRegs = { ...rows, registrations: [reg("EV-1", "a@x.example"), reg("EV-1", "b@x.example")] };
     const next = { ...draftOf(held), startTime: "10:30", endTime: "11:30" };
     expect(eventChangeProblem(withRegs, held, "ORG@staff.example", next)).toBeNull();

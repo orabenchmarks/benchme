@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { AuthService } from "../auth-service.js";
+import { authPages } from "../html.js";
 import { ToolRegistry } from "../tool-registry.js";
 import { toolInputJsonSchema } from "../tool-schema.js";
 import { MemoryUsersRepo } from "../users-repo.js";
 import { CallerScope } from "./caller.js";
+import { SignInRequired } from "./sign-in.js";
 import { SIGN_IN_TOOLS, registerSignInTools } from "./sign-in-tools.js";
 
 const auth = new AuthService({ users: new MemoryUsersRepo(), mailer: { deliver: async () => undefined }, sessionTtlSeconds: 60, tokenPrefix: "t", verification: { subject: "s", body: (code) => code } });
@@ -22,6 +24,26 @@ describe("the sign-in tools", () => {
   it("take no session token as an argument: the sign-in is the connection's, not something to pass around", () => {
     const args = tools.list().flatMap((t) => Object.keys(t.input));
     expect([...new Set(args)].sort()).toEqual(["code", "email", "name", "password"]);
+  });
+
+  // In a workspace whose people have mailboxes of their own, a code mailed to one of them never reaches the
+  // workspace inbox. So no door promises that it does: each says the inbox shows the code for an address new to the
+  // workspace, the condition that holds whatever the workspace's mailboxes are.
+  it("tell a newcomer, at every door, that the workspace inbox shows the code mailed to an address new to the workspace", async () => {
+    const signUp = tools.list().find((t) => t.name === "sign_up")!;
+    const reply = (await signUp.handler({ name: "N", email: "newcomer@elsewhere.example", password: "correct-horse-9" }, { workspaceId: "ws_0123456789ab" })) as { next: string };
+    const doors = {
+      tool: signUp.description,
+      toolReply: reply.next,
+      signUpPage: authPages.signup("/p"),
+      verifyPage: authPages.verify("/p", "newcomer@elsewhere.example"),
+      mcpRefusal: new SignInRequired("mcp").message,
+      webmcpRefusal: new SignInRequired("webmcp").message,
+    };
+    for (const [door, said] of Object.entries(doors)) {
+      expect([door, /new to the workspace/.test(said)]).toEqual([door, true]);
+      expect([door, /read it in the workspace inbox|mailed to the workspace inbox|sent to the workspace inbox/.test(said)]).toEqual([door, false]);
+    }
   });
 
   it("refuse to run outside a door", async () => {

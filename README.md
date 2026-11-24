@@ -38,7 +38,7 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | --- | --- |
 | `packages/core` | config, http (healthz/readyz), ids, receipts (HMAC), pg + migrations, redis, the workspace model, the doors and the headers the gateway signs |
 | `packages/scenarios` | seeded generators (`acme-v1`, `shops-v1`, `guide-v1`, `web-v1`, `webmcp-v1`, `cuj-v1`) and the derived ground truths; each scenario also says what it is (`title`, `about`, `docs`: its write-up and corpus files), which the gateway's front page shows, and a test holds its task counts and links to the repository |
-| `apps/gateway` | workspace API, signed reverse proxy (it decides each request's doors: see [Doors](#doors)), the front page (a searchable card for every scenario, with its sites, its doors and the command that mints one) + MCP registry, reaper |
+| `apps/gateway` | workspace API, signed reverse proxy (it decides each request's doors: see [Doors](#doors)), the front page (what benchme is, a copyable command that mints a workspace, and a searchable card for every scenario) and a page per scenario (`/scenarios/<key>`: its public tasks, searchable and filterable, read from the `*-tasks.json` lists the image carries beside the gateway and never from a key) + MCP registry, reaper |
 | `packages/site-kit` | what every site shares: the gateway-scope hook, signup/verify/login + sessions + api tokens, the MCP server plumbing, the page shell, the doors and the change ledger (see [The change ledger](#the-change-ledger)) |
 | `apps/warehouse` | products, stock, orders, transfers: SSR UI, REST v1, a 14-tool MCP server, NLWeb `/ask`, WebMCP |
 | `apps/helpdesk` | tickets, comments, SLAs, assignment: SSR UI, REST v1, an 11-tool MCP server (with a destructive `delete_ticket`), NLWeb `/ask`, WebMCP |
@@ -1503,6 +1503,7 @@ verifier and the reaper — comes up with Docker Compose:
 ```bash
 docker compose up -d                 # images from ghcr.io/orabenchmarks at BENCHME_VERSION
 open http://localhost:8080           # the front page: every scenario, and how to mint a workspace of it
+open http://localhost:8080/scenarios/cuj-v1   # a scenario's page: its public tasks, searchable
 docker compose down -v               # stop and drop the database volume
 ```
 
@@ -1528,6 +1529,22 @@ docker compose down -v               # stop and drop the database volume
   keeps working.
 
 ## Release
+
+_Chart 0.14.0: a front page that says what benchme is in one screen (a
+copyable command that mints a workspace, the answer it returns, and how an
+agent reaches its own isolated workspace of web apps), and a page per scenario
+that lists its public tasks, searchable and filtered by site, focus area, level
+and number of prompts, each with its judge's criteria and never its answers.
+The gateway image carries only the scenarios' public task lists
+(`compose/specs/*-tasks.json`). The office events site now states the rule its
+changes have always kept: any signed-in account changes or cancels an event in
+its organiser's name (`organiserEmail`). No door says "only the organiser" any
+more; agents read that as needing the organiser's own account and signed up as
+them, and in a `cuj-v1` workspace that code goes to the organiser's own
+mailbox, so its six tasks that change an event could not be done. Every door's
+sign-up copy (the tools and their replies, the pages, the sign-in refusals) and
+the inbox's tools now say that the workspace inbox shows the code mailed to an
+address new to the workspace. No new image, no migration and no new secret._
 
 _Chart 0.13.0: a front page for choosing a scenario (the gateway's `/`): a
 search over every scenario's title, description, sites and doors, one card per

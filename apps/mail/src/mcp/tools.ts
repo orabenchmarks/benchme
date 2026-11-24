@@ -14,7 +14,7 @@ export function mailTools(): ToolRegistry<ToolContext> {
   return new ToolRegistry<ToolContext>()
     .register({
       name: "list_messages",
-      description: "The workspace inbox, newest first: each message's id, sender, recipient, subject, body and when it arrived. Optionally only the messages to one address. A site's verification code arrives here.",
+      description: "The workspace inbox, newest first: each message's id, sender, recipient, subject, body and when it arrived. Optionally only the messages to one address. A site's verification code for an address new to the workspace arrives here; when the workspace's people have mailboxes of their own, mail to them goes there and is not listed.",
       input: { to: z.string().optional().describe("only messages to this address"), limit: z.number().int().min(1).max(500).optional() },
       handler: (a, c) => c.messages.list(c.workspaceId, a.to || undefined, a.limit ?? 100),
     })

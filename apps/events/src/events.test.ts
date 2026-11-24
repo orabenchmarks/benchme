@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildEvents } from "./build-app.js";
+import { eventTools } from "./mcp/tools.js";
 
 const DB = process.env.DATABASE_URL;
 const SECRET = "gateway-secret-for-tests";
@@ -299,6 +300,24 @@ describe.skipIf(!DB)("events (real Postgres)", () => {
     const res = await post(`/api/v1/events/${event}/register`, { name: "Subject Test", email: "subject@example.com" });
     expect([res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 400, res.json().error]).toEqual([true, "INVITE_ONLY"]);
     expect((await ledger(from)).map((e) => [e.kind, e.entity, e.subject, e.outcome, e.code])).toEqual([["write", { type: "registration", id: null }, { type: "event", id: event }, "refused", "INVITE_ONLY"]]);
+  });
+
+  // Any signed-in account changes or cancels an event, in its organiser's name (organiserEmail): the test above signs
+  // in as organiser@example.com and changes a staff member's event. Every door says so, and none says "only the
+  // organiser", which sent agents to sign up as the organiser: in a workspace whose people have mailboxes of their
+  // own, that code goes to the organiser's mailbox and the task can never be done.
+  it("tells every door the rule a change keeps: any signed-in account, in the event's own organiser's name", async () => {
+    const e = rows.events.find((x) => x.status === "scheduled")!;
+    const described = (name: string) => eventTools().list().find((t) => t.name === name)!.description;
+    // What a reader of the page sees: its scripts left out, since the WebMCP bridge carries the tools' own descriptions.
+    const page = async (signedIn: boolean) => (await app.inject(scoped({ url: `/events/${e.code}`, headers: signedIn ? { cookie } : {} }))).body.replace(/<script[\s\S]*?<\/script>/g, "");
+    const doors = { change_event: described("change_event"), cancel_event: described("cancel_event"), signedOut: await page(false), signedIn: await page(true) };
+    for (const [door, said] of Object.entries(doors)) {
+      expect([door, /any (signed-in )?account can/i.test(said), /organiser's name/.test(said)]).toEqual([door, true, true]);
+      expect([door, /only (its|the) organiser/i.test(said)]).toEqual([door, false]);
+    }
+    const refused = (await post(`/api/v1/events/${e.code}/change`, { organiserEmail: "someone@elsewhere.example", title: "x" })).json();
+    expect([refused.error, refused.message]).toEqual(["NOT_ORGANISER", `someone@elsewhere.example is not the organiser of ${e.code}: a change is made in its own organiser's name`]);
   });
 
   it("exposes the same tools over MCP", async () => {
