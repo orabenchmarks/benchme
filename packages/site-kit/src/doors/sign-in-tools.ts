@@ -29,11 +29,11 @@ export function registerSignInTools<C extends { workspaceId: string }>(tools: To
   return tools
     .register({
       name: "sign_up",
-      description: "Create an account on this site. A 6-digit verification code is mailed to the email address: read it in the workspace inbox (the mail app), then call verify_email. Signing up again with an email that is not verified yet mails a new code. Writes on this site need a signed-in account.",
+      description: "Create an account on this site, with any email address. A 6-digit verification code is mailed to it: the workspace inbox (the mail app) shows mail to an address new to the workspace, while mail to someone the workspace already has may go to their own mailbox instead. Then call verify_email. Signing up again with an email that is not verified yet mails a new code. Writes on this site need a signed-in account.",
       input: { name: z.string().describe("the account holder's name"), email: z.string().describe("the account's email address"), password: z.string().describe("8 characters or more") },
       handler: async (a, c) => {
         const user = await d.auth.signup(c.workspaceId, a.email, a.password, a.name);
-        return { email: user.email, verified: false, next: `a verification code was mailed to ${user.email}: read it in the workspace inbox, then call verify_email` };
+        return { email: user.email, verified: false, next: `a verification code was mailed to ${user.email}: the workspace inbox shows it if that address is new to the workspace; then call verify_email` };
       },
     })
     .register({

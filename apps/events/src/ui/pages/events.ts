@@ -25,10 +25,12 @@ export function eventDetail(p: string, e: EventView, room: EventRoom | null, off
         ? `<h2>Register</h2><form class="card" method="post" action="${p}/events/${esc(e.code)}/register">${field("Name", "name", "", "required")}${field("Email", "email", "", 'type="email" required')}<button>Register</button></form>`
         : `<p class="muted">Sign in to register.</p>`
       : "";
-  const organiser =
-    scheduled && canWrite
-      ? `<h2>For the organiser</h2><p><a href="${p}/events/${esc(e.code)}/change">Change this event</a></p><form class="card" method="post" action="${p}/events/${esc(e.code)}/cancel">${field("Organiser email", "organiserEmail", "", 'type="email" required')}<button>Cancel this event</button></form>`
-      : "";
+  // A page says what the tools' descriptions say, signed in or not: any account changes an event, in its organiser's name.
+  const organiser = !scheduled
+    ? ""
+    : canWrite
+      ? `<h2>Change or cancel</h2><p class="muted">Any signed-in account can, in the organiser's name: give the event's own organiser's email.</p><p><a href="${p}/events/${esc(e.code)}/change">Change this event</a></p><form class="card" method="post" action="${p}/events/${esc(e.code)}/cancel">${field("Organiser email", "organiserEmail", "", 'type="email" required')}<button>Cancel this event</button></form>`
+      : `<p class="muted">Sign in to change or cancel this event: any account can, in its organiser's name.</p>`;
   const where = room ? `<a href="${p}/rooms/${esc(room.code)}?date=${esc(e.date)}">${esc(room.name)}</a> <code>${esc(room.code)}</code> (${roomFacts(room)})` : esc(e.roomCode);
   return `<h1>${esc(e.title)} <code>${esc(e.code)}</code></h1><p>${tag(e.status)} · ${tag(e.registration)}</p>
 <table><tr><th>When</th><td>${when(e)}</td></tr><tr><th>Where</th><td>${where}, ${office ? `<a href="${p}/offices/${esc(office.code)}">${esc(office.name)}</a>` : esc(e.officeCode)}</td></tr>

@@ -124,10 +124,10 @@ export function eventDraftProblem(rows: EventRows, draft: EventDraft, exceptCode
   return null;
 }
 
-/** Only the organiser changes an event, a cancelled one never, and never down to fewer places than people registered. */
+/** A change is made in the organiser's name (any signed-in account may make it), a cancelled event never changes, and never down to fewer places than people registered. */
 export function eventChangeProblem(rows: EventRows, event: OfficeEvent, actingEmail: string, next: EventDraft): EventProblem | null {
   if (event.status === "cancelled") return { code: "EVENT_CANCELLED", message: `${event.code} is cancelled` };
-  if (actingEmail.trim().toLowerCase() !== event.organiserEmail) return { code: "NOT_ORGANISER", message: `only the organiser of ${event.code} can change it` };
+  if (actingEmail.trim().toLowerCase() !== event.organiserEmail) return { code: "NOT_ORGANISER", message: `${actingEmail.trim()} is not the organiser of ${event.code}: a change is made in its own organiser's name` };
   const registered = eventRegisteredCount(rows, event.code);
   if (registered > 0 && (next.registration === "invite-only" || (next.places ?? 0) < registered)) {
     return { code: "PLACES_BELOW_REGISTERED", message: `${registered} people are registered for ${event.code}; it needs at least that many places` };
@@ -137,7 +137,7 @@ export function eventChangeProblem(rows: EventRows, event: OfficeEvent, actingEm
 
 export function eventCancelProblem(event: OfficeEvent, actingEmail: string): EventProblem | null {
   if (event.status === "cancelled") return { code: "ALREADY_CANCELLED", message: `${event.code} is already cancelled` };
-  if (actingEmail.trim().toLowerCase() !== event.organiserEmail) return { code: "NOT_ORGANISER", message: `only the organiser of ${event.code} can cancel it` };
+  if (actingEmail.trim().toLowerCase() !== event.organiserEmail) return { code: "NOT_ORGANISER", message: `${actingEmail.trim()} is not the organiser of ${event.code}: it is cancelled in its own organiser's name` };
   return null;
 }
 

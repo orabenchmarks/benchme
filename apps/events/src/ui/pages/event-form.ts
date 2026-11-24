@@ -34,6 +34,6 @@ export function newEventForm(p: string, offices: OfficeView[], v: EventValues, c
 export function changeEventForm(p: string, e: EventView, offices: OfficeView[], v: EventValues, canWrite: boolean): string {
   if (!canWrite) return `<h1>Change ${esc(e.code)}</h1><p class="muted">Sign in to change an event.</p>`;
   return `<h1>Change <a href="${p}/events/${esc(e.code)}">${esc(e.title)}</a> <code>${esc(e.code)}</code></h1><form class="card" method="post" action="${p}/events/${esc(e.code)}/change">
-${field("Organiser email (only the organiser can change it)", "organiserEmail", v.organiserEmail, 'type="email" required')}${fields(offices, v)}<button>Save the changes</button></form>
+${field("Organiser email (the event's own organiser: the change is made in their name)", "organiserEmail", v.organiserEmail, 'type="email" required')}${fields(offices, v)}<button>Save the changes</button></form>
 <p class="muted">The guest list above replaces the current one. Places cannot go below the ${e.registeredCount} people registered.</p>`;
 }

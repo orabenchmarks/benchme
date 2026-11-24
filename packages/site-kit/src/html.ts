@@ -77,8 +77,8 @@ function apiTokenSection(p: string, apiToken: string | null, doors: DoorSet): st
 export const authPages = {
   signup: (p: string, error?: string) => `<h1>Create an account</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<form class="card" method="post" action="${p}/signup">
 <label>Name</label><input name="name" required><label>Email</label><input name="email" type="email" required><label>Password (8+ characters)</label><input name="password" type="password" required>
-<button>Sign up</button></form><p class="muted">A verification code is sent to the workspace inbox; enter it on the next screen.</p>`,
-  verify: (p: string, email: string, error?: string) => `<h1>Verify your email</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<p>We sent a 6-digit code to <strong>${esc(email)}</strong>. Check the workspace inbox.</p>
+<button>Sign up</button></form><p class="muted">A verification code is mailed to the address. The workspace inbox shows mail to an address new to the workspace; enter the code on the next screen.</p>`,
+  verify: (p: string, email: string, error?: string) => `<h1>Verify your email</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<p>We sent a 6-digit code to <strong>${esc(email)}</strong>. The workspace inbox shows it if that address is new to the workspace.</p>
 <form class="card" method="post" action="${p}/verify"><input type="hidden" name="email" value="${esc(email)}"><label>Code</label><input name="code" required pattern="[0-9]{6}"><button>Verify</button></form>
 <p class="muted">A code can be tried ${CODE_ATTEMPTS} times. Lost it, or it stopped working? <a href="${p}/signup">Sign up again</a> with the same email to be sent a new one.</p>`,
   login: (p: string, error?: string) => `<h1>Sign in</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<form class="card" method="post" action="${p}/login">

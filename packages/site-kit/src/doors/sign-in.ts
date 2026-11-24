@@ -11,8 +11,8 @@ export const SIGN_IN_REQUIRED_CODE = "UNAUTHORIZED";
 const HOW_TO_SIGN_IN: Record<Door, string> = {
   page: "sign in to do that",
   rest: "sign in or send Authorization: Bearer <api token>",
-  mcp: "sign in first: call sign_up, then verify_email with the code mailed to the workspace inbox, then sign_in (or connect with Authorization: Bearer <api token>)",
-  webmcp: "sign in first: on the site's sign-in page, or call sign_up, then verify_email with the code mailed to the workspace inbox, then sign_in",
+  mcp: "sign in first: call sign_up (the workspace inbox shows the code mailed to an address new to the workspace), then verify_email, then sign_in (or connect with Authorization: Bearer <api token>)",
+  webmcp: "sign in first: on the site's sign-in page, or call sign_up (the workspace inbox shows the code mailed to an address new to the workspace), then verify_email, then sign_in",
 };
 
 /**

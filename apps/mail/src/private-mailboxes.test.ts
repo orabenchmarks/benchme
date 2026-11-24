@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildMail } from "./build-app.js";
 import { heldAddressesOf } from "./mailboxes/held-addresses.js";
+import { mailTools } from "./mcp/tools.js";
 import { PgMessagesRepo } from "./messages-repo.js";
 
 /**
@@ -193,5 +194,7 @@ describe.skipIf(!DB)("private mailboxes (real Postgres)", () => {
     expect(note.exec((await page(ws.private, "/")).html)?.[1]).toBe("Mail to people who already exist in this workspace goes to their own mailboxes and is not shown here.");
     expect(note.exec((await page(ws.private, `/?to=${encodeURIComponent(NEWCOMER)}`)).html)).not.toBeNull();
     expect(note.exec((await page(ws.shared, "/")).html)).toBeNull();
+    // An agent with only the tools reads the same: they list no mail to the workspace's people when it has its own mailboxes.
+    expect(mailTools().list().find((t) => t.name === "list_messages")!.description).toMatch(/mailboxes of their own, mail to them goes there and is not listed/);
   });
 });

@@ -53,7 +53,7 @@ export const eventInput = {
 export const eventSchema = z.object(eventInput).transform((e) => ({ ...e, places: e.places ?? null }));
 
 export const changeInput = {
-  organiserEmail: z.string().email().describe("the event's organiser: only they can change it"),
+  organiserEmail: z.string().email().describe("the event's own organiser: the change is made in their name, by any signed-in account"),
   title: z.string().min(1).optional(),
   description: z.string().optional(),
   date: date.optional(),
