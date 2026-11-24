@@ -38,7 +38,7 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | --- | --- |
 | `packages/core` | config, http (healthz/readyz), ids, receipts (HMAC), pg + migrations, redis, the workspace model, the doors and the headers the gateway signs |
 | `packages/scenarios` | seeded generators (`acme-v1`, `shops-v1`, `guide-v1`, `web-v1`, `webmcp-v1`, `cuj-v1`) and the derived ground truths; each scenario also says what it is (`title`, `about`, `docs`: its write-up and corpus files), which the gateway's front page shows, and a test holds its task counts and links to the repository |
-| `apps/gateway` | workspace API, signed reverse proxy (it decides each request's doors: see [Doors](#doors)), the front page (a searchable card for every scenario, with its sites, its doors and the command that mints one) + MCP registry, reaper |
+| `apps/gateway` | workspace API, signed reverse proxy (it decides each request's doors: see [Doors](#doors)), the front page (what benchme is, a copyable command that mints a workspace, and a searchable card for every scenario) and a page per scenario (`/scenarios/<key>`: its public tasks, searchable and filterable, read from the `*-tasks.json` lists the image carries beside the gateway and never from a key) + MCP registry, reaper |
 | `packages/site-kit` | what every site shares: the gateway-scope hook, signup/verify/login + sessions + api tokens, the MCP server plumbing, the page shell, the doors and the change ledger (see [The change ledger](#the-change-ledger)) |
 | `apps/warehouse` | products, stock, orders, transfers: SSR UI, REST v1, a 14-tool MCP server, NLWeb `/ask`, WebMCP |
 | `apps/helpdesk` | tickets, comments, SLAs, assignment: SSR UI, REST v1, an 11-tool MCP server (with a destructive `delete_ticket`), NLWeb `/ask`, WebMCP |
@@ -1503,6 +1503,7 @@ verifier and the reaper — comes up with Docker Compose:
 ```bash
 docker compose up -d                 # images from ghcr.io/orabenchmarks at BENCHME_VERSION
 open http://localhost:8080           # the front page: every scenario, and how to mint a workspace of it
+open http://localhost:8080/scenarios/cuj-v1   # a scenario's page: its public tasks, searchable
 docker compose down -v               # stop and drop the database volume
 ```
 
