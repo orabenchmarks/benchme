@@ -1,27 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { DOOR_HEADER, doorOf } from "./door.js";
+import { doorOf } from "./door.js";
 
 describe("doorOf", () => {
-  it("reads the door off the path the app routes", () => {
-    expect(doorOf("/")).toBe("page");
-    expect(doorOf("/bookings/BK-1?x=1")).toBe("page");
-    expect(doorOf("/api/v1/bookings/BK-1")).toBe("rest");
-    expect(doorOf("/mcp")).toBe("mcp");
-    expect(doorOf("/mcp?x=1")).toBe("mcp");
+  it.each([
+    ["/", "page"],
+    ["/bookings/BK-1?x=1", "page"],
+    ["/bookings/:no", "page"],
+    ["/api/v1/bookings/BK-1", "rest"],
+    ["/api/v1/bookings/:no", "rest"],
+    ["/ask", "rest"],
+    ["/ask/mcp", "mcp"],
+    ["/mcp", "mcp"],
+    ["/mcp?x=1", "mcp"],
+  ] as const)("reads %s as %s", (path, door) => {
+    expect(doorOf(path)).toBe(door);
   });
 
-  it("calls /mcp the page's own tools only when the bridge's header says so", () => {
-    expect(doorOf("/mcp", { [DOOR_HEADER]: "webmcp" })).toBe("webmcp");
-    expect(doorOf("/mcp", { [DOOR_HEADER]: "something-else" })).toBe("mcp");
-    // The header names a tool call's door and nothing else: a page or REST request that carries it stays what it is.
-    expect(doorOf("/api/v1/bookings", { [DOOR_HEADER]: "webmcp" })).toBe("rest");
-    expect(doorOf("/bookings", { [DOOR_HEADER]: "webmcp" })).toBe("page");
+  it("calls /mcp the page's own tools only when the call proved it is the page's bridge", () => {
+    expect(doorOf("/mcp", true)).toBe("webmcp");
+    expect(doorOf("/mcp", false)).toBe("mcp");
+    // The bridge only ever calls /mcp: a proof anywhere else leaves the request what it is.
+    expect(doorOf("/ask/mcp", true)).toBe("mcp");
+    expect(doorOf("/api/v1/bookings", true)).toBe("rest");
+    expect(doorOf("/bookings", true)).toBe("page");
   });
 
   it("gives no door to what no agent opens: the gateway's own /internal/ and the probes", () => {
     expect(doorOf("/internal/workspaces/ws_0123456789ab/seed")).toBeNull();
     expect(doorOf("/internal/workspaces/ws_0123456789ab/ledger?cursor=3")).toBeNull();
     expect(doorOf("/healthz")).toBeNull();
-    expect(doorOf("/readyz")).toBeNull();
+    expect(doorOf("/readyz", true)).toBeNull();
   });
 });

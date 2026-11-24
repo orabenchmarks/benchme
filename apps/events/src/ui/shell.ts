@@ -1,4 +1,4 @@
-import { sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
+import { sessionUser, shell, webmcpBridge, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { EventsRepo } from "../db/events-repo.js";
 import type { OfficesRepo } from "../db/offices-repo.js";
@@ -40,7 +40,7 @@ export function uiKit(d: UiDeps) {
     nav: NAV,
     user: await user(req),
     flash,
-    scripts: [webmcpScript(d.tools, req.prefix)],
+    scripts: [webmcpBridge(req, d.tools)],
   });
   const authDeps = { auth: d.auth, cookie: SESSION_COOKIE, shellCtx: ctx };
   const kit: UiKit = {

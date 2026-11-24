@@ -1,4 +1,4 @@
-import { esc, money, sessionUser, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
+import { esc, money, sessionUser, webmcpBridge, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { ToolContext } from "../mcp/tools.js";
 
@@ -21,7 +21,7 @@ export type Ctx = (req: FastifyRequest, flash?: string) => Promise<ShellCtx>;
 
 export function shellCtx(auth: AuthService, tools: ToolRegistry<ToolContext>): Ctx {
   const user = sessionUser(auth, SESSION_COOKIE);
-  return async (req, flash) => ({ site: SITE, accent: ACCENT, prefix: req.prefix, nav: NAV, user: await user(req), flash, scripts: [FOOTER, webmcpScript(tools, req.prefix)] });
+  return async (req, flash) => ({ site: SITE, accent: ACCENT, prefix: req.prefix, nav: NAV, user: await user(req), flash, scripts: [FOOTER, webmcpBridge(req, tools)] });
 }
 
 export const html = (reply: FastifyReply, body: string, code = 200) => reply.code(code).type("text/html; charset=utf-8").send(body);

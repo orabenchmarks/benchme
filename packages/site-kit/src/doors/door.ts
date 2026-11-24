@@ -1,33 +1,18 @@
-/**
- * The ways into a site. A request an agent can make comes through exactly one
- * of them, and the change ledger names it on every entry.
- */
-export const DOORS = ["page", "rest", "mcp", "webmcp"] as const;
-export type Door = (typeof DOORS)[number];
+import { doorsAt, type Door } from "@benchme/core";
+
+export { DOORS, DoorSet, type Door } from "@benchme/core";
 
 /**
- * Sent by the page's WebMCP bridge on every tool call it makes. A call to
- * /mcp that carries it came through a tool the page registered (`webmcp`); any
- * other call to /mcp is a direct MCP client (`mcp`). It is a label, never a
- * credential: both doors ask the same of a caller.
+ * The door a request came through: what its path leads to (`doorsAt`), and,
+ * at the MCP server, which of its two doors. A call that proves it is a
+ * page's WebMCP bridge (`viaBridge`: its token is the one for the bridge
+ * cookie it carries) is `webmcp`; any other call to /mcp is a direct MCP
+ * client's. Nothing a client can write into a request without the page's
+ * cookie says otherwise. The paths that are no door at all (the gateway's own
+ * /internal/, the probes) have none.
  */
-export const DOOR_HEADER = "x-benchme-door";
-export const WEBMCP_DOOR_VALUE = "webmcp";
-
-type Headers = Record<string, string | string[] | undefined>;
-
-/**
- * The door a request came through, read off the path as the app routes it and
- * the bridge's header: /mcp is the MCP server (the page's bridge or a client),
- * /api/ is REST, and anything else an agent can open is a page. The paths that
- * are no door at all (the gateway's own /internal/, the probes) have none.
- */
-export function doorOf(url: string, headers: Headers = {}): Door | null {
-  const path = url.split("?")[0] ?? "";
-  if (path === "/healthz" || path === "/readyz" || path.startsWith("/internal/")) return null;
-  if (path === "/mcp") {
-    const marker = headers[DOOR_HEADER];
-    return (Array.isArray(marker) ? marker[0] : marker) === WEBMCP_DOOR_VALUE ? "webmcp" : "mcp";
-  }
-  return path.startsWith("/api/") ? "rest" : "page";
+export function doorOf(path: string, viaBridge = false): Door | null {
+  const doors = doorsAt(path);
+  if (viaBridge && doors.includes("webmcp")) return "webmcp";
+  return doors.find((door) => door !== "webmcp") ?? null;
 }

@@ -1,5 +1,5 @@
 import { flightDateInWindow, type FlightAirport } from "@benchme/scenarios";
-import { registerAuthRoutes, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
+import { registerAuthRoutes, sessionUser, shell, webmcpBridge, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { dropEmpty, searchSchema, searchTrip } from "../api/inputs.js";
 import type { FlightsRepo } from "../db/flights-repo.js";
@@ -37,7 +37,7 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
     nav: NAV,
     user: await user(req),
     flash,
-    scripts: [webmcpScript(d.tools, req.prefix)],
+    scripts: [webmcpBridge(req, d.tools)],
   });
   const authDeps = { auth: d.auth, cookie: SESSION_COOKIE, shellCtx: ctx };
   registerAuthRoutes(app, authDeps);

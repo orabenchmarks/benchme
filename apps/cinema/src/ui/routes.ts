@@ -1,4 +1,4 @@
-import { DomainError, registerAuthRoutes, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
+import { DomainError, registerAuthRoutes, sessionUser, shell, webmcpBridge, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { blankless, bookingSchema, searchSchema, toNewBooking, toQuery } from "../api/inputs.js";
 import type { CinemaRepo } from "../db/cinema-repo.js";
@@ -28,7 +28,7 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
     nav: NAV,
     user: await user(req),
     flash,
-    scripts: [webmcpScript(d.tools, req.prefix)],
+    scripts: [webmcpBridge(req, d.tools)],
   });
   const html = (reply: FastifyReply, body: string, code = 200) => reply.code(code).type("text/html; charset=utf-8").send(body);
   const notFound = async (req: FastifyRequest, reply: FastifyReply, what: string) => html(reply, shell(await ctx(req), "Not found", `<h1>No such ${what}</h1>`), 404);
