@@ -25,8 +25,8 @@ export function isObserver(req: FastifyRequest, gatewaySecret: string): boolean 
 
 /**
  * Whether `req` came through a door its workspace is not served through. The
- * verifier's own reads are no visitor's, so no door is closed to them: the
- * gateway never signs one, and it closes the doors the visitors come through.
+ * verifier's own reads are no visitor's, so no door is closed to them: only a
+ * holder of the gateway secret can sign one, and the gateway itself never does.
  */
 export function isClosed(req: FastifyRequest, gatewaySecret: string): boolean {
   return req.door !== null && !req.doors.has(req.door) && !isObserver(req, gatewaySecret);
