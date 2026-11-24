@@ -1,3 +1,5 @@
+import type { Door, DoorSet } from "@benchme/core";
+
 /** Escape for HTML text and attribute values. */
 export function esc(s: unknown): string {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
@@ -48,6 +50,28 @@ export function shell(ctx: ShellCtx, title: string, body: string): string {
 <main>${ctx.flash ? `<div class="flash">${esc(ctx.flash)}</div>` : ""}${body}</main>${(ctx.scripts ?? []).join("")}</body></html>`;
 }
 
+/**
+ * What an api token opens, door by door, in the account page's words. A
+ * workspace that is not served through a door is never told the token works
+ * there, and one served through neither gets no token at all.
+ */
+const TOKEN_USES: readonly { door: Door; use: (prefix: string) => string }[] = [
+  { door: "rest", use: (p) => `against <code>${esc(p)}/api/v1/…</code>` },
+  { door: "mcp", use: (p) => `to connect an MCP client to <code>${esc(p)}/mcp</code>` },
+];
+
+/** Whether an api token opens any of the open `doors`: the account page offers one only then. */
+export const apiTokenOpens = (doors: DoorSet): boolean => TOKEN_USES.some((u) => doors.has(u.door));
+
+/** The account page's api token section, naming only the open doors; none when the token would open none. */
+function apiTokenSection(p: string, apiToken: string | null, doors: DoorSet): string {
+  const uses = TOKEN_USES.filter((u) => doors.has(u.door)).map((u) => u.use(p));
+  if (uses.length === 0) return "";
+  return `<h2>API token</h2><p>Use it as <code>Authorization: Bearer &lt;token&gt;</code> ${uses.join(", or ")}.</p>
+<p>${apiToken ? `<code>${esc(apiToken)}</code>` : "<em>none yet</em>"}</p>
+<form method="post" action="${p}/account/token"><button>${apiToken ? "Rotate token" : "Create token"}</button></form>`;
+}
+
 /** The auth pages every site shares (signup / verify / login / account). */
 export const authPages = {
   signup: (p: string, error?: string) => `<h1>Create an account</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<form class="card" method="post" action="${p}/signup">
@@ -58,8 +82,8 @@ export const authPages = {
   login: (p: string, error?: string) => `<h1>Sign in</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<form class="card" method="post" action="${p}/login">
 <label>Email</label><input name="email" type="email" required><label>Password</label><input name="password" type="password" required><button>Sign in</button></form>
 <p class="muted">No account? <a href="${p}/signup">Sign up</a>.</p>`,
-  account: (p: string, user: { email: string; displayName: string; apiToken: string | null }) => `<h1>Account</h1><p>${esc(user.displayName)} · ${esc(user.email)}</p>
-<h2>API token</h2><p>Use it as <code>Authorization: Bearer &lt;token&gt;</code> against <code>${esc(p)}/api/v1/…</code>.</p>
-<p>${user.apiToken ? `<code>${esc(user.apiToken)}</code>` : "<em>none yet</em>"}</p>
-<form method="post" action="${p}/account/token"><button>${user.apiToken ? "Rotate token" : "Create token"}</button></form>`,
+  /** `doors`: the request's, so the api token is offered, and named, only for the doors it opens there. */
+  account: (p: string, user: { email: string; displayName: string; apiToken: string | null }, doors: DoorSet) =>
+    `<h1>Account</h1><p>${esc(user.displayName)} · ${esc(user.email)}</p>
+${apiTokenSection(p, user.apiToken, doors)}`,
 };

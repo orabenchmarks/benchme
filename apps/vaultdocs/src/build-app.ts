@@ -48,7 +48,10 @@ export async function buildVaultdocs(d: BuildDeps): Promise<FastifyInstance> {
   });
 
   const html = (body: string) => body;
-  app.get("/", async (req, reply) => reply.type("text/html").send(html(shell(ctx(req), "Vault", `<h1>Document vault</h1><p>${(await repo.list(req.workspaceId)).length} documents. <a href="${req.prefix}/documents">Browse</a> or <a href="${req.prefix}/search">search</a>.</p><p class="muted">Also available as MCP resources (<code>docs://&lt;id&gt;</code>) with <code>search</code>, <code>get_document</code> and <code>list_documents</code> tools at <code>${esc(req.prefix)}/mcp</code>.</p>`))));
+  // The MCP server is named on the home page only where the workspace is served through the MCP door.
+  const mcpNote = (req: FastifyRequest) =>
+    req.doors.has("mcp") ? `<p class="muted">Also available as MCP resources (<code>docs://&lt;id&gt;</code>) with <code>search</code>, <code>get_document</code> and <code>list_documents</code> tools at <code>${esc(req.prefix)}/mcp</code>.</p>` : "";
+  app.get("/", async (req, reply) => reply.type("text/html").send(html(shell(ctx(req), "Vault", `<h1>Document vault</h1><p>${(await repo.list(req.workspaceId)).length} documents. <a href="${req.prefix}/documents">Browse</a> or <a href="${req.prefix}/search">search</a>.</p>${mcpNote(req)}`))));
   app.get("/documents", async (req, reply) => {
     const kind = (req.query as { kind?: string }).kind;
     const docs = await repo.list(req.workspaceId, kind);

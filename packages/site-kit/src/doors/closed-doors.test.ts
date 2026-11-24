@@ -45,6 +45,7 @@ const mailer = new CapturingMailer();
 /** A browser that opened one of the site's pages: the bridge cookie it holds, and the token the page embedded. */
 let bridgeCookie = "";
 let bridgeTokenOfPage = "";
+let session = "";
 
 /** What the gateway forwards for a workspace served through `doors` (named, or left out like a gateway from before doors). */
 const forwarded = (doors?: DoorSet, ws = WS) => ({ [WORKSPACE_HEADER]: ws, [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(SECRET, ws), "x-forwarded-prefix": `/w/${ws}/toy`, ...(doors ? doorsHeaders(SECRET, ws, doors) : {}) });
@@ -101,6 +102,9 @@ beforeAll(async () => {
   bridgeCookie = String(page.headers["set-cookie"]).split(";")[0]!;
   bridgeTokenOfPage = /"token":"([0-9a-f]+)"/.exec(page.body)![1]!;
 
+  await auth.signup(WS, "ilsa@example.com", "correct-horse-9", "Ilsa");
+  await auth.verify(WS, "ilsa@example.com", /code is (\d{6})/.exec(mailer.sent.at(-1)!.body)![1]!);
+  session = (await auth.login(WS, "ilsa@example.com", "correct-horse-9")).token;
 });
 afterAll(async () => {
   await app?.close();
@@ -159,5 +163,33 @@ describe("the gateway's doors header, at the app", () => {
       ["a signature without its list", { ...base, [DOORS_SIG_HEADER]: signed[DOORS_SIG_HEADER] }],
     ];
     for (const [name, headers] of cases) expect([name, ...(await rest(headers))]).toEqual([name, 401, NO_WORKSPACE]);
+  });
+});
+
+describe("the account page", () => {
+  const account = async (doors: DoorSet) => (await app.inject({ url: "/account", headers: { ...forwarded(doors), cookie: `${COOKIE}=${session}` } })).body;
+  const newToken = async (doors: DoorSet) => (await app.inject({ method: "POST", url: "/account/token", headers: { ...forwarded(doors), cookie: `${COOKIE}=${session}` } })).statusCode;
+
+  it.each([
+    [["rest", "mcp", "webmcp"], ["/api/v1/…", "MCP client", "/mcp"], []],
+    [["rest"], ["/api/v1/…"], ["MCP client", "/mcp"]],
+    [["mcp"], ["MCP client", "/mcp"], ["/api/v1/…"]],
+  ] as [Door[], string[], string[]][])("offers an api token through %j, naming only those doors", async (open, named, unnamed) => {
+    const html = await account(DoorSet.of(open));
+    expect(html).toContain("<h2>API token</h2>");
+    for (const text of named) expect(html).toContain(text);
+    for (const text of unnamed) expect(html).not.toContain(text);
+    expect(await newToken(DoorSet.of(open))).toBe(303);
+  });
+
+  it("offers none where the token would open no door, and refuses to make one", async () => {
+    for (const open of [[], ["webmcp"]] as Door[][]) {
+      const html = await account(DoorSet.of(open));
+      expect(html).toContain("ilsa@example.com");
+      expect(html).not.toContain("API token");
+      expect(html).not.toContain("/account/token");
+      expect(await newToken(DoorSet.of(open))).toBe(404);
+    }
+    expect((await auth.userForSession(WS, session))?.apiToken ?? null).not.toBeNull();
   });
 });

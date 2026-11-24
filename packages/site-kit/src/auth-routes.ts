@@ -1,7 +1,7 @@
 import "@fastify/cookie";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AuthError, type AuthService } from "./auth-service.js";
-import { authPages, shell, type ShellCtx } from "./html.js";
+import { apiTokenOpens, authPages, shell, type ShellCtx } from "./html.js";
 
 export type SessionUser = { email: string; displayName: string };
 
@@ -96,11 +96,13 @@ export function registerAuthRoutes(app: FastifyInstance, d: AuthRoutesDeps): voi
     const c = await guard(req, reply);
     if (!c || !c.user) return;
     const full = await d.auth.userForSession(req.workspaceId, req.cookies[d.cookie]);
-    return html(reply, shell(c, "Account", authPages.account(req.prefix, { email: c.user.email, displayName: c.user.displayName, apiToken: full?.apiToken ?? null })));
+    return html(reply, shell(c, "Account", authPages.account(req.prefix, { email: c.user.email, displayName: c.user.displayName, apiToken: full?.apiToken ?? null }, req.doors)));
   });
   app.post("/account/token", async (req, reply) => {
     const c = await guard(req, reply);
     if (!c || !c.user) return;
+    // A token opens the REST API and the MCP server: where the workspace is served through neither, there is none to have.
+    if (!apiTokenOpens(req.doors)) return reply.code(404).type("text/html; charset=utf-8").send(shell(c, "Not found", "<h1>No such page</h1>"));
     await d.auth.issueApiToken(req.workspaceId, c.user.email);
     return reply.redirect(`${req.prefix}/account`, 303);
   });
