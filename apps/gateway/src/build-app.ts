@@ -1,4 +1,4 @@
-import { PgWorkspaceRepo, createApp, type Pool, type ReceiptSigner } from "@benchme/core";
+import { DoorSet, PgWorkspaceRepo, createApp, type Pool, type ReceiptSigner } from "@benchme/core";
 import { errorCodes, type FastifyInstance } from "fastify";
 import type { ScenarioRegistry } from "@benchme/scenarios";
 import { AppRegistry } from "./app-registry.js";
@@ -28,6 +28,8 @@ export type BuildDeps = {
   sharedSeed: number;
   /** Services fronted at the root, outside any workspace (SERVICE_TARGETS): /<name>/* → <url>/*. */
   services?: Record<string, string>;
+  /** The doors a workspace is served through unless it was created with its own (BENCHME_DOORS); default every door. */
+  doors?: DoorSet;
   logLevel?: string;
 };
 
@@ -44,6 +46,7 @@ export async function buildGateway(d: BuildDeps): Promise<{ app: FastifyInstance
     internalBaseUrl: d.internalBaseUrl,
     defaultTtlSeconds: d.defaultTtlSeconds,
     maxTtlSeconds: d.maxTtlSeconds,
+    doors: d.doors ?? DoorSet.ALL,
   });
   const app = createApp({
     name: "gateway",

@@ -1,4 +1,4 @@
-import { loadConfig } from "@benchme/core";
+import { DOORS, DoorSet, loadConfig } from "@benchme/core";
 import { z } from "zod";
 
 const appTargets = z.record(z.string().min(1), z.string().url());
@@ -51,6 +51,22 @@ export const configSchema = z.object({
   WEBMCP_APPS: z.string().default("").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
   /** Apps routed but never advertised: absent from a workspace's urls, the portal, the registry and robots.txt (subset of APP_TARGETS keys). */
   UNLISTED_APPS: z.string().default("").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
+  /**
+   * The doors every workspace is served through unless it was created with its own `doors`, shared workspaces
+   * included: a comma list of page, rest, mcp and webmcp. Pages are always served and may be left out ("page" alone
+   * serves the pages alone); unset serves all four, as every deployment did before doors.
+   */
+  BENCHME_DOORS: z
+    .string()
+    .default(DOORS.join(","))
+    .transform((s, ctx) => {
+      try {
+        return DoorSet.parse(s);
+      } catch (e) {
+        ctx.addIssue({ code: "custom", message: (e as Error).message });
+        return z.NEVER;
+      }
+    }),
   /** Seed used for the shared-<scenario>-<seed> workspace advertised in /robots.txt. */
   SHARED_SEED: z.coerce.number().int().positive().default(20260908),
   WORKSPACE_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),

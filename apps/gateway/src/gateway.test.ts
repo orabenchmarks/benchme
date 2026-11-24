@@ -1,4 +1,4 @@
-import { HmacReceiptSigner, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, signWorkspaceHeader, verifyWorkspaceHeader, type Pool } from "@benchme/core";
+import { DOORS_HEADER, DOORS_SIG_HEADER, DoorSet, HmacReceiptSigner, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, signWorkspaceHeader, verifyDoorsHeader, verifyWorkspaceHeader, type Door, type Pool } from "@benchme/core";
 import { scenarios } from "@benchme/scenarios";
 import Fastify, { errorCodes, type FastifyInstance } from "fastify";
 import { request as httpRequest } from "node:http";
@@ -34,6 +34,8 @@ async function stubApp(): Promise<{ app: FastifyInstance; url: string; seeds: st
     path: req.url,
     workspace: req.headers[WORKSPACE_HEADER],
     sig: req.headers[WORKSPACE_SIG_HEADER],
+    doors: req.headers[DOORS_HEADER],
+    doorsSig: req.headers[DOORS_SIG_HEADER],
     prefix: req.headers["x-forwarded-prefix"],
     // Echoed so the proxy test can prove the PUBLIC host/scheme reach the app:
     // reply-from rewrites Host to this stub's own 127.0.0.1:<port>.
@@ -83,6 +85,29 @@ let stub: Awaited<ReturnType<typeof stubApp>>;
 let gateway: FastifyInstance;
 let service: WorkspaceService;
 let limiter: MemoryRateLimiter;
+let apps: AppRegistry;
+
+/** Another gateway over the same database and apps, for a deployment that serves `doors` (BENCHME_DOORS). */
+async function deployment(doors: DoorSet): Promise<FastifyInstance> {
+  const { app } = await buildGateway({
+    pool,
+    scenarios,
+    apps,
+    seeder: new HttpWorkspaceSeeder(seedTargetsFor(apps, scenarios), SECRET),
+    receipts: new HmacReceiptSigner("receipt-secret-for-tests"),
+    limiter: new MemoryRateLimiter(1000, 3600),
+    gatewaySecret: SECRET,
+    operatorKey: "operator-key-for-tests",
+    publicBaseUrl: "http://benchme.test",
+    internalBaseUrl: "http://gateway.benchme.svc",
+    defaultTtlSeconds: 3600,
+    maxTtlSeconds: 7200,
+    sharedSeed: 20260908,
+    doors,
+    logLevel: "silent",
+  });
+  return app;
+}
 
 /** The gateway on a real socket, started by the first test that needs one: its port. */
 async function listening(): Promise<number> {
@@ -105,7 +130,7 @@ beforeAll(async () => {
   // card-on-file door, /w/<id>/wallet/card, beside the root /wallet/*).
   // guide: unlisted, and the one app guide-v1 names (Scenario.apps) — advertised by that scenario's workspaces alone.
   // web: the same, for web-v1 — a PATH base on the guide's own service (the site network under /web).
-  const apps = new AppRegistry(
+  apps = new AppRegistry(
     { warehouse: stub.url, data: stub.url, halden: `${stub.url}/s/halden`, paylantern: `${stub.url}/s/paylantern`, wallet: `${stub.url}/workspace`, guide: stub.url, web: `${stub.url}/web` },
     ["warehouse"],
     ["warehouse", "paylantern"],
@@ -505,6 +530,116 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
   });
 });
 
+// The doors: decided here (a workspace's own, else the deployment's), refused by path before the app is called, and
+// forwarded to the app signed for the workspace. The stub app answers everything, so a 404 {"error":"NOT_FOUND"} is the
+// gateway's own.
+describe.skipIf(!DB)("the doors a workspace is served through, at the gateway (real Postgres + stub app)", () => {
+  const NOT_FOUND = { error: "NOT_FOUND" };
+  /** Every set of the doors a workspace can close (pages are always served). */
+  const SETS: Door[][] = [[], ["rest"], ["mcp"], ["webmcp"], ["rest", "mcp"], ["rest", "webmcp"], ["mcp", "webmcp"], ["rest", "mcp", "webmcp"]];
+  const mint = async (body: Record<string, unknown>, on: FastifyInstance = gateway) => on.inject({ method: "POST", url: "/api/workspaces", headers: OPERATOR, payload: { scenario: "acme-v1", ...body } });
+
+  it("keeps the doors a workspace is created with, pages among them, shows them, and serves every door to one created without", async () => {
+    const own = await mint({ doors: ["webmcp"] });
+    expect([own.statusCode, own.json().doors]).toEqual([201, ["page", "webmcp"]]);
+    expect((await gateway.inject(`/api/workspaces/${own.json().id}`)).json().doors).toEqual(["page", "webmcp"]);
+    expect((await mint({ doors: [] })).json().doors).toEqual(["page"]);
+    const plain = (await mint({})).json();
+    expect(plain.doors).toEqual(["page", "rest", "mcp", "webmcp"]);
+    expect((await gateway.inject({ method: "POST", url: `/api/workspaces/${plain.id}/finalize` })).json().doors).toEqual(["page", "rest", "mcp", "webmcp"]);
+  });
+
+  it("refuses a name that is no door with 422 UNKNOWN_DOOR, before it spends a rate-limit unit", async () => {
+    const strict = new MemoryRateLimiter(1, 3600);
+    const own = await buildGateway({ pool, scenarios, apps, seeder: { seed: async () => undefined }, receipts: new HmacReceiptSigner("receipt-secret-for-tests"), limiter: strict, gatewaySecret: SECRET, operatorKey: "operator-key-for-tests", publicBaseUrl: "http://benchme.test", internalBaseUrl: "http://gateway.benchme.svc", defaultTtlSeconds: 3600, maxTtlSeconds: 7200, sharedSeed: 20260908, logLevel: "silent" });
+    for (let i = 0; i < 3; i++) {
+      const bad = await own.app.inject({ method: "POST", url: "/api/workspaces", remoteAddress: "10.7.7.7", payload: { scenario: "acme-v1", doors: ["page", "ftp"] } });
+      expect([bad.statusCode, bad.json()]).toEqual([422, { error: "UNKNOWN_DOOR", message: 'unknown door "ftp": the doors are page, rest, mcp, webmcp' }]);
+    }
+    const ok = await own.app.inject({ method: "POST", url: "/api/workspaces", remoteAddress: "10.7.7.7", payload: { scenario: "acme-v1", doors: ["page"] } });
+    expect(ok.statusCode).toBe(201);
+    await own.app.close();
+  });
+
+  it.each(SETS.map((open) => [open.join(",") || "pages alone", open] as const))("serves %s: each way in behind an open door reaches the app with the doors signed, every other one is refused first", async (_name, open) => {
+    const doors = DoorSet.of(open);
+    const minted = (await mint({ doors: open })).json();
+    const { id } = minted as { id: string };
+    expect(minted.doors).toEqual(doors.list());
+    const at = `/w/${id}/warehouse`;
+    const port = await listening();
+    const get = (path: string) => rawFetch(port, `${at}/${path}`).then((r) => ({ status: r.status, body: JSON.parse(r.body) as Record<string, unknown> }));
+    const post = (path: string) => gateway.inject({ method: "POST", url: `${at}/${path}`, payload: { jsonrpc: "2.0", id: 1, method: "ping" } }).then((r) => ({ status: r.statusCode, body: r.json() as Record<string, unknown> }));
+    const ways: [string, () => Promise<{ status: number; body: Record<string, unknown> }>, boolean][] = [
+      ["a page", () => get("products/x?a=1"), true],
+      ["REST", () => get("api/v1/products?limit=2"), doors.has("rest")],
+      // REST spelled as the app's router reads it: an escape, a dot segment, a doubled slash, a trailing slash.
+      ["REST, escaped", () => get("%61pi/v1/products"), doors.has("rest")],
+      ["REST, behind a dot segment", () => get("./api/v1/products"), doors.has("rest")],
+      ["REST, behind a doubled slash", () => get("/api/v1/products"), doors.has("rest")],
+      ["NLWeb /ask", () => get("ask?query=x&streaming=false"), doors.has("rest")],
+      ["NLWeb /ask/mcp", () => post("ask/mcp"), doors.has("mcp")],
+      // A page's bridge and a direct client call one path: it is open while either door is, and the app tells them apart.
+      ["/mcp", () => post("mcp"), doors.has("mcp") || doors.has("webmcp")],
+      ["/mcp/", () => post("mcp/"), doors.has("mcp") || doors.has("webmcp")],
+      // No door at all: an app's other /internal/ pages (authenticated their own way) are proxied whatever the doors.
+      ["the guide's records", () => rawFetch(port, `/w/${id}/guide/internal/records`).then((r) => ({ status: r.status, body: JSON.parse(r.body) as Record<string, unknown> })), true],
+    ];
+    for (const [way, send, served] of ways) {
+      const res = await send();
+      if (!served) {
+        expect([way, res.status, res.body]).toEqual([way, 404, NOT_FOUND]);
+        continue;
+      }
+      expect([way, res.status]).toEqual([way, 200]);
+      // What reached the app: this workspace, and its doors, signed for it.
+      expect([way, res.body.workspace, res.body.doors]).toEqual([way, id, doors.toString()]);
+      expect(verifyDoorsHeader(SECRET, id, res.body.doors as string, res.body.doorsSig as string)).toBe(true);
+    }
+    // urls name only what is behind an open door; every app's pages are always there.
+    expect(Object.keys(minted.urls.apps)).toContain("warehouse");
+    expect([Object.keys(minted.urls.mcp).length > 0, Object.keys(minted.urls.ask).length > 0, Object.keys(minted.urls.askMcp).length > 0, Object.keys(minted.urls.webmcp).length > 0]).toEqual([
+      doors.has("mcp"),
+      doors.has("rest"),
+      doors.has("mcp"),
+      doors.has("webmcp"),
+    ]);
+  });
+
+  it("replaces the doors a client says it has with the workspace's own, signed for it", async () => {
+    const { id } = (await mint({ doors: ["page"] })).json() as { id: string };
+    const forged = { [DOORS_HEADER]: "page,rest,mcp,webmcp", [DOORS_SIG_HEADER]: "0".repeat(64) };
+    expect((await gateway.inject({ url: `/w/${id}/warehouse/api/v1/products`, headers: forged })).json()).toEqual(NOT_FOUND);
+    const page = (await gateway.inject({ url: `/w/${id}/warehouse/products/x`, headers: forged })).json();
+    expect([page.doors, verifyDoorsHeader(SECRET, id, page.doors, page.doorsSig)]).toEqual(["page", true]);
+  });
+});
+
+// A deployment's doors (BENCHME_DOORS): every workspace created without its own is served through them, the shared ones
+// too.
+describe.skipIf(!DB)("a deployment's doors (real Postgres + stub app)", () => {
+  it("serves a workspace created without doors, and a shared workspace, through the deployment's; one with its own through those", async () => {
+    const bridgeOnly = await deployment(DoorSet.parse("webmcp"));
+    try {
+      const plain = (await bridgeOnly.inject({ method: "POST", url: "/api/workspaces", headers: OPERATOR, payload: { scenario: "acme-v1" } })).json();
+      expect([plain.doors, plain.urls.mcp, plain.urls.ask, plain.urls.askMcp, plain.urls.webmcp]).toEqual([["page", "webmcp"], {}, {}, {}, { data: `http://benchme.test/w/${plain.id}/data/` }]);
+      expect((await bridgeOnly.inject(`/w/${plain.id}/warehouse/api/v1/products`)).statusCode).toBe(404);
+      const own = (await bridgeOnly.inject({ method: "POST", url: "/api/workspaces", headers: OPERATOR, payload: { scenario: "acme-v1", doors: ["rest"] } })).json();
+      expect(own.doors).toEqual(["page", "rest"]);
+      expect((await bridgeOnly.inject(`/w/${own.id}/warehouse/api/v1/products`)).json()).toMatchObject({ workspace: own.id, doors: "page,rest" });
+      expect((await bridgeOnly.inject({ method: "POST", url: `/w/${own.id}/warehouse/mcp`, payload: {} })).statusCode).toBe(404);
+
+      const seed = 1000 + Math.floor(Math.random() * 1_000_000); // the alias persists in the shared test DB across runs
+      const shared = await bridgeOnly.inject(`/w/shared-acme-v1-${seed}/warehouse/products/x`);
+      expect(shared.json()).toMatchObject({ doors: "page,webmcp" });
+      expect((await bridgeOnly.inject(`/w/shared-acme-v1-${seed}/warehouse/api/v1/products`)).json()).toEqual({ error: "NOT_FOUND" });
+      expect((await bridgeOnly.inject(`/api/workspaces/${shared.json().workspace as string}`)).json().doors).toEqual(["page", "webmcp"]);
+    } finally {
+      await bridgeOnly.close();
+    }
+  });
+});
+
 describe("app registry and config (no database)", () => {
   it("routes to and seeds an unlisted app but leaves it out of listed()", () => {
     const reg = new AppRegistry({ halden: "http://shops:3000/s/halden", paylantern: "http://shops:3000/s/paylantern/" }, ["paylantern"], [], [], [], ["paylantern"]);
@@ -590,5 +725,14 @@ describe("app registry and config (no database)", () => {
     expect(readConfig(env).UNLISTED_APPS).toEqual([]);
     expect(readConfig({ ...env, UNLISTED_APPS: "" }).UNLISTED_APPS).toEqual([]);
     expect(readConfig({ ...env, UNLISTED_APPS: " paylantern, ,extra " }).UNLISTED_APPS).toEqual(["paylantern", "extra"]);
+  });
+
+  it("reads BENCHME_DOORS as the doors every workspace gets, all four when unset or blank, pages always among them", () => {
+    const doors = (value?: string) => readConfig(value === undefined ? env : { ...env, BENCHME_DOORS: value }).BENCHME_DOORS.list();
+    expect(doors()).toEqual(["page", "rest", "mcp", "webmcp"]);
+    expect(doors("")).toEqual(["page", "rest", "mcp", "webmcp"]);
+    expect(doors("page")).toEqual(["page"]);
+    expect(doors("webmcp, rest")).toEqual(["page", "rest", "webmcp"]);
+    expect(() => doors("page,none")).toThrow(/BENCHME_DOORS: unknown door "none"/);
   });
 });
