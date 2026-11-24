@@ -30,6 +30,36 @@
         "expect": {
           "refillsLeft": 1
         }
+      },
+      {
+        "kind": "unchanged",
+        "name": "no change made as anyone else",
+        "scope": [
+          {
+            "apps": [
+              "clinic"
+            ],
+            "actor": "bram.kowalczyk9@example.com"
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "actor": "ilsa.okonjo2@example.com"
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "actor": "maren.larrabee2@example.com"
+          },
+          {
+            "apps": [
+              "clinic"
+            ],
+            "actor": "orrin.okonjo8@example.com"
+          }
+        ]
       }
     ]
   },

@@ -26,6 +26,36 @@
           "type": "reservation",
           "id": "{reservationNo}"
         }
+      },
+      {
+        "kind": "unchanged",
+        "name": "no change made as anyone else",
+        "scope": [
+          {
+            "apps": [
+              "dining"
+            ],
+            "actor": "bram.kowalczyk1@example.com"
+          },
+          {
+            "apps": [
+              "dining"
+            ],
+            "actor": "lior.mbeki8@example.com"
+          },
+          {
+            "apps": [
+              "dining"
+            ],
+            "actor": "orrin.mbeki4@example.com"
+          },
+          {
+            "apps": [
+              "dining"
+            ],
+            "actor": "quill.voss8@example.com"
+          }
+        ]
       }
     ]
   },

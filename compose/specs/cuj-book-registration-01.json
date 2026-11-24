@@ -23,6 +23,36 @@
           "type": "registration",
           "id": "{regNo}"
         }
+      },
+      {
+        "kind": "unchanged",
+        "name": "no change made as anyone else",
+        "scope": [
+          {
+            "apps": [
+              "events"
+            ],
+            "actor": "danae.larrabee@staff.example"
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "actor": "lior.kowalczyk@staff.example"
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "actor": "orrin.sandoval@staff.example"
+          },
+          {
+            "apps": [
+              "events"
+            ],
+            "actor": "teodor.mbeki@staff.example"
+          }
+        ]
       }
     ]
   },

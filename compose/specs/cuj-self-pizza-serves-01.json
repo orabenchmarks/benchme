@@ -47,6 +47,30 @@
           "outcome": "ok",
           "actor": "bram.larrabee7@example.org"
         }
+      },
+      {
+        "kind": "unchanged",
+        "name": "no change made as anyone else",
+        "scope": [
+          {
+            "apps": [
+              "pizza"
+            ],
+            "actor": "maren.okonjo3@example.org"
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "actor": "orrin.okonjo9@example.org"
+          },
+          {
+            "apps": [
+              "pizza"
+            ],
+            "actor": "teodor.larrabee1@example.org"
+          }
+        ]
       }
     ]
   },

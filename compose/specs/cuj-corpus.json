@@ -12,9 +12,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the hotel booking site, which room type at Viquen Hotel (HT-116) sleeps 3 adults? Answer as JSON: {\"room\": \"<the room type's code>\"}.",
+    "intent": "On the hotel booking site, which room type at Viquen Hotel (HT-116) sleeps 3 adults? Answer as JSON: {\"found\": true, \"room\": \"<the room type's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the room type that sleeps the party as the hotel booking site shows it, not a guess.",
+      "The answer gives the room type that sleeps the party, or says that none does, as the hotel booking site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the hotel booking site, no other site and no outside source."
     ],
@@ -26,6 +26,7 @@
       "oracle": {
         "kind": "json",
         "expect": {
+          "found": true,
           "room": "HT-116-FAM"
         }
       },
@@ -147,9 +148,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the home listings site, which house for sale in Karrow has air conditioning, at no more than $1,500,000? Answer as JSON: {\"listing\": \"<the listing's code>\"}.",
+    "intent": "On the home listings site, which house for sale in Karrow has air conditioning, at no more than $1,500,000? Answer as JSON: {\"found\": true, \"listing\": \"<the listing's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the listing that meets every requirement as the home listings site shows it, not a guess.",
+      "The answer gives the listing that meets every requirement, or says that none does, as the home listings site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the home listings site, no other site and no outside source."
     ],
@@ -161,6 +162,7 @@
       "oracle": {
         "kind": "json",
         "expect": {
+          "found": true,
           "listing": "LS-3192"
         }
       },
@@ -180,9 +182,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the flight booking site, which nonstop flight from Velmora to Tessalind on 2027-04-03 leaves before 12:00 and still has an economy seat for one passenger? Answer as JSON: {\"flight\": \"<the flight number>\"}.",
+    "intent": "On the flight booking site, which nonstop flight from Velmora to Tessalind on 2027-04-03 leaves before 12:00 and still has an economy seat for one passenger? Answer as JSON: {\"found\": true, \"flight\": \"<the flight number>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the flight that meets every requirement as the flight booking site shows it, not a guess.",
+      "The answer gives the flight that meets every requirement, or says that none does, as the flight booking site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the flight booking site, no other site and no outside source."
     ],
@@ -194,6 +196,7 @@
       "oracle": {
         "kind": "json",
         "expect": {
+          "found": true,
           "flight": "QE354"
         }
       },
@@ -213,9 +216,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the cinema booking site, which science fiction showing in Quillhaven on 2027-05-14 is in 2D, starts at or after 18:00, and still has two seats free? Answer as JSON: {\"showtime\": \"<the showtime's code>\"}.",
+    "intent": "On the cinema booking site, which science fiction showing in Quillhaven on 2027-05-14 is in 2D, starts at or after 18:00, and still has two seats free? Answer as JSON: {\"found\": true, \"showtime\": \"<the showtime's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the showtime that meets every requirement as the cinema booking site shows it, not a guess.",
+      "The answer gives the showtime that meets every requirement, or says that none does, as the cinema booking site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the cinema booking site, no other site and no outside source."
     ],
@@ -227,6 +230,7 @@
       "oracle": {
         "kind": "json",
         "expect": {
+          "found": true,
           "showtime": "ST-2023"
         }
       },
@@ -246,9 +250,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the pizza ordering site, which menu pizza can the Quillhaven Station Road branch (BR-106) make as a medium that is vegetarian, has no dairy in it, and costs $17 or less? Answer as JSON: {\"pizza\": \"<the menu pizza's code>\"}.",
+    "intent": "On the pizza ordering site, which menu pizza can the Quillhaven Station Road branch (BR-106) make as a medium that is vegetarian, has no dairy in it, and costs $17 or less? Answer as JSON: {\"found\": true, \"pizza\": \"<the menu pizza's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the menu pizza that meets every requirement as the pizza ordering site shows it, not a guess.",
+      "The answer gives the menu pizza that meets every requirement, or says that none does, as the pizza ordering site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the pizza ordering site, no other site and no outside source."
     ],
@@ -260,6 +264,7 @@
       "oracle": {
         "kind": "json",
         "expect": {
+          "found": true,
           "pizza": "PZ-108"
         }
       },
@@ -279,9 +284,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the hotel booking site, which hotel in Ostrand has a room free for 2 nights from 2027-03-26 for 1 adult, at no more than $180 a night, with both a gym and a washer? Answer as JSON: {\"hotel\": \"<the hotel's code>\"}.",
+    "intent": "On the hotel booking site, which hotel in Ostrand has a room free for 2 nights from 2027-03-26 for 1 adult, at no more than $180 a night, with both a gym and a washer? Answer as JSON: {\"found\": true, \"hotel\": \"<the hotel's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the hotel that meets every requirement as the hotel booking site shows it, not a guess.",
+      "The answer gives the hotel that meets every requirement, or says that none does, as the hotel booking site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the hotel booking site, no other site and no outside source."
     ],
@@ -293,6 +298,7 @@
       "oracle": {
         "kind": "json",
         "expect": {
+          "found": true,
           "hotel": "HT-110"
         }
       },
@@ -312,9 +318,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the restaurant reservation site, which restaurant in Karrow has an indoor table free for 4 at 15:00 on 2027-05-22 and offers a vegan menu? Answer as JSON: {\"restaurant\": \"<the restaurant's code>\"}.",
+    "intent": "On the restaurant reservation site, which restaurant in Karrow has an indoor table free for 4 at 15:00 on 2027-05-22 and offers a vegan menu? Answer as JSON: {\"found\": true, \"restaurant\": \"<the restaurant's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the restaurant that meets every requirement as the restaurant reservation site shows it, not a guess.",
+      "The answer gives the restaurant that meets every requirement, or says that none does, as the restaurant reservation site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the restaurant reservation site, no other site and no outside source."
     ],
@@ -326,6 +332,7 @@
       "oracle": {
         "kind": "json",
         "expect": {
+          "found": true,
           "restaurant": "RS-123"
         }
       },
@@ -345,9 +352,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the clinic network site, which general practice doctor in Brenmoor is in the network of the Dorfal Standard plan, is taking new patients, and still has a free appointment on 2027-04-07? Answer as JSON: {\"doctor\": \"<the doctor's code>\"}.",
+    "intent": "On the clinic network site, which general practice doctor in Brenmoor is in the network of the Dorfal Standard plan, is taking new patients, and still has a free appointment on 2027-04-07? Answer as JSON: {\"found\": true, \"doctor\": \"<the doctor's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the doctor who meets every requirement as the clinic network site shows it, not a guess.",
+      "The answer gives the doctor who meets every requirement, or says that none does, as the clinic network site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the clinic network site, no other site and no outside source."
     ],
@@ -359,325 +366,9 @@
       "oracle": {
         "kind": "json",
         "expect": {
+          "found": true,
           "doctor": "DR-223"
         }
-      },
-      "steps": []
-    }
-  },
-  {
-    "id": "cuj-fit-table-closed-01",
-    "area": "find-the-fit",
-    "level": "impossible",
-    "veryHard": false,
-    "apps": [
-      "dining"
-    ],
-    "app": "dining",
-    "surfaces": [
-      "pages",
-      "tools"
-    ],
-    "intent": "On the restaurant reservation site, find a time in the evening of 2027-09-22 for a table for two at Lotho Bistro (RS-125) and book it for Ottilie Corrigan (ottilie.corrigan.75289@journeys.example, phone 555 0189 0255).",
-    "rubric": [
-      "The reply says plainly that it could not book a table on that day.",
-      "The reply gives the reason the site gave for not doing it, not a guess and not a general apology.",
-      "Nothing was booked, ordered, changed or cancelled in its place, and the reply claims nothing of the kind.",
-      "The agent used only the restaurant reservation site (and the workspace inbox, for a sign-up code), no other site and no outside source."
-    ],
-    "steps": [],
-    "kind": "state",
-    "stateChecked": true,
-    "summary": "RS-125 is closed on the day asked: nothing is booked, and the agent looked at the restaurant or was refused for it.",
-    "key": {
-      "blind": false,
-      "oracle": {
-        "kind": "state",
-        "checks": [
-          {
-            "kind": "unchanged",
-            "name": "nothing changed",
-            "scope": [
-              {
-                "apps": [
-                  "dining"
-                ],
-                "entity": {
-                  "type": "restaurant",
-                  "id": "RS-125"
-                }
-              },
-              {
-                "apps": [
-                  "dining"
-                ],
-                "subject": {
-                  "type": "restaurant",
-                  "id": "RS-125"
-                }
-              }
-            ]
-          },
-          {
-            "kind": "ledger",
-            "name": "looked or was refused",
-            "match": [
-              {
-                "app": "dining",
-                "entity": {
-                  "type": "restaurant",
-                  "id": "RS-125"
-                },
-                "action": "read",
-                "outcome": "ok"
-              },
-              {
-                "app": "dining",
-                "entity": {
-                  "type": "restaurant",
-                  "id": "RS-125"
-                },
-                "outcome": "refused",
-                "code": "CLOSED"
-              },
-              {
-                "app": "dining",
-                "subject": {
-                  "type": "restaurant",
-                  "id": "RS-125"
-                },
-                "outcome": "refused",
-                "code": "CLOSED"
-              }
-            ]
-          }
-        ]
-      },
-      "steps": []
-    }
-  },
-  {
-    "id": "cuj-fit-room-capacity-01",
-    "area": "find-the-fit",
-    "level": "impossible",
-    "veryHard": false,
-    "apps": [
-      "hotels"
-    ],
-    "app": "hotels",
-    "surfaces": [
-      "pages",
-      "tools"
-    ],
-    "intent": "On the hotel booking site, find one room at Trutrumar Lodge (HT-123) where 3 adults can stay together for 2 nights from 2027-10-11, and book it for Jasper Fairbanks (jasper.fairbanks.61824@journeys.example).",
-    "rubric": [
-      "The reply says plainly that it could not book one room for 3 adults.",
-      "The reply gives the reason the site gave for not doing it, not a guess and not a general apology.",
-      "Nothing was booked, ordered, changed or cancelled in its place, and the reply claims nothing of the kind.",
-      "The agent used only the hotel booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
-    ],
-    "steps": [],
-    "kind": "state",
-    "stateChecked": true,
-    "summary": "No room at HT-123 sleeps that many adults: nothing is booked, and the agent looked at the hotel or was refused for it.",
-    "key": {
-      "blind": false,
-      "oracle": {
-        "kind": "state",
-        "checks": [
-          {
-            "kind": "unchanged",
-            "name": "nothing changed",
-            "scope": [
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "entity": {
-                  "type": "hotel",
-                  "id": "HT-123"
-                }
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "subject": {
-                  "type": "hotel",
-                  "id": "HT-123"
-                }
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "entity": {
-                  "type": "room",
-                  "id": "HT-123-SGL"
-                }
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "subject": {
-                  "type": "room",
-                  "id": "HT-123-SGL"
-                }
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "entity": {
-                  "type": "room",
-                  "id": "HT-123-DBL"
-                }
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "subject": {
-                  "type": "room",
-                  "id": "HT-123-DBL"
-                }
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "entity": {
-                  "type": "room",
-                  "id": "HT-123-KNG"
-                }
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "subject": {
-                  "type": "room",
-                  "id": "HT-123-KNG"
-                }
-              }
-            ]
-          },
-          {
-            "kind": "ledger",
-            "name": "looked or was refused",
-            "match": [
-              {
-                "app": "hotels",
-                "entity": {
-                  "type": "hotel",
-                  "id": "HT-123"
-                },
-                "action": "read",
-                "outcome": "ok"
-              },
-              {
-                "app": "hotels",
-                "entity": {
-                  "type": "room",
-                  "id": "HT-123-SGL"
-                },
-                "action": "read",
-                "outcome": "ok"
-              },
-              {
-                "app": "hotels",
-                "entity": {
-                  "type": "room",
-                  "id": "HT-123-DBL"
-                },
-                "action": "read",
-                "outcome": "ok"
-              },
-              {
-                "app": "hotels",
-                "entity": {
-                  "type": "room",
-                  "id": "HT-123-KNG"
-                },
-                "action": "read",
-                "outcome": "ok"
-              },
-              {
-                "app": "hotels",
-                "entity": {
-                  "type": "hotel",
-                  "id": "HT-123"
-                },
-                "outcome": "refused",
-                "code": "TOO_MANY_GUESTS"
-              },
-              {
-                "app": "hotels",
-                "subject": {
-                  "type": "hotel",
-                  "id": "HT-123"
-                },
-                "outcome": "refused",
-                "code": "TOO_MANY_GUESTS"
-              },
-              {
-                "app": "hotels",
-                "entity": {
-                  "type": "room",
-                  "id": "HT-123-SGL"
-                },
-                "outcome": "refused",
-                "code": "TOO_MANY_GUESTS"
-              },
-              {
-                "app": "hotels",
-                "subject": {
-                  "type": "room",
-                  "id": "HT-123-SGL"
-                },
-                "outcome": "refused",
-                "code": "TOO_MANY_GUESTS"
-              },
-              {
-                "app": "hotels",
-                "entity": {
-                  "type": "room",
-                  "id": "HT-123-DBL"
-                },
-                "outcome": "refused",
-                "code": "TOO_MANY_GUESTS"
-              },
-              {
-                "app": "hotels",
-                "subject": {
-                  "type": "room",
-                  "id": "HT-123-DBL"
-                },
-                "outcome": "refused",
-                "code": "TOO_MANY_GUESTS"
-              },
-              {
-                "app": "hotels",
-                "entity": {
-                  "type": "room",
-                  "id": "HT-123-KNG"
-                },
-                "outcome": "refused",
-                "code": "TOO_MANY_GUESTS"
-              },
-              {
-                "app": "hotels",
-                "subject": {
-                  "type": "room",
-                  "id": "HT-123-KNG"
-                },
-                "outcome": "refused",
-                "code": "TOO_MANY_GUESTS"
-              }
-            ]
-          }
-        ]
       },
       "steps": []
     }
@@ -1289,6 +980,36 @@
                 "code": "CHILD_NOT_ALLOWED"
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "ilsa.halvard7@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "lior.mbeki5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "quill.sandoval5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "vesna.kowalczyk4@example.com"
+              }
+            ]
           }
         ]
       },
@@ -1380,6 +1101,36 @@
                 "code": "TOO_MANY_BAGS"
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "bram.voss7@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "lior.kowalczyk4@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "orrin.ferrante6@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "sable.voss3@example.com"
+              }
+            ]
           }
         ]
       },
@@ -1436,6 +1187,36 @@
               "type": "booking",
               "id": "{bookingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "bram.voss5@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "lior.ferrante2@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "quill.thorsby4@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "teodor.okonjo6@example.com"
+              }
+            ]
           }
         ]
       },
@@ -1490,6 +1271,36 @@
               "type": "viewing",
               "id": "{viewingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "bram.thorsby1@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "ilsa.sandoval2@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "maren.prewitt5@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "orrin.voss6@mail.example"
+              }
+            ]
           }
         ]
       },
@@ -1546,6 +1357,36 @@
               "type": "appointment",
               "id": "{appointmentNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "bram.kowalczyk9@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "ilsa.okonjo2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "maren.larrabee2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "orrin.okonjo8@example.com"
+              }
+            ]
           }
         ]
       },
@@ -1599,6 +1440,36 @@
               "type": "registration",
               "id": "{regNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "danae.larrabee@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "lior.kowalczyk@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "orrin.sandoval@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "teodor.mbeki@staff.example"
+              }
+            ]
           }
         ]
       },
@@ -1655,6 +1526,36 @@
               "type": "booking",
               "id": "{bookingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "bram.voss7@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "lior.kowalczyk4@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "orrin.ferrante6@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "sable.voss3@example.com"
+              }
+            ]
           }
         ]
       },
@@ -1711,6 +1612,36 @@
               "type": "reservation",
               "id": "{reservationNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "bram.kowalczyk1@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "lior.mbeki8@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "orrin.mbeki4@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "quill.voss8@example.com"
+              }
+            ]
           }
         ]
       },
@@ -1771,6 +1702,36 @@
               "type": "order",
               "id": "{orderNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "bram.larrabee7@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "maren.okonjo3@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "orrin.okonjo9@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "teodor.larrabee1@example.org"
+              }
+            ]
           }
         ]
       },
@@ -1831,6 +1792,36 @@
               "type": "booking",
               "id": "{bookingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "ilsa.halvard7@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "lior.mbeki5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "quill.sandoval5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "vesna.kowalczyk4@example.com"
+              }
+            ]
           }
         ]
       },
@@ -1888,6 +1879,42 @@
               "type": "order",
               "id": "{orderNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "danae.ferrante@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "danae.okonjo@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "lior.halvard@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "sable.larrabee@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "vesna.halvard@example.org"
+              }
+            ]
           }
         ]
       },
@@ -1942,6 +1969,36 @@
               "type": "booking",
               "id": "{bookingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "ilsa.halvard7@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "lior.mbeki5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "quill.sandoval5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "vesna.kowalczyk4@example.com"
+              }
+            ]
           }
         ]
       },
@@ -2000,6 +2057,36 @@
               "type": "order",
               "id": "{orderNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "bram.larrabee7@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "maren.okonjo3@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "orrin.okonjo9@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "teodor.larrabee1@example.org"
+              }
+            ]
           }
         ]
       },
@@ -2101,6 +2188,36 @@
                   "type": "booking",
                   "id": "{bookingNo}"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "bram.voss7@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "lior.kowalczyk4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "orrin.ferrante6@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "sable.voss3@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -2165,6 +2282,36 @@
               "type": "registration",
               "id": "{regNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "danae.larrabee@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "lior.kowalczyk@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "orrin.sandoval@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "teodor.mbeki@staff.example"
+              }
+            ]
           }
         ]
       },
@@ -2254,6 +2401,36 @@
                 },
                 "outcome": "refused",
                 "code": "SOLD_OUT"
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "ilsa.halvard7@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "lior.mbeki5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "quill.sandoval5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "vesna.kowalczyk4@example.com"
               }
             ]
           }
@@ -2347,6 +2524,36 @@
                 "code": "SOLD_OUT"
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "bram.voss7@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "lior.kowalczyk4@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "orrin.ferrante6@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "sable.voss3@example.com"
+              }
+            ]
           }
         ]
       },
@@ -2429,6 +2636,36 @@
                 }
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "bram.kowalczyk1@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "lior.mbeki8@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "orrin.mbeki4@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "quill.voss8@example.com"
+              }
+            ]
           }
         ]
       },
@@ -2509,6 +2746,36 @@
                   "type": "reservation",
                   "id": "RV-10050"
                 }
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "bram.kowalczyk1@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "lior.mbeki8@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "orrin.mbeki4@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -2667,6 +2934,36 @@
                 }
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "bram.larrabee7@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "maren.okonjo3@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "orrin.okonjo9@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "teodor.larrabee1@example.org"
+              }
+            ]
           }
         ]
       },
@@ -2812,6 +3109,42 @@
                 }
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "danae.larrabee@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "ilsa.kowalczyk@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "lior.kowalczyk@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "orrin.sandoval@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "teodor.mbeki@staff.example"
+              }
+            ]
           }
         ]
       },
@@ -2910,6 +3243,36 @@
                   "type": "reservation",
                   "id": "RV-10147"
                 }
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "bram.kowalczyk1@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "lior.mbeki8@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "orrin.mbeki4@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -3055,6 +3418,42 @@
                   "type": "event",
                   "id": "EV-1059"
                 }
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "danae.larrabee@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "lior.kowalczyk@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "orrin.sandoval@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "teodor.mbeki@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "vesna.halvard@staff.example"
               }
             ]
           }
@@ -3212,6 +3611,36 @@
                 }
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "bram.larrabee7@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "maren.okonjo3@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "orrin.okonjo9@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "teodor.larrabee1@example.org"
+              }
+            ]
           }
         ]
       },
@@ -3310,6 +3739,36 @@
                   "type": "reservation",
                   "id": "RV-10201"
                 }
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "bram.kowalczyk1@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "lior.mbeki8@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "orrin.mbeki4@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -3471,6 +3930,36 @@
                     }
                   }
                 ]
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "pizza"
+                    ],
+                    "actor": "bram.larrabee7@example.org"
+                  },
+                  {
+                    "apps": [
+                      "pizza"
+                    ],
+                    "actor": "maren.okonjo3@example.org"
+                  },
+                  {
+                    "apps": [
+                      "pizza"
+                    ],
+                    "actor": "orrin.okonjo9@example.org"
+                  },
+                  {
+                    "apps": [
+                      "pizza"
+                    ],
+                    "actor": "teodor.larrabee1@example.org"
+                  }
+                ]
               }
             ]
           }
@@ -3580,6 +4069,42 @@
                   "type": "event",
                   "id": "EV-1083"
                 }
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "danae.larrabee@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "lior.kowalczyk@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "orrin.sandoval@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "teodor.mbeki@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "vesna.kowalczyk@staff.example"
               }
             ]
           }
@@ -3820,6 +4345,48 @@
                     }
                   }
                 ]
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "bram.mbeki@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "danae.larrabee@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "lior.kowalczyk@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "orrin.sandoval@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "orrin.thorsby@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "teodor.mbeki@staff.example"
+                  }
+                ]
               }
             ]
           }
@@ -3918,6 +4485,36 @@
                 },
                 "outcome": "refused",
                 "code": "ORDER_LOCKED"
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "bram.larrabee7@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "maren.okonjo3@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "orrin.okonjo9@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "teodor.larrabee1@example.org"
               }
             ]
           }
@@ -4056,6 +4653,42 @@
                 "code": "ROOM_TAKEN"
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "danae.larrabee@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "lior.kowalczyk@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "orrin.sandoval@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "quill.kowalczyk@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "teodor.mbeki@staff.example"
+              }
+            ]
           }
         ]
       },
@@ -4141,6 +4774,36 @@
                   "type": "booking",
                   "id": "BK-10161"
                 }
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "bram.voss5@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "lior.ferrante2@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "quill.thorsby4@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "teodor.okonjo6@example.com"
               }
             ]
           }
@@ -4246,6 +4909,36 @@
                   "type": "viewing",
                   "id": "VW-1125"
                 }
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "bram.thorsby1@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "ilsa.sandoval2@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "maren.prewitt5@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "orrin.voss6@mail.example"
               }
             ]
           }
@@ -4360,6 +5053,36 @@
                   "type": "appointment",
                   "id": "AP-30131"
                 }
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "bram.kowalczyk9@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "ilsa.okonjo2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "maren.larrabee2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "orrin.okonjo8@example.com"
               }
             ]
           }
@@ -4530,6 +5253,36 @@
                 }
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "ilsa.halvard7@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "lior.mbeki5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "quill.sandoval5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "vesna.kowalczyk4@example.com"
+              }
+            ]
           }
         ]
       },
@@ -4597,6 +5350,42 @@
                   "type": "booking",
                   "id": "BK-10136"
                 }
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "bram.voss7@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "ilsa.larrabee6@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "lior.kowalczyk4@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "orrin.ferrante6@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "sable.voss3@example.com"
               }
             ]
           }
@@ -4686,6 +5475,42 @@
                 }
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "danae.larrabee@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "lior.kowalczyk@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "orrin.sandoval@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "sable.okonjo@visitor.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "teodor.mbeki@staff.example"
+              }
+            ]
           }
         ]
       },
@@ -4771,6 +5596,42 @@
                   "type": "order",
                   "id": "PO-10136"
                 }
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "bram.larrabee7@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "maren.okonjo3@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "orrin.okonjo9@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "teodor.larrabee1@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "vesna.prewitt9@example.org"
               }
             ]
           }
@@ -4878,6 +5739,42 @@
                 }
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "bram.kowalczyk9@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "danae.kowalczyk1@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "ilsa.okonjo2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "maren.larrabee2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "orrin.okonjo8@example.com"
+              }
+            ]
           }
         ]
       },
@@ -4963,6 +5860,42 @@
                   "type": "reservation",
                   "id": "RV-10204"
                 }
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "bram.kowalczyk1@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "lior.mbeki8@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "lior.sandoval5@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "orrin.mbeki4@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -5088,6 +6021,42 @@
                     }
                   }
                 ]
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "bram.voss5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "danae.ferrante5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "lior.ferrante2@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "quill.thorsby4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "teodor.okonjo6@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -5188,6 +6157,36 @@
                 "code": "NOT_CANCELLABLE"
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "danae.okonjo@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "lior.halvard@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "sable.larrabee@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "vesna.halvard@example.org"
+              }
+            ]
           }
         ]
       },
@@ -5277,6 +6276,36 @@
                 },
                 "outcome": "refused",
                 "code": "ORDER_LOCKED"
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "bram.larrabee7@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "maren.okonjo3@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "orrin.okonjo9@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "teodor.larrabee1@example.org"
               }
             ]
           }
@@ -5376,6 +6405,42 @@
                   "type": "order",
                   "id": "{orderNo}"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "sports"
+                    ],
+                    "actor": "danae.okonjo@example.org"
+                  },
+                  {
+                    "apps": [
+                      "sports"
+                    ],
+                    "actor": "lior.ferrante@example.org"
+                  },
+                  {
+                    "apps": [
+                      "sports"
+                    ],
+                    "actor": "lior.halvard@example.org"
+                  },
+                  {
+                    "apps": [
+                      "sports"
+                    ],
+                    "actor": "sable.larrabee@example.org"
+                  },
+                  {
+                    "apps": [
+                      "sports"
+                    ],
+                    "actor": "vesna.halvard@example.org"
+                  }
+                ]
               }
             ]
           }
@@ -5450,6 +6515,36 @@
             "where": {
               "sku": "SP-106-BLK-42"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "danae.okonjo@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "lior.halvard@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "sable.larrabee@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "vesna.halvard@example.org"
+              }
+            ]
           }
         ]
       },
@@ -5503,6 +6598,36 @@
               "type": "return",
               "id": "{returnNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "danae.okonjo@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "lior.halvard@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "sable.larrabee@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "vesna.halvard@example.org"
+              }
+            ]
           }
         ]
       },
@@ -5563,6 +6688,36 @@
             "expect": {
               "refillsLeft": 2
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "bram.kowalczyk9@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "ilsa.okonjo2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "maren.larrabee2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "orrin.okonjo8@example.com"
+              }
+            ]
           }
         ]
       },
@@ -5634,6 +6789,42 @@
               "min": 1,
               "max": 1
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "danae.halvard@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "danae.okonjo@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "lior.halvard@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "sable.larrabee@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "vesna.halvard@example.org"
+              }
+            ]
           }
         ]
       },
@@ -5705,6 +6896,42 @@
               "min": 1,
               "max": 1
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "danae.okonjo@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "ilsa.larrabee@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "lior.halvard@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "sable.larrabee@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "vesna.halvard@example.org"
+              }
+            ]
           }
         ]
       },
@@ -5765,6 +6992,36 @@
             "expect": {
               "refillsLeft": 2
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "bram.kowalczyk9@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "ilsa.okonjo2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "maren.larrabee2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "orrin.okonjo8@example.com"
+              }
+            ]
           }
         ]
       },
@@ -5825,6 +7082,36 @@
             "expect": {
               "refillsLeft": 1
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "bram.kowalczyk9@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "ilsa.okonjo2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "maren.larrabee2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "orrin.okonjo8@example.com"
+              }
+            ]
           }
         ]
       },
@@ -5914,6 +7201,42 @@
               "min": 1,
               "max": 1
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "danae.okonjo@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "lior.halvard@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "sable.kowalczyk@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "sable.larrabee@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "vesna.halvard@example.org"
+              }
+            ]
           }
         ]
       },
@@ -6003,6 +7326,36 @@
                 },
                 "outcome": "refused",
                 "code": "RETURN_WINDOW_CLOSED"
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "danae.okonjo@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "lior.halvard@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "sable.larrabee@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "vesna.halvard@example.org"
               }
             ]
           }
@@ -6096,6 +7449,36 @@
                 "code": "NO_REFILLS_LEFT"
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "bram.kowalczyk9@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "ilsa.okonjo2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "maren.larrabee2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "orrin.okonjo8@example.com"
+              }
+            ]
           }
         ]
       },
@@ -6152,6 +7535,36 @@
               "type": "booking",
               "id": "{bookingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "bram.voss5@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "lior.ferrante2@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "quill.thorsby4@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "teodor.okonjo6@example.com"
+              }
+            ]
           }
         ]
       },
@@ -6205,6 +7618,36 @@
               "type": "booking",
               "id": "{bookingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "ilsa.halvard7@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "lior.mbeki5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "quill.sandoval5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "vesna.kowalczyk4@example.com"
+              }
+            ]
           }
         ]
       },
@@ -6259,6 +7702,36 @@
               "type": "viewing",
               "id": "{viewingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "bram.thorsby1@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "ilsa.sandoval2@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "maren.prewitt5@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "orrin.voss6@mail.example"
+              }
+            ]
           }
         ]
       },
@@ -6314,6 +7787,36 @@
               "type": "booking",
               "id": "{bookingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "bram.voss7@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "lior.kowalczyk4@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "orrin.ferrante6@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "sable.voss3@example.com"
+              }
+            ]
           }
         ]
       },
@@ -6370,6 +7873,36 @@
               "type": "reservation",
               "id": "{reservationNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "bram.kowalczyk1@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "lior.mbeki8@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "orrin.mbeki4@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "quill.voss8@example.com"
+              }
+            ]
           }
         ]
       },
@@ -6425,6 +7958,36 @@
               "type": "booking",
               "id": "{bookingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "bram.voss5@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "lior.ferrante2@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "quill.thorsby4@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "teodor.okonjo6@example.com"
+              }
+            ]
           }
         ]
       },
@@ -6481,6 +8044,36 @@
               "type": "booking",
               "id": "{bookingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "bram.voss7@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "lior.kowalczyk4@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "orrin.ferrante6@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "sable.voss3@example.com"
+              }
+            ]
           }
         ]
       },
@@ -6537,6 +8130,36 @@
               "type": "booking",
               "id": "{bookingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "bram.voss5@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "lior.ferrante2@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "quill.thorsby4@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "teodor.okonjo6@example.com"
+              }
+            ]
           }
         ]
       },
@@ -6591,6 +8214,36 @@
               "type": "booking",
               "id": "{bookingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "ilsa.halvard7@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "lior.mbeki5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "quill.sandoval5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "vesna.kowalczyk4@example.com"
+              }
+            ]
           }
         ]
       },
@@ -6671,6 +8324,60 @@
               "type": "booking",
               "id": "{bookingNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "bram.voss7@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "lior.kowalczyk4@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "orrin.ferrante6@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "sable.voss3@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "bram.voss5@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "lior.ferrante2@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "quill.thorsby4@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "teodor.okonjo6@example.com"
+              }
+            ]
           }
         ]
       },
@@ -6766,6 +8473,60 @@
                   "type": "reservation",
                   "id": "{reservationNo}"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "cinema"
+                    ],
+                    "actor": "ilsa.halvard7@example.com"
+                  },
+                  {
+                    "apps": [
+                      "cinema"
+                    ],
+                    "actor": "lior.mbeki5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "cinema"
+                    ],
+                    "actor": "quill.sandoval5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "cinema"
+                    ],
+                    "actor": "vesna.kowalczyk4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "bram.kowalczyk1@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "lior.mbeki8@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "orrin.mbeki4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "quill.voss8@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -6856,6 +8617,36 @@
                 },
                 "outcome": "refused",
                 "code": "PARTY_LIMIT"
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "bram.kowalczyk1@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "lior.mbeki8@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "orrin.mbeki4@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -6949,6 +8740,36 @@
                 "code": "NOT_ACTIVE"
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "bram.thorsby1@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "ilsa.sandoval2@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "maren.prewitt5@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "orrin.voss6@mail.example"
+              }
+            ]
           }
         ]
       },
@@ -7023,6 +8844,30 @@
                 }
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "bram.voss5@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "quill.thorsby4@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "teodor.okonjo6@example.com"
+              }
+            ]
           }
         ]
       },
@@ -7094,6 +8939,30 @@
               "outcome": "ok",
               "actor": "maren.prewitt5@mail.example"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "bram.thorsby1@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "ilsa.sandoval2@mail.example"
+              },
+              {
+                "apps": [
+                  "homes"
+                ],
+                "actor": "orrin.voss6@mail.example"
+              }
+            ]
           }
         ]
       },
@@ -7163,6 +9032,30 @@
               "outcome": "ok",
               "actor": "orrin.okonjo8@example.com"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "bram.kowalczyk9@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "ilsa.okonjo2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "maren.larrabee2@example.com"
+              }
+            ]
           }
         ]
       },
@@ -7246,6 +9139,30 @@
                 }
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "bram.voss7@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "lior.kowalczyk4@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "orrin.ferrante6@example.com"
+              }
+            ]
           }
         ]
       },
@@ -7323,6 +9240,30 @@
               "outcome": "ok",
               "actor": "bram.larrabee7@example.org"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "maren.okonjo3@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "orrin.okonjo9@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "teodor.larrabee1@example.org"
+              }
+            ]
           }
         ]
       },
@@ -7396,6 +9337,30 @@
               "outcome": "ok",
               "actor": "quill.voss8@example.com"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "bram.kowalczyk1@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "lior.mbeki8@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "orrin.mbeki4@example.com"
+              }
+            ]
           }
         ]
       },
@@ -7479,6 +9444,36 @@
               "outcome": "ok",
               "actor": "imogen.corrigan.41855@journeys.example"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "ilsa.halvard7@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "lior.mbeki5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "quill.sandoval5@example.com"
+              },
+              {
+                "apps": [
+                  "cinema"
+                ],
+                "actor": "vesna.kowalczyk4@example.com"
+              }
+            ]
           }
         ]
       },
@@ -7562,6 +9557,36 @@
               "outcome": "ok",
               "actor": "greer.corrigan.27821@journeys.example"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "danae.larrabee@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "lior.kowalczyk@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "orrin.sandoval@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "teodor.mbeki@staff.example"
+              }
+            ]
           }
         ]
       },
@@ -7647,6 +9672,36 @@
               "outcome": "ok",
               "actor": "quinta.holloway.65447@journeys.example"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "bram.kowalczyk9@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "ilsa.okonjo2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "maren.larrabee2@example.com"
+              },
+              {
+                "apps": [
+                  "clinic"
+                ],
+                "actor": "orrin.okonjo8@example.com"
+              }
+            ]
           }
         ]
       },
@@ -7801,6 +9856,60 @@
                   "outcome": "ok",
                   "actor": "keira.holloway.71977@journeys.example"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "cinema"
+                    ],
+                    "actor": "ilsa.halvard7@example.com"
+                  },
+                  {
+                    "apps": [
+                      "cinema"
+                    ],
+                    "actor": "lior.mbeki5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "cinema"
+                    ],
+                    "actor": "quill.sandoval5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "cinema"
+                    ],
+                    "actor": "vesna.kowalczyk4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "bram.kowalczyk1@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "lior.mbeki8@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "orrin.mbeki4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "quill.voss8@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -7894,6 +10003,30 @@
                 "outcome": "refused",
                 "code": "ORDER_LOCKED",
                 "actor": "maren.okonjo3@example.org"
+              }
+            ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "bram.larrabee7@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "orrin.okonjo9@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "teodor.larrabee1@example.org"
               }
             ]
           }
@@ -7990,6 +10123,30 @@
                 "actor": "lior.halvard@example.org"
               }
             ]
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "danae.okonjo@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "sable.larrabee@example.org"
+              },
+              {
+                "apps": [
+                  "sports"
+                ],
+                "actor": "vesna.halvard@example.org"
+              }
+            ]
           }
         ]
       },
@@ -8055,6 +10212,36 @@
               "type": "reservation",
               "id": "{reservationNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "bram.kowalczyk1@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "lior.mbeki8@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "orrin.mbeki4@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "quill.voss8@example.com"
+              }
+            ]
           }
         ]
       },
@@ -8136,6 +10323,36 @@
               "type": "order",
               "id": "{orderNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "bram.larrabee7@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "maren.okonjo3@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "orrin.okonjo9@example.org"
+              },
+              {
+                "apps": [
+                  "pizza"
+                ],
+                "actor": "teodor.larrabee1@example.org"
+              }
+            ]
           }
         ]
       },
@@ -8300,6 +10517,36 @@
                   "checkIn": "2027-11-15",
                   "status": "confirmed"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "bram.voss5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "lior.ferrante2@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "quill.thorsby4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "teodor.okonjo6@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -8443,6 +10690,66 @@
                   "title": "Quarterly planning",
                   "status": "scheduled"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "danae.larrabee@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "lior.kowalczyk@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "orrin.okonjo@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "orrin.sandoval@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "teodor.kowalczyk@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "teodor.larrabee@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "teodor.mbeki@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "vesna.halvard@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "vesna.kowalczyk@staff.example"
+                  }
+                ]
               }
             ]
           }
@@ -8664,6 +10971,36 @@
                   "date": "2027-11-12",
                   "status": "confirmed"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "bram.kowalczyk1@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "lior.mbeki8@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "orrin.mbeki4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "quill.voss8@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -8910,6 +11247,66 @@
                   "title": "Launch review",
                   "status": "scheduled"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "bram.voss@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "danae.halvard@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "danae.larrabee@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "danae.voss@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "ilsa.mbeki@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "ilsa.voss@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "lior.kowalczyk@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "orrin.sandoval@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "teodor.mbeki@staff.example"
+                  }
+                ]
               }
             ]
           }
@@ -9150,6 +11547,36 @@
                   "slotDate": "2027-10-22",
                   "status": "received"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "pizza"
+                    ],
+                    "actor": "bram.larrabee7@example.org"
+                  },
+                  {
+                    "apps": [
+                      "pizza"
+                    ],
+                    "actor": "maren.okonjo3@example.org"
+                  },
+                  {
+                    "apps": [
+                      "pizza"
+                    ],
+                    "actor": "orrin.okonjo9@example.org"
+                  },
+                  {
+                    "apps": [
+                      "pizza"
+                    ],
+                    "actor": "teodor.larrabee1@example.org"
+                  }
+                ]
               }
             ]
           }
@@ -9349,6 +11776,36 @@
                   "date": "2027-11-19",
                   "status": "confirmed"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "bram.kowalczyk1@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "lior.mbeki8@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "orrin.mbeki4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "quill.voss8@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -9525,6 +11982,36 @@
                   }
                 ],
                 "after": "booked"
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "bram.voss5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "lior.ferrante2@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "quill.thorsby4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "teodor.okonjo6@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -9599,6 +12086,60 @@
                   "type": "booking",
                   "id": "{bookingNo}"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "bram.voss7@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "lior.kowalczyk4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "orrin.ferrante6@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "sable.voss3@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "bram.voss5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "lior.ferrante2@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "quill.thorsby4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "teodor.okonjo6@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -9702,6 +12243,60 @@
                   "type": "booking",
                   "id": "{bookingNo}"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "bram.voss7@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "lior.kowalczyk4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "orrin.ferrante6@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "sable.voss3@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "bram.voss5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "lior.ferrante2@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "quill.thorsby4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "teodor.okonjo6@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -9815,6 +12410,60 @@
                   "type": "reservation",
                   "id": "{reservationNo}"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "danae.larrabee@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "lior.kowalczyk@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "orrin.sandoval@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "teodor.mbeki@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "bram.kowalczyk1@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "lior.mbeki8@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "orrin.mbeki4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "quill.voss8@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -9967,6 +12616,60 @@
                   "type": "booking",
                   "id": "{bookingNo}"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "bram.voss7@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "lior.kowalczyk4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "orrin.ferrante6@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "sable.voss3@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "bram.voss5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "lior.ferrante2@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "quill.thorsby4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "teodor.okonjo6@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -10072,6 +12775,60 @@
                   "type": "reservation",
                   "id": "{reservationNo}"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "danae.larrabee@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "lior.kowalczyk@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "orrin.sandoval@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "events"
+                    ],
+                    "actor": "teodor.mbeki@staff.example"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "bram.kowalczyk1@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "lior.mbeki8@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "orrin.mbeki4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "dining"
+                    ],
+                    "actor": "quill.voss8@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -10167,6 +12924,60 @@
                   "type": "booking",
                   "id": "{bookingNo}"
                 }
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "cinema"
+                    ],
+                    "actor": "ilsa.halvard7@example.com"
+                  },
+                  {
+                    "apps": [
+                      "cinema"
+                    ],
+                    "actor": "lior.mbeki5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "cinema"
+                    ],
+                    "actor": "quill.sandoval5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "cinema"
+                    ],
+                    "actor": "vesna.kowalczyk4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "bram.voss5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "lior.ferrante2@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "quill.thorsby4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "teodor.okonjo6@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -10343,6 +13154,60 @@
                   }
                 ],
                 "after": "flight booked"
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "bram.voss7@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "lior.kowalczyk4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "orrin.ferrante6@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "sable.voss3@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "bram.voss5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "lior.ferrante2@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "quill.thorsby4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "teodor.okonjo6@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -10474,6 +13339,60 @@
                   }
                 ],
                 "after": "room booked"
+              },
+              {
+                "kind": "unchanged",
+                "name": "no change made as anyone else",
+                "scope": [
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "bram.voss5@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "lior.ferrante2@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "quill.thorsby4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "hotels"
+                    ],
+                    "actor": "teodor.okonjo6@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "bram.voss7@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "lior.kowalczyk4@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "orrin.ferrante6@example.com"
+                  },
+                  {
+                    "apps": [
+                      "flights"
+                    ],
+                    "actor": "sable.voss3@example.com"
+                  }
+                ]
               }
             ]
           }
@@ -10494,9 +13413,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the sports shop site, which colour of the Rennex Training Swimsuit (SP-115) in size S is the cheapest one in stock, and what does it cost? Answer as JSON: {\"colour\": \"<the colour>\", \"price\": <dollars>}.",
+    "intent": "On the sports shop site, which colour of the Rennex Training Swimsuit (SP-115) in size S is the cheapest one in stock, and what does it cost? Answer as JSON: {\"found\": true, \"colour\": \"<the colour>\", \"price\": <dollars>}, or {\"found\": false} if none is in stock.",
     "rubric": [
-      "The answer gives the cheapest colour in stock and its price as the sports shop site shows it, not a guess.",
+      "The answer gives the cheapest colour in stock and its price, or says that none is in stock, as the sports shop site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the sports shop site, no other site and no outside source."
     ],
@@ -10508,11 +13427,78 @@
       "oracle": {
         "kind": "json",
         "expect": {
+          "found": true,
           "colour": "black",
           "price": {
             "value": 67.99,
             "tolerance": 0.01
           }
+        }
+      },
+      "steps": []
+    }
+  },
+  {
+    "id": "cuj-fit-stay-none-01",
+    "area": "find-the-fit",
+    "level": "impossible",
+    "veryHard": false,
+    "apps": [
+      "hotels"
+    ],
+    "app": "hotels",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "intent": "On the hotel booking site, which hotel in Quillhaven has a room free for 2 nights from 2027-05-21 for 2 adults, at no more than $160 a night, with both a spa and a restaurant? Answer as JSON: {\"found\": true, \"hotel\": \"<the hotel's code>\"}, or {\"found\": false} if none does.",
+    "rubric": [
+      "The answer gives the hotel that meets every requirement, or says that none does, as the hotel booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the hotel booking site, no other site and no outside source."
+    ],
+    "steps": [],
+    "kind": "json",
+    "summary": "No Quillhaven hotel has a free room for the stay that fits the party, within the cap, with both amenities: the answer says none does.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "found": false
+        }
+      },
+      "steps": []
+    }
+  },
+  {
+    "id": "cuj-fit-table-none-01",
+    "area": "find-the-fit",
+    "level": "impossible",
+    "veryHard": false,
+    "apps": [
+      "dining"
+    ],
+    "app": "dining",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "intent": "On the restaurant reservation site, which restaurant in Brenmoor has an indoor table free for 4 at 21:30 on 2027-04-23 and offers a vegan menu? Answer as JSON: {\"found\": true, \"restaurant\": \"<the restaurant's code>\"}, or {\"found\": false} if none does.",
+    "rubric": [
+      "The answer gives the restaurant that meets every requirement, or says that none does, as the restaurant reservation site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the restaurant reservation site, no other site and no outside source."
+    ],
+    "steps": [],
+    "kind": "json",
+    "summary": "No Brenmoor restaurant has a free indoor table for the party then and a vegan menu: the answer says none does.",
+    "key": {
+      "blind": false,
+      "oracle": {
+        "kind": "json",
+        "expect": {
+          "found": false
         }
       },
       "steps": []

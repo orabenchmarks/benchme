@@ -4,6 +4,7 @@
   "oracle": {
     "kind": "json",
     "expect": {
+      "found": true,
       "flight": "QE354"
     }
   },

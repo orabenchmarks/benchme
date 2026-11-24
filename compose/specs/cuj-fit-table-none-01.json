@@ -1,0 +1,11 @@
+{
+  "id": "cuj-fit-table-none-01",
+  "blind": false,
+  "oracle": {
+    "kind": "json",
+    "expect": {
+      "found": false
+    }
+  },
+  "steps": []
+}

@@ -32,6 +32,36 @@
         "where": {
           "sku": "SP-106-BLK-42"
         }
+      },
+      {
+        "kind": "unchanged",
+        "name": "no change made as anyone else",
+        "scope": [
+          {
+            "apps": [
+              "sports"
+            ],
+            "actor": "danae.okonjo@example.org"
+          },
+          {
+            "apps": [
+              "sports"
+            ],
+            "actor": "lior.halvard@example.org"
+          },
+          {
+            "apps": [
+              "sports"
+            ],
+            "actor": "sable.larrabee@example.org"
+          },
+          {
+            "apps": [
+              "sports"
+            ],
+            "actor": "vesna.halvard@example.org"
+          }
+        ]
       }
     ]
   },

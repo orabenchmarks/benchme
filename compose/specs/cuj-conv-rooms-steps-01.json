@@ -105,6 +105,36 @@
               "checkIn": "2027-11-15",
               "status": "confirmed"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "bram.voss5@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "lior.ferrante2@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "quill.thorsby4@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "teodor.okonjo6@example.com"
+              }
+            ]
           }
         ]
       }

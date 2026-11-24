@@ -25,6 +25,36 @@
           "type": "booking",
           "id": "{bookingNo}"
         }
+      },
+      {
+        "kind": "unchanged",
+        "name": "no change made as anyone else",
+        "scope": [
+          {
+            "apps": [
+              "flights"
+            ],
+            "actor": "bram.voss7@example.com"
+          },
+          {
+            "apps": [
+              "flights"
+            ],
+            "actor": "lior.kowalczyk4@example.com"
+          },
+          {
+            "apps": [
+              "flights"
+            ],
+            "actor": "orrin.ferrante6@example.com"
+          },
+          {
+            "apps": [
+              "flights"
+            ],
+            "actor": "sable.voss3@example.com"
+          }
+        ]
       }
     ]
   },

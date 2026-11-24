@@ -4,6 +4,7 @@
   "oracle": {
     "kind": "json",
     "expect": {
+      "found": true,
       "colour": "black",
       "price": {
         "value": 67.99,
