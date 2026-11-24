@@ -24,7 +24,12 @@
  *      undid another, and no later write moved an earlier step's time;
  *   4. the check every changing task carries, "no change made as anyone
  *      else", bites: on every site, one such task's last change made again
- *      signed in as an account of its scope fails that check.
+ *      signed in as an account of its scope fails that check;
+ *   5. in a SECOND fresh workspace, every task done with nothing but its
+ *      expected calls, through MCP (signed in as the person a step acts as),
+ *      and after each state step whose calls ran, every state step up to it
+ *      that has calls passes: the calls a key publishes are enough
+ *      (./calls.mjs).
  *
  *   runCujIntegrity({ base, seed, scale, operatorKey }) → exit code (0 or 1)
  */
@@ -32,6 +37,7 @@ import { JsonOracle } from "../../apps/verify/dist/oracles/json-oracle.js";
 import { buildCorpus } from "../intent-corpus/corpus.mjs";
 import { ACTOR_GUARD } from "../intent-corpus/cuj/actors.mjs";
 import { levelOf } from "../intent-corpus/cuj/levels.mjs";
+import { cujStepsOf, proveExpectedCalls } from "./calls.mjs";
 import { liveBenchme, perturb } from "./live.mjs";
 
 const SITES = ["hotels", "flights", "dining", "pizza", "cinema", "sports", "homes", "clinic", "events"];
@@ -359,6 +365,9 @@ export async function runCujIntegrity({ base, seed = 4242, scale = 1, operatorKe
 
   const bitten = await guardBites({ live, ws, sessions, corpus, solved, surprise });
   passed("pass 4 — a change made as anyone else fails the task it belongs to, on every site", bitten);
+
+  const proven = await proveExpectedCalls({ live, scenario: "cuj-v1", seed, tasks: cujStepsOf(corpus), accounts: corpus.accounts, surprise });
+  passed("pass 5 — every state step passes with nothing but its expected calls, made through MCP in a second workspace", proven);
 
   if (surprises.length) {
     console.error(`\n${surprises.length} surprise(s) in ${corpus.corpus.length} tasks`);

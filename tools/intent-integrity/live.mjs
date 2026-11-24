@@ -7,6 +7,7 @@
  *   const live = liveBenchme({ base, operatorKey });
  *   const ws = await live.mint(scenario, seed);
  *   const cookies = await live.signIn(ws, app, { email, password, name });
+ *   const session = await live.toolSession(ws, app, { email, password, signUp });   // an MCP session, signed in
  */
 
 export function liveBenchme({ base, operatorKey }) {
@@ -78,25 +79,36 @@ export function liveBenchme({ base, operatorKey }) {
   }
 
   /**
-   * The sign-in of `signIn`, through MCP tools alone: sign_up, the mailed code
-   * read with the inbox's own tools, verify_email, sign_in, and the site's word
-   * for who the connection now is. False for an app whose tools do not sign in.
+   * An MCP session signed in to an account through the app's tools alone: for
+   * a new account sign_up, the mailed code read with the inbox's own tools and
+   * verify_email first (`signUp`), then sign_in, and the site's word for who
+   * the connection now is.
+   */
+  async function toolSession(ws, app, { email, password, name = "Integrity", signUp = true }) {
+    const { session } = await mcp(ws, app, "initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "intent-integrity", version: "0" } });
+    if (!session) throw new Error(`${app} gave an initializing client no Mcp-Session-Id to stay signed in with`);
+    if (signUp) {
+      await tool(ws, app, "sign_up", { name, email, password }, session);
+      const mail = await tool(ws, "mail", "list_messages", { to: email });
+      const code = mail.filter((m) => String(m.from).includes(app)).map((m) => /\b(\d{6})\b/.exec(m.body)?.[1]).filter(Boolean).at(0);
+      if (!code) throw new Error(`no verification code for ${app} in the inbox, read through its tools`);
+      await tool(ws, app, "verify_email", { email, code }, session);
+    }
+    await tool(ws, app, "sign_in", { email, password }, session);
+    const who = await tool(ws, app, "whoami", {}, session);
+    if (who.signedIn !== true || who.email !== email) throw new Error(`${app} says the connection is ${JSON.stringify(who)} after sign_in`);
+    return session;
+  }
+
+  /**
+   * The sign-in of `signIn`, through MCP tools alone (`toolSession`, for a new
+   * account). False for an app whose tools do not sign in.
    */
   async function signInThroughTools(ws, app, email) {
     // An app with no MCP server at all (the company's static site) has no tools to sign in with.
     const listed = await mcp(ws, app, "tools/list", {}).catch((err) => (err.status === 404 ? null : Promise.reject(err)));
     if (!listed?.result.tools.some((t) => t.name === "sign_in")) return false;
-    const { session } = await mcp(ws, app, "initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "intent-integrity", version: "0" } });
-    if (!session) throw new Error(`${app} gave an initializing client no Mcp-Session-Id to stay signed in with`);
-    const password = `pw-${Math.random().toString(36).slice(2)}-X9`;
-    await tool(ws, app, "sign_up", { name: "Integrity", email, password }, session);
-    const mail = await tool(ws, "mail", "list_messages", { to: email });
-    const code = mail.filter((m) => String(m.from).includes(app)).map((m) => /\b(\d{6})\b/.exec(m.body)?.[1]).filter(Boolean).at(0);
-    if (!code) throw new Error(`no verification code for ${app} in the inbox, read through its tools`);
-    await tool(ws, app, "verify_email", { email, code }, session);
-    await tool(ws, app, "sign_in", { email, password }, session);
-    const who = await tool(ws, app, "whoami", {}, session);
-    if (who.signedIn !== true || who.email !== email) throw new Error(`${app} says the connection is ${JSON.stringify(who)} after sign_in`);
+    await toolSession(ws, app, { email, password: `pw-${Math.random().toString(36).slice(2)}-X9` });
     return true;
   }
 
@@ -107,7 +119,7 @@ export function liveBenchme({ base, operatorKey }) {
     return body;
   }
 
-  return { base: BASE, http, mint, mailedCode, logIn, signIn, mcp, tool, signInThroughTools, submit, appUrl: (ws, app, path) => `${BASE}/w/${ws}/${app}${path}` };
+  return { base: BASE, http, mint, mailedCode, logIn, signIn, mcp, tool, toolSession, signInThroughTools, submit, appUrl: (ws, app, path) => `${BASE}/w/${ws}/${app}${path}` };
 }
 
 /** A wrong answer of the same shape: every field moved off its key. */
