@@ -49,7 +49,10 @@ total with fees, a write, the cheapest write that fits, and changing or
 cancelling one of several. Its answer keys are `intent-<kind>-NN.json` files
 like the rest (no id is in both corpora); its public files are
 **`webmcp-tasks.json`**, **`webmcp-corpus.json`** and **`webmcp-tasks.md`**, the
-twins of the three above. `node tools/intent-corpus.mjs` writes both corpora,
+twins of the three above. Its records also carry judge criteria (`rubric`, in
+the public half too), and `webmcp-corpus.json`'s keys the site tool calls every
+correct solution makes (`key.expectedCall`, in webmcp-evals' shape; README §
+Sites from webmcp-tools). `node tools/intent-corpus.mjs` writes both corpora,
 and `node tools/intent-integrity.mjs --scenario webmcp-v1` proves this one.
 
 ## The cuj-v1 corpus (`cuj-*.json`)
@@ -64,6 +67,16 @@ only one step. Its records have their own shape, described with the levels and
 checks in `docs/scenarios/cuj-v1.md`; its templates are in
 `tools/intent-corpus/cuj/templates/`, and
 `node tools/intent-integrity.mjs --scenario cuj-v1` proves it.
+
+## The expected calls as webmcp-evals suites
+
+**`webmcp-v1.webmcp-evals.json`** and **`cuj-v1.webmcp-evals.json`** are the
+two corpora's expected calls (each key's `expectedCall`) as suites of
+GoogleChromeLabs' webmcp-evals, one case per task or step that has calls:
+`[{name, messages, expectedCall}]` (`docs/scenarios/cuj-v1.md` § Expected
+calls). **They are answer-key material too. Never serve them**: a call can name
+what a task has the agent find (the room a "cheapest" task books). Like the
+corpus files they are no spec; the verifier never reads them.
 - **`tools/intent-corpus.mjs` regenerates all of them.** The first ten tasks
   are `tools/intent-corpus/original.mjs`; every other kind is a TEMPLATE in
   `tools/intent-corpus/templates/` (the contract is in its `index.mjs`),
@@ -83,8 +96,9 @@ checks in `docs/scenarios/cuj-v1.md`; its templates are in
   passes after all of them ran; every json task accepts the answer read back
   from the LIVE apps and refuses a wrong one. It also signs an account up and
   in through MCP tools alone on every site whose tools sign in (the code read
-  with the inbox's tools), so no door is a dead end. CI runs it on every
-  change.
+  with the inbox's tools), so no door is a dead end; and, for webmcp-v1 and
+  cuj-v1, in a second workspace, that every task done with nothing but its
+  expected calls, through MCP, passes. CI runs it on every change.
 
   ```bash
   docker compose -f compose.yaml -f compose.build.yaml up -d --build --wait
