@@ -2,10 +2,13 @@ import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createApp, isWorkspaceId, verif
 import { header, registerMcp, registerWorkspaceScope, webmcpScript } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
+import { PgHeldAddressesRepo } from "./mailboxes/held-repo.js";
+import { MailboxesSeeder } from "./mailboxes/seeder.js";
 import { mailTools } from "./mcp/tools.js";
 import { PgMessagesRepo, type Message, type MessagesRepo } from "./messages-repo.js";
 
-export type BuildDeps = { pool: Pool; gatewaySecret: string; internalSecret: string; logLevel?: string };
+export type BuildDeps = { pool: Pool; scenarios: ScenarioRegistry; gatewaySecret: string; internalSecret: string; logLevel?: string };
 
 const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 /** `scripts` go in verbatim before </body>: the WebMCP bridge. */
@@ -20,6 +23,8 @@ const page = (title: string, body: string, scripts = "") =>
  * sign-up mails is within reach.
  */
 export async function buildMail(d: BuildDeps): Promise<FastifyInstance> {
+  const held = new PgHeldAddressesRepo(d.pool);
+  const mailboxes = new MailboxesSeeder(d.scenarios, held);
   const repo: MessagesRepo = new PgMessagesRepo(d.pool);
   const tools = mailTools();
   const app = createApp({ name: "mail", readiness: async () => (await d.pool.query("SELECT 1")).rowCount === 1, ...(d.logLevel ? { logLevel: d.logLevel } : {}) });
@@ -35,10 +40,17 @@ export async function buildMail(d: BuildDeps): Promise<FastifyInstance> {
     return reply.code(201).send(await repo.deliver(b.workspaceId, b));
   });
 
-  // Gateway-only seed hook: an inbox starts empty, but the gateway calls every seeded app.
+  // Gateway-only seed hook: an inbox starts empty, but a scenario whose mailboxes are private has its people's addresses held (mailboxes/).
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
     if (!scoped(req, d.gatewaySecret)) return reply.code(401).send({ error: "NO_WORKSPACE" });
-    return reply.code(201).send({ ok: true });
+    if (req.params.id !== header(req, WORKSPACE_HEADER)) return reply.code(400).send({ error: "WORKSPACE_MISMATCH" });
+    const body = z.object({ scenario: z.string().min(1), seed: z.number().int().positive() }).parse(req.body);
+    try {
+      return reply.code(201).send({ ok: true, ...(await mailboxes.seed(req.params.id, body.scenario, body.seed)) });
+    } catch (err) {
+      if (err instanceof UnknownScenarioError) return reply.code(422).send({ error: "UNKNOWN_SCENARIO", message: err.message });
+      throw err;
+    }
   });
 
   app.get("/api/v1/messages", async (req) => {
