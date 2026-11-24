@@ -72,12 +72,6 @@
             "apps": [
               "hotels"
             ],
-            "actor": "lior.ferrante2@example.com"
-          },
-          {
-            "apps": [
-              "hotels"
-            ],
             "actor": "quill.thorsby4@example.com"
           },
           {

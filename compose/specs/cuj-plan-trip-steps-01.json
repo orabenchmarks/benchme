@@ -79,21 +79,9 @@
               },
               {
                 "apps": [
-                  "flights"
-                ],
-                "actor": "sable.voss3@example.com"
-              },
-              {
-                "apps": [
                   "hotels"
                 ],
                 "actor": "bram.voss5@example.com"
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "actor": "lior.ferrante2@example.com"
               },
               {
                 "apps": [

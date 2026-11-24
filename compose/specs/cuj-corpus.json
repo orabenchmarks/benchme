@@ -1123,12 +1123,6 @@
                   "flights"
                 ],
                 "actor": "orrin.ferrante6@example.com"
-              },
-              {
-                "apps": [
-                  "flights"
-                ],
-                "actor": "sable.voss3@example.com"
               }
             ]
           }
@@ -1197,12 +1191,6 @@
                   "hotels"
                 ],
                 "actor": "bram.voss5@example.com"
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "actor": "lior.ferrante2@example.com"
               },
               {
                 "apps": [
@@ -1292,12 +1280,6 @@
                 "apps": [
                   "homes"
                 ],
-                "actor": "maren.prewitt5@mail.example"
-              },
-              {
-                "apps": [
-                  "homes"
-                ],
                 "actor": "orrin.voss6@mail.example"
               }
             ]
@@ -1379,12 +1361,6 @@
                   "clinic"
                 ],
                 "actor": "maren.larrabee2@example.com"
-              },
-              {
-                "apps": [
-                  "clinic"
-                ],
-                "actor": "orrin.okonjo8@example.com"
               }
             ]
           }
@@ -1548,12 +1524,6 @@
                   "flights"
                 ],
                 "actor": "orrin.ferrante6@example.com"
-              },
-              {
-                "apps": [
-                  "flights"
-                ],
-                "actor": "sable.voss3@example.com"
               }
             ]
           }
@@ -1634,12 +1604,6 @@
                   "dining"
                 ],
                 "actor": "orrin.mbeki4@example.com"
-              },
-              {
-                "apps": [
-                  "dining"
-                ],
-                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -1707,18 +1671,6 @@
             "kind": "unchanged",
             "name": "no change made as anyone else",
             "scope": [
-              {
-                "apps": [
-                  "pizza"
-                ],
-                "actor": "bram.larrabee7@example.org"
-              },
-              {
-                "apps": [
-                  "pizza"
-                ],
-                "actor": "maren.okonjo3@example.org"
-              },
               {
                 "apps": [
                   "pizza"
@@ -1900,12 +1852,6 @@
                 "apps": [
                   "sports"
                 ],
-                "actor": "lior.halvard@example.org"
-              },
-              {
-                "apps": [
-                  "sports"
-                ],
                 "actor": "sable.larrabee@example.org"
               },
               {
@@ -2066,18 +2012,6 @@
                 "apps": [
                   "pizza"
                 ],
-                "actor": "bram.larrabee7@example.org"
-              },
-              {
-                "apps": [
-                  "pizza"
-                ],
-                "actor": "maren.okonjo3@example.org"
-              },
-              {
-                "apps": [
-                  "pizza"
-                ],
                 "actor": "orrin.okonjo9@example.org"
               },
               {
@@ -2210,12 +2144,6 @@
                       "flights"
                     ],
                     "actor": "orrin.ferrante6@example.com"
-                  },
-                  {
-                    "apps": [
-                      "flights"
-                    ],
-                    "actor": "sable.voss3@example.com"
                   }
                 ]
               }
@@ -2546,12 +2474,6 @@
                   "flights"
                 ],
                 "actor": "orrin.ferrante6@example.com"
-              },
-              {
-                "apps": [
-                  "flights"
-                ],
-                "actor": "sable.voss3@example.com"
               }
             ]
           }
@@ -2658,12 +2580,6 @@
                   "dining"
                 ],
                 "actor": "orrin.mbeki4@example.com"
-              },
-              {
-                "apps": [
-                  "dining"
-                ],
-                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -2770,12 +2686,6 @@
                   "dining"
                 ],
                 "actor": "orrin.mbeki4@example.com"
-              },
-              {
-                "apps": [
-                  "dining"
-                ],
-                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -2939,18 +2849,6 @@
             "kind": "unchanged",
             "name": "no change made as anyone else",
             "scope": [
-              {
-                "apps": [
-                  "pizza"
-                ],
-                "actor": "bram.larrabee7@example.org"
-              },
-              {
-                "apps": [
-                  "pizza"
-                ],
-                "actor": "maren.okonjo3@example.org"
-              },
               {
                 "apps": [
                   "pizza"
@@ -3267,12 +3165,6 @@
                   "dining"
                 ],
                 "actor": "orrin.mbeki4@example.com"
-              },
-              {
-                "apps": [
-                  "dining"
-                ],
-                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -3620,18 +3512,6 @@
                 "apps": [
                   "pizza"
                 ],
-                "actor": "bram.larrabee7@example.org"
-              },
-              {
-                "apps": [
-                  "pizza"
-                ],
-                "actor": "maren.okonjo3@example.org"
-              },
-              {
-                "apps": [
-                  "pizza"
-                ],
                 "actor": "orrin.okonjo9@example.org"
               },
               {
@@ -3763,12 +3643,6 @@
                   "dining"
                 ],
                 "actor": "orrin.mbeki4@example.com"
-              },
-              {
-                "apps": [
-                  "dining"
-                ],
-                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -3935,18 +3809,6 @@
                 "kind": "unchanged",
                 "name": "no change made as anyone else",
                 "scope": [
-                  {
-                    "apps": [
-                      "pizza"
-                    ],
-                    "actor": "bram.larrabee7@example.org"
-                  },
-                  {
-                    "apps": [
-                      "pizza"
-                    ],
-                    "actor": "maren.okonjo3@example.org"
-                  },
                   {
                     "apps": [
                       "pizza"
@@ -4496,18 +4358,6 @@
                 "apps": [
                   "pizza"
                 ],
-                "actor": "bram.larrabee7@example.org"
-              },
-              {
-                "apps": [
-                  "pizza"
-                ],
-                "actor": "maren.okonjo3@example.org"
-              },
-              {
-                "apps": [
-                  "pizza"
-                ],
                 "actor": "orrin.okonjo9@example.org"
               },
               {
@@ -4791,12 +4641,6 @@
                 "apps": [
                   "hotels"
                 ],
-                "actor": "lior.ferrante2@example.com"
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
                 "actor": "quill.thorsby4@example.com"
               },
               {
@@ -4927,12 +4771,6 @@
                   "homes"
                 ],
                 "actor": "ilsa.sandoval2@mail.example"
-              },
-              {
-                "apps": [
-                  "homes"
-                ],
-                "actor": "maren.prewitt5@mail.example"
               },
               {
                 "apps": [
@@ -5077,12 +4915,6 @@
                   "clinic"
                 ],
                 "actor": "maren.larrabee2@example.com"
-              },
-              {
-                "apps": [
-                  "clinic"
-                ],
-                "actor": "orrin.okonjo8@example.com"
               }
             ]
           }
@@ -5380,12 +5212,6 @@
                   "flights"
                 ],
                 "actor": "orrin.ferrante6@example.com"
-              },
-              {
-                "apps": [
-                  "flights"
-                ],
-                "actor": "sable.voss3@example.com"
               }
             ]
           }
@@ -5607,18 +5433,6 @@
                 "apps": [
                   "pizza"
                 ],
-                "actor": "bram.larrabee7@example.org"
-              },
-              {
-                "apps": [
-                  "pizza"
-                ],
-                "actor": "maren.okonjo3@example.org"
-              },
-              {
-                "apps": [
-                  "pizza"
-                ],
                 "actor": "orrin.okonjo9@example.org"
               },
               {
@@ -5767,12 +5581,6 @@
                   "clinic"
                 ],
                 "actor": "maren.larrabee2@example.com"
-              },
-              {
-                "apps": [
-                  "clinic"
-                ],
-                "actor": "orrin.okonjo8@example.com"
               }
             ]
           }
@@ -5890,12 +5698,6 @@
                   "dining"
                 ],
                 "actor": "orrin.mbeki4@example.com"
-              },
-              {
-                "apps": [
-                  "dining"
-                ],
-                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -6042,12 +5844,6 @@
                     "apps": [
                       "hotels"
                     ],
-                    "actor": "lior.ferrante2@example.com"
-                  },
-                  {
-                    "apps": [
-                      "hotels"
-                    ],
                     "actor": "quill.thorsby4@example.com"
                   },
                   {
@@ -6172,12 +5968,6 @@
                 "apps": [
                   "sports"
                 ],
-                "actor": "lior.halvard@example.org"
-              },
-              {
-                "apps": [
-                  "sports"
-                ],
                 "actor": "sable.larrabee@example.org"
               },
               {
@@ -6283,18 +6073,6 @@
             "kind": "unchanged",
             "name": "no change made as anyone else",
             "scope": [
-              {
-                "apps": [
-                  "pizza"
-                ],
-                "actor": "bram.larrabee7@example.org"
-              },
-              {
-                "apps": [
-                  "pizza"
-                ],
-                "actor": "maren.okonjo3@example.org"
-              },
               {
                 "apps": [
                   "pizza"
@@ -6426,12 +6204,6 @@
                     "apps": [
                       "sports"
                     ],
-                    "actor": "lior.halvard@example.org"
-                  },
-                  {
-                    "apps": [
-                      "sports"
-                    ],
                     "actor": "sable.larrabee@example.org"
                   },
                   {
@@ -6530,12 +6302,6 @@
                 "apps": [
                   "sports"
                 ],
-                "actor": "lior.halvard@example.org"
-              },
-              {
-                "apps": [
-                  "sports"
-                ],
                 "actor": "sable.larrabee@example.org"
               },
               {
@@ -6608,12 +6374,6 @@
                   "sports"
                 ],
                 "actor": "danae.okonjo@example.org"
-              },
-              {
-                "apps": [
-                  "sports"
-                ],
-                "actor": "lior.halvard@example.org"
               },
               {
                 "apps": [
@@ -6710,12 +6470,6 @@
                   "clinic"
                 ],
                 "actor": "maren.larrabee2@example.com"
-              },
-              {
-                "apps": [
-                  "clinic"
-                ],
-                "actor": "orrin.okonjo8@example.com"
               }
             ]
           }
@@ -6805,12 +6559,6 @@
                   "sports"
                 ],
                 "actor": "danae.okonjo@example.org"
-              },
-              {
-                "apps": [
-                  "sports"
-                ],
-                "actor": "lior.halvard@example.org"
               },
               {
                 "apps": [
@@ -6917,12 +6665,6 @@
                 "apps": [
                   "sports"
                 ],
-                "actor": "lior.halvard@example.org"
-              },
-              {
-                "apps": [
-                  "sports"
-                ],
                 "actor": "sable.larrabee@example.org"
               },
               {
@@ -7014,12 +6756,6 @@
                   "clinic"
                 ],
                 "actor": "maren.larrabee2@example.com"
-              },
-              {
-                "apps": [
-                  "clinic"
-                ],
-                "actor": "orrin.okonjo8@example.com"
               }
             ]
           }
@@ -7104,12 +6840,6 @@
                   "clinic"
                 ],
                 "actor": "maren.larrabee2@example.com"
-              },
-              {
-                "apps": [
-                  "clinic"
-                ],
-                "actor": "orrin.okonjo8@example.com"
               }
             ]
           }
@@ -7211,12 +6941,6 @@
                   "sports"
                 ],
                 "actor": "danae.okonjo@example.org"
-              },
-              {
-                "apps": [
-                  "sports"
-                ],
-                "actor": "lior.halvard@example.org"
               },
               {
                 "apps": [
@@ -7338,12 +7062,6 @@
                   "sports"
                 ],
                 "actor": "danae.okonjo@example.org"
-              },
-              {
-                "apps": [
-                  "sports"
-                ],
-                "actor": "lior.halvard@example.org"
               },
               {
                 "apps": [
@@ -7471,12 +7189,6 @@
                   "clinic"
                 ],
                 "actor": "maren.larrabee2@example.com"
-              },
-              {
-                "apps": [
-                  "clinic"
-                ],
-                "actor": "orrin.okonjo8@example.com"
               }
             ]
           }
@@ -7545,12 +7257,6 @@
                   "hotels"
                 ],
                 "actor": "bram.voss5@example.com"
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "actor": "lior.ferrante2@example.com"
               },
               {
                 "apps": [
@@ -7723,12 +7429,6 @@
                 "apps": [
                   "homes"
                 ],
-                "actor": "maren.prewitt5@mail.example"
-              },
-              {
-                "apps": [
-                  "homes"
-                ],
                 "actor": "orrin.voss6@mail.example"
               }
             ]
@@ -7809,12 +7509,6 @@
                   "flights"
                 ],
                 "actor": "orrin.ferrante6@example.com"
-              },
-              {
-                "apps": [
-                  "flights"
-                ],
-                "actor": "sable.voss3@example.com"
               }
             ]
           }
@@ -7895,12 +7589,6 @@
                   "dining"
                 ],
                 "actor": "orrin.mbeki4@example.com"
-              },
-              {
-                "apps": [
-                  "dining"
-                ],
-                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -7968,12 +7656,6 @@
                   "hotels"
                 ],
                 "actor": "bram.voss5@example.com"
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "actor": "lior.ferrante2@example.com"
               },
               {
                 "apps": [
@@ -8066,12 +7748,6 @@
                   "flights"
                 ],
                 "actor": "orrin.ferrante6@example.com"
-              },
-              {
-                "apps": [
-                  "flights"
-                ],
-                "actor": "sable.voss3@example.com"
               }
             ]
           }
@@ -8140,12 +7816,6 @@
                   "hotels"
                 ],
                 "actor": "bram.voss5@example.com"
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "actor": "lior.ferrante2@example.com"
               },
               {
                 "apps": [
@@ -8349,21 +8019,9 @@
               },
               {
                 "apps": [
-                  "flights"
-                ],
-                "actor": "sable.voss3@example.com"
-              },
-              {
-                "apps": [
                   "hotels"
                 ],
                 "actor": "bram.voss5@example.com"
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
-                "actor": "lior.ferrante2@example.com"
               },
               {
                 "apps": [
@@ -8519,12 +8177,6 @@
                       "dining"
                     ],
                     "actor": "orrin.mbeki4@example.com"
-                  },
-                  {
-                    "apps": [
-                      "dining"
-                    ],
-                    "actor": "quill.voss8@example.com"
                   }
                 ]
               }
@@ -8641,12 +8293,6 @@
                   "dining"
                 ],
                 "actor": "orrin.mbeki4@example.com"
-              },
-              {
-                "apps": [
-                  "dining"
-                ],
-                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -8756,12 +8402,6 @@
                   "homes"
                 ],
                 "actor": "ilsa.sandoval2@mail.example"
-              },
-              {
-                "apps": [
-                  "homes"
-                ],
-                "actor": "maren.prewitt5@mail.example"
               },
               {
                 "apps": [
@@ -9249,12 +8889,6 @@
                 "apps": [
                   "pizza"
                 ],
-                "actor": "maren.okonjo3@example.org"
-              },
-              {
-                "apps": [
-                  "pizza"
-                ],
                 "actor": "orrin.okonjo9@example.org"
               },
               {
@@ -9694,12 +9328,6 @@
                   "clinic"
                 ],
                 "actor": "maren.larrabee2@example.com"
-              },
-              {
-                "apps": [
-                  "clinic"
-                ],
-                "actor": "orrin.okonjo8@example.com"
               }
             ]
           }
@@ -9902,12 +9530,6 @@
                       "dining"
                     ],
                     "actor": "orrin.mbeki4@example.com"
-                  },
-                  {
-                    "apps": [
-                      "dining"
-                    ],
-                    "actor": "quill.voss8@example.com"
                   }
                 ]
               }
@@ -10010,12 +9632,6 @@
             "kind": "unchanged",
             "name": "no change made as anyone else",
             "scope": [
-              {
-                "apps": [
-                  "pizza"
-                ],
-                "actor": "bram.larrabee7@example.org"
-              },
               {
                 "apps": [
                   "pizza"
@@ -10234,12 +9850,6 @@
                   "dining"
                 ],
                 "actor": "orrin.mbeki4@example.com"
-              },
-              {
-                "apps": [
-                  "dining"
-                ],
-                "actor": "quill.voss8@example.com"
               }
             ]
           }
@@ -10328,18 +9938,6 @@
             "kind": "unchanged",
             "name": "no change made as anyone else",
             "scope": [
-              {
-                "apps": [
-                  "pizza"
-                ],
-                "actor": "bram.larrabee7@example.org"
-              },
-              {
-                "apps": [
-                  "pizza"
-                ],
-                "actor": "maren.okonjo3@example.org"
-              },
               {
                 "apps": [
                   "pizza"
@@ -10527,12 +10125,6 @@
                       "hotels"
                     ],
                     "actor": "bram.voss5@example.com"
-                  },
-                  {
-                    "apps": [
-                      "hotels"
-                    ],
-                    "actor": "lior.ferrante2@example.com"
                   },
                   {
                     "apps": [
@@ -10993,12 +10585,6 @@
                       "dining"
                     ],
                     "actor": "orrin.mbeki4@example.com"
-                  },
-                  {
-                    "apps": [
-                      "dining"
-                    ],
-                    "actor": "quill.voss8@example.com"
                   }
                 ]
               }
@@ -11556,18 +11142,6 @@
                     "apps": [
                       "pizza"
                     ],
-                    "actor": "bram.larrabee7@example.org"
-                  },
-                  {
-                    "apps": [
-                      "pizza"
-                    ],
-                    "actor": "maren.okonjo3@example.org"
-                  },
-                  {
-                    "apps": [
-                      "pizza"
-                    ],
                     "actor": "orrin.okonjo9@example.org"
                   },
                   {
@@ -11798,12 +11372,6 @@
                       "dining"
                     ],
                     "actor": "orrin.mbeki4@example.com"
-                  },
-                  {
-                    "apps": [
-                      "dining"
-                    ],
-                    "actor": "quill.voss8@example.com"
                   }
                 ]
               }
@@ -11997,12 +11565,6 @@
                     "apps": [
                       "hotels"
                     ],
-                    "actor": "lior.ferrante2@example.com"
-                  },
-                  {
-                    "apps": [
-                      "hotels"
-                    ],
                     "actor": "quill.thorsby4@example.com"
                   },
                   {
@@ -12111,21 +11673,9 @@
                   },
                   {
                     "apps": [
-                      "flights"
-                    ],
-                    "actor": "sable.voss3@example.com"
-                  },
-                  {
-                    "apps": [
                       "hotels"
                     ],
                     "actor": "bram.voss5@example.com"
-                  },
-                  {
-                    "apps": [
-                      "hotels"
-                    ],
-                    "actor": "lior.ferrante2@example.com"
                   },
                   {
                     "apps": [
@@ -12268,21 +11818,9 @@
                   },
                   {
                     "apps": [
-                      "flights"
-                    ],
-                    "actor": "sable.voss3@example.com"
-                  },
-                  {
-                    "apps": [
                       "hotels"
                     ],
                     "actor": "bram.voss5@example.com"
-                  },
-                  {
-                    "apps": [
-                      "hotels"
-                    ],
-                    "actor": "lior.ferrante2@example.com"
                   },
                   {
                     "apps": [
@@ -12456,12 +11994,6 @@
                       "dining"
                     ],
                     "actor": "orrin.mbeki4@example.com"
-                  },
-                  {
-                    "apps": [
-                      "dining"
-                    ],
-                    "actor": "quill.voss8@example.com"
                   }
                 ]
               }
@@ -12641,21 +12173,9 @@
                   },
                   {
                     "apps": [
-                      "flights"
-                    ],
-                    "actor": "sable.voss3@example.com"
-                  },
-                  {
-                    "apps": [
                       "hotels"
                     ],
                     "actor": "bram.voss5@example.com"
-                  },
-                  {
-                    "apps": [
-                      "hotels"
-                    ],
-                    "actor": "lior.ferrante2@example.com"
                   },
                   {
                     "apps": [
@@ -12821,12 +12341,6 @@
                       "dining"
                     ],
                     "actor": "orrin.mbeki4@example.com"
-                  },
-                  {
-                    "apps": [
-                      "dining"
-                    ],
-                    "actor": "quill.voss8@example.com"
                   }
                 ]
               }
@@ -12958,12 +12472,6 @@
                       "hotels"
                     ],
                     "actor": "bram.voss5@example.com"
-                  },
-                  {
-                    "apps": [
-                      "hotels"
-                    ],
-                    "actor": "lior.ferrante2@example.com"
                   },
                   {
                     "apps": [
@@ -13179,21 +12687,9 @@
                   },
                   {
                     "apps": [
-                      "flights"
-                    ],
-                    "actor": "sable.voss3@example.com"
-                  },
-                  {
-                    "apps": [
                       "hotels"
                     ],
                     "actor": "bram.voss5@example.com"
-                  },
-                  {
-                    "apps": [
-                      "hotels"
-                    ],
-                    "actor": "lior.ferrante2@example.com"
                   },
                   {
                     "apps": [
@@ -13354,12 +12850,6 @@
                     "apps": [
                       "hotels"
                     ],
-                    "actor": "lior.ferrante2@example.com"
-                  },
-                  {
-                    "apps": [
-                      "hotels"
-                    ],
                     "actor": "quill.thorsby4@example.com"
                   },
                   {
@@ -13385,12 +12875,6 @@
                       "flights"
                     ],
                     "actor": "orrin.ferrante6@example.com"
-                  },
-                  {
-                    "apps": [
-                      "flights"
-                    ],
-                    "actor": "sable.voss3@example.com"
                   }
                 ]
               }

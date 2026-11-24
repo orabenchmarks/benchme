@@ -76,12 +76,6 @@
                   "flights"
                 ],
                 "actor": "orrin.ferrante6@example.com"
-              },
-              {
-                "apps": [
-                  "flights"
-                ],
-                "actor": "sable.voss3@example.com"
               }
             ]
           }

@@ -105,12 +105,6 @@
                 "apps": [
                   "hotels"
                 ],
-                "actor": "lior.ferrante2@example.com"
-              },
-              {
-                "apps": [
-                  "hotels"
-                ],
                 "actor": "quill.thorsby4@example.com"
               },
               {
@@ -136,12 +130,6 @@
                   "flights"
                 ],
                 "actor": "orrin.ferrante6@example.com"
-              },
-              {
-                "apps": [
-                  "flights"
-                ],
-                "actor": "sable.voss3@example.com"
               }
             ]
           }
