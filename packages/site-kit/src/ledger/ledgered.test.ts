@@ -7,7 +7,7 @@ import { SIGN_IN_REQUIRED_CODE, SignInRequired } from "../doors/sign-in.js";
 import { DomainError } from "../mcp-server.js";
 import { MemoryLedger } from "./ledger.js";
 import { ledgered, untransacted } from "./ledgered.js";
-import { about, read, unrecorded, write, type LedgerRules } from "./rules.js";
+import { about, authAttempt, read, unrecorded, write, type LedgerRules } from "./rules.js";
 
 type Order = { orderNo: string; status: string };
 
@@ -204,5 +204,63 @@ describe("ledgered", () => {
     const s = site();
     await s.as(caller(), () => s.orders.getOrder(WS, "SO-1"));
     expect(await s.ledger.list("ws_ffffffffffff")).toEqual([]);
+  });
+});
+
+// A code tried is spent, right or wrong: an attempt's refusal is committed with what the attempt wrote and its entry,
+// where any other refusal is rolled back. Told apart here by a transaction that remembers how it ended.
+describe("an attempt", () => {
+  interface Codes {
+    tryCode(ws: string, code: string): Promise<{ ok: true }>;
+    cancelOrder(ws: string, orderNo: string): Promise<{ ok: true }>;
+  }
+  const tried: string[] = [];
+  const codes: Codes = {
+    tryCode: async (_ws, code) => {
+      tried.push(code);
+      if (code !== "424242") throw new AuthError("BAD_CODE", "that code is wrong");
+      return { ok: true };
+    },
+    cancelOrder: async () => {
+      throw new DomainError("ORDER_LOCKED", "a shipped order cannot be cancelled", 409);
+    },
+  };
+  const CODE_RULES: LedgerRules<Codes> = { tryCode: authAttempt("verify", () => "ilsa@example.com"), cancelOrder: write("order", "cancel", ([orderNo]) => orderNo) };
+
+  function attempts() {
+    const ends: string[] = [];
+    const transactions = {
+      run: async <T>(fn: () => Promise<T>): Promise<T> => {
+        try {
+          const result = await fn();
+          ends.push("commit");
+          return result;
+        } catch (err) {
+          ends.push("rollback");
+          throw err;
+        }
+      },
+    };
+    const ledger = new MemoryLedger("shop", () => new Date(AT));
+    const callers = new CallerScope();
+    const repo = ledgered<Codes>(codes, CODE_RULES, { ledger, callers, transactions });
+    return { ends, ledger, repo, as: <T>(fn: () => Promise<T>) => callers.run(caller(), fn) };
+  }
+
+  it("keeps a refused attempt, and its entry, in one committed transaction, and still refuses it", async () => {
+    const a = attempts();
+    await expect(a.as(() => a.repo.tryCode(WS, "000000"))).rejects.toMatchObject({ code: "BAD_CODE" });
+    expect(a.ends).toEqual(["commit"]);
+    expect((await a.ledger.list(WS)).map((e) => [e.kind, e.action, e.outcome, e.code])).toEqual([["auth", "verify", "refused", "BAD_CODE"]]);
+    await expect(a.as(() => a.repo.tryCode(WS, "424242"))).resolves.toEqual({ ok: true });
+    expect(a.ends).toEqual(["commit", "commit"]);
+    expect((await a.ledger.list(WS)).map((e) => e.outcome)).toEqual(["refused", "ok"]);
+  });
+
+  it("rolls back any other refusal, as ever, and records it on its own", async () => {
+    const a = attempts();
+    await expect(a.as(() => a.repo.cancelOrder(WS, "SO-1"))).rejects.toMatchObject({ code: "ORDER_LOCKED" });
+    expect(a.ends).toEqual(["rollback"]);
+    expect((await a.ledger.list(WS)).map((e) => [e.action, e.outcome, e.code])).toEqual([["cancel", "refused", "ORDER_LOCKED"]]);
   });
 });

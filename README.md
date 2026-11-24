@@ -37,8 +37,8 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | path | what |
 | --- | --- |
 | `packages/core` | config, http (healthz/readyz), ids, receipts (HMAC), pg + migrations, redis, the workspace model, the doors and the headers the gateway signs |
-| `packages/scenarios` | seeded generators (`acme-v1`, `shops-v1`, `guide-v1`, `web-v1`, `webmcp-v1`, `cuj-v1`) and the derived ground truths |
-| `apps/gateway` | workspace API, signed reverse proxy (it decides each request's doors: see [Doors](#doors)), portal + MCP registry, reaper |
+| `packages/scenarios` | seeded generators (`acme-v1`, `shops-v1`, `guide-v1`, `web-v1`, `webmcp-v1`, `cuj-v1`) and the derived ground truths; each scenario also says what it is (`title`, `about`, `docs`: its write-up and corpus files), which the gateway's front page shows, and a test holds its task counts and links to the repository |
+| `apps/gateway` | workspace API, signed reverse proxy (it decides each request's doors: see [Doors](#doors)), the front page (a searchable card for every scenario, with its sites, its doors and the command that mints one) + MCP registry, reaper |
 | `packages/site-kit` | what every site shares: the gateway-scope hook, signup/verify/login + sessions + api tokens, the MCP server plumbing, the page shell, the doors and the change ledger (see [The change ledger](#the-change-ledger)) |
 | `apps/warehouse` | products, stock, orders, transfers: SSR UI, REST v1, a 14-tool MCP server, NLWeb `/ask`, WebMCP |
 | `apps/helpdesk` | tickets, comments, SLAs, assignment: SSR UI, REST v1, an 11-tool MCP server (with a destructive `delete_ticket`), NLWeb `/ask`, WebMCP |
@@ -454,6 +454,16 @@ mailed to the workspace inbox and has to be read there: the mail app has the
 same two reads as tools (`list_messages`, `get_message`), on its MCP server
 and on its pages.
 
+A code can be tried five times (`CODE_ATTEMPTS` in `@benchme/site-kit`), so it
+cannot be guessed. After five wrong ones it no longer works, not even the
+right one: verifying is refused with `TOO_MANY_ATTEMPTS` (429 on the pages),
+through every door. Signing up again with an email that is not verified yet
+mails a new code, with every try back, and takes the new password and name.
+A verified account cannot be signed up again (`EXISTS`). Every site with
+sign-ups counts the tries in its `verification_codes` table (migration
+`NNN_verification_attempts` in each app, applied by the migrate Job like any
+other).
+
 - **MCP.** The server gives a client an `Mcp-Session-Id` when it initializes,
   as the protocol provides, and a client repeats it on every request. `sign_in`
   keeps the session under that id, so the connection stays signed in and no
@@ -482,9 +492,10 @@ holds them.
 
 The signing-up steps are in the ledger as `auth` entries (`sign_up`,
 `verify`, `sign_in`, `sign_out`, `issue_token` on entity `account`, the id
-its email), made or refused (`EXISTS`, `BAD_CODE`, `BAD_CREDENTIALS`,
-`UNVERIFIED`). They are not writes: an account is not a change to what the
-site sells.
+its email), made or refused (`EXISTS`, `BAD_CODE`, `TOO_MANY_ATTEMPTS`,
+`BAD_CREDENTIALS`, `UNVERIFIED`). They are not writes: an account is not a
+change to what the site sells. A refused `verify` still spent a try, and the
+try is kept with its entry.
 
 ### The change ledger
 
@@ -1463,7 +1474,7 @@ verifier and the reaper — comes up with Docker Compose:
 
 ```bash
 docker compose up -d                 # images from ghcr.io/orabenchmarks at BENCHME_VERSION
-open http://localhost:8080           # the portal; POST /api/workspaces to mint a workspace
+open http://localhost:8080           # the front page: every scenario, and how to mint a workspace of it
 docker compose down -v               # stop and drop the database volume
 ```
 

@@ -1,5 +1,6 @@
 const SCHEMA = /^[a-z_][a-z0-9_]*$/;
-const checked = (schema: string): string => {
+/** An app schema's name, once it is one a migration can be written for. */
+export const checked = (schema: string): string => {
   if (!SCHEMA.test(schema)) throw new Error(`invalid schema name: ${schema}`);
   return schema;
 };

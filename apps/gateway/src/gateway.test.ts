@@ -473,6 +473,10 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     const home = (await gateway.inject("/")).body;
     expect(home).toContain("acme-v1");
     expect(home).toContain("<code>halden</code>");
+    // A card for every registered scenario, and the search over them, opened filtered by ?q=.
+    for (const s of scenarios.list()) expect(home).toContain(`data-scenario="${s.key}"`);
+    expect(home).toContain('<input id="q" name="q" type="search"');
+    expect((await gateway.inject("/?q=Halden%20Audio")).body).toContain(`>1 of ${scenarios.list().length} scenarios</p>`);
     const registry = (await gateway.inject("/registry")).body;
     expect(registry).toContain("/warehouse/mcp");
     expect(registry).toContain("NLWeb /ask");

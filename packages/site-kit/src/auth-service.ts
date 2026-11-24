@@ -1,5 +1,6 @@
 import { randomBytes, randomInt, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
+import { CODE_ATTEMPTS } from "./accounts-schema.js";
 import type { UserRow, UsersRepo } from "./users-repo.js";
 
 const scrypt = promisify(scryptCb);
@@ -33,7 +34,16 @@ export type AuthDeps = {
   now?: () => Date;
 };
 
-/** Signup → verification mail → verify → login → session. Passwords hashed with scrypt. Shared by every site. */
+const EXISTS = () => new AuthError("EXISTS", "an account with that email already exists", 409);
+
+/**
+ * Signup → verification mail → verify → login → session. Passwords hashed with scrypt. Shared by every site.
+ *
+ * A pending sign-up's code may be tried CODE_ATTEMPTS times: after that many wrong codes it no longer works, even
+ * the right one, so a six-digit code cannot be guessed. Only a new code gives it more tries, and signing up again
+ * with an email that is not verified yet is how one gets it: the sign-up is made again, with the password and name
+ * it gives, and a new code is mailed.
+ */
 export class AuthService {
   private readonly now: () => Date;
   constructor(private readonly d: AuthDeps) {
@@ -44,8 +54,12 @@ export class AuthService {
     const normalized = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new AuthError("BAD_EMAIL", "enter a valid email address");
     if (password.length < 8) throw new AuthError("WEAK_PASSWORD", "password must be at least 8 characters");
-    if (await this.d.users.getUser(ws, normalized)) throw new AuthError("EXISTS", "an account with that email already exists", 409);
-    const user = await this.d.users.createUser(ws, normalized, await hash(password), displayName.trim() || normalized);
+    const existing = await this.d.users.getUser(ws, normalized);
+    if (existing?.verifiedAt) throw EXISTS();
+    const passwordHash = await hash(password);
+    const name = displayName.trim() || normalized;
+    const user = existing ? await this.d.users.renewPendingUser(ws, normalized, passwordHash, name) : await this.d.users.createUser(ws, normalized, passwordHash, name);
+    if (!user) throw EXISTS();
     await this.sendVerification(ws, normalized);
     return user;
   }
@@ -57,8 +71,9 @@ export class AuthService {
   }
 
   async verify(ws: string, email: string, code: string): Promise<void> {
-    const ok = await this.d.users.consumeVerificationCode(ws, email.trim().toLowerCase(), code.trim(), this.now());
-    if (!ok) throw new AuthError("BAD_CODE", "that code is wrong or has expired");
+    const tried = await this.d.users.tryVerificationCode(ws, email.trim().toLowerCase(), code.trim(), this.now(), CODE_ATTEMPTS);
+    if (tried === "locked") throw new AuthError("TOO_MANY_ATTEMPTS", `too many wrong codes: after ${CODE_ATTEMPTS} this sign-up's code no longer works. Sign up again with the same email to be sent a new one`, 429);
+    if (tried !== "verified") throw new AuthError("BAD_CODE", "that code is wrong or has expired");
   }
 
   /**
