@@ -11,7 +11,7 @@ import {
   type ClinicDoctor,
   type ClinicRows,
 } from "@benchme/scenarios";
-import { SIGN_IN_TOOLS, type LedgerEntry, type Mailer } from "@benchme/site-kit";
+import { BRIDGE_COOKIE, SIGN_IN_TOOLS, type LedgerEntry, type Mailer } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { FastifyInstance, InjectOptions } from "fastify";
@@ -256,7 +256,9 @@ describe.skipIf(!DB)("clinic (real Postgres)", () => {
     const got: Record<string, number> = {};
     for (const [typedUrl] of doors) got[typedUrl] = await status(typedUrl);
     expect(got).toEqual(Object.fromEntries(doors.map(([typedUrl]) => [typedUrl, 200])));
-    for (const [typedUrl, stored] of doors) expect((await app.inject(scoped({ method: "GET", url: typedUrl }))).body).toBe((await app.inject(scoped({ method: "GET", url: stored }))).body);
+    // Asked by one browser (one bridge cookie), so its pages carry one bridge token.
+    const asOneBrowser = { cookie: `${BRIDGE_COOKIE}=${"0".repeat(32)}` };
+    for (const [typedUrl, stored] of doors) expect((await app.inject(scoped({ method: "GET", url: typedUrl, headers: asOneBrowser }))).body).toBe((await app.inject(scoped({ method: "GET", url: stored, headers: asOneBrowser }))).body);
     // The plan itself with its own coverage, not an empty shell: every line is the plan's, under its stored code.
     const detail = await get(`/api/v1/plans/${plan.code.toLowerCase()}`);
     expect(detail).toMatchObject({ ...plan });
