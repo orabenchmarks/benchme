@@ -6,8 +6,9 @@ it, change it, cancel it, send it back, act on their own account, carry one
 booking through a conversation, plan an outing over several sites. Each task
 belongs to one of ten **focus areas**, has one of four **levels**, and may run
 over several prompts of one conversation (**steps**). A step is checked by the
-reply it gets (`json`) or by what the sites hold afterwards (`state`), and
-every step has its own judge criteria (`rubric`).
+reply it gets (`json`) or by what the sites hold afterwards (`state`), every
+step has its own judge criteria (`rubric`), and its key names the site tool
+calls every correct solution makes (`expectedCall`).
 
 ## The scenario
 
@@ -56,6 +57,7 @@ the committed files are not the tool's output.
 | `compose/specs/cuj-tasks.json` | the same records without `key`: what can be shown to anyone |
 | `compose/specs/cuj-tasks.md` | how every task was derived, template by template, with the counts per area and level |
 | `compose/specs/cuj-<id>.json` | the verifier's answer key for one task, served by id. A task whose every step is answered in a reply has none: the verifier has nothing of it to check (it would answer 422 `NO_STATE_STEP`) |
+| `compose/specs/cuj-v1.webmcp-evals.json` | every step's expected calls as a [webmcp-evals](https://github.com/GoogleChromeLabs/webmcp-tools/tree/main/webmcp-evals) suite (below). Answer-key material, like the keys: keep it from the agent |
 
 ## The record
 
@@ -79,7 +81,10 @@ the committed files are not the tool's output.
   "key": {                                  // the answer key: keep it from the agent
     "blind": false,
     "oracle": { "kind": "state", "checks": [ … ] },   // step 1's
-    "steps": [ { "oracle": { "kind": "json", "expect": { "total": 910 } } } ]   // one per follow-up, in order
+    "expectedCall": [                       // step 1's expected calls, when it has any (§ Expected calls)
+      { "functionName": "change_reservation", "arguments": { "reservationNo": "RV-10084", "partySize": 5, "area": "indoor" } }
+    ],
+    "steps": [ { "oracle": { "kind": "json", "expect": { "total": 910 } } } ]   // one per follow-up, in order, each with its own expectedCall when it has any
   }
 }
 ```
@@ -102,7 +107,10 @@ the committed files are not the tool's output.
   has a state check; a task answered in replies alone carries no such field.
   It is the one field to test before calling the verifier for a task.
 - **`key`** is `cuj-<id>.json` without its `id`, when that file exists: the
-  same oracle and steps the verifier reads.
+  same oracle and steps the verifier reads, with each step's expected calls
+  (`expectedCall`) beside its oracle. The verifier does not read those, and
+  the public file does not carry them: a call can name what the task has the
+  agent find (the room a "cheapest" task books).
 
 ## The focus areas
 
@@ -253,7 +261,87 @@ and that the agent stayed on the sites the task names. The same criteria grade
 every setup, so none names a tool, a route or a way of replying; none states a
 value a check expects or a template has the agent find; and none asks for
 anything the prompt rules out. The corpus tool refuses a template whose
-criteria do.
+criteria do (`tools/intent-corpus/rubrics.mjs`, which webmcp-v1's templates
+use too).
+
+## Expected calls
+
+Each step's key may name the site tool calls a correct solution through the
+sites' tools makes, in the shape of GoogleChromeLabs' webmcp-evals suites, so
+a platform can check an agent that has the sites' WebMCP (or MCP) tools
+deterministically: did it call `create_booking` with this room, these dates,
+this party?
+
+```jsonc
+"expectedCall": [
+  { "functionName": "create_booking",
+    "arguments": { "roomCode": "HT-116-KNG", "checkIn": "2027-10-04", "nights": 3, "adults": 2,
+                   "guestEmail": "keira.greystone.52953@journeys.example" } }
+]
+```
+
+**The rule: a call is declared only if every correct solution through the
+tools must make it** — necessary, not sufficient (the checks above say what is
+sufficient).
+
+- A step that changes something declares the writes it makes
+  (`create_booking`, `cancel_booking`, `change_event`, …), each with the
+  arguments that decide the outcome. A change is one call with every field of
+  that change: a bigger party moved to the area that seats it is one
+  `change_reservation` with both. Where one change has two shapes (a guest
+  added with `addGuestEmails`, or a whole new `guestEmails`), only what both
+  carry is declared. A change two tools make alike declares none: a repeat,
+  which `reorder` of the order and a new `place_order` of its lines make the
+  same (three tasks: `reorder-named`, `reorder-to-address`,
+  `reorder-latest-delivered`).
+- A question declares only reads, each the only way to a fact its answer
+  needs (a named hotel's room types are in `get_hotel` alone; the shop's
+  shipping fee in `get_store_policies` alone; listings are listed by
+  `search_listings` alone), and none when several tools lead there (a search,
+  or the list and each item read in turn) or the reply needs nothing new (a
+  total a write already answered with).
+- An impossible step declares none: looking is as correct as trying.
+- No step declares a sign-in tool: every door signs in the same way.
+
+`arguments` is a partial match (fields it does not name are not checked), in
+webmcp-evals' vocabulary:
+
+- what the task fixes is exact: codes, dates, times, party sizes, emails, and
+  what the task has the agent find (the cheapest room, the earliest slot);
+- a field at its tool's default is left out (no children, no checked bags,
+  pickup), and so is one a run may write its own way or need not give: a
+  person's name, a phone, dictated text (a note, a title), a code beside the
+  one that decides (a hotel's beside its room's);
+- what may vary is a constraint: `{"$pattern": "^BK-\\d+$"}` for a number a
+  booking made during the run is given, one `{"$pattern": "^(?:D1|D2|D3)$"}`
+  per element for seats or guests that may come in any order,
+  `[{"$type": "string"}, {"$type": "string"}]` for two passengers whatever
+  their names (`$contains`, `$lte`, `$gte`, `$lt`, `$gt`, `$any` are the
+  others; a pattern is plain JavaScript, with no inline flags).
+
+A step's calls are each made, in any order, by a call of the run's own; the
+run's other calls (its reads, its sign-in) do not count against it. webmcp-evals'
+own runner reads a case's calls as the whole trajectory (in order, nothing
+besides), so a run of these tasks, which reads and signs in on the way, is
+graded by finding each expected call among its calls.
+
+`compose/specs/cuj-v1.webmcp-evals.json` is the same calls as a webmcp-evals
+suite: `[{ name, messages, expectedCall }]`, one case per step that has them.
+`name` is the task's id, the step's number in a task of several, and the site
+whose tools the calls are; `messages` are the prompts up to the step's own,
+as user messages (`{"role": "user", "type": "message", "content": …}`), since
+a follow-up leans on what came before ("the same traveller"), but not the
+replies in between, which belong to a run; `expectedCall` is the step's calls,
+several of them one `unordered` group.
+
+The corpus tool refuses a template whose calls break the rule's form: every
+call names a tool its site's registry registers (read from the built sites,
+`tools/intent-corpus/site-tools.mjs`), its arguments, constraint objects set
+aside, parse against that tool's input schema, a change declares writes, a
+question reads, an impossible step nothing (`tools/intent-corpus/calls.mjs`,
+`expected-calls.mjs`). Each declared call is the template's concrete one, from
+which the published arguments are derived: the integrity tool (below) makes
+exactly those.
 
 ## Integrity
 
@@ -275,4 +363,8 @@ the level they give is the task's; once every solution has run, every check
 still passes, still at a time its own step ran, and every key still matches: no
 task undid another; and on every site, one task's last change made again
 signed in as an account of the workspace fails its `no change made as anyone
-else` check.
+else` check. Last, in a second fresh workspace, every task is done with
+nothing but its expected calls, made through MCP (signed in as the person a
+step acts as, or as an account of the tool's own), and after each state step
+whose calls ran, every state step up to it that has calls passes: the calls a
+key publishes are enough to do what they declare.

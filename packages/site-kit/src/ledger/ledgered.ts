@@ -41,7 +41,9 @@ type AnyMethod = (ws: string, ...args: unknown[]) => Promise<unknown>;
  * A write (or a step of signing up or in) and its entry are one transaction:
  * both are kept, or neither is, so the ledger never shows a change that did
  * not happen, nor misses one that did. A refused write changed nothing: its
- * transaction is rolled back and the refusal is kept on its own.
+ * transaction is rolled back and the refusal is kept on its own. An attempt
+ * (`authAttempt`: a verification code tried) is the one exception: a refused
+ * one still spent a try, which is kept with its refusal.
  */
 export function ledgered<R extends object>(repo: R, rules: LedgerRules<R>, d: LedgeredDeps): R {
   const ruleOf = (name: PropertyKey): AnyRule | undefined => (Object.hasOwn(rules, name) ? (rules as Record<PropertyKey, AnyRule>)[name] : undefined);
@@ -87,6 +89,7 @@ async function recorded(target: object, method: AnyMethod, name: string, rule: R
     throw new SignInRequired(caller.door);
   }
   if (rule.kind === "read") return recordedRead(target, method, d, ws, args, entry, actor);
+  if (rule.attempt) return recordedAttempt(target, method, d, ws, args, entry, actor);
   try {
     return await d.transactions.run(async () => {
       const result = await method.call(target, ws, ...args);
@@ -101,6 +104,28 @@ async function recorded(target: object, method: AnyMethod, name: string, rule: R
 }
 
 type EntryOf = (result: unknown, outcome: NewLedgerEntry["outcome"], code: string | null, actor: string | null) => NewLedgerEntry;
+
+/**
+ * An attempt counts whatever comes of it: the call and its entry are one transaction, kept when the call is refused
+ * too (what it wrote, a try spent, with the refusal's entry), and the refusal is then passed on to the door. Anything
+ * that is no refusal rolls back as ever.
+ */
+async function recordedAttempt(target: object, method: AnyMethod, d: LedgeredDeps, ws: string, args: unknown[], entry: EntryOf, actor: string | null): Promise<unknown> {
+  const outcome = await d.transactions.run(async (): Promise<{ result: unknown } | { refused: unknown }> => {
+    try {
+      const result = await method.call(target, ws, ...args);
+      await d.ledger.record(ws, entry(result, "ok", null, actor));
+      return { result };
+    } catch (err) {
+      const refusal = refusalOf(err);
+      if (!refusal) throw err;
+      await d.ledger.record(ws, entry(undefined, "refused", refusal.code, actor));
+      return { refused: err };
+    }
+  });
+  if ("refused" in outcome) throw outcome.refused;
+  return outcome.result;
+}
 
 /** A read changes nothing, so it needs no transaction: what it found, or why it found nothing, is kept after it. */
 async function recordedRead(target: object, method: AnyMethod, d: LedgeredDeps, ws: string, args: unknown[], entry: EntryOf, actor: string | null): Promise<unknown> {

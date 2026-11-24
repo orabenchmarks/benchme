@@ -16,7 +16,9 @@ describe.skipIf(!process.env.DATABASE_URL)("PgWorkspaceRepo (real Postgres)", ()
   it("creates, reads, finalizes once, lists expired, deletes", async () => {
     const repo = new PgWorkspaceRepo(pool as Pool);
     const id = newWorkspaceId();
-    const past = new Date(Date.now() - 1000);
+    // Expired before any other workspace a shared test database holds, so the oldest expired ones, which is what
+    // listExpired answers with, include it however many other tests' workspaces have expired since.
+    const past = new Date("2001-01-01T00:00:00Z");
     const created = await repo.create({ id, scenario: "acme-v1", seed: 4242, expiresAt: past });
     expect(created).toMatchObject({ id, scenario: "acme-v1", seed: 4242, finalizedAt: null });
 
@@ -33,7 +35,7 @@ describe.skipIf(!process.env.DATABASE_URL)("PgWorkspaceRepo (real Postgres)", ()
 
   it("keeps the doors a workspace was created with, and none for one that named none", async () => {
     const repo = new PgWorkspaceRepo(pool as Pool);
-    const expiresAt = new Date(Date.now() + 60_000);
+    const expiresAt = new Date(Date.now() + 3_600_000);
     const named = await repo.create({ id: newWorkspaceId(), scenario: "acme-v1", seed: 1, expiresAt, doors: ["page", "webmcp"] });
     const unnamed = await repo.create({ id: newWorkspaceId(), scenario: "acme-v1", seed: 1, expiresAt });
     expect([named.doors, unnamed.doors]).toEqual([["page", "webmcp"], null]);

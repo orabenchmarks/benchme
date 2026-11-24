@@ -3,8 +3,16 @@
  * several requirements, or a named one's fit, read from the site. The
  * impossible ones ask for an option none of the site's meets: the right answer
  * says none does (`noneTemplates`, last in the registry).
+ *
+ * Expected calls: a question declares the one read that is the only way to its
+ * answer: a named hotel's room types are in `get_hotel` alone, a meeting
+ * room's equipment and access in `list_offices` (`find_free_rooms` shows a
+ * room only at a time it is free), and only `search_listings` lists the
+ * listings and `find_doctors` the doctors. Every other question can be
+ * answered by a search or by its entities read in turn, so it declares none.
  */
 import { addDays, cinemaSearchShowtimes, clinicFindDoctors, diningSearch, diningTablesLeft, nightsOf, pizzaMenuSearch, roomsLeft, searchFlights, searchHomeListings, searchStays, shuffle } from "../../../../packages/scenarios/dist/index.js";
+import { call } from "../../calls.mjs";
 import { R, dollars, foundOracle, jsonOracle, money, noneOracle, site, whichAnswer, PAGES_AND_TOOLS } from "../kit.mjs";
 import { cinemaPath, clinicPath, diningPath, eventsPath, flightsPath, homesPath, hotelsPath, pizzaPath, sportsPath } from "../paths.mjs";
 
@@ -41,6 +49,7 @@ export const findTemplates = [
             intent: `On ${site("hotels")}, which room type at ${hotel.name} (${hotel.code}) sleeps ${party}? ${whichAnswer(`"room": "<the room type's code>"`)}`,
             rubric: R.which(["hotels"], "the room type that sleeps the party"),
             oracle: foundOracle({ room: fitting[0].code }),
+            calls: [call("get_hotel", { hotelCode: hotel.code })],
             answer: async (api) => ({ found: true, room: api.only((await api.get("hotels", hotelsPath.hotel(hotel.code))).rooms.filter((r) => fits(r, adults, kids))).code }),
           }],
         };
@@ -68,6 +77,7 @@ export const findTemplates = [
           intent: `On ${site("dining")}, on which day of the week is ${r.name} (${r.code}) closed, and does it have a vegan menu? Answer as JSON: {"closedDay": "<the day, in lower case>", "vegan": <true or false>}.`,
           rubric: R.answer(["dining"], "the day the restaurant is closed and whether it has a vegan menu"),
           oracle: jsonOracle({ closedDay: r.closedDay, vegan: r.menus.includes("vegan") }),
+          calls: [],
           answer: async (api) => {
             const x = await api.get("dining", diningPath.restaurant(r.code));
             return { closedDay: x.closedDay, vegan: x.menus.includes("vegan") };
@@ -96,6 +106,7 @@ export const findTemplates = [
           intent: `On ${site("clinic")}, does ${d.name} (${d.code}) offer video visits, and are they taking new patients? Answer as JSON: {"video": <true or false>, "newPatients": <true or false>}.`,
           rubric: R.answer(["clinic"], "whether the doctor offers video visits and takes new patients"),
           oracle: jsonOracle({ video: d.visitTypes.includes("video"), newPatients: d.acceptingNewPatients }),
+          calls: [],
           answer: async (api) => {
             const x = await api.get("clinic", clinicPath.doctor(d.code));
             return { video: x.visitTypes.includes("video"), newPatients: x.acceptingNewPatients };
@@ -125,6 +136,7 @@ export const findTemplates = [
           intent: `On ${site("events")}, does the meeting room ${room.name} (${room.code}) at the ${office.name} have video conferencing, and does it have step-free access? Answer as JSON: {"videoConferencing": <true or false>, "stepFree": <true or false>}.`,
           rubric: R.answer(["events"], "whether the room has video conferencing and step-free access"),
           oracle: jsonOracle({ videoConferencing: room.equipment.includes("video conferencing"), stepFree: room.accessible }),
+          calls: [call("list_offices", {})],
           answer: async (api) => {
             const x = await api.get("events", eventsPath.room(room.code));
             return { videoConferencing: x.equipment.includes("video conferencing"), stepFree: x.accessible };
@@ -162,6 +174,7 @@ export const findTemplates = [
             intent: `On ${site("homes")}, which ${l.type} for sale in ${l.city} has ${feature}, ${capText}? ${whichAnswer(`"listing": "<the listing's code>"`)}`,
             rubric: R.which(["homes"], "the listing that meets every requirement"),
             oracle: foundOracle({ listing: l.code }),
+            calls: [call("search_listings", {})],
             answer: async (api) => ({ found: true, listing: api.only(await api.get("homes", homesPath.search(q))).code }),
           }],
         };
@@ -200,6 +213,7 @@ export const findTemplates = [
           intent: `On ${site("flights")}, which nonstop flight from ${from} to ${to} on ${date} leaves before 12:00 and still has an economy seat for one passenger? ${whichAnswer(`"flight": "<the flight number>"`)}`,
           rubric: R.which(["flights"], "the flight that meets every requirement"),
           oracle: foundOracle({ flight: found[0].flightNo }),
+          calls: [],
           answer: async (api) => ({ found: true, flight: api.only((await api.get("flights", flightsPath.search(q))).outbound).flightNo }),
         }],
       };
@@ -235,6 +249,7 @@ export const findTemplates = [
           intent: `On ${site("cinema")}, which ${film.genre} showing in ${city} on ${s.date} is in ${fmt}, starts at or after ${after}, and still has two seats free? ${whichAnswer(`"showtime": "<the showtime's code>"`)}`,
           rubric: R.which(["cinema"], "the showtime that meets every requirement"),
           oracle: foundOracle({ showtime: s.code }),
+          calls: [],
           answer: async (api) => ({ found: true, showtime: api.only(await api.get("cinema", cinemaPath.search(q))).showtimeCode }),
         }],
       };
@@ -270,6 +285,7 @@ export const findTemplates = [
             intent: `On ${site("pizza")}, which menu pizza can the ${branch.name} branch (${branch.code}) make as a ${size} that is vegetarian, has no ${allergen} in it, and costs ${capText}? ${whichAnswer(`"pizza": "<the menu pizza's code>"`)}`,
             rubric: R.which(["pizza"], "the menu pizza that meets every requirement"),
             oracle: foundOracle({ pizza: found[0].pizzaCode }),
+            calls: [],
             answer: async (api) => ({ found: true, pizza: api.only(await api.get("pizza", pizzaPath.search(q))).pizzaCode }),
           }],
         };
@@ -319,6 +335,7 @@ export const findTemplates = [
             intent: `On ${site("hotels")}, which hotel in ${hotel.city} has a room free for ${nights} nights from ${checkIn} for ${partyText(adults, 0)}, ${capText}, with both ${AMENITY[pair[0]]} and ${AMENITY[pair[1]]}? ${whichAnswer(`"hotel": "<the hotel's code>"`)}`,
             rubric: R.which(["hotels"], "the hotel that meets every requirement"),
             oracle: foundOracle({ hotel: matches[0].hotelCode }),
+            calls: [],
             answer: async (api) => ({ found: true, hotel: api.only(await api.get("hotels", hotelsPath.search(q))).hotelCode }),
           }],
         };
@@ -365,6 +382,7 @@ export const findTemplates = [
             intent: `On ${site("dining")}, which restaurant in ${r.city} has ${/^[aeiou]/.test(seating.area) ? "an" : "a"} ${seating.area} table free for ${partySize} at ${time} on ${date} and offers a ${menu} menu? ${whichAnswer(`"restaurant": "<the restaurant's code>"`)}`,
             rubric: R.which(["dining"], "the restaurant that meets every requirement"),
             oracle: foundOracle({ restaurant: found[0].restaurantCode }),
+            calls: [],
             answer: async (api) => ({ found: true, restaurant: api.only(await api.get("dining", diningPath.search(q))).restaurantCode }),
           }],
         };
@@ -414,6 +432,7 @@ export const findTemplates = [
             intent: `On ${site("clinic")}, which ${closed.specialty} doctor in ${city} is in the network of the ${plan.name} plan, is taking new patients, and still has a free appointment on ${date}? ${whichAnswer(`"doctor": "<the doctor's code>"`)}`,
             rubric: R.which(["clinic"], "the doctor who meets every requirement"),
             oracle: foundOracle({ doctor: found[0].code }),
+            calls: [call("find_doctors", {})],
             answer: async (api) => ({ found: true, doctor: api.only((await api.get("clinic", clinicPath.doctors(q))).filter((m) => (m.freeSlots ?? []).length > 0)).code }),
           }],
         };
@@ -466,6 +485,7 @@ export const findLastTemplates = [
           intent: `On ${site("sports")}, which colour of the ${product.name} (${product.code}) in size ${best.size} is the cheapest one in stock, and what does it cost? ${whichAnswer(`"colour": "<the colour>", "price": <dollars>`, "if none is in stock")}`,
           rubric: R.which(["sports"], "the cheapest colour in stock and its price", "says that none is in stock"),
           oracle: foundOracle({ colour: best.colour, price: money(best.priceCents) }),
+          calls: [],
           answer: async (api) => {
             const live = (await api.get("sports", sportsPath.product(product.code))).variants.filter((v) => v.size === best.size && v.stock > 0).sort(byPrice);
             return { found: true, colour: live[0].colour, price: live[0].priceCents / 100 };
@@ -524,6 +544,7 @@ export const findNoneTemplates = [
             intent: `On ${site("hotels")}, which hotel in ${hotel.city} has a room free for ${nights} nights from ${checkIn} for ${partyText(adults, 0)}, ${capText}, with both ${AMENITY[pair[0]]} and ${AMENITY[pair[1]]}? ${whichAnswer(`"hotel": "<the hotel's code>"`)}`,
             rubric: R.which(["hotels"], "the hotel that meets every requirement"),
             oracle: noneOracle(),
+            calls: [],
             answer: async (api) => ({ found: (await api.get("hotels", hotelsPath.search(q))).length > 0 }),
           }],
         };
@@ -569,6 +590,7 @@ export const findNoneTemplates = [
             intent: `On ${site("dining")}, which restaurant in ${r.city} has ${/^[aeiou]/.test(seating.area) ? "an" : "a"} ${seating.area} table free for ${partySize} at ${time} on ${date} and offers a ${menu} menu? ${whichAnswer(`"restaurant": "<the restaurant's code>"`)}`,
             rubric: R.which(["dining"], "the restaurant that meets every requirement"),
             oracle: noneOracle(),
+            calls: [],
             answer: async (api) => ({ found: (await api.get("dining", diningPath.search(q))).length > 0 }),
           }],
         };

@@ -23,6 +23,8 @@
  *                        for a platform that grades the answers itself
  *                        (webmcp-v1's: webmcp-corpus.json)
  *   intent-tasks.md      how every answer was derived (webmcp-tasks.md)
+ *   <scenario>.webmcp-evals.json   webmcp-v1's and cuj-v1's expected calls as
+ *                        a webmcp-evals suite (answer-key material, like the keys)
  *
  * cuj-v1's are cuj-<…>.json keys, cuj-tasks.json, cuj-corpus.json and
  * cuj-tasks.md: records with an area, a level and follow-up steps

@@ -20,9 +20,22 @@
  * changes places claims `events:event:<code>` for each event involved (a
  * cancellation: the one event it frees a place in), and a task about one
  * person's registrations claims `events:person:<email>`.
+ *
+ * Expected calls: a new event's `create_event` with every field the task fixes
+ * (the room, the date, the times, the organiser, the registration and its
+ * places, the three guests in any order; the title and the description left
+ * free, like any text a person dictates); a registration's
+ * `register_for_event` of the session found, for the person's email (their
+ * name left free); a cancellation's `cancel_registration`, which takes the
+ * registration's number or the event and the email, so it declares the tool
+ * alone. Only `list_events` lists the events, so the question of a course's
+ * places declares it; a free room is found by `find_free_rooms` or by the rooms
+ * and the events read in turn, so those questions declare none.
  */
 import { addDays, eventFreeRooms, eventMinutes, eventPlacesLeft, eventRegisterProblem, eventTimeOf, eventWeekday, shuffle } from "../../../packages/scenarios/dist/index.js";
+import { anyOrder, call, free } from "../calls.mjs";
 import { int, pick } from "../kit.mjs";
+import { R } from "../rubrics.mjs";
 
 const APP = "events";
 const PAGES_AND_TOOLS = ["pages", "tools"];
@@ -136,6 +149,7 @@ export const eventsTemplates = [
       return {
         intent: `On the office events site, create an event for ${organiser.name} (${organiser.email}) in ${room.name} (${room.code}) at the ${office.city} office on ${dateText(date)} at ${clock(startTime)} for ${lengthText(minutes)}. Title it "${title}" with the description "${description}". ${mode} Invite ${listText(guests)}.`,
         summary: `${organiser.email} has one event in ${room.code} on ${date} from ${startTime} with the title, description, end time, registration and exactly the three guests asked.`,
+        rubric: R.change([APP], "the event was set up"),
         oracle: {
           kind: "state",
           checks: [
@@ -143,6 +157,7 @@ export const eventsTemplates = [
             ...guests.map((email) => ({ name: `guest-${email}`, app: APP, path, where, expect: { guests: { email } } })),
           ],
         },
+        calls: [call("create_event", body, { title: free, description: free, guestEmails: anyOrder(guests) })],
         note: `${organiser.email} → ${room.code} ${date} ${startTime}–${endTime}, "${title}", ${open ? `open, ${places} places` : "invite-only"}, guests ${guests.join(", ")}`,
         solve: (api) => api.post(APP, EVENTS, body),
         miss: (api) => api.post(APP, EVENTS, { ...body, guestEmails: guests.slice(0, -1) }),
@@ -170,7 +185,9 @@ export const eventsTemplates = [
         return {
           intent: `On the office events site, which room at the ${office.city} office is free on ${dateText(event.date)} from ${event.startTime} to ${event.endTime} for the whole time, holds ${req.people} people and has ${equipText(req.equipment)}? Answer as JSON: {"room": "<the room's code, like ABC-R1>"}.`,
           summary: `The one free room at the ${office.city} office for that slot that holds the people and has the equipment.`,
+          rubric: R.answer([APP], "the room that meets every requirement"),
           oracle: { kind: "json", expect: { room: fits[0].roomCode } },
+          calls: [],
           note: `${office.code} ${event.date} ${event.startTime}–${event.endTime}, ${req.people} people, ${req.equipment.join(" + ")} → ${fits[0].roomCode}; ${room.code} fits too but ${event.code} holds it`,
           answer: async (api) => ({ room: api.only(await api.get(APP, freeRoomsPath(q))).roomCode }),
           miss: async () => ({ room: room.code }),
@@ -202,7 +219,9 @@ export const eventsTemplates = [
         return {
           intent: `On the office events site, is any room at the ${office.city} office free on ${dateText(event.date)} from ${event.startTime} to ${event.endTime} for the whole time that holds ${req.people} people and has ${eq}? Also name the room that comes closest: of the rooms there that have ${eq} and are free for that whole time, the one that holds the most people. Answer as JSON: {"exists": <true or false>, "closest": "<the room's code, like ABC-R1>"}.`,
           summary: `No free room at the ${office.city} office meets every requirement; the closest is the largest free room with the equipment.`,
+          rubric: R.answer([APP], "whether any room meets every requirement, and the one that comes closest,"),
           oracle: { kind: "json", expect: { exists: false, closest: closest.roomCode } },
+          calls: [],
           note: `${office.code} ${event.date} ${event.startTime}–${event.endTime}, ${req.people} people, ${req.equipment.join(" + ")} → none; closest ${closest.roomCode} (${closest.capacity}); ${room.code} would fit but ${event.code} holds it`,
           answer: async (api) => ({
             exists: (await api.get(APP, freeRoomsPath(q))).length > 0,
@@ -245,6 +264,7 @@ export const eventsTemplates = [
       return {
         intent: `On the office events site, register ${person.name} (${person.email}) for one session of "${title}" at the ${office.city} office: the earliest session there that still has places left.`,
         summary: `${person.email} is registered for the earliest ${office.city} session of "${title}" with places left, and for nothing else new.`,
+        rubric: R.change([APP], "the registration was made"),
         oracle: {
           kind: "state",
           checks: [
@@ -252,6 +272,7 @@ export const eventsTemplates = [
             { name: "only-one-new", app: APP, path, where: { status: "registered" }, count: { min: had + 1, max: had + 1 }, expect: { email: person.email } },
           ],
         },
+        calls: [call("register_for_event", { eventCode: answer.code, ...who }, { name: free })],
         note: `${person.email}: "${title}" at ${office.code} → ${answer.code} (${answer.date} ${answer.startTime}); ${sessions[0].code} is full; ${wrong.code} at ${wrong.officeCode} (${wrong.date}) is earlier with places`,
         solve: async (api) => {
           const open = (await liveSessions(api, title, office.code)).find((e) => e.placesLeft > 0);
@@ -283,7 +304,9 @@ export const eventsTemplates = [
       return {
         intent: `On the office events site, of the scheduled sessions of "${title}" at the ${office.city} office, which one has the most places left, and how many places are left in it? Answer as JSON: {"event": "<the event's code, EV-…>", "placesLeft": <number>}.`,
         summary: `The ${office.city} session of "${title}" with the most places left, and how many.`,
+        rubric: R.answer([APP], "the session with the most places left, and how many it has left,"),
         oracle: { kind: "json", expect: { event: best.e.code, placesLeft: best.left } },
+        calls: [call("list_events", {})],
         note: `"${title}" at ${office.code} → ${best.e.code} with ${best.left} left; ${widest.code} has the highest limit (${widest.places})`,
         answer: async (api) => {
           const [top] = (await liveSessions(api, title, office.code)).sort((a, b) => b.placesLeft - a.placesLeft);
@@ -325,7 +348,9 @@ export const eventsTemplates = [
       return {
         intent: `On the office events site, ${target.name} (${target.email}) is registered for several events. Cancel only their registration for "${event.title}" on ${dateText(event.date)}, and leave their other registrations as they are.`,
         summary: `${target.email}'s registration for "${event.title}" on ${event.date} is cancelled; their other active registrations are still active.`,
+        rubric: R.change([APP], "the registration was cancelled"),
         oracle: { kind: "state", checks: live.map((g) => ({ name: `${g.regNo}-${status(g)}`, app: APP, path: `${REGISTRATIONS}/${g.regNo}`, expect: { status: status(g) } })) },
+        calls: [call("cancel_registration", { regNo: target.regNo }, { regNo: free })],
         note: `${target.email}: ${target.regNo} (${event.code}, ${event.date}) → cancelled; ${live.filter((g) => g !== target).map((g) => g.regNo).join(", ")} stay registered`,
         solve: async (api) => {
           const mine = await api.list(APP, `${REGISTRATIONS}?email=${enc(target.email)}&status=registered`);

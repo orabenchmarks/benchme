@@ -1,8 +1,10 @@
 import type { DoorSet } from "@benchme/core";
 import type { FastifyInstance } from "fastify";
 import type { AppRegistry } from "../app-registry.js";
-import type { ScenarioRegistry } from "@benchme/scenarios";
+import { appInfo, type ScenarioRegistry } from "@benchme/scenarios";
 import { openCapabilities } from "../capabilities.js";
+import { scenarioCards } from "../landing/cards.js";
+import { landingPage } from "../landing/page.js";
 import type { WorkspaceService } from "../workspace-service.js";
 
 export type PortalDeps = {
@@ -26,29 +28,18 @@ export function registerPortal(app: FastifyInstance, d: PortalDeps): void {
   // What the registry lists: the listed apps with something behind an open door.
   const capable = d.apps.listed().filter((a) => open.some((c) => c.has(a)));
 
-  app.get("/", async (_req, reply) => {
-    const scenarios = d.scenarios
-      .list()
-      .map((s) => `<li><code>${s.key}</code> — ${s.description}</li>`)
-      .join("");
-    const apps = d.apps
-      .listed()
-      .map((a) => `<li><code>${a.name}</code>${a.seeded ? " (per-workspace data)" : ""}${mcpOpen && a.mcp ? " — MCP at <code>/mcp</code>" : ""}</li>`)
-      .join("");
-    return reply.type("text/html").send(
-      page(
-        "benchme",
-        `<h1>benchme</h1>
-<p>A fictional company of demo applications for agentic benchmarks. Every run gets its own <strong>workspace</strong>: an isolated, deterministically seeded copy of the data, so parallel runs never see each other.</p>
-<h2>Mint a workspace</h2>
-<pre>curl -s -X POST ${d.publicBaseUrl}/api/workspaces -H 'content-type: application/json' \\
-  -d '{"scenario":"acme-v1","seed":4242}'</pre>
-<p>The response lists the URLs for every app under <code>/w/&lt;workspaceId&gt;/&lt;app&gt;/</code>. Workspaces expire after their TTL and are deleted.</p>
-<h2>Scenarios</h2><ul>${scenarios}</ul>
-<h2>Apps</h2><ul>${apps}</ul>
-${capable.length ? `<p>MCP servers: see the <a href="/registry">registry</a>.</p>` : ""}`,
-      ),
-    );
+  // The front page: the scenario cards are the deployment's to compute once (its doors and apps do not change while
+  // it runs), and the query a person opens it with picks which are shown.
+  const view = {
+    cards: scenarioCards({ scenarios: d.scenarios, apps: d.apps, service: d.service, doors: d.doors, publicBaseUrl: d.publicBaseUrl }),
+    apps: d.apps.listed().map((a) => ({ key: a.name, name: appInfo(a.name).name, seeded: a.seeded, mcp: a.mcp })),
+    doors: d.doors.list(),
+    registry: capable.length > 0,
+    publicBaseUrl: d.publicBaseUrl,
+  };
+  app.get<{ Querystring: { q?: unknown } }>("/", async (req, reply) => {
+    const query = typeof req.query.q === "string" ? req.query.q.slice(0, 200) : "";
+    return reply.type("text/html; charset=utf-8").send(landingPage(view, query));
   });
 
   app.get("/registry", async (_req, reply) => {
@@ -58,10 +49,12 @@ ${capable.length ? `<p>MCP servers: see the <a href="/registry">registry</a>.</p
     const table = capable.length
       ? `<table><tr><th>server</th>${head}</tr>${rows}</table>${mcpOpen ? "<p>Every MCP endpoint speaks Streamable HTTP.</p>" : ""}`
       : "<p>This deployment serves its sites through their pages alone.</p>";
+    // Named for what it lists: MCP servers only where the MCP door is open.
+    const title = mcpOpen ? "MCP server registry" : "Registry";
     return reply.type("text/html").send(
       page(
-        "benchme — MCP registry",
-        `<h1>MCP server registry</h1>
+        `benchme — ${title}`,
+        `<h1>${title}</h1>
 <p>Each server is scoped to a workspace by its URL: the unguessable workspace id is the capability to read. A site with accounts asks the same sign-in of a write through its tools as through its pages (<code>sign_up</code>, <code>verify_email</code> with the code mailed to the inbox, <code>sign_in</code>). A workspace created with its own doors is served through those, whatever this page lists: its <code>urls</code> say which.</p>
 ${table}`,
       ),

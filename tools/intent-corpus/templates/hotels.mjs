@@ -16,9 +16,18 @@
  * Claims: a booking or a cancellation changes which rooms are free, so every
  * task that depends on, or changes, what is free claims each night of its stay
  * in its city (`night:<city>:<date>`). A price quote depends on prices only.
+ *
+ * Expected calls: a booking's `create_booking` with what the task fixes (the
+ * room, the dates, the party, the extras, the guest's email; the guest's name
+ * left free, and the hotel's code, which the room's names); a cancellation's
+ * `cancel_booking` of the booking named. A room type's nightly price is in
+ * `get_hotel` alone, so a quote declares it; a search is answered by
+ * `search_stays` or by each hotel read in turn, so it declares none.
  */
 import { addDays, nightsOf, roomsLeft, searchStays, shuffle, stayTotalCents } from "../../../packages/scenarios/dist/index.js";
+import { call, free } from "../calls.mjs";
 import { int, usd } from "../kit.mjs";
+import { R } from "../rubrics.mjs";
 
 const APP = "hotels";
 const BOOKINGS = "/api/v1/bookings";
@@ -53,6 +62,8 @@ const searchPath = (q) =>
     ...(q.maxNightlyCents !== undefined ? { maxPrice: String(q.maxNightlyCents / 100) } : {}),
   })}`;
 const book = (api, body) => api.post(APP, BOOKINGS, body);
+/** The booking a correct solution makes: the reference one's body, through the tool. */
+const booking = (body) => call("create_booking", body, { hotelCode: free, guestName: free });
 /** Amenity pairs a hotel has, wifi left out (every hotel has it). */
 const pairsOf = (hotel) => {
   const a = hotel.amenities.filter((x) => x !== "wifi");
@@ -117,7 +128,9 @@ export const hotelTemplates = [
           return {
             intent: `On the hotel booking site, which hotel in ${hotel.city} has a room free for ${nights} nights from ${checkIn} for ${party}, at no more than ${dollars(cap)} a night, with both ${said(amenities[0])} and ${said(amenities[1])}? Answer as JSON: {"hotel": "<the hotel's code, HT-…>"}.`,
             summary: `The one ${hotel.city} hotel with a free room that fits the party, within the cap, with both amenities.`,
+            rubric: R.answer([APP], "the hotel that meets every requirement"),
             oracle: { kind: "json", expect: { hotel: matches[0].hotelCode } },
+            calls: [],
             note: `${hotel.city} ${checkIn} × ${nights}, ${party}, ≤ ${dollars(cap)}, ${amenities.join(" + ")} → ${matches[0].hotelCode}; ${hotel.code} fits too but ${room.code} is booked out`,
             answer: async (api) => ({ hotel: api.only(await api.get(APP, searchPath(q))).hotelCode }),
             miss: async () => ({ hotel: hotel.code }),
@@ -152,7 +165,9 @@ export const hotelTemplates = [
         return {
           intent: `On the hotel booking site, is there a hotel in ${hotel.city} with a room free for ${nights} nights from ${checkIn} for ${party}, at no more than ${dollars(cap)} a night, with both ${said(amenities[0])} and ${said(amenities[1])}? Also name the hotel that comes closest: the cheapest one with a room free on those nights for that party and both ${said(amenities[0])} and ${said(amenities[1])}, at any price. Answer as JSON: {"exists": <true or false>, "closest": "<the hotel's code, HT-…>"}.`,
           summary: `No ${hotel.city} hotel meets every requirement; the closest is the cheapest with both amenities at any price.`,
+          rubric: R.answer([APP], "whether any hotel meets every requirement, and the one that comes closest,"),
           oracle: { kind: "json", expect: { exists: false, closest: closest.hotelCode } },
+          calls: [],
           note: `${hotel.city} ${checkIn} × ${nights}, ${party}, ≤ ${dollars(cap)}, ${amenities.join(" + ")} → none; closest ${closest.hotelCode} at ${usd(closest.nightlyCents)}; ${hotel.code}'s ${room.code} would fit but is booked out`,
           answer: async (api) => ({
             exists: (await api.get(APP, searchPath({ ...base, amenities, maxNightlyCents: cap }))).length > 0,
@@ -189,7 +204,9 @@ export const hotelTemplates = [
       return {
         intent: `On the hotel booking site, what would this stay at ${hotel.name} (${hotel.code}) cost in total: one ${room.name} (${room.code}) for ${nights} nights from ${checkIn}, for ${partyText(adults, kids)}${extrasText(pets, late)}? Answer as JSON: {"total": <dollars>}.`,
         summary: `${nights} nights at ${room.code}'s nightly price, plus the hotel's fees for what the stay adds.`,
+        rubric: R.answer([APP], "what the stay costs in total, its fees included,"),
         oracle: { kind: "json", expect: { total: { value: total, tolerance: 0.01 } } },
+        calls: [call("get_hotel", { hotelCode: hotel.code })],
         note: `${room.code} × ${nights} at ${usd(room.nightlyCents)}${pets ? ` + pet fee ${usd(hotel.petFeeCents)}` : ""}${late ? ` + late checkout ${usd(hotel.lateCheckoutFeeCents)}` : ""} → $${total.toFixed(2)}`,
         answer: async (api) => {
           const h = await api.get(APP, `/api/v1/hotels/${hotel.code}`);
@@ -238,6 +255,8 @@ export const hotelTemplates = [
             },
           ],
         },
+        rubric: R.change([APP], "the room was booked"),
+        calls: [booking(body)],
         note: `${guest.email} → ${room.code}, ${checkIn} × ${nights}, ${partyText(adults, kids)}${extrasText(pets, late)}`,
         solve: (api) => book(api, body),
         miss: (api) => book(api, short),
@@ -281,6 +300,8 @@ export const hotelTemplates = [
               },
             ],
           },
+          rubric: R.change([APP], "the room was booked"),
+          calls: [booking(bodyFor(best))],
           note: `${hotel.city} ${checkIn} × ${nights}, ${party}, ${amenity} → ${best.roomCode} at ${usd(best.nightlyCents)}; ${room.code} at ${usd(room.nightlyCents)} is booked out`,
           solve: async (api) => book(api, bodyFor((await api.get(APP, searchPath({ ...base, amenities: [amenity] })))[0])),
           miss: async (api) => book(api, bodyFor((await api.get(APP, searchPath({ ...base, amenities: [amenity] })))[1])),
@@ -314,7 +335,9 @@ export const hotelTemplates = [
       return {
         intent: `On the hotel booking site, ${target.guestName} (${target.guestEmail}) has several bookings. Cancel only their stay at ${hotel.name} that starts on ${target.checkIn}, and leave their other bookings as they are.`,
         summary: `${target.guestEmail}'s booking at ${hotel.code} from ${target.checkIn} is cancelled; their other confirmed bookings are still confirmed.`,
+        rubric: R.change([APP], "the booking was cancelled"),
         oracle: { kind: "state", checks: live.map((b) => ({ name: `${b.bookingNo}-${status(b)}`, app: APP, path: `${BOOKINGS}/${b.bookingNo}`, expect: { status: status(b) } })) },
+        calls: [call("cancel_booking", { bookingNo: target.bookingNo })],
         note: `${target.guestEmail}: ${target.bookingNo} (${hotel.code}, ${target.checkIn}) → cancelled; ${live.filter((b) => b !== target).map((b) => b.bookingNo).join(", ")} stay confirmed`,
         solve: async (api) => {
           const mine = await api.list(APP, `${BOOKINGS}?guestEmail=${encodeURIComponent(target.guestEmail)}`);

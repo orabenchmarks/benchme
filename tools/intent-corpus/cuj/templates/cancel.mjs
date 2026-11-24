@@ -5,8 +5,16 @@
  * medium ones describe it by two of its facts; hard ones have a tempting twin
  * (the same place, another day) or run over three prompts. The impossible ones
  * ask to cancel what the site's rules no longer let go.
+ *
+ * Expected calls: each cancel's write of the booking it cancels, by its number
+ * (a seeded one, so the key may name it even where the agent has to find it).
+ * A registration can be cancelled by its number or by the event and the
+ * person's email, so only the call is published for it. A count afterwards is
+ * known from the bookings read on the way, so it declares no read, and an
+ * impossible cancel declares none.
  */
 import { nightsOf, shuffle } from "../../../../packages/scenarios/dist/index.js";
+import { call, free } from "../../calls.mjs";
 import { R, impossibleChecks, jsonOracle, leftAlone, row, site, stateOracle, PAGES_AND_TOOLS } from "../kit.mjs";
 import { cinemaPath, clinicPath, diningPath, eventsPath, flightsPath, homesPath, hotelsPath, pizzaPath, sportsPath } from "../paths.mjs";
 
@@ -51,6 +59,7 @@ export const cancelTemplates = [
           intent: `On ${site("hotels")}, cancel ${target.guestName}'s booking ${target.bookingNo} at ${hotel.name} from ${target.checkIn}. They have other bookings, which stay as they are.`,
           rubric: R.change(["hotels"], "the booking was cancelled"),
           oracle: cancelChecks({ app: "hotels", path: hotelsPath.booking(target.bookingNo), type: "booking", id: target.bookingNo, others: others.map((o) => o.bookingNo) }),
+          calls: [call("cancel_booking", { bookingNo: target.bookingNo })],
           solve: (api) => api.post("hotels", hotelsPath.cancel(target.bookingNo), {}),
         }],
       };
@@ -77,6 +86,7 @@ export const cancelTemplates = [
           intent: `On ${site("homes")}, cancel ${target.viewerName}'s viewing ${target.viewingNo} of ${listing.address} on ${target.date} at ${target.time}. They have other viewings, which stay as they are.`,
           rubric: R.change(["homes"], "the viewing was cancelled"),
           oracle: cancelChecks({ app: "homes", path: homesPath.viewing(target.viewingNo), type: "viewing", id: target.viewingNo, others: others.map((o) => o.viewingNo) }),
+          calls: [call("cancel_viewing", { viewingNo: target.viewingNo })],
           solve: (api) => api.post("homes", homesPath.cancel(target.viewingNo), {}),
         }],
       };
@@ -103,6 +113,7 @@ export const cancelTemplates = [
           intent: `On ${site("clinic")}, cancel ${target.patientName}'s appointment ${target.appointmentNo} with ${doctor.name} on ${target.date} at ${target.time}. They have other appointments, which stay as they are.`,
           rubric: R.change(["clinic"], "the appointment was cancelled"),
           oracle: cancelChecks({ app: "clinic", path: clinicPath.appointment(target.appointmentNo), type: "appointment", id: target.appointmentNo, others: others.map((o) => o.appointmentNo) }),
+          calls: [call("cancel_appointment", { appointmentNo: target.appointmentNo })],
           solve: (api) => api.post("clinic", clinicPath.cancel(target.appointmentNo), {}),
         }],
       };
@@ -133,6 +144,7 @@ export const cancelTemplates = [
           intent: `On ${site("cinema")}, cancel ${target.customerName}'s booking ${target.bookingNo} for ${film.title} on ${s.date} at ${s.time}. They have other bookings, which stay as they are.`,
           rubric: R.change(["cinema"], "the booking was cancelled"),
           oracle: cancelChecks({ app: "cinema", path: cinemaPath.booking(target.bookingNo), type: "booking", id: target.bookingNo, others: others.map((o) => o.bookingNo) }),
+          calls: [call("cancel_booking", { bookingNo: target.bookingNo })],
           solve: (api) => api.post("cinema", cinemaPath.cancel(target.bookingNo), {}),
         }],
       };
@@ -168,6 +180,7 @@ export const cancelTemplates = [
           intent: `On ${site("flights")}, ${target.passengers[0].name} (${target.contactEmail}) has several flight bookings. Cancel the one for the flight from ${from} to ${to} on ${target.date}, and leave the others as they are.`,
           rubric: R.change(["flights"], "the booking was cancelled"),
           oracle: cancelChecks({ app: "flights", path: flightsPath.booking(target.bookingNo), type: "booking", id: target.bookingNo, others: others.map((o) => o.bookingNo) }),
+          calls: [call("cancel_booking", { bookingNo: target.bookingNo })],
           solve: async (api) => {
             const mine = (await api.list("flights", flightsPath.bookingsOf(target.contactEmail))).filter((b) => b.status === "confirmed" && b.origin === f.origin && b.destination === f.destination && b.date === target.date);
             return api.post("flights", flightsPath.cancel(api.only(mine).bookingNo), {});
@@ -201,6 +214,7 @@ export const cancelTemplates = [
           intent: `On ${site("events")}, ${target.name} (${target.email}) is registered for several events. Cancel their registration for "${e.title}" on ${e.date}, and keep the rest.`,
           rubric: R.change(["events"], "the registration was cancelled"),
           oracle: cancelChecks({ app: "events", path: eventsPath.registration(target.regNo), type: "registration", id: target.regNo, others: others.map((o) => o.regNo) }),
+          calls: [call("cancel_registration", { regNo: target.regNo }, { regNo: free })],
           solve: async (api) => {
             const mine = (await api.list("events", eventsPath.registrationsOf(target.email))).filter((r) => r.status === "registered" && r.eventTitle === e.title && r.eventDate === e.date);
             return api.post("events", eventsPath.cancelRegistration(api.only(mine).regNo), {});
@@ -234,6 +248,7 @@ export const cancelTemplates = [
           intent: `On ${site("pizza")}, ${target.customerName} (${target.customerEmail}) has several orders. Cancel their pickup order for ${target.slotDate}; the others stay as they are.`,
           rubric: R.change(["pizza"], "the order was cancelled"),
           oracle: cancelChecks({ app: "pizza", path: pizzaPath.order(target.orderNo), type: "order", id: target.orderNo, others: all.map((o) => o.orderNo) }),
+          calls: [call("cancel_order", { orderNo: target.orderNo })],
           solve: async (api) => {
             const mine = (await api.list("pizza", pizzaPath.ordersOf(target.customerEmail))).filter((o) => o.status === "received" && o.fulfilment === "pickup" && o.slotDate === target.slotDate);
             return api.post("pizza", pizzaPath.cancel(api.only(mine).orderNo), {});
@@ -274,6 +289,7 @@ export const cancelTemplates = [
           intent: `On ${site("clinic")}, ${target.patientName} (${target.patientEmail}) has two appointments with ${doctor.name}. Cancel the later one, and leave every other appointment of theirs as it is.`,
           rubric: R.change(["clinic"], "the appointment was cancelled"),
           oracle: cancelChecks({ app: "clinic", path: clinicPath.appointment(target.appointmentNo), type: "appointment", id: target.appointmentNo, others: others.map((o) => o.appointmentNo) }),
+          calls: [call("cancel_appointment", { appointmentNo: target.appointmentNo })],
           solve: async (api) => {
             const mine = (await api.list("clinic", clinicPath.appointmentsOf(target.patientEmail))).filter((a) => a.status === "booked" && a.doctorCode === doctor.code).sort((x, y) => `${x.date} ${x.time}`.localeCompare(`${y.date} ${y.time}`));
             return api.post("clinic", clinicPath.cancel(mine.at(-1).appointmentNo), {});
@@ -317,6 +333,7 @@ export const cancelTemplates = [
           intent: `On ${site("dining")}, ${target.guestName} (${target.guestEmail}) has two reservations at ${r.name}. Cancel the earlier one, and leave their other reservations as they are.`,
           rubric: R.change(["dining"], "the reservation was cancelled"),
           oracle: cancelChecks({ app: "dining", path: diningPath.reservation(target.reservationNo), type: "reservation", id: target.reservationNo, others: others.map((o) => o.reservationNo) }),
+          calls: [call("cancel_reservation", { reservationNo: target.reservationNo })],
           solve: async (api) => {
             const mine = (await api.list("dining", diningPath.reservationsOf(target.guestEmail))).filter((x) => x.status === "confirmed" && x.restaurantCode === r.code).sort((x, y) => `${x.date} ${x.time}`.localeCompare(`${y.date} ${y.time}`));
             return api.post("dining", diningPath.cancel(mine[0].reservationNo), {});
@@ -356,6 +373,7 @@ export const cancelTemplates = [
             intent: `On ${site("hotels")}, ${a.guestName} (${a.guestEmail}) has several bookings. Cancel their stay at ${ha.name} from ${a.checkIn}; the others stay as they are.`,
             rubric: R.change(["hotels"], "the booking was cancelled"),
             oracle: stateOracle(row("first cancelled", "hotels", hotelsPath.booking(a.bookingNo), { expect: { status: "cancelled" }, entity: ref("booking", a.bookingNo) })),
+            calls: [call("cancel_booking", { bookingNo: a.bookingNo })],
             solve: cancelWhere(ha, a),
           },
           {
@@ -367,6 +385,7 @@ export const cancelTemplates = [
               row("second cancelled", "hotels", hotelsPath.booking(b.bookingNo), { expect: { status: "cancelled" }, entity: ref("booking", b.bookingNo) }),
               leftAlone("the rest left alone", "hotels", rest.map((x) => ref("booking", x.bookingNo))),
             ),
+            calls: [call("cancel_booking", { bookingNo: b.bookingNo })],
             solve: cancelWhere(hb, b),
           },
           {
@@ -375,6 +394,7 @@ export const cancelTemplates = [
             intent: `How many of their bookings are still confirmed? Answer as JSON: {"confirmed": <number>}.`,
             rubric: R.stepAnswer("how many bookings are still confirmed"),
             oracle: jsonOracle({ confirmed: rest.length }),
+            calls: [],
             answer: async (api) => ({ confirmed: (await api.list("hotels", hotelsPath.bookingsOf(a.guestEmail))).filter((x) => x.status === "confirmed").length }),
           },
         ],
@@ -403,6 +423,7 @@ export const cancelTemplates = [
           intent: `On ${site("sports")}, cancel ${c.name}'s order ${o.orderNo}.`,
           rubric: R.impossible(["sports"], "cancel the order"),
           oracle: stateOracle(...impossibleChecks({ app: "sports", things: [ref("order", o.orderNo)], code: "NOT_CANCELLABLE" })),
+          calls: [],
           solve: (api) => api.attempt("sports", sportsPath.cancel(o.orderNo), {}),
         }],
       };
@@ -429,6 +450,7 @@ export const cancelTemplates = [
           intent: `On ${site("pizza")}, cancel ${o.customerName}'s order ${o.orderNo} for ${o.slotDate}.`,
           rubric: R.impossible(["pizza"], "cancel the order"),
           oracle: stateOracle(...impossibleChecks({ app: "pizza", things: [ref("order", o.orderNo)], code: "ORDER_LOCKED" })),
+          calls: [],
           solve: (api) => api.attempt("pizza", pizzaPath.cancel(o.orderNo), {}),
         }],
       };

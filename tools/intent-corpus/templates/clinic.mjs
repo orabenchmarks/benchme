@@ -17,9 +17,20 @@
  * Claims: a booking or a cancellation changes which slots are free, so every
  * task that depends on, or changes, a day's diary claims that day in its city
  * (`clinic:day:<city>:<date>`). Prices and coverage never change.
+ *
+ * Expected calls: a booking's `book_appointment` with what the task fixes or
+ * has the agent find (the doctor, the date, the earliest free slot, the visit
+ * type, the plan, the patient's email; the patient's name left free); a
+ * cancellation's `cancel_appointment` of the appointment named; a refill's
+ * `request_refill` of the prescription named, at the cheapest pharmacy. Only
+ * `find_doctors` lists the doctors, so a search for one declares it, whatever
+ * its filters; only `get_plan` holds a procedure's coverage, so a visit's cost
+ * declares it.
  */
 import { CLINIC_BUSY, addDays, clinicFindDoctors, clinicFreeSlots, clinicPrescriptionPrices, clinicProcedureCostCents, clinicSlotTimes, shuffle } from "../../../packages/scenarios/dist/index.js";
+import { call, free } from "../calls.mjs";
 import { pick, usd } from "../kit.mjs";
+import { R } from "../rubrics.mjs";
 
 const APP = "clinic";
 const PAGES_AND_TOOLS = ["pages", "tools"];
@@ -117,7 +128,9 @@ export const clinicTemplates = [
         return {
           intent: `On the clinic network site, which ${doctor.specialty} doctor in ${base.city} ${and([...asked(set, p), `has a free appointment on ${date}`])}? Answer as JSON: {"doctor": "<the doctor's code, DR-…>"}.`,
           summary: `The one ${doctor.specialty} doctor in ${base.city} who meets every requirement and has a free slot that day.`,
+          rubric: R.answer([APP], "the doctor who meets every requirement"),
           oracle: { kind: "json", expect: { doctor: matches[0].code } },
+          calls: [call("find_doctors", {})],
           note: `${base.city} ${doctor.specialty} ${date}, ${Object.entries(set).map(([k, v]) => `${k}=${v}`).join(", ")} → ${matches[0].code}; ${doctor.code} meets every requirement but is fully booked`,
           answer: async (api) => ({ doctor: api.only(await api.get(APP, doctorsPath(q))).code }),
           miss: async () => ({ doctor: doctor.code }),
@@ -150,7 +163,9 @@ export const clinicTemplates = [
         return {
           intent: `On the clinic network site, is there a ${doctor.specialty} doctor in ${base.city} who ${and([...asked(set, p), `has a free appointment on ${date}`])}? Also name the doctor who comes closest: of the ${doctor.specialty} doctors in ${base.city} who meet every one of those requirements except being in network for the ${p.name} plan, the one with the lowest ${visit} visit fee. Answer as JSON: {"exists": <true or false>, "closest": "<the doctor's code, DR-…>"}.`,
           summary: `No ${doctor.specialty} doctor in ${base.city} meets every requirement that day; the closest is the cheapest one outside the plan's network.`,
+          rubric: R.answer([APP], "whether any doctor meets every requirement, and the one that comes closest,"),
           oracle: { kind: "json", expect: { exists: false, closest: closest.code } },
+          calls: [call("find_doctors", {})],
           note: `${base.city} ${doctor.specialty} ${date}, ${Object.entries(set).map(([k, v]) => `${k}=${v}`).join(", ")} → none; closest ${closest.code} at ${usd(feeOf(closest, set.visitType))}; ${doctor.code} meets every requirement but is fully booked`,
           answer: async (api) => ({
             exists: (await api.get(APP, doctorsPath(q))).length > 0,
@@ -193,7 +208,9 @@ export const clinicTemplates = [
       return {
         intent: `On the clinic network site, a patient on the ${p.name} plan (${p.code}) has an in-person visit with ${doctor.name} (${doctor.code}) and, at that visit, the ${procedure.name} (${procedure.code}). What do they pay in total for the visit and the procedure, and does their plan require prior authorisation for the procedure? Assume any prior authorisation the plan requires is given. Answer as JSON: {"total": <dollars>, "priorAuthorisation": <true or false>}.`,
         summary: `The visit at the price the plan's network sets for this doctor, plus the patient's share of the procedure under the plan, and whether the plan requires prior authorisation for it.`,
+        rubric: R.answer([APP], "what the patient pays in total, and whether the plan requires prior authorisation for the procedure,"),
         oracle: { kind: "json", expect: { total: { value: total, tolerance: 0.01 }, priorAuthorisation: prior } },
+        calls: [call("get_plan", { planCode: p.code })],
         note: `${doctor.code} is out of network for ${p.code}: fee ${usd(doctor.inPersonFeeCents)} (copay would be ${usd(p.inPersonCopayCents)}) + ${procedure.code} ${cov.coinsurancePct}% of ${usd(procedure.priceCents)} = ${usd(share)}${prior ? ", prior authorisation" : ""} → $${total.toFixed(2)}`,
         answer: async (api) => {
           const { d, pl, line, cost } = await live(api);
@@ -221,10 +238,10 @@ export const clinicTemplates = [
       for (const doctor of r.doctors.filter((d) => d.acceptingNewPatients)) {
         for (let i = 0; i < CLINIC_BUSY.days; i++) {
           const date = addDays(CLINIC_BUSY.from, i);
-          const free = clinicFreeSlots(doctor, r.appointments, date);
-          for (const after of clinicSlotTimes(doctor, date).filter((t) => !free.includes(t))) {
-            const earliest = free.find((t) => t > after);
-            if (earliest && free[0] < after) out.push({ doctor, date, after, earliest, first: free[0], patient: newPatient(out.length) });
+          const open = clinicFreeSlots(doctor, r.appointments, date);
+          for (const after of clinicSlotTimes(doctor, date).filter((t) => !open.includes(t))) {
+            const earliest = open.find((t) => t > after);
+            if (earliest && open[0] < after) out.push({ doctor, date, after, earliest, first: open[0], patient: newPatient(out.length) });
           }
         }
       }
@@ -241,6 +258,7 @@ export const clinicTemplates = [
       return {
         intent: `On the clinic network site, book ${patient.name} (${patient.email}), a new patient on the ${plan.name} plan (${plan.code}), into the earliest free ${visit} appointment with ${doctor.name} (${doctor.code}) on ${date} that starts at ${after} or later.`,
         summary: `${patient.email} has one booked ${visit} appointment with ${doctor.code} on ${date}: the earliest free slot from the time asked, billed to the plan.`,
+        rubric: R.change([APP], "the appointment was booked"),
         oracle: {
           kind: "state",
           checks: [
@@ -254,6 +272,7 @@ export const clinicTemplates = [
             },
           ],
         },
+        calls: [call("book_appointment", body(earliest), { patientName: free })],
         note: `${patient.email} → ${doctor.code} ${date} ${visit}, ${plan.code}: ${after} is taken, earliest free after it ${earliest}; ${first} is free but earlier`,
         solve: async (api) => api.post(APP, "/api/v1/appointments", body((await freeOn(api)).find((t) => t >= after))),
         miss: async (api) => api.post(APP, "/api/v1/appointments", body((await freeOn(api))[0])),
@@ -289,7 +308,9 @@ export const clinicTemplates = [
       return {
         intent: `On the clinic network site, ${target.patientName} (${target.patientEmail}) has several appointments. Cancel only their appointment with ${doctor.name} on ${target.date}, and leave their other appointments as they are.`,
         summary: `${target.patientEmail}'s appointment with ${doctor.code} on ${target.date} is cancelled; their other booked appointments are still booked.`,
+        rubric: R.change([APP], "the appointment was cancelled"),
         oracle: { kind: "state", checks: live.map((a) => ({ name: `${a.appointmentNo}-${status(a)}`, app: APP, path: `/api/v1/appointments/${a.appointmentNo}`, expect: { status: status(a) } })) },
+        calls: [call("cancel_appointment", { appointmentNo: target.appointmentNo })],
         note: `${target.patientEmail}: ${target.appointmentNo} (${doctor.code}, ${target.date}) → cancelled; ${live.filter((a) => a !== target).map((a) => a.appointmentNo).join(", ")} stay booked (${sibling.appointmentNo} is with ${doctor.code} on ${sibling.date})`,
         solve: async (api) => {
           const mine = await api.list(APP, `/api/v1/appointments?patientEmail=${encodeURIComponent(target.patientEmail)}`);
@@ -331,6 +352,7 @@ export const clinicTemplates = [
       return {
         intent: `On the clinic network site, request a refill of ${rx.patientName}'s (${rx.patientEmail}) ${med.name} ${rx.dosage} prescription, to be collected at the pharmacy in the network that charges the least for ${med.name} ${rx.dosage}.`,
         summary: `${rx.patientEmail}'s ${med.name} ${rx.dosage} prescription has one refill requested, at the cheapest pharmacy for it; their other ${med.name} prescription is untouched.`,
+        rubric: R.change([APP], "the refill was requested"),
         oracle: {
           kind: "state",
           checks: [
@@ -339,6 +361,7 @@ export const clinicTemplates = [
             { name: `${other.rxNo}-untouched`, app: APP, path: `/api/v1/prescriptions/${other.rxNo}`, expect: { refillsLeft: other.refillsLeft, refillPending: false } },
           ],
         },
+        calls: [call("request_refill", { rxNo: rx.rxNo, pharmacyCode: best.clinicCode })],
         note: `${rx.patientEmail}: ${rx.rxNo} (${med.code} ${rx.dosage}) → refill at ${best.clinicCode} ${usd(best.priceCents)} (next ${next.clinicCode} ${usd(next.priceCents)}); ${other.rxNo} (${other.dosage}) untouched`,
         solve: (api) => refill(api, rx.dosage),
         miss: (api) => refill(api, other.dosage),

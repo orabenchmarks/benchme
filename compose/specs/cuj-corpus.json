@@ -30,6 +30,14 @@
           "room": "HT-116-FAM"
         }
       },
+      "expectedCall": [
+        {
+          "functionName": "get_hotel",
+          "arguments": {
+            "hotelCode": "HT-116"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -132,6 +140,12 @@
           "stepFree": true
         }
       },
+      "expectedCall": [
+        {
+          "functionName": "list_offices",
+          "arguments": {}
+        }
+      ],
       "steps": []
     }
   },
@@ -166,6 +180,12 @@
           "listing": "LS-3192"
         }
       },
+      "expectedCall": [
+        {
+          "functionName": "search_listings",
+          "arguments": {}
+        }
+      ],
       "steps": []
     }
   },
@@ -370,6 +390,12 @@
           "doctor": "DR-223"
         }
       },
+      "expectedCall": [
+        {
+          "functionName": "find_doctors",
+          "arguments": {}
+        }
+      ],
       "steps": []
     }
   },
@@ -406,6 +432,14 @@
           }
         }
       },
+      "expectedCall": [
+        {
+          "functionName": "get_hotel",
+          "arguments": {
+            "hotelCode": "HT-112"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -478,6 +512,12 @@
           }
         }
       },
+      "expectedCall": [
+        {
+          "functionName": "get_prescription_prices",
+          "arguments": {}
+        }
+      ],
       "steps": []
     }
   },
@@ -550,6 +590,14 @@
           }
         }
       },
+      "expectedCall": [
+        {
+          "functionName": "get_hotel",
+          "arguments": {
+            "hotelCode": "HT-132"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -824,6 +872,12 @@
           }
         }
       },
+      "expectedCall": [
+        {
+          "functionName": "get_store_policies",
+          "arguments": {}
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -1208,6 +1262,18 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "roomCode": "HT-116-KNG",
+            "checkIn": "2027-10-04",
+            "nights": 3,
+            "adults": 2,
+            "guestEmail": "keira.greystone.52953@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -1286,6 +1352,17 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "request_viewing",
+          "arguments": {
+            "listingCode": "LS-3165",
+            "date": "2027-06-07",
+            "time": "10:00",
+            "viewerEmail": "aurelie.everhart.70175@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -1366,6 +1443,19 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "book_appointment",
+          "arguments": {
+            "doctorCode": "DR-222",
+            "date": "2027-08-18",
+            "time": "09:00",
+            "visitType": "in-person",
+            "planCode": "PL-11",
+            "patientEmail": "ottilie.ingram.13949@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -1449,6 +1539,15 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "register_for_event",
+          "arguments": {
+            "eventCode": "EV-1068",
+            "email": "aurelie.juniper.41323@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -1529,6 +1628,24 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "flightNo": "SZ445",
+            "date": "2027-05-23",
+            "passengers": [
+              {
+                "$type": "string"
+              },
+              {
+                "$type": "string"
+              }
+            ],
+            "contactEmail": "hollis.ingram.15142@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -1609,6 +1726,19 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_reservation",
+          "arguments": {
+            "restaurantCode": "RS-110",
+            "area": "indoor",
+            "date": "2027-10-25",
+            "time": "19:00",
+            "partySize": 6,
+            "guestEmail": "greer.everhart.67369@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -1687,6 +1817,23 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "place_order",
+          "arguments": {
+            "branchCode": "BR-103",
+            "lines": [
+              {
+                "pizzaCode": "PZ-103",
+                "size": "large"
+              }
+            ],
+            "slotDate": "2027-09-17",
+            "slotTime": "18:30",
+            "customerEmail": "mireille.ashdown.83379@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -1777,6 +1924,28 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "showtimeCode": "ST-2129",
+            "seats": [
+              {
+                "$pattern": "^(?:D1|D2|D3)$"
+              },
+              {
+                "$pattern": "^(?:D1|D2|D3)$"
+              },
+              {
+                "$pattern": "^(?:D1|D2|D3)$"
+              }
+            ],
+            "adult": 2,
+            "child": 1,
+            "customerEmail": "quinta.everhart.94011@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -1864,6 +2033,21 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "place_order",
+          "arguments": {
+            "customerEmail": "danae.ferrante@example.org",
+            "addressCode": "AD-1021",
+            "lines": [
+              {
+                "sku": "SP-113-RED-M",
+                "qty": 1
+              }
+            ]
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -1948,6 +2132,31 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "showtimeCode": "ST-2111",
+            "seats": [
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              },
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              },
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              },
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              }
+            ],
+            "adult": 3,
+            "child": 1,
+            "customerEmail": "nolan.juniper.64404@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -2024,6 +2233,24 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "place_order",
+          "arguments": {
+            "branchCode": "BR-102",
+            "lines": [
+              {
+                "pizzaCode": "PZ-101",
+                "size": "medium",
+                "quantity": 3
+              }
+            ],
+            "slotDate": "2027-05-10",
+            "customerEmail": "ottilie.brightwell.14001@journeys.example",
+            "slotTime": "19:30"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -2096,6 +2323,21 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "flightNo": "EM693",
+            "date": "2027-05-24",
+            "passengers": [
+              {
+                "$type": "string"
+              }
+            ],
+            "contactEmail": "mireille.corrigan.32803@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -2148,7 +2390,22 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "create_booking",
+              "arguments": {
+                "flightNo": "QE737",
+                "date": "2027-05-28",
+                "passengers": [
+                  {
+                    "$type": "string"
+                  }
+                ],
+                "contactEmail": "mireille.corrigan.32803@journeys.example"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -2243,6 +2500,15 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "register_for_event",
+          "arguments": {
+            "eventCode": "EV-1081",
+            "email": "tamsin.everhart.30934@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -2585,6 +2851,15 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "change_reservation",
+          "arguments": {
+            "reservationNo": "RV-10160",
+            "time": "19:30"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -2691,6 +2966,15 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "change_reservation",
+          "arguments": {
+            "reservationNo": "RV-10117",
+            "partySize": 2
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -2865,6 +3149,16 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "change_order_line",
+          "arguments": {
+            "orderNo": "PO-10072",
+            "line": 1,
+            "size": "xlarge"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -3046,6 +3340,17 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "change_event",
+          "arguments": {
+            "eventCode": "EV-1060",
+            "organiserEmail": "ilsa.kowalczyk@staff.example",
+            "startTime": "13:30",
+            "endTime": "14:30"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -3170,6 +3475,16 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "change_reservation",
+          "arguments": {
+            "reservationNo": "RV-10084",
+            "partySize": 5,
+            "area": "indoor"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -3351,6 +3666,16 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "change_event",
+          "arguments": {
+            "eventCode": "EV-1038",
+            "organiserEmail": "vesna.halvard@staff.example",
+            "roomCode": "QUI-R4"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -3524,6 +3849,16 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "change_order_line",
+          "arguments": {
+            "orderNo": "PO-10075",
+            "line": 1,
+            "size": "large"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -3648,6 +3983,15 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "change_reservation",
+          "arguments": {
+            "reservationNo": "RV-10125",
+            "time": "20:30"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -3722,6 +4066,16 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "change_order_line",
+          "arguments": {
+            "orderNo": "PO-10111",
+            "line": 1,
+            "size": "small"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -3824,7 +4178,16 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_order_line",
+              "arguments": {
+                "orderNo": "PO-10111",
+                "line": 1
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -3972,6 +4335,16 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "change_event",
+          "arguments": {
+            "eventCode": "EV-1078",
+            "organiserEmail": "vesna.kowalczyk@staff.example",
+            "roomCode": "TES-R2"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -4069,6 +4442,15 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "change_event",
+          "arguments": {
+            "eventCode": "EV-1019",
+            "organiserEmail": "orrin.thorsby@staff.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -4099,7 +4481,18 @@
                 }
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_event",
+              "arguments": {
+                "eventCode": "EV-1019",
+                "organiserEmail": "orrin.thorsby@staff.example",
+                "startTime": "10:30",
+                "endTime": "12:00"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -4129,7 +4522,17 @@
                 }
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_event",
+              "arguments": {
+                "eventCode": "EV-1019",
+                "organiserEmail": "orrin.thorsby@staff.example",
+                "roomCode": "TES-R4"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -4161,7 +4564,16 @@
                 }
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_event",
+              "arguments": {
+                "eventCode": "EV-1019",
+                "organiserEmail": "orrin.thorsby@staff.example"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -4251,7 +4663,18 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_event",
+              "arguments": {
+                "eventCode": "EV-1019",
+                "organiserEmail": "orrin.thorsby@staff.example",
+                "registration": "open",
+                "places": 2
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -4653,6 +5076,14 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "cancel_booking",
+          "arguments": {
+            "bookingNo": "BK-10162"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -4782,6 +5213,14 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "cancel_viewing",
+          "arguments": {
+            "viewingNo": "VW-1134"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -4920,6 +5359,14 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "cancel_appointment",
+          "arguments": {
+            "appointmentNo": "AP-30014"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -5118,6 +5565,14 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "cancel_booking",
+          "arguments": {
+            "bookingNo": "TK-30026"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -5217,6 +5672,14 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "cancel_booking",
+          "arguments": {
+            "bookingNo": "BK-10130"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -5340,6 +5803,12 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "cancel_registration",
+          "arguments": {}
+        }
+      ],
       "steps": []
     }
   },
@@ -5451,6 +5920,14 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "cancel_order",
+          "arguments": {
+            "orderNo": "PO-10135"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -5586,6 +6063,14 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "cancel_appointment",
+          "arguments": {
+            "appointmentNo": "AP-30093"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -5703,6 +6188,14 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "cancel_reservation",
+          "arguments": {
+            "reservationNo": "RV-10185"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -5765,6 +6258,14 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "cancel_booking",
+          "arguments": {
+            "bookingNo": "BK-10146"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -5855,7 +6356,15 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "cancel_booking",
+              "arguments": {
+                "bookingNo": "BK-10124"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -6159,6 +6668,17 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "request_return",
+          "arguments": {
+            "orderNo": "ORD-10019",
+            "sku": "SP-115-BLK-S",
+            "qty": 1,
+            "reason": "too small"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -6215,7 +6735,22 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "place_order",
+              "arguments": {
+                "customerEmail": "lior.ferrante@example.org",
+                "addressCode": "AD-1033",
+                "lines": [
+                  {
+                    "sku": "SP-115-BLK-M",
+                    "qty": 1
+                  }
+                ]
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -6314,6 +6849,17 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "request_return",
+          "arguments": {
+            "orderNo": "ORD-10018",
+            "sku": "SP-116-GRY-S",
+            "qty": 2,
+            "reason": "no longer needed"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -6391,6 +6937,17 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "request_return",
+          "arguments": {
+            "orderNo": "ORD-10022",
+            "sku": "SP-115-BLU-L",
+            "qty": 2,
+            "reason": "too large"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -6475,6 +7032,15 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "request_refill",
+          "arguments": {
+            "rxNo": "RX-60033",
+            "pharmacyCode": "CL-13"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -6761,6 +7327,15 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "request_refill",
+          "arguments": {
+            "rxNo": "RX-60055",
+            "pharmacyCode": "CL-14"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -6845,6 +7420,15 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "request_refill",
+          "arguments": {
+            "rxNo": "RX-60046",
+            "pharmacyCode": "CL-11"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -7274,6 +7858,19 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "roomCode": "HT-108-DBL",
+            "checkIn": "2027-10-18",
+            "nights": 2,
+            "adults": 2,
+            "kids": 1,
+            "guestEmail": "aurelie.ashdown.10619@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -7357,6 +7954,23 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "showtimeCode": "ST-2002",
+            "seats": [
+              {
+                "$pattern": "^(?:E1|E2)$"
+              },
+              {
+                "$pattern": "^(?:E1|E2)$"
+              }
+            ],
+            "customerEmail": "pascal.juniper.56458@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -7435,6 +8049,17 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "request_viewing",
+          "arguments": {
+            "listingCode": "LS-3138",
+            "date": "2027-06-09",
+            "time": "10:00",
+            "viewerEmail": "dorian.greystone.45414@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -7514,6 +8139,24 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "flightNo": "TF979",
+            "date": "2027-04-11",
+            "passengers": [
+              {
+                "$type": "string"
+              },
+              {
+                "$type": "string"
+              }
+            ],
+            "contactEmail": "imogen.holloway.78603@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -7594,6 +8237,19 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_reservation",
+          "arguments": {
+            "restaurantCode": "RS-117",
+            "area": "terrace",
+            "date": "2027-05-14",
+            "time": "19:00",
+            "partySize": 4,
+            "guestEmail": "calla.holloway.12581@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -7673,6 +8329,18 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "roomCode": "HT-132-DBL",
+            "checkIn": "2027-11-08",
+            "nights": 3,
+            "adults": 2,
+            "guestEmail": "hollis.brightwell.54386@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -7753,6 +8421,25 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "flightNo": "QE615",
+            "date": "2027-03-18",
+            "passengers": [
+              {
+                "$type": "string"
+              },
+              {
+                "$type": "string"
+              }
+            ],
+            "bags": 2,
+            "contactEmail": "keira.corrigan.52305@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -7833,6 +8520,18 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "roomCode": "HT-107-SGL",
+            "checkIn": "2027-11-22",
+            "nights": 2,
+            "pets": 1,
+            "guestEmail": "calla.brightwell.88989@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -7917,6 +8616,26 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "showtimeCode": "ST-2052",
+            "seats": [
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              },
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              },
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              }
+            ],
+            "customerEmail": "lucan.everhart.60326@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -8039,6 +8758,35 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "flightNo": "QE130",
+            "date": "2027-06-02",
+            "passengers": [
+              {
+                "$type": "string"
+              },
+              {
+                "$type": "string"
+              }
+            ],
+            "bags": 2,
+            "contactEmail": "lucan.delacourt.51282@journeys.example"
+          }
+        },
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "roomCode": "HT-120-DBL",
+            "checkIn": "2027-06-02",
+            "nights": 2,
+            "adults": 2,
+            "guestEmail": "lucan.delacourt.51282@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -8104,6 +8852,32 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "showtimeCode": "ST-2095",
+            "seats": [
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              },
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              },
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              },
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              },
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              }
+            ],
+            "customerEmail": "jasper.ashdown.57824@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -8181,7 +8955,20 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "create_reservation",
+              "arguments": {
+                "restaurantCode": "RS-126",
+                "area": "indoor",
+                "date": "2027-05-15",
+                "time": "21:30",
+                "partySize": 5,
+                "guestEmail": "jasper.ashdown.57824@journeys.example"
+              }
+            }
+          ]
         }
       ]
     }
@@ -8511,6 +9298,14 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "cancel_booking",
+          "arguments": {
+            "bookingNo": "BK-10060"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -8606,6 +9401,17 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "request_viewing",
+          "arguments": {
+            "listingCode": "LS-3110",
+            "date": "2027-06-19",
+            "time": "11:30",
+            "viewerEmail": "maren.prewitt5@mail.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -8699,6 +9505,15 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "request_refill",
+          "arguments": {
+            "rxNo": "RX-60003",
+            "pharmacyCode": "CL-12"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -8806,6 +9621,14 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "cancel_booking",
+          "arguments": {
+            "bookingNo": "BK-10028"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -8901,6 +9724,23 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "place_order",
+          "arguments": {
+            "branchCode": "BR-104",
+            "lines": [
+              {
+                "pizzaCode": "PZ-101",
+                "size": "xlarge"
+              }
+            ],
+            "slotDate": "2027-09-24",
+            "slotTime": "19:00",
+            "customerEmail": "bram.larrabee7@example.org"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -8998,6 +9838,19 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_reservation",
+          "arguments": {
+            "restaurantCode": "RS-104",
+            "date": "2027-10-29",
+            "time": "19:30",
+            "partySize": 6,
+            "guestEmail": "quill.voss8@example.com",
+            "area": "indoor"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -9111,6 +9964,23 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "showtimeCode": "ST-2040",
+            "seats": [
+              {
+                "$pattern": "^(?:A1|A2)$"
+              },
+              {
+                "$pattern": "^(?:A1|A2)$"
+              }
+            ],
+            "customerEmail": "imogen.corrigan.41855@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -9224,6 +10094,15 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "register_for_event",
+          "arguments": {
+            "eventCode": "EV-1073",
+            "email": "greer.corrigan.27821@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -9333,6 +10212,18 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "book_appointment",
+          "arguments": {
+            "doctorCode": "DR-204",
+            "date": "2027-09-22",
+            "time": "11:30",
+            "visitType": "in-person",
+            "patientEmail": "quinta.holloway.65447@journeys.example"
+          }
+        }
+      ],
       "steps": []
     }
   },
@@ -9428,6 +10319,26 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "showtimeCode": "ST-2091",
+            "seats": [
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              },
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              },
+              {
+                "$pattern": "^[A-Z][0-9]+$"
+              }
+            ],
+            "customerEmail": "keira.holloway.71977@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -9534,7 +10445,19 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "create_reservation",
+              "arguments": {
+                "restaurantCode": "RS-119",
+                "date": "2027-05-15",
+                "time": "21:30",
+                "partySize": 3,
+                "guestEmail": "keira.holloway.71977@journeys.example"
+              }
+            }
+          ]
         }
       ]
     }
@@ -9855,6 +10778,19 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_reservation",
+          "arguments": {
+            "restaurantCode": "RS-112",
+            "area": "indoor",
+            "date": "2027-11-05",
+            "time": "19:00",
+            "partySize": 4,
+            "guestEmail": "lucan.delacourt.73838@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -9954,6 +10890,23 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "place_order",
+          "arguments": {
+            "branchCode": "BR-109",
+            "lines": [
+              {
+                "pizzaCode": "PZ-101",
+                "size": "xlarge"
+              }
+            ],
+            "slotDate": "2027-10-08",
+            "slotTime": "18:00",
+            "customerEmail": "florian.fairbanks.39224@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -10039,6 +10992,18 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "roomCode": "HT-119-KNG",
+            "checkIn": "2027-11-15",
+            "nights": 3,
+            "adults": 2,
+            "guestEmail": "keira.ingram.35061@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -10067,7 +11032,19 @@
                 }
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "create_booking",
+              "arguments": {
+                "roomCode": "HT-119-DBL",
+                "checkIn": "2027-11-15",
+                "nights": 3,
+                "adults": 2,
+                "guestEmail": "keira.ingram.35061@journeys.example"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -10141,7 +11118,17 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "cancel_booking",
+              "arguments": {
+                "bookingNo": {
+                  "$pattern": "^BK-\\d+$"
+                }
+              }
+            }
+          ]
         }
       ]
     }
@@ -10214,6 +11201,26 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_event",
+          "arguments": {
+            "date": "2027-11-10",
+            "startTime": "14:00",
+            "endTime": "15:00",
+            "roomCode": "VEL-R2",
+            "organiserEmail": "teodor.larrabee@staff.example",
+            "guestEmails": [
+              {
+                "$pattern": "^(?:vesna\\.halvard@staff\\.example|teodor\\.kowalczyk@staff\\.example)$"
+              },
+              {
+                "$pattern": "^(?:vesna\\.halvard@staff\\.example|teodor\\.kowalczyk@staff\\.example)$"
+              }
+            ]
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -10247,7 +11254,18 @@
                 }
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_event",
+              "arguments": {
+                "eventCode": {
+                  "$pattern": "^EV-\\d+$"
+                },
+                "organiserEmail": "teodor.larrabee@staff.example"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -10344,7 +11362,18 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_event",
+              "arguments": {
+                "eventCode": {
+                  "$pattern": "^EV-\\d+$"
+                },
+                "organiserEmail": "teodor.larrabee@staff.example"
+              }
+            }
+          ]
         }
       ]
     }
@@ -10441,6 +11470,19 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_reservation",
+          "arguments": {
+            "restaurantCode": "RS-122",
+            "area": "indoor",
+            "date": "2027-11-12",
+            "time": "19:00",
+            "partySize": 4,
+            "guestEmail": "benedikt.fairbanks.97752@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -10461,7 +11503,18 @@
                 "after": "booked"
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_reservation",
+              "arguments": {
+                "reservationNo": {
+                  "$pattern": "^RV-\\d+$"
+                },
+                "partySize": 6
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -10495,7 +11548,18 @@
                 }
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_reservation",
+              "arguments": {
+                "reservationNo": {
+                  "$pattern": "^RV-\\d+$"
+                },
+                "area": "private"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -10529,7 +11593,18 @@
                 }
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_reservation",
+              "arguments": {
+                "reservationNo": {
+                  "$pattern": "^RV-\\d+$"
+                },
+                "time": "20:00"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -10589,7 +11664,18 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_reservation",
+              "arguments": {
+                "reservationNo": {
+                  "$pattern": "^RV-\\d+$"
+                },
+                "partySize": 4
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -10696,6 +11782,26 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_event",
+          "arguments": {
+            "date": "2027-11-17",
+            "startTime": "10:00",
+            "endTime": "11:00",
+            "organiserEmail": "ilsa.voss@staff.example",
+            "roomCode": "BRE-R3",
+            "guestEmails": [
+              {
+                "$pattern": "^(?:danae\\.voss@staff\\.example|ilsa\\.mbeki@staff\\.example)$"
+              },
+              {
+                "$pattern": "^(?:danae\\.voss@staff\\.example|ilsa\\.mbeki@staff\\.example)$"
+              }
+            ]
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -10730,7 +11836,18 @@
                 }
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_event",
+              "arguments": {
+                "eventCode": {
+                  "$pattern": "^EV-\\d+$"
+                },
+                "organiserEmail": "ilsa.voss@staff.example"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -10763,7 +11880,19 @@
                 }
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_event",
+              "arguments": {
+                "eventCode": {
+                  "$pattern": "^EV-\\d+$"
+                },
+                "organiserEmail": "ilsa.voss@staff.example",
+                "roomCode": "BRE-R2"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -10797,7 +11926,20 @@
                 }
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_event",
+              "arguments": {
+                "eventCode": {
+                  "$pattern": "^EV-\\d+$"
+                },
+                "organiserEmail": "ilsa.voss@staff.example",
+                "startTime": "11:00",
+                "endTime": "12:00"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -10895,7 +12037,18 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_event",
+              "arguments": {
+                "eventCode": {
+                  "$pattern": "^EV-\\d+$"
+                },
+                "organiserEmail": "ilsa.voss@staff.example"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -11000,6 +12153,27 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "place_order",
+          "arguments": {
+            "branchCode": "BR-105",
+            "lines": [
+              {
+                "pizzaCode": "PZ-104",
+                "size": "medium"
+              },
+              {
+                "pizzaCode": "PZ-114",
+                "size": "medium"
+              }
+            ],
+            "slotDate": "2027-10-22",
+            "slotTime": "18:30",
+            "customerEmail": "dorian.fairbanks.87330@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -11020,7 +12194,19 @@
                 "after": "ordered"
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_order_line",
+              "arguments": {
+                "orderNo": {
+                  "$pattern": "^PO-\\d+$"
+                },
+                "line": 2,
+                "size": "large"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -11041,7 +12227,18 @@
                 "after": "second made large"
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_order_line",
+              "arguments": {
+                "orderNo": {
+                  "$pattern": "^PO-\\d+$"
+                },
+                "line": 1
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -11078,7 +12275,19 @@
                 }
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_order_line",
+              "arguments": {
+                "orderNo": {
+                  "$pattern": "^PO-\\d+$"
+                },
+                "line": 2,
+                "size": "medium"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -11153,7 +12362,18 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "change_order_line",
+              "arguments": {
+                "orderNo": {
+                  "$pattern": "^PO-\\d+$"
+                },
+                "line": 1
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -11229,6 +12449,19 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_reservation",
+          "arguments": {
+            "restaurantCode": "RS-121",
+            "area": "indoor",
+            "date": "2027-11-19",
+            "time": "19:30",
+            "partySize": 4,
+            "guestEmail": "sorrel.fairbanks.91613@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -11442,6 +12675,17 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "roomCode": "HT-103-FAM",
+            "checkIn": "2027-04-01",
+            "nights": 2,
+            "guestEmail": "benedikt.everhart.27340@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -11692,7 +12936,19 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "create_booking",
+              "arguments": {
+                "roomCode": "HT-118-KNG",
+                "checkIn": "2027-03-06",
+                "nights": 2,
+                "adults": 2,
+                "guestEmail": "jasper.juniper.63228@journeys.example"
+              }
+            }
+          ]
         }
       ]
     }
@@ -11767,6 +13023,21 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "flightNo": "TF805",
+            "date": "2027-05-15",
+            "passengers": [
+              {
+                "$type": "string"
+              }
+            ],
+            "contactEmail": "keira.ingram.67813@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -11837,7 +13108,18 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "create_booking",
+              "arguments": {
+                "roomCode": "HT-118-SGL",
+                "checkIn": "2027-05-15",
+                "nights": 3,
+                "guestEmail": "keira.ingram.67813@journeys.example"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -11921,6 +13203,15 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "register_for_event",
+          "arguments": {
+            "eventCode": "EV-1062",
+            "email": "ottilie.holloway.71041@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -11998,7 +13289,20 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "create_reservation",
+              "arguments": {
+                "restaurantCode": "RS-103",
+                "area": "indoor",
+                "date": "2027-04-12",
+                "time": "17:30",
+                "partySize": 2,
+                "guestEmail": "ottilie.holloway.71041@journeys.example"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -12093,6 +13397,25 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "flightNo": "TF754",
+            "date": "2027-04-17",
+            "passengers": [
+              {
+                "$type": "string"
+              },
+              {
+                "$type": "string"
+              }
+            ],
+            "bags": 1,
+            "contactEmail": "pascal.everhart.33534@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -12121,7 +13444,26 @@
                 }
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "create_booking",
+              "arguments": {
+                "flightNo": "TF187",
+                "date": "2027-04-20",
+                "passengers": [
+                  {
+                    "$type": "string"
+                  },
+                  {
+                    "$type": "string"
+                  }
+                ],
+                "bags": 1,
+                "contactEmail": "pascal.everhart.33534@journeys.example"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -12192,7 +13534,19 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "create_booking",
+              "arguments": {
+                "roomCode": "HT-122-DBL",
+                "checkIn": "2027-04-18",
+                "nights": 2,
+                "adults": 2,
+                "guestEmail": "pascal.everhart.33534@journeys.example"
+              }
+            }
+          ]
         },
         {
           "oracle": {
@@ -12268,6 +13622,15 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "register_for_event",
+          "arguments": {
+            "eventCode": "EV-1053",
+            "email": "quinta.greystone.85423@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -12345,7 +13708,20 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "create_reservation",
+              "arguments": {
+                "restaurantCode": "RS-105",
+                "area": "indoor",
+                "date": "2027-04-06",
+                "time": "17:00",
+                "partySize": 2,
+                "guestEmail": "quinta.greystone.85423@journeys.example"
+              }
+            }
+          ]
         }
       ]
     }
@@ -12412,6 +13788,23 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "showtimeCode": "ST-2072",
+            "seats": [
+              {
+                "$pattern": "^B[0-9]+$"
+              },
+              {
+                "$pattern": "^B[0-9]+$"
+              }
+            ],
+            "customerEmail": "quinta.everhart.92343@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -12488,7 +13881,19 @@
                 ]
               }
             ]
-          }
+          },
+          "expectedCall": [
+            {
+              "functionName": "create_booking",
+              "arguments": {
+                "roomCode": "HT-114-DBL",
+                "checkIn": "2027-05-15",
+                "nights": 1,
+                "adults": 2,
+                "guestEmail": "quinta.everhart.92343@journeys.example"
+              }
+            }
+          ]
         }
       ]
     }
@@ -12554,6 +13959,21 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "flightNo": "EM153",
+            "date": "2027-04-24",
+            "passengers": [
+              {
+                "$type": "string"
+              }
+            ],
+            "contactEmail": "nolan.ingram.94208@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {
@@ -12772,6 +14192,17 @@
           }
         ]
       },
+      "expectedCall": [
+        {
+          "functionName": "create_booking",
+          "arguments": {
+            "roomCode": "HT-105-DBL",
+            "checkIn": "2027-06-28",
+            "nights": 3,
+            "guestEmail": "dorian.ingram.82842@journeys.example"
+          }
+        }
+      ],
       "steps": [
         {
           "oracle": {

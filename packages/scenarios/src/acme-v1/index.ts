@@ -18,6 +18,14 @@ export const ACME_V1_SIZES = { products: 120, customers: 40, orders: 300, transf
 export const acmeV1: Scenario = {
   key: "acme-v1",
   description: "Industrial-supply company: 120 products across 4 depots, 40 customers, 300 orders, 60 transfers, a helpdesk with 8 agents and 150 tickets, a document vault of ~40 documents.",
+  title: "An industrial-supply company",
+  about:
+    "A small industrial-supply company and the apps it runs on: a warehouse (products, stock in four depots, customers, orders, transfers), a helpdesk (tickets, agents, SLAs), a document vault and the company's public site. Its tasks are what a person types into those apps: find what is in stock, cancel an order, move stock between depots, reassign or close a ticket, quote a policy. A task that changes something is checked afterwards by what the apps hold, and one that asks for an answer by its answer document.",
+  sites: ["warehouse", "helpdesk", "vaultdocs", "data", "mail"],
+  docs: {
+    page: "compose/specs/README.md#the-intent-corpus-intent-json",
+    corpus: { tasks: 163, seed: 4242, public: "compose/specs/intent-tasks.json", keyed: "compose/specs/intent-corpus.json", derivations: "compose/specs/intent-tasks.md" },
+  },
   generate(seed: number): ScenarioRows {
     const rng = minstd(seed);
     const company = {

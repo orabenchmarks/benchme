@@ -37,8 +37,8 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | path | what |
 | --- | --- |
 | `packages/core` | config, http (healthz/readyz), ids, receipts (HMAC), pg + migrations, redis, the workspace model, the doors and the headers the gateway signs |
-| `packages/scenarios` | seeded generators (`acme-v1`, `shops-v1`, `guide-v1`, `web-v1`, `webmcp-v1`, `cuj-v1`) and the derived ground truths |
-| `apps/gateway` | workspace API, signed reverse proxy (it decides each request's doors: see [Doors](#doors)), portal + MCP registry, reaper |
+| `packages/scenarios` | seeded generators (`acme-v1`, `shops-v1`, `guide-v1`, `web-v1`, `webmcp-v1`, `cuj-v1`) and the derived ground truths; each scenario also says what it is (`title`, `about`, `docs`: its write-up and corpus files), which the gateway's front page shows, and a test holds its task counts and links to the repository |
+| `apps/gateway` | workspace API, signed reverse proxy (it decides each request's doors: see [Doors](#doors)), the front page (a searchable card for every scenario, with its sites, its doors and the command that mints one) + MCP registry, reaper |
 | `packages/site-kit` | what every site shares: the gateway-scope hook, signup/verify/login + sessions + api tokens, the MCP server plumbing, the page shell, the doors and the change ledger (see [The change ledger](#the-change-ledger)) |
 | `apps/warehouse` | products, stock, orders, transfers: SSR UI, REST v1, a 14-tool MCP server, NLWeb `/ask`, WebMCP |
 | `apps/helpdesk` | tickets, comments, SLAs, assignment: SSR UI, REST v1, an 11-tool MCP server (with a destructive `delete_ticket`), NLWeb `/ask`, WebMCP |
@@ -397,7 +397,35 @@ its answer keys are `intent-<kind>-NN.json` like every other), and
 `node tools/intent-integrity.mjs --scenario webmcp-v1` proves it against a
 live benchme.
 Those suites grade the tool calls an agent makes; these tasks grade the answer
-or the site's end state, so any door can be used.
+or the site's end state, so any door can be used. Each record also carries
+what a judge and a check of the calls need:
+
+```jsonc
+// webmcp-tasks.json: what an agent may be shown
+{ "id": "intent-stay-book-01", "surfaces": ["pages", "tools"], "app": "hotels", "intent": "…",
+  "rubric": ["The reply says the room was booked and …", "…", "…"],   // 2 to 6 judge criteria
+  "oracle": "state", "summary": "…" }
+// webmcp-corpus.json: the same, with the answer key
+  "key": { "blind": false, "oracle": { … },                            // the verifier's spec
+           "expectedCall": [ { "functionName": "create_booking",       // the calls every correct solution makes
+                               "arguments": { "roomCode": "HT-123-DBL", "checkIn": "2027-05-17", "nights": 3, "kids": 1,
+                                              "guestEmail": "emeric.fairweather@travel.example" } } ] }
+```
+
+The criteria (`rubric`, right after `intent`) follow cuj-v1's rules
+([Rubrics](docs/scenarios/cuj-v1.md#rubrics)): they judge what a check cannot
+(the reply is true to what was done, nothing else was done, the agent stayed
+on the site) and name no door, tool or value. `key.expectedCall`, present when
+a task has any, holds the site tool calls every correct solution through the
+tools must make, in webmcp-evals' own shape, with webmcp-evals' constraints
+for what may vary; the rule and the form are in
+[Expected calls](docs/scenarios/cuj-v1.md#expected-calls). Both corpora's calls
+are also webmcp-evals suites, `compose/specs/webmcp-v1.webmcp-evals.json` and
+`compose/specs/cuj-v1.webmcp-evals.json` (one case per task, or per step, that
+has calls). Like the keys they are answer-key material: a call can name what
+the task has the agent find. `node tools/intent-integrity.mjs` proves the calls
+too: in a second workspace, every task done with nothing but its calls, through
+MCP, passes.
 
 The same nine sites, with the same rows, are the `cuj-v1` scenario's, which
 adds the accounts some of their people already have, and gives all of their
@@ -454,6 +482,16 @@ mailed to the workspace inbox and has to be read there: the mail app has the
 same two reads as tools (`list_messages`, `get_message`), on its MCP server
 and on its pages.
 
+A code can be tried five times (`CODE_ATTEMPTS` in `@benchme/site-kit`), so it
+cannot be guessed. After five wrong ones it no longer works, not even the
+right one: verifying is refused with `TOO_MANY_ATTEMPTS` (429 on the pages),
+through every door. Signing up again with an email that is not verified yet
+mails a new code, with every try back, and takes the new password and name.
+A verified account cannot be signed up again (`EXISTS`). Every site with
+sign-ups counts the tries in its `verification_codes` table (migration
+`NNN_verification_attempts` in each app, applied by the migrate Job like any
+other).
+
 - **MCP.** The server gives a client an `Mcp-Session-Id` when it initializes,
   as the protocol provides, and a client repeats it on every request. `sign_in`
   keeps the session under that id, so the connection stays signed in and no
@@ -482,9 +520,10 @@ holds them.
 
 The signing-up steps are in the ledger as `auth` entries (`sign_up`,
 `verify`, `sign_in`, `sign_out`, `issue_token` on entity `account`, the id
-its email), made or refused (`EXISTS`, `BAD_CODE`, `BAD_CREDENTIALS`,
-`UNVERIFIED`). They are not writes: an account is not a change to what the
-site sells.
+its email), made or refused (`EXISTS`, `BAD_CODE`, `TOO_MANY_ATTEMPTS`,
+`BAD_CREDENTIALS`, `UNVERIFIED`). They are not writes: an account is not a
+change to what the site sells. A refused `verify` still spent a try, and the
+try is kept with its entry.
 
 ### The change ledger
 
@@ -1463,7 +1502,7 @@ verifier and the reaper — comes up with Docker Compose:
 
 ```bash
 docker compose up -d                 # images from ghcr.io/orabenchmarks at BENCHME_VERSION
-open http://localhost:8080           # the portal; POST /api/workspaces to mint a workspace
+open http://localhost:8080           # the front page: every scenario, and how to mint a workspace of it
 docker compose down -v               # stop and drop the database volume
 ```
 
@@ -1489,6 +1528,22 @@ docker compose down -v               # stop and drop the database volume
   keeps working.
 
 ## Release
+
+_Chart 0.13.0: a front page for choosing a scenario (the gateway's `/`): a
+search over every scenario's title, description, sites and doors, one card per
+scenario with its sites by name, the doors this deployment serves it through,
+its corpus and docs, and a copyable command that mints a workspace. A sign-up's
+emailed code takes five tries, through every door: after five wrong codes even
+the right one is refused (`TOO_MANY_ATTEMPTS`), and signing up again with an
+address not yet verified mails a new code (a migration per site with
+sign-ups). Every `webmcp-v1` task now carries a rubric, and every step of both
+`webmcp-v1` and `cuj-v1` whose correct solution must call a site tool carries
+those calls in its key (`expectedCall`, the webmcp-evals shape), proven against
+each site's tool schemas and by a live pass that does each task with its calls
+alone; `compose/specs/*.webmcp-evals.json` are the same calls as webmcp-evals
+suites. For npm users: `Scenario` gains required `title`, `about` and `docs`,
+and `UsersRepo`'s `consumeVerificationCode` becomes `tryVerificationCode`. No
+new image and no new secret._
 
 _Chart 0.12.0: a deployment, and each workspace, chooses its doors (§ Doors):
 `BENCHME_DOORS` on the gateway (the chart's `doors` value), and `doors` on
