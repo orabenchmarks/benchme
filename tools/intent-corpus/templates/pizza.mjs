@@ -19,9 +19,20 @@
  * and price questions depend on stock and prices, which no task writes; they
  * claim their branch only to spread over branches (and the two menu kinds
  * never ask the same branch, size and filter).
+ *
+ * Expected calls: an order's `place_order` with what the task fixes or has the
+ * agent find (the branch, the slot, the menu pizza, its size, crust and
+ * quantity, its topping set in any order, the customer's email; the name left
+ * free); a topping taken off is `change_order_line` of the order and line
+ * named, which a run may say by what goes (`removeToppings`) or by what stays
+ * (`toppings`), so neither is published. A price is in a quote and in the menu
+ * with the branch's fees, and a menu question is answered by a search or by
+ * the menu itself, so no question declares a call.
  */
 import { PIZZA_CHEESES, PIZZA_CRUSTS, PIZZA_SAUCES, addDays, pizzaChangeLine, pizzaDeliveryFeeCents, pizzaMenuSearch, pizzaOutOfStock, pizzaPlaceOrder, pizzaSizeFor, pizzaSlots, pizzaToppingsKey, pizzaUnitCents, shuffle } from "../../../packages/scenarios/dist/index.js";
+import { anyOrder, call, free, published } from "../calls.mjs";
 import { int, pick, usd } from "../kit.mjs";
+import { R } from "../rubrics.mjs";
 
 const APP = "pizza";
 const ORDERS = "/api/v1/orders";
@@ -70,6 +81,13 @@ const order = (api, body) => api.post(APP, ORDERS, body);
 const searchPath = (size, branch, filter, maxCents) =>
   `/api/v1/search?${new URLSearchParams({ size, branch, ...filter.params, ...(maxCents !== undefined ? { maxPrice: String(maxCents / 100) } : {}) })}`;
 const pickupBody = (branch, guest, slotDate, slotTime, lines) => ({ branchCode: branch.code, fulfilment: "pickup", slotDate, slotTime, customerName: guest.name, customerEmail: guest.email, lines });
+/** The order a correct solution makes: the reference one's body, through the tool. */
+const ordering = (body) => call("place_order", body, { customerName: free });
+/**
+ * A topping set the integrity tool sends as given, published as the same toppings in any order: webmcp-evals
+ * matches an array element by element, and a run may list a pizza's toppings in any order.
+ */
+const toppingSet = (keys) => published(keys, anyOrder(keys));
 
 /** (branch, size, filter) for every branch and size: the menu tasks' search space. */
 const menuSpace = (ctx) => {
@@ -121,6 +139,7 @@ export const pizzaTemplates = [
       return {
         intent: `On the pizza ordering site, place a pickup order at ${branch.name} (${branch.code}) for ${guest.name} (${guest.email}), in the ${slotTime} slot on ${slotDate}: one ${pizza.name} (${pizza.code}) in the smallest size that serves ${people} people, on the ${crustText(crust)}, without the ${offName} and with ${onName} added.`,
         summary: `${guest.email} has one received pickup order at ${branch.code} for ${slotDate} ${slotTime}: one ${pizza.code} in the size for ${people} people, on the asked crust, with the asked topping off and the other on.`,
+        rubric: R.change([APP], "the order was placed"),
         oracle: {
           kind: "state",
           checks: [
@@ -134,6 +153,7 @@ export const pizzaTemplates = [
             },
           ],
         },
+        calls: [ordering({ ...body, lines: body.lines.map((line) => ({ ...line, toppings: toppingSet(line.toppings) })) })],
         note: `${guest.email} → ${branch.code} ${slotDate} ${slotTime}: ${pizza.code} ${size.key} (serves ${sizeOf.get(size.key).serves} ≥ ${people}), ${crust}, −${off} +${on} → ${pizzaToppingsKey(toppings)}`,
         solve: (api) => order(api, body),
         miss: (api) => order(api, kept),
@@ -171,7 +191,9 @@ export const pizzaTemplates = [
       return {
         intent: `On the pizza ordering site, what would this order from ${branch.name} (${branch.code}) cost in total, delivered: ${what}? Answer as JSON: {"total": <dollars>}.`,
         summary: `${quantity} × one ${size.key} configuration at ${branch.code}, plus the branch's delivery fee unless the subtotal reaches its free-delivery threshold.`,
+        rubric: R.answer([APP], "what the order costs in total, delivered,"),
         oracle: { kind: "json", expect: { total: { value: total, tolerance: 0.01 } } },
+        calls: [],
         note: `${branch.code}: ${quantity} × ${usd(unit)} (${size.key} ${crust} ${sauce} ${cheese} ${toppings.join("+")}) = ${usd(subtotal)}; free from ${usd(branch.freeDeliveryFromCents)}, so fee ${usd(fee)} → $${total.toFixed(2)}`,
         answer: async (api) => {
           const b = await api.get(APP, "/api/v1/builder");
@@ -204,7 +226,9 @@ export const pizzaTemplates = [
       return {
         intent: `On the pizza ordering site, which ${sizeText(size)} menu pizza is the cheapest one that is ${filter.text}, among those the ${branch.name} branch (${branch.code}) can make with the toppings it has in stock? Answer as JSON: {"pizza": "<the pizza's code, PZ-…>"}.`,
         summary: `The cheapest ${size.key} menu pizza that is ${filter.text} and that ${branch.code} can make.`,
+        rubric: R.answer([APP], "the cheapest menu pizza that meets every requirement"),
         oracle: { kind: "json", expect: { pizza: best.pizzaCode } },
+        calls: [],
         note: `${branch.code} ${size.key} ${filter.text} → ${best.pizzaCode} at ${usd(best.priceCents)}; ${near.pizzaCode} at ${usd(near.priceCents)} fits but ${branch.code} is out of ${pizzaOutOfStock(rows.stockouts, branch.code, near.toppings).join(", ")}`,
         answer: async (api) => ({ pizza: (await api.get(APP, searchPath(size.key, branch.code, filter)))[0]?.pizzaCode ?? "" }),
         miss: async () => ({ pizza: near.pizzaCode }),
@@ -232,7 +256,9 @@ export const pizzaTemplates = [
       return {
         intent: `On the pizza ordering site, is there ${/^[aeiou]/.test(sizeText(size)) ? "an" : "a"} ${sizeText(size)} menu pizza that is ${filter.text}, costs no more than ${dollars(cap)}, and that the ${branch.name} branch (${branch.code}) can make with the toppings it has in stock? Also name the one that comes closest: the cheapest ${sizeText(size)} menu pizza that is ${filter.text} and that the branch can make, at any price. Answer as JSON: {"exists": <true or false>, "closest": "<the pizza's code, PZ-…>"}.`,
         summary: `No ${size.key} menu pizza meets the filter and the cap at ${branch.code}; the closest is the cheapest that meets the filter there at any price.`,
+        rubric: R.answer([APP], "whether any menu pizza meets every requirement, and the one that comes closest,"),
         oracle: { kind: "json", expect: { exists: false, closest: closest.pizzaCode } },
+        calls: [],
         note: `${branch.code} ${size.key} ${filter.text} ≤ ${dollars(cap)} → none; closest ${closest.pizzaCode} at ${usd(closest.priceCents)}; ${near.pizzaCode} at ${usd(near.priceCents)} would fit but ${branch.code} is out of ${pizzaOutOfStock(rows.stockouts, branch.code, near.toppings).join(", ")}`,
         answer: async (api) => ({
           exists: (await api.get(APP, searchPath(size.key, branch.code, filter, cap))).length > 0,
@@ -272,6 +298,7 @@ export const pizzaTemplates = [
       return {
         intent: `On the pizza ordering site, place a pickup order at ${branch.name} (${branch.code}) for ${guest.name} (${guest.email}) on ${date}: ${pizzas} ${sizeText(size)} ${pizza.name} pizzas (${pizza.code}), in the earliest slot at or after ${time} that has room for ${pizzas === 2 ? "both" : `all ${pizzas}`}.`,
         summary: `${guest.email} has one received pickup order at ${branch.code} on ${date} for ${pizzas} × ${pizza.code}, in the earliest slot from ${time} with room for ${pizzas} pizzas.`,
+        rubric: R.change([APP], "the order was placed"),
         oracle: {
           kind: "state",
           checks: [
@@ -285,6 +312,7 @@ export const pizzaTemplates = [
             },
           ],
         },
+        calls: [ordering(pickupBody(branch, guest, date, slot.time, [item]))],
         note: `${branch.code} ${date} from ${time} (full), ${pizzas} pizzas → ${slot.time}${skipped.length ? ` (${skipped.join(", ")} left)` : ""}; next with room ${later.time}`,
         solve: async (api) => {
           const slots = await api.get(APP, `/api/v1/branches/${branch.code}/slots?date=${date}&pizzas=${pizzas}&from=${enc(time)}`);
@@ -336,6 +364,7 @@ export const pizzaTemplates = [
       return {
         intent: `On the pizza ordering site, ${target.customerName} (${target.customerEmail}) has several orders. Remove the ${name} from their order at ${branch.name} for the ${target.slotTime} slot on ${target.slotDate}, and leave their other orders as they are.`,
         summary: `${target.customerEmail}'s ${branch.code} order for ${target.slotDate} ${target.slotTime} no longer has ${name} and is still received; their other orders still have it.`,
+        rubric: R.change([APP], "the topping was taken off"),
         oracle: {
           kind: "state",
           checks: [
@@ -344,6 +373,7 @@ export const pizzaTemplates = [
             ...others.flatMap((o) => off(o).map((l) => ({ name: `${o.orderNo}-line-${l}`, app: APP, path: `${ORDERS}/${o.orderNo}`, expect: { status: "received", lines: { line: l, toppingsKey: keyOf(o, l) } } }))),
           ],
         },
+        calls: [call("change_order_line", { orderNo: target.orderNo, line, removeToppings: [topping.key] }, { removeToppings: free })],
         note: `${target.customerEmail}: ${target.orderNo} (${branch.code}, ${target.slotDate} ${target.slotTime}) line ${line} −${topping.key} → ${usd(changed.order.totalCents)}; ${others.map((o) => o.orderNo).join(", ")} keep ${topping.key}`,
         solve: async (api) => {
           const mine = await api.list(APP, ordersOf(target.customerEmail));

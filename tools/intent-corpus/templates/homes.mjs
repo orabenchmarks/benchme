@@ -23,8 +23,18 @@
  * pending or sold listing a search task is built around
  * (`homes:near-miss:<code>`, shared by both search templates) and the answer
  * (`homes:<template>:<code>`).
+ *
+ * Expected calls: a viewing request's `request_viewing` of the listing, the
+ * date and the start time, for the viewer's email (the name left free); a
+ * cancellation's `cancel_viewing` of the request named. Listings are found
+ * through `search_listings` alone, so a search question declares it (with no
+ * argument fixed: a run may filter there or itself); a listing's fees are in
+ * its search result as well as on it, so the yearly-costs question declares
+ * none.
  */
 import { homeSlotsOf, homeYearlyCostsCents, searchHomeListings, shuffle } from "../../../packages/scenarios/dist/index.js";
+import { call, free } from "../calls.mjs";
+import { R } from "../rubrics.mjs";
 
 const APP = "homes";
 const VIEWINGS = "/api/v1/viewings";
@@ -78,6 +88,10 @@ const listingsPath = (q) =>
     ...(q.status ? { status: q.status } : {}),
   })}`;
 const request = (api, listing, slot, guest) => api.post(APP, VIEWINGS, { listingCode: listing.code, date: slot.date, time: slot.time, viewerName: guest.name, viewerEmail: guest.email });
+/** The request a correct solution makes, through the tool: the reference one's body. */
+const requesting = (listing, slot, guest) => call("request_viewing", { listingCode: listing.code, date: slot.date, time: slot.time, viewerName: guest.name, viewerEmail: guest.email }, { viewerName: free });
+/** The one way to the listings of a city: a search, filtered there or by the run itself. */
+const searching = (city) => call("search_listings", { city }, { city: free });
 /** One requested viewing for the guest, of that listing in that slot. */
 const requestedCheck = (name, guest, listing, slot) => ({
   name,
@@ -124,7 +138,9 @@ export const homesTemplates = [
       return {
         intent: `On the home listings site, which active listing (not pending or sold) is ${kindOf(p.type, p.city)} ${withAll(sizes, q.features)}, at an asking price of no more than ${dollars(q.maxPriceCents)}? Answer as JSON: {"listing": "<the listing's code, LS-…>"}.`,
         summary: `The one active ${p.city} listing of that type, size and feature within the price cap.`,
+        rubric: R.answer([APP], "the listing that meets every requirement"),
         oracle: { kind: "json", expect: { listing: match.code } },
+        calls: [searching(p.city)],
         note: `${p.city}, ${p.type}, ≥ ${q.minBeds} bed, ≥ ${q.minBaths} bath, ${q.features[0]}, ≤ ${dollars(q.maxPriceCents)} → ${match.code} at ${dollars(match.priceCents)}; ${p.code} at ${dollars(p.priceCents)} fits too but is pending`,
         answer: async (api) => ({ listing: api.only(await api.get(APP, listingsPath(q))).code }),
         miss: async () => ({ listing: p.code }),
@@ -164,7 +180,9 @@ export const homesTemplates = [
       return {
         intent: `On the home listings site, is there an active listing (not pending or sold) that is ${kind}, at an asking price of no more than ${dollars(cap)}? Also name the listing that comes closest: the cheapest active listing that is ${kind}, at any price. Answer as JSON: {"exists": <true or false>, "closest": "<the listing's code, LS-…>"}.`,
         summary: `No active ${p.city} listing meets every requirement; the closest is the cheapest active one of that type, size and features at any price.`,
+        rubric: R.answer([APP], "whether any listing meets every requirement, and the one that comes closest,"),
         oracle: { kind: "json", expect: { exists: false, closest: closest.code } },
+        calls: [searching(p.city)],
         note: `${p.city}, ${p.type}, ≥ ${base.minBeds} bed, ≥ ${base.minBaths} bath, ${features.join(" + ")}, ≤ ${dollars(cap)} → none; closest ${closest.code} at ${dollars(closest.priceCents)}; ${p.code} at ${dollars(p.priceCents)} fits but is ${p.status}`,
         answer: async (api) => ({
           exists: (await api.get(APP, listingsPath({ ...base, features, maxPriceCents: cap }))).length > 0,
@@ -189,7 +207,9 @@ export const homesTemplates = [
       return {
         intent: `On the home listings site, what do the service fee and the property tax of the ${describe(l)} (${l.code}) add up to over one year? Answer as JSON: {"total": <dollars>}.`,
         summary: `${l.code}'s service fee for twelve months plus its annual property tax.`,
+        rubric: R.answer([APP], "what the service fee and the property tax come to over one year"),
         oracle: { kind: "json", expect: { total: { value: total, tolerance: 0.01 } } },
+        calls: [],
         note: `${l.code}: 12 × ${dollars(l.monthlyFeeCents)} + ${dollars(l.annualTaxCents)} → $${total.toFixed(2)}`,
         answer: async (api) => {
           const x = await api.get(APP, `/api/v1/listings/${l.code}`);
@@ -231,7 +251,9 @@ export const homesTemplates = [
       return {
         intent: `On the home listings site, request a viewing of the ${describe(listing)} (${listing.code}) for ${guest.name} (${guest.email}) in the earliest free viewing slot that starts at or after ${day.from} on ${day.date}.`,
         summary: `${guest.email} has one requested viewing of ${listing.code}: its agent's first free slot from ${day.date} ${day.from} on.`,
+        rubric: R.change([APP], "the viewing was requested"),
         oracle: { kind: "state", checks: [requestedCheck("requested-earliest", guest, listing, answer)] },
+        calls: [requesting(listing, answer, guest)],
         note: `${listing.code} (${listing.agentCode}): ${day.date} is fully booked → ${answer.date} ${answer.time}; the earliest free slot in the window is ${miss.date} ${miss.time}`,
         solve: async (api) => {
           const free = await api.get(APP, `/api/v1/listings/${listing.code}/slots?from=${day.date}T${day.from}&free=true`);
@@ -268,7 +290,9 @@ export const homesTemplates = [
       return {
         intent: `On the home listings site, request a viewing of the ${describe(listing)} (${listing.code}) for ${guest.name} (${guest.email}) on ${slot.date} at ${slot.time}.`,
         summary: `${guest.email} has one requested viewing of ${listing.code} on ${slot.date} at ${slot.time}.`,
+        rubric: R.change([APP], "the viewing was requested"),
         oracle: { kind: "state", checks: [requestedCheck("requested", guest, listing, slot)] },
+        calls: [requesting(listing, slot, guest)],
         note: `${guest.email} → ${listing.code} (${listing.agentCode}), ${slot.date} ${slot.time}`,
         solve: (api) => request(api, listing, slot, guest),
         miss: (api) => request(api, listing, miss, guest),
@@ -300,7 +324,9 @@ export const homesTemplates = [
       return {
         intent: `On the home listings site, ${target.viewerName} (${target.viewerEmail}) has requested several viewings. Cancel only their viewing of the ${describe(listing)} (${listing.code}) on ${target.date}, and leave their other viewing requests as they are.`,
         summary: `${target.viewerEmail}'s viewing of ${listing.code} on ${target.date} is cancelled; their other requested viewings are still requested.`,
+        rubric: R.change([APP], "the viewing was cancelled"),
         oracle: { kind: "state", checks: live.map((v) => ({ name: `${v.viewingNo}-${status(v)}`, app: APP, path: `${VIEWINGS}/${v.viewingNo}`, expect: { status: status(v) } })) },
+        calls: [call("cancel_viewing", { viewingNo: target.viewingNo })],
         note: `${target.viewerEmail}: ${target.viewingNo} (${listing.code}, ${target.date} ${target.time}) → cancelled; ${live.filter((v) => v !== target).map((v) => v.viewingNo).join(", ")} stay requested`,
         solve: async (api) => {
           const mine = await api.list(APP, `${VIEWINGS}?email=${encodeURIComponent(target.viewerEmail)}`);

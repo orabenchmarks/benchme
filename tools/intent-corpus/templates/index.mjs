@@ -17,13 +17,19 @@
  *                                 already claimed is skipped, so no two tasks
  *                                 touch the same row (state tasks stay
  *                                 independent inside one workspace)
- *     build(pick, ctx, rng)     → { intent, summary, oracle, note, solve? | answer? }
+ *     build(pick, ctx, rng)     → { intent, summary, oracle, note, solve? | answer?, rubric?, calls?, noCall? }
  *                                 | null when the pick fails a guard
  *   }
  *
  * `solve(api)` performs a state task through the apps' REST API; `answer(api)`
  * reads a json task's answer back from the LIVE apps. Neither ships in the
  * corpus: tools/intent-integrity.mjs runs them to prove every oracle bites.
+ *
+ * A template of a graded corpus (webmcp-v1's) also writes the task's judge
+ * criteria (`rubric`, ../rubrics.mjs `R`, public) and the site tool calls
+ * every correct solution makes (`calls`, ../calls.mjs, an empty list when no
+ * call is necessary; `noCall` says why a change declares none). Both are held
+ * to their rules by ../derive.mjs, which refuses the corpus otherwise.
  */
 import { cinemaTemplates } from "./cinema.mjs";
 import { clinicTemplates } from "./clinic.mjs";
