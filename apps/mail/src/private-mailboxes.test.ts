@@ -1,5 +1,6 @@
 import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signWorkspaceHeader, type Pool } from "@benchme/core";
 import { cujV1, scenarios } from "@benchme/scenarios";
+import { BRIDGE_COOKIE, BRIDGE_TOKEN_HEADER, bridgeToken } from "@benchme/site-kit";
 import type { FastifyInstance } from "fastify";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,15 +42,17 @@ const rest = async (wsId: string, url: string) => {
   const r = await app.inject({ url, headers: scoped(wsId) });
   return { status: r.statusCode, body: r.json() };
 };
+/** One browser: one bridge cookie, so two renders of a page carry one WebMCP token and compare byte for byte. */
+const ONE_BROWSER = "0".repeat(32);
 const page = async (wsId: string, url: string) => {
-  const r = await app.inject({ url, headers: scoped(wsId) });
+  const r = await app.inject({ url, headers: { ...scoped(wsId), cookie: `${BRIDGE_COOKIE}=${ONE_BROWSER}` } });
   return { status: r.statusCode, html: r.body };
 };
-/** A tool's answer through the inbox's MCP server, as the gateway forwards it (and as a page's WebMCP bridge calls it, with the door header). */
+/** A tool's answer through the inbox's MCP server, as the gateway forwards it (and as a page's WebMCP bridge calls it, with the page's cookie and token). */
 async function tool(wsId: string, name: string, args: Record<string, unknown>, door?: "webmcp"): Promise<unknown> {
   const res = await fetch(`${baseUrl}/mcp`, {
     method: "POST",
-    headers: { "content-type": "application/json", accept: "application/json, text/event-stream", ...scoped(wsId), ...(door ? { "x-benchme-door": door } : {}) },
+    headers: { "content-type": "application/json", accept: "application/json, text/event-stream", ...scoped(wsId), ...(door ? { cookie: `${BRIDGE_COOKIE}=${ONE_BROWSER}`, [BRIDGE_TOKEN_HEADER]: bridgeToken(SECRET, wsId, ONE_BROWSER) } : {}) },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }),
   });
   const text = await res.text();
