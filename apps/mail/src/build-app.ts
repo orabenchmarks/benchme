@@ -5,6 +5,7 @@ import { z } from "zod";
 import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
 import { PgHeldAddressesRepo } from "./mailboxes/held-repo.js";
 import { MailboxesSeeder } from "./mailboxes/seeder.js";
+import { inboxNote } from "./mailboxes/visibility.js";
 import { mailTools } from "./mcp/tools.js";
 import { PgMessagesRepo, type Message, type MessagesRepo } from "./messages-repo.js";
 
@@ -61,9 +62,10 @@ export async function buildMail(d: BuildDeps): Promise<FastifyInstance> {
 
   app.get("/", async (req, reply) => {
     const to = (req.query as { to?: string }).to;
+    const note = await inboxNote(held, req.workspaceId);
     const msgs = await repo.list(req.workspaceId, to);
     const rows = msgs.map((m: Message) => `<tr class="${m.readAt ? "" : "unread"}"><td><a href="${req.prefix}/m/${m.id}">${esc(m.subject)}</a></td><td>${esc(m.to)}</td><td>${esc(m.from)}</td><td>${esc(m.receivedAt)}</td></tr>`).join("");
-    return reply.type("text/html").send(page("Inbox", `<h1>Workspace inbox</h1><form method="get"><input name="to" placeholder="filter by recipient" value="${esc(to ?? "")}"> <button>Filter</button></form><table><tr><th>Subject</th><th>To</th><th>From</th><th>Received</th></tr>${rows || "<tr><td colspan=4>No messages yet.</td></tr>"}</table>`, webmcpScript(tools, req.prefix)));
+    return reply.type("text/html").send(page("Inbox", `<h1>Workspace inbox</h1>${note}<form method="get"><input name="to" placeholder="filter by recipient" value="${esc(to ?? "")}"> <button>Filter</button></form><table><tr><th>Subject</th><th>To</th><th>From</th><th>Received</th></tr>${rows || "<tr><td colspan=4>No messages yet.</td></tr>"}</table>`, webmcpScript(tools, req.prefix)));
   });
   app.get<{ Params: { id: string } }>("/m/:id", async (req, reply) => {
     const m = await repo.get(req.workspaceId, req.params.id, true);
