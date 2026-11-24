@@ -68,7 +68,7 @@ export async function buildGateway(d: BuildDeps): Promise<{ app: FastifyInstance
   });
   app.addContentTypeParser("*", { parseAs: "buffer" }, (_req, body, done) => done(null, body));
   registerWorkspaceRoutes(app, { service, limiter: d.limiter, operatorKey: d.operatorKey });
-  registerPortal(app, { apps: d.apps, scenarios: d.scenarios, service, publicBaseUrl: d.publicBaseUrl });
+  registerPortal(app, { apps: d.apps, scenarios: d.scenarios, service, publicBaseUrl: d.publicBaseUrl, doors: service.defaultDoors });
   // Registered before the /w/ proxy's catch-all so /robots.txt is never
   // swallowed by the "/w/:id/:app/*" route.
   registerRobots(app, { apps: d.apps, scenarios: d.scenarios, publicBaseUrl: d.publicBaseUrl, sharedSeed: d.sharedSeed });

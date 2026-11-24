@@ -616,7 +616,7 @@ describe.skipIf(!DB)("the doors a workspace is served through, at the gateway (r
 });
 
 // A deployment's doors (BENCHME_DOORS): every workspace created without its own is served through them, the shared ones
-// too.
+// too, and the portal and the registry name nothing behind a closed one.
 describe.skipIf(!DB)("a deployment's doors (real Postgres + stub app)", () => {
   it("serves a workspace created without doors, and a shared workspace, through the deployment's; one with its own through those", async () => {
     const bridgeOnly = await deployment(DoorSet.parse("webmcp"));
@@ -636,6 +636,44 @@ describe.skipIf(!DB)("a deployment's doors (real Postgres + stub app)", () => {
       expect((await bridgeOnly.inject(`/api/workspaces/${shared.json().workspace as string}`)).json().doors).toEqual(["page", "webmcp"]);
     } finally {
       await bridgeOnly.close();
+    }
+  });
+
+  it("names on the portal and the registry only what is behind the deployment's open doors", async () => {
+    const pages = (app: FastifyInstance) => Promise.all([app.inject("/"), app.inject("/registry")]).then(([home, registry]) => ({ home: home.body, registry: registry.body }));
+    const every = await pages(gateway);
+    expect(every.home).toContain("MCP at <code>/mcp</code>");
+    expect(every.home).toContain('href="/registry"');
+    for (const text of ["MCP endpoint", "NLWeb /ask", "ask MCP", "WebMCP", "/warehouse/mcp</code>", "/warehouse/ask</code>", "/warehouse/ask/mcp</code>", "/data/</code>", "Streamable HTTP"]) expect(every.registry).toContain(text);
+
+    const cases: [string, { has: string[]; hasNot: string[] }][] = [
+      // warehouse has an MCP server and NLWeb but no WebMCP: with those doors closed it is not a row at all.
+      ["webmcp", { has: ["WebMCP", "<code>data</code>", "/data/</code>"], hasNot: ["MCP endpoint", "NLWeb /ask", "ask MCP", "/mcp</code>", "/ask</code>", "Streamable HTTP", "<code>warehouse</code>"] }],
+      ["rest", { has: ["NLWeb /ask", "/warehouse/ask</code>"], hasNot: ["MCP endpoint", "ask MCP", "WebMCP", "/mcp</code>", "/data/</code>", "<code>data</code>"] }],
+      ["mcp", { has: ["MCP endpoint", "ask MCP", "/warehouse/mcp</code>", "/warehouse/ask/mcp</code>", "Streamable HTTP"], hasNot: ["NLWeb /ask", "WebMCP", "/warehouse/ask</code>", "/data/</code>"] }],
+    ];
+    for (const [list, { has, hasNot }] of cases) {
+      const deployed = await deployment(DoorSet.parse(list));
+      try {
+        const { home, registry } = await pages(deployed);
+        expect([list, home.includes("MCP at <code>/mcp</code>")]).toEqual([list, list === "mcp"]);
+        for (const text of has) expect([list, text, registry.includes(text)]).toEqual([list, text, true]);
+        for (const text of hasNot) expect([list, text, registry.includes(text)]).toEqual([list, text, false]);
+      } finally {
+        await deployed.close();
+      }
+    }
+
+    // The pages alone: the registry lists no server, and the portal does not point at it.
+    const pagesAlone = await deployment(DoorSet.parse("page"));
+    try {
+      const { home, registry } = await pages(pagesAlone);
+      expect(home).not.toContain("/registry");
+      expect(home).not.toContain("/mcp");
+      expect(registry).not.toContain("<table>");
+      expect(registry).toContain("through their pages alone");
+    } finally {
+      await pagesAlone.close();
     }
   });
 });
