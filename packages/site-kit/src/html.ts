@@ -1,4 +1,5 @@
 import type { Door, DoorSet } from "@benchme/core";
+import { CODE_ATTEMPTS } from "./accounts-schema.js";
 
 /** Escape for HTML text and attribute values. */
 export function esc(s: unknown): string {
@@ -78,7 +79,8 @@ export const authPages = {
 <label>Name</label><input name="name" required><label>Email</label><input name="email" type="email" required><label>Password (8+ characters)</label><input name="password" type="password" required>
 <button>Sign up</button></form><p class="muted">A verification code is sent to the workspace inbox; enter it on the next screen.</p>`,
   verify: (p: string, email: string, error?: string) => `<h1>Verify your email</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<p>We sent a 6-digit code to <strong>${esc(email)}</strong>. Check the workspace inbox.</p>
-<form class="card" method="post" action="${p}/verify"><input type="hidden" name="email" value="${esc(email)}"><label>Code</label><input name="code" required pattern="[0-9]{6}"><button>Verify</button></form>`,
+<form class="card" method="post" action="${p}/verify"><input type="hidden" name="email" value="${esc(email)}"><label>Code</label><input name="code" required pattern="[0-9]{6}"><button>Verify</button></form>
+<p class="muted">A code can be tried ${CODE_ATTEMPTS} times. Lost it, or it stopped working? <a href="${p}/signup">Sign up again</a> with the same email to be sent a new one.</p>`,
   login: (p: string, error?: string) => `<h1>Sign in</h1>${error ? `<div class="flash">${esc(error)}</div>` : ""}<form class="card" method="post" action="${p}/login">
 <label>Email</label><input name="email" type="email" required><label>Password</label><input name="password" type="password" required><button>Sign in</button></form>
 <p class="muted">No account? <a href="${p}/signup">Sign up</a>.</p>`,

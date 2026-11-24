@@ -454,6 +454,16 @@ mailed to the workspace inbox and has to be read there: the mail app has the
 same two reads as tools (`list_messages`, `get_message`), on its MCP server
 and on its pages.
 
+A code can be tried five times (`CODE_ATTEMPTS` in `@benchme/site-kit`), so it
+cannot be guessed. After five wrong ones it no longer works, not even the
+right one: verifying is refused with `TOO_MANY_ATTEMPTS` (429 on the pages),
+through every door. Signing up again with an email that is not verified yet
+mails a new code, with every try back, and takes the new password and name.
+A verified account cannot be signed up again (`EXISTS`). Every site with
+sign-ups counts the tries in its `verification_codes` table (migration
+`NNN_verification_attempts` in each app, applied by the migrate Job like any
+other).
+
 - **MCP.** The server gives a client an `Mcp-Session-Id` when it initializes,
   as the protocol provides, and a client repeats it on every request. `sign_in`
   keeps the session under that id, so the connection stays signed in and no
@@ -482,9 +492,10 @@ holds them.
 
 The signing-up steps are in the ledger as `auth` entries (`sign_up`,
 `verify`, `sign_in`, `sign_out`, `issue_token` on entity `account`, the id
-its email), made or refused (`EXISTS`, `BAD_CODE`, `BAD_CREDENTIALS`,
-`UNVERIFIED`). They are not writes: an account is not a change to what the
-site sells.
+its email), made or refused (`EXISTS`, `BAD_CODE`, `TOO_MANY_ATTEMPTS`,
+`BAD_CREDENTIALS`, `UNVERIFIED`). They are not writes: an account is not a
+change to what the site sells. A refused `verify` still spent a try, and the
+try is kept with its entry.
 
 ### The change ledger
 
