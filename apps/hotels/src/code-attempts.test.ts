@@ -76,7 +76,7 @@ afterAll(async () => {
 describe.skipIf(!DB)("a verification code's tries, on a site (real Postgres)", () => {
   it(`on the pages: refuses even the right code after ${CODE_ATTEMPTS} wrong ones, and the ledger keeps every try`, async () => {
     const email = "pages@example.com";
-    expect((await form("/signup", { name: "Pia", email, password: PASSWORD })).statusCode).toBe(200);
+    expect((await form("/signup", { name: "Pia", email, password: PASSWORD })).statusCode).toBe(303);
     const right = codeOf(email);
     for (let i = 0; i < CODE_ATTEMPTS; i++) {
       const wrong = await form("/verify", { email, code: notIt(right) });

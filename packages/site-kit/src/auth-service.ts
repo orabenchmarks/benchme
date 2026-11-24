@@ -71,9 +71,15 @@ export class AuthService {
   }
 
   async verify(ws: string, email: string, code: string): Promise<void> {
-    const tried = await this.d.users.tryVerificationCode(ws, email.trim().toLowerCase(), code.trim(), this.now(), CODE_ATTEMPTS);
+    const normalized = email.trim().toLowerCase();
+    const tried = await this.d.users.tryVerificationCode(ws, normalized, code.trim(), this.now(), CODE_ATTEMPTS);
     if (tried === "locked") throw new AuthError("TOO_MANY_ATTEMPTS", `too many wrong codes: after ${CODE_ATTEMPTS} this sign-up's code no longer works. Sign up again with the same email to be sent a new one`, 429);
-    if (tried !== "verified") throw new AuthError("BAD_CODE", "that code is wrong or has expired");
+    // Nothing to try is not a wrong code: the address has no code waiting (never signed up, already verified, or the
+    // code expired). Said as such, naming the address, so a caller who sent the wrong one, or none, can see it.
+    if (tried === "none") {
+      throw new AuthError("NO_CODE", `no code is waiting for ${normalized || "that address"}: check it is the email you signed up with, or sign up again with it to be sent a new code`);
+    }
+    if (tried !== "verified") throw new AuthError("BAD_CODE", "that code is wrong or has expired: use the newest code mailed to that address, since signing up again replaces the earlier one");
   }
 
   /**

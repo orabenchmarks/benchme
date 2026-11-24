@@ -83,13 +83,18 @@ describe("a verification code's tries", () => {
     expect(await a.verify("ilsa@example.com", a.code("ilsa@example.com", OTHER_WS), OTHER_WS)).toBe("ok");
   });
 
-  it("answers a code that expired, or that was never sent, as a wrong one, and spends no try on it", async () => {
+  // Nothing to try is not a wrong code. A browser agent that came back to the verify page without its email (the
+  // field was hidden and empty) was told "wrong or has expired" for every fresh code it typed, and kept signing up
+  // again, which replaced the code it had just read (production pilot c53d5c6a, 18 of one agent's 20 failures).
+  it("answers an address with no code waiting (never sent, expired, or no address at all) as NO_CODE, naming it, and spends no try on it", async () => {
     let now = new Date("2027-03-01T10:00:00Z");
     const a = accounts(() => now);
-    expect(await a.verify("nobody@example.com", "123456")).toBe("BAD_CODE");
+    expect(await a.verify("nobody@example.com", "123456")).toBe("NO_CODE");
+    expect(await a.verify("", "123456")).toBe("NO_CODE");
+    await a.auth.verify(WS, "Nobody@Example.com ", "123456").catch((err: Error) => expect(err.message).toContain("nobody@example.com"));
     await a.auth.signup(WS, "ilsa@example.com", PASSWORD, "Ilsa");
     const right = a.code("ilsa@example.com");
     now = new Date("2027-03-01T10:31:00Z");
-    for (let i = 0; i <= CODE_ATTEMPTS; i++) expect(await a.verify("ilsa@example.com", right)).toBe("BAD_CODE");
+    for (let i = 0; i <= CODE_ATTEMPTS; i++) expect(await a.verify("ilsa@example.com", right)).toBe("NO_CODE");
   });
 });
