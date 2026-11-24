@@ -15,6 +15,8 @@ import { HttpWorkspaceSeeder, seedTargetsFor, type WorkspaceSeeder } from "./see
 import type { WorkspaceService } from "./workspace-service.js";
 
 const DB = process.env.DATABASE_URL;
+/** Where the front page says an app's MCP server is, with the MCP door open. */
+const MCP_AT = "an app's MCP server is at <code>/w/&lt;id&gt;/&lt;app&gt;/mcp</code>";
 const SECRET = "gateway-secret-for-tests";
 
 /** A stand-in app: records the seed calls it receives and echoes headers on any other path. */
@@ -472,7 +474,7 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
   it("serves the portal, the registry and the workspace page", async () => {
     const home = (await gateway.inject("/")).body;
     expect(home).toContain("acme-v1");
-    expect(home).toContain("<code>halden</code>");
+    expect(home).toContain('<li title="halden">');
     // A card for every registered scenario, and the search over them, opened filtered by ?q=.
     for (const s of scenarios.list()) expect(home).toContain(`data-scenario="${s.key}"`);
     expect(home).toContain('<input id="q" name="q" type="search"');
@@ -646,7 +648,7 @@ describe.skipIf(!DB)("a deployment's doors (real Postgres + stub app)", () => {
   it("names on the portal and the registry only what is behind the deployment's open doors", async () => {
     const pages = (app: FastifyInstance) => Promise.all([app.inject("/"), app.inject("/registry")]).then(([home, registry]) => ({ home: home.body, registry: registry.body }));
     const every = await pages(gateway);
-    expect(every.home).toContain("MCP at <code>/mcp</code>");
+    expect(every.home).toContain(MCP_AT);
     expect(every.home).toContain('href="/registry"');
     for (const text of ["MCP endpoint", "NLWeb /ask", "ask MCP", "WebMCP", "/warehouse/mcp</code>", "/warehouse/ask</code>", "/warehouse/ask/mcp</code>", "/data/</code>", "Streamable HTTP"]) expect(every.registry).toContain(text);
 
@@ -660,7 +662,7 @@ describe.skipIf(!DB)("a deployment's doors (real Postgres + stub app)", () => {
       const deployed = await deployment(DoorSet.parse(list));
       try {
         const { home, registry } = await pages(deployed);
-        expect([list, home.includes("MCP at <code>/mcp</code>")]).toEqual([list, list === "mcp"]);
+        expect([list, home.includes(MCP_AT)]).toEqual([list, list === "mcp"]);
         for (const text of has) expect([list, text, registry.includes(text)]).toEqual([list, text, true]);
         for (const text of hasNot) expect([list, text, registry.includes(text)]).toEqual([list, text, false]);
       } finally {

@@ -1,10 +1,10 @@
 import type { DoorSet } from "@benchme/core";
 import type { FastifyInstance } from "fastify";
 import type { AppRegistry } from "../app-registry.js";
-import { appInfo, type ScenarioRegistry } from "@benchme/scenarios";
+import type { ScenarioRegistry } from "@benchme/scenarios";
 import { openCapabilities } from "../capabilities.js";
-import { scenarioCards } from "../landing/cards.js";
 import { landingPage } from "../landing/page.js";
+import { portalViews } from "../landing/views.js";
 import type { WorkspaceService } from "../workspace-service.js";
 
 export type PortalDeps = {
@@ -15,6 +15,9 @@ export type PortalDeps = {
   /** The deployment's doors: the portal and the registry name nothing behind a closed one. */
   doors: DoorSet;
 };
+
+/** A query value as the pages read it: a string, bounded; anything else is no value. */
+const param = (v: unknown): string | undefined => (typeof v === "string" && v ? v.slice(0, 200) : undefined);
 
 const page = (title: string, body: string) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow">
@@ -28,18 +31,11 @@ export function registerPortal(app: FastifyInstance, d: PortalDeps): void {
   // What the registry lists: the listed apps with something behind an open door.
   const capable = d.apps.listed().filter((a) => open.some((c) => c.has(a)));
 
-  // The front page: the scenario cards are the deployment's to compute once (its doors and apps do not change while
-  // it runs), and the query a person opens it with picks which are shown.
-  const view = {
-    cards: scenarioCards({ scenarios: d.scenarios, apps: d.apps, service: d.service, doors: d.doors, publicBaseUrl: d.publicBaseUrl }),
-    apps: d.apps.listed().map((a) => ({ key: a.name, name: appInfo(a.name).name, seeded: a.seeded, mcp: a.mcp })),
-    doors: d.doors.list(),
-    registry: capable.length > 0,
-    publicBaseUrl: d.publicBaseUrl,
-  };
+  // The front page: computed once (a deployment's doors and apps do not change while it runs); the search a person
+  // opens it with picks which cards are shown.
+  const views = portalViews({ apps: d.apps, scenarios: d.scenarios, service: d.service, doors: d.doors, publicBaseUrl: d.publicBaseUrl, registry: capable.length > 0 });
   app.get<{ Querystring: { q?: unknown } }>("/", async (req, reply) => {
-    const query = typeof req.query.q === "string" ? req.query.q.slice(0, 200) : "";
-    return reply.type("text/html; charset=utf-8").send(landingPage(view, query));
+    return reply.type("text/html; charset=utf-8").send(landingPage(views.landing, param(req.query.q) ?? ""));
   });
 
   app.get("/registry", async (_req, reply) => {
