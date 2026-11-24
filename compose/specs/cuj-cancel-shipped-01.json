@@ -60,6 +60,30 @@
             "code": "NOT_CANCELLABLE"
           }
         ]
+      },
+      {
+        "kind": "unchanged",
+        "name": "no change made as anyone else",
+        "scope": [
+          {
+            "apps": [
+              "sports"
+            ],
+            "actor": "danae.okonjo@example.org"
+          },
+          {
+            "apps": [
+              "sports"
+            ],
+            "actor": "sable.larrabee@example.org"
+          },
+          {
+            "apps": [
+              "sports"
+            ],
+            "actor": "vesna.halvard@example.org"
+          }
+        ]
       }
     ]
   },

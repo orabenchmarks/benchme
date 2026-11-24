@@ -26,6 +26,7 @@ const { app } = await buildGateway({
   maxTtlSeconds: cfg.WORKSPACE_MAX_TTL_SECONDS,
   sharedSeed: cfg.SHARED_SEED,
   services: cfg.SERVICE_TARGETS,
+  doors: cfg.BENCHME_DOORS,
   logLevel: cfg.LOG_LEVEL,
 });
 

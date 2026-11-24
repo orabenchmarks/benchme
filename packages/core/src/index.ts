@@ -7,13 +7,21 @@ export { createPool, migrate, withTx, type Pool, type PoolClient } from "./pg.js
 export { transactions, type Transactions } from "./transactions.js";
 export { createRedis, type Redis } from "./redis.js";
 export { PgWorkspaceRepo, type NewWorkspace, type Workspace, type WorkspaceRepo } from "./workspace.js";
+export { DOORS, DoorSet, UnknownDoorError, isDoor, type Door } from "./doors.js";
+export { admits, doorsAt } from "./door-paths.js";
 export {
+  DOORS_HEADER,
+  DOORS_SIG_HEADER,
   FORWARDED_PREFIX_HEADER,
   VERIFIER_SIG_HEADER,
   WORKSPACE_HEADER,
   WORKSPACE_SIG_HEADER,
+  doorsFromHeaders,
+  doorsHeaders,
+  signDoorsHeader,
   signVerifierHeader,
   signWorkspaceHeader,
+  verifyDoorsHeader,
   verifyVerifierHeader,
   verifyWorkspaceHeader,
 } from "./workspace-header.js";

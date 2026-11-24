@@ -95,6 +95,66 @@
               "title": "Quarterly planning",
               "status": "scheduled"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "danae.larrabee@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "lior.kowalczyk@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "orrin.okonjo@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "orrin.sandoval@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "teodor.kowalczyk@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "teodor.larrabee@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "teodor.mbeki@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "vesna.halvard@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "vesna.kowalczyk@staff.example"
+              }
+            ]
           }
         ]
       }

@@ -60,6 +60,30 @@
             "code": "NOT_ACTIVE"
           }
         ]
+      },
+      {
+        "kind": "unchanged",
+        "name": "no change made as anyone else",
+        "scope": [
+          {
+            "apps": [
+              "homes"
+            ],
+            "actor": "bram.thorsby1@mail.example"
+          },
+          {
+            "apps": [
+              "homes"
+            ],
+            "actor": "ilsa.sandoval2@mail.example"
+          },
+          {
+            "apps": [
+              "homes"
+            ],
+            "actor": "orrin.voss6@mail.example"
+          }
+        ]
       }
     ]
   },

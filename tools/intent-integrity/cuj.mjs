@@ -13,19 +13,24 @@
  *      checks report (`at`) falls while that step ran (a change made in step 3
  *      does not pass step 2, nor is it placed there); a json step's live answer is accepted by its key
  *      and a perturbed one refused; an impossible task's attempt is refused
- *      with the code it names, and a very hard one meets the refusal it
- *      recovers from; a tempting option is what its template says, live; and
+ *      with the code it names (one that no option meets is answered: the
+ *      live sites find none, and its near miss is there), and a very hard one
+ *      meets the refusal it recovers from; a tempting option is what its template says, live; and
  *      the countable properties the reference solution shows (sites touched
  *      per step, reads, writes, a sign-up, a refusal recovered from) are the
  *      ones the template declares, so the level they give is the task's;
  *   3. once every solution has run, every check still passes, still at a time
  *      its own step ran, and every key still matches the live sites: no task
- *      undid another, and no later write moved an earlier step's time.
+ *      undid another, and no later write moved an earlier step's time;
+ *   4. the check every changing task carries, "no change made as anyone
+ *      else", bites: on every site, one such task's last change made again
+ *      signed in as an account of its scope fails that check.
  *
  *   runCujIntegrity({ base, seed, scale, operatorKey }) → exit code (0 or 1)
  */
 import { JsonOracle } from "../../apps/verify/dist/oracles/json-oracle.js";
 import { buildCorpus } from "../intent-corpus/corpus.mjs";
+import { ACTOR_GUARD } from "../intent-corpus/cuj/actors.mjs";
 import { levelOf } from "../intent-corpus/cuj/levels.mjs";
 import { liveBenchme, perturb } from "./live.mjs";
 
@@ -176,6 +181,43 @@ const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 const misplaced = (s, window) =>
   (s.checks ?? []).filter((c) => c.at && (Date.parse(c.at) < window.from - SKEW_MS || Date.parse(c.at) > window.to + SKEW_MS)).map((c) => `${c.name} at ${c.at}`);
 
+/**
+ * Pass 4: the check every changing task carries bites. On each site, the first solved one-site task whose last
+ * state step holds an account of that site to "no change made as anyone else" has that step's reference solution
+ * made again, signed in as the account; the task's answer must then fail that check. A solution that cannot be
+ * made twice (a cancel of what is already cancelled) moves on to the next task; an impossible task makes no
+ * change, so it shows nothing here. Run last: no other pass reads what it writes.
+ */
+async function guardBites({ live, ws, sessions, corpus, solved, surprise }) {
+  let bitten = 0;
+  for (const app of SITES) {
+    const accounts = corpus.accounts?.[app] ?? [];
+    let shown = false;
+    for (const r of corpus.corpus.filter((x) => solved.has(x.id) && x.apps.length === 1 && x.apps[0] === app)) {
+      const { built } = corpus.plans[r.id];
+      if (built.impossible) continue;
+      const n = built.steps.findLastIndex((s) => s.kind === "state");
+      const guard = built.steps[n]?.oracle.checks.find((c) => c.name === ACTOR_GUARD);
+      const account = guard && accounts.find((a) => guard.scope.some((s) => s.actor === a.email.toLowerCase()));
+      if (!account) continue;
+      try {
+        await built.steps[n].solve(await apiFor(live, ws, sessions, null).as(app, account));
+      } catch {
+        continue;
+      }
+      const res = await live.submit(ws, r.id, {});
+      const check = (res.steps ?? []).find((s) => s.step === n + 1)?.checks?.find((c) => c.name === ACTOR_GUARD);
+      if (!check) surprise(r.id, `its last state step's answer has no "${ACTOR_GUARD}" check`);
+      else if (check.passed !== false) surprise(r.id, `its last change, made again signed in as ${account.email}, leaves "${ACTOR_GUARD}" passing`);
+      else bitten++;
+      shown = true;
+      break;
+    }
+    if (!shown) surprise(app, `no task of the site could show "${ACTOR_GUARD}" bite`);
+  }
+  return bitten;
+}
+
 export async function runCujIntegrity({ base, seed = 4242, scale = 1, operatorKey }) {
   const corpus = buildCorpus({ seed, scale, scenario: "cuj-v1" });
   if (corpus.problems.length) throw new Error(corpus.problems.join("; "));
@@ -282,7 +324,7 @@ export async function runCujIntegrity({ base, seed = 4242, scale = 1, operatorKe
     }
     if (!ok) continue;
     const m = meter.props();
-    if (built.impossible && !m.refusals.includes(built.impossible.code)) surprise(r.id, `its attempt was refused with ${m.refusals.join(", ") || "nothing"}, not ${built.impossible.code}`);
+    if (built.impossible?.code && !m.refusals.includes(built.impossible.code)) surprise(r.id, `its attempt was refused with ${m.refusals.join(", ") || "nothing"}, not ${built.impossible.code}`);
     if (built.recover && !m.refusals.includes(built.recover.code)) surprise(r.id, `the failure it recovers from was ${m.refusals.join(", ") || "nothing"}, not ${built.recover.code}`);
     for (const k of MEASURED) if (JSON.stringify(m[k]) !== JSON.stringify(declared[k])) surprise(r.id, `declares ${k} ${JSON.stringify(declared[k])}; its reference solution shows ${JSON.stringify(m[k])}`);
     const lv = levelOf({ ...declared, ...Object.fromEntries(MEASURED.map((k) => [k, m[k]])) });
@@ -314,6 +356,9 @@ export async function runCujIntegrity({ base, seed = 4242, scale = 1, operatorKe
     }
   }
   passed("pass 3 — every check still passes, and every key still matches, once every solution ran", solved.size);
+
+  const bitten = await guardBites({ live, ws, sessions, corpus, solved, surprise });
+  passed("pass 4 — a change made as anyone else fails the task it belongs to, on every site", bitten);
 
   if (surprises.length) {
     console.error(`\n${surprises.length} surprise(s) in ${corpus.corpus.length} tasks`);

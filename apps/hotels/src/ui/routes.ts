@@ -1,5 +1,5 @@
 import { MAX_NIGHTS } from "@benchme/scenarios";
-import { DomainError, registerAuthRoutes, sessionUser, shell, webmcpScript, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
+import { DomainError, registerAuthRoutes, sessionUser, shell, webmcpBridge, type AuthService, type ShellCtx, type ToolRegistry } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { bookingSchema, nights, searchSchema, toQuery } from "../api/inputs.js";
 import type { HotelsRepo } from "../db/hotels-repo.js";
@@ -28,7 +28,7 @@ export function registerUi(app: FastifyInstance, d: UiDeps): void {
     nav: NAV,
     user: await user(req),
     flash,
-    scripts: [webmcpScript(d.tools, req.prefix)],
+    scripts: [webmcpBridge(req, d.tools)],
   });
   const html = (reply: FastifyReply, body: string, code = 200) => reply.code(code).type("text/html; charset=utf-8").send(body);
   const authDeps = { auth: d.auth, cookie: SESSION_COOKIE, shellCtx: ctx };

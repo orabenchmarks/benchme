@@ -24,6 +24,9 @@ publicBaseUrl: http://benchme.localhost
 # How pods inside the cluster reach it (harness pods; defaults to the gateway Service).
 internalBaseUrl: ""
 
+# The doors a workspace is served through unless created with its own (README § Doors); page is always served.
+doors: [page, rest, mcp, webmcp]
+
 workspaces:
   ttlSeconds: 86400
   maxTtlSeconds: 604800

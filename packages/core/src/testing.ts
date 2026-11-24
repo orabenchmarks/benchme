@@ -33,6 +33,7 @@ export async function testPool(): Promise<Pool | null> {
   // Later additions go in their own files so a test DB migrated by an older
   // helper still picks them up (a migration file runs exactly once).
   await writeFile(join(dir, "001_core_testing_alias.sql"), "ALTER TABLE core.workspaces ADD COLUMN IF NOT EXISTS alias TEXT;\nCREATE UNIQUE INDEX IF NOT EXISTS workspaces_alias ON core.workspaces (alias) WHERE alias IS NOT NULL;\n");
+  await writeFile(join(dir, "002_core_testing_doors.sql"), "ALTER TABLE core.workspaces ADD COLUMN IF NOT EXISTS doors TEXT[];\n");
   // Recorded under its own app name so a real app's "core" migrations still apply on a shared test DB.
   await migrate(pool, "core-testing", dir);
   return pool;

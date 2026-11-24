@@ -1,7 +1,7 @@
 import { VERIFIER_SIG_HEADER, verifyVerifierHeader } from "@benchme/core";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { header } from "../workspace-scope.js";
+import { header } from "../request-header.js";
 import type { LedgerPage } from "./entry.js";
 import type { Ledger } from "./ledger.js";
 

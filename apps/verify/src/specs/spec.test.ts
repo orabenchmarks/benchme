@@ -178,6 +178,56 @@ describe(`compose/specs/${CUJ.corpus}`, () => {
       }
     }
   });
+
+  // tools/intent-corpus/cuj/actors.mjs: a run that changed something signed in as someone it was not asked to act
+  // as fails its task, whichever template the task came from.
+  const GUARD = "no change made as anyone else";
+  type Check = { kind?: string; name: string; scope?: { apps: string[]; actor?: string }[] };
+  const oraclesOf = (r: CujRecord) => [r.key.oracle, ...r.key.steps.map((s) => s.oracle)];
+  const checksOf = (o: Oracle) => (o.kind === "state" ? (o.checks as Check[]) : []);
+
+  it("holds every task that changes something to no change made as anyone else, on its last state step only", () => {
+    for (const r of corpus.filter((x) => x.stateChecked)) {
+      const states = oraclesOf(r).filter((o) => o.kind === "state");
+      const guards = states.map((o) => checksOf(o).filter((c) => c.name === GUARD));
+      expect(guards.slice(0, -1).flat()).toEqual([]);
+      const [guard] = guards.at(-1) ?? [];
+      expect(guard?.kind).toBe("unchanged");
+      for (const s of guard?.scope ?? []) {
+        expect(r.apps).toEqual(expect.arrayContaining(s.apps));
+        expect(s.actor).toMatch(/@/);
+      }
+    }
+  });
+
+  it("never holds a task to its own person: no one the task signs in as is in its guard's scope", () => {
+    for (const r of corpus.filter((x) => x.stateChecked)) {
+      const others = oraclesOf(r).map((o) => (o.kind === "state" ? { ...o, checks: checksOf(o).filter((c) => c.name !== GUARD) } : o));
+      const own = new Set(JSON.stringify(others).match(/"actor":"[^"]+"/g)?.map((m) => m.slice(9, -1).toLowerCase()) ?? []);
+      const guard = checksOf(oraclesOf(r).filter((o) => o.kind === "state").at(-1)!).find((c) => c.name === GUARD);
+      for (const s of guard?.scope ?? []) expect(own.has(s.actor!)).toBe(false);
+    }
+  });
+
+  // A "which one" question reads the same whether an option meets every requirement or none does (kit.mjs
+  // `whichAnswer`, `R.which`): its key says which.
+  it("asks every which-one question in one shape, and keys it by `found`", () => {
+    const which = corpus.filter((r) => r.intent.includes(`or {"found": false}`));
+    expect(which.length).toBeGreaterThan(0);
+    const none = which.filter((r) => r.key.oracle.kind === "json" && (r.key.oracle.expect as Record<string, unknown>).found === false);
+    expect(none.length).toBeGreaterThan(0);
+    for (const r of which) {
+      expect(r.kind).toBe("json");
+      expect(r.steps).toEqual([]);
+      const expectFound = (r.key.oracle.expect as Record<string, unknown>).found;
+      expect(r.intent).toMatch(/Answer as JSON: \{"found": true, .+\}, or \{"found": false\} if none (does|is in stock)\.$/);
+      expect(r.rubric[0]).toMatch(/, or says that none (does|is in stock), as /);
+      if (expectFound === false) {
+        expect(r.level).toBe("impossible");
+        expect(Object.keys(r.key.oracle.expect as object)).toEqual(["found"]);
+      } else expect(expectFound).toBe(true);
+    }
+  });
 });
 
 // The corpora share one spec directory, so a task id two of them list would be one key graded as two tasks.

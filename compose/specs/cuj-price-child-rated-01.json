@@ -105,6 +105,36 @@
             "code": "CHILD_NOT_ALLOWED"
           }
         ]
+      },
+      {
+        "kind": "unchanged",
+        "name": "no change made as anyone else",
+        "scope": [
+          {
+            "apps": [
+              "cinema"
+            ],
+            "actor": "ilsa.halvard7@example.com"
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "actor": "lior.mbeki5@example.com"
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "actor": "quill.sandoval5@example.com"
+          },
+          {
+            "apps": [
+              "cinema"
+            ],
+            "actor": "vesna.kowalczyk4@example.com"
+          }
+        ]
       }
     ]
   },

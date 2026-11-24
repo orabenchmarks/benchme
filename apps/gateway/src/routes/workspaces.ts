@@ -1,3 +1,4 @@
+import type { Workspace } from "@benchme/core";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { RateLimiter } from "../rate-limit.js";
@@ -7,6 +8,8 @@ const createBody = z.object({
   scenario: z.string().min(1).max(60),
   seed: z.number().int().min(1).max(2_147_483_646).optional(),
   ttlSeconds: z.number().int().positive().optional(),
+  // Names, checked against DOORS by the service (422 UNKNOWN_DOOR), so the answer can say which doors there are.
+  doors: z.array(z.string().min(1).max(40)).max(16).optional(),
 });
 
 export const OPERATOR_HEADER = "x-benchme-operator-key";
@@ -36,7 +39,7 @@ export function registerWorkspaceRoutes(app: FastifyInstance, d: WorkspaceRoutes
     }
     try {
       const w = await d.service.create(body);
-      return reply.code(201).send({ ...serialize(w), urls: d.service.urls(w) });
+      return reply.code(201).send({ ...serialize(w, d.service), urls: d.service.urls(w) });
     } catch (err) {
       return sendError(reply, err);
     }
@@ -45,7 +48,7 @@ export function registerWorkspaceRoutes(app: FastifyInstance, d: WorkspaceRoutes
   app.get<{ Params: { id: string } }>("/api/workspaces/:id", async (req, reply) => {
     try {
       const w = await d.service.get(req.params.id);
-      return { ...serialize(w), urls: d.service.urls(w) };
+      return { ...serialize(w, d.service), urls: d.service.urls(w) };
     } catch (err) {
       return sendError(reply, err);
     }
@@ -54,18 +57,20 @@ export function registerWorkspaceRoutes(app: FastifyInstance, d: WorkspaceRoutes
   app.post<{ Params: { id: string } }>("/api/workspaces/:id/finalize", async (req, reply) => {
     try {
       const { workspace, receipt } = await d.service.finalize(req.params.id);
-      return { ...serialize(workspace), receipt };
+      return { ...serialize(workspace, d.service), receipt };
     } catch (err) {
       return sendError(reply, err);
     }
   });
 }
 
-function serialize(w: { id: string; scenario: string; seed: number; createdAt: Date; expiresAt: Date; finalizedAt: Date | null }) {
+/** A workspace as the API shows it. `doors`: the doors it is served through, its own or the deployment's. */
+function serialize(w: Workspace, service: Pick<WorkspaceService, "doorsOf">) {
   return {
     id: w.id,
     scenario: w.scenario,
     seed: w.seed,
+    doors: service.doorsOf(w).list(),
     createdAt: w.createdAt.toISOString(),
     expiresAt: w.expiresAt.toISOString(),
     finalizedAt: w.finalizedAt ? w.finalizedAt.toISOString() : null,

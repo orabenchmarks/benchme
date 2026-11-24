@@ -90,6 +90,48 @@
               }
             ],
             "after": "room booked"
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "bram.voss5@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "quill.thorsby4@example.com"
+              },
+              {
+                "apps": [
+                  "hotels"
+                ],
+                "actor": "teodor.okonjo6@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "bram.voss7@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "lior.kowalczyk4@example.com"
+              },
+              {
+                "apps": [
+                  "flights"
+                ],
+                "actor": "orrin.ferrante6@example.com"
+              }
+            ]
           }
         ]
       }

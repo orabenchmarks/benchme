@@ -1,5 +1,5 @@
 import replyFrom from "@fastify/reply-from";
-import { FORWARDED_PREFIX_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, isWorkspaceId, signWorkspaceHeader } from "@benchme/core";
+import { FORWARDED_PREFIX_HEADER, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, admits, doorsHeaders, isWorkspaceId, signWorkspaceHeader } from "@benchme/core";
 import type { FastifyInstance } from "fastify";
 import type { AppRegistry } from "../app-registry.js";
 import type { WorkspaceService } from "../workspace-service.js";
@@ -46,20 +46,28 @@ function decodable(url: string): boolean {
 }
 
 /**
+ * The path of `url` as an app will route it: dot segments resolved, escapes decoded, repeated slashes collapsed. It
+ * reads more into a path than a router would (a decoded "%2F" splits a segment), never less: a path it misreads is one
+ * the app answers with a 404 anyway. Null for an address that cannot be read.
+ */
+function routedPath(url: string): string | null {
+  try {
+    return decodeURIComponent(new URL(url).pathname).replace(/[\\/]+/g, "/");
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Whether a request would land on an app's `/internal/workspaces/*`: the gateway's OWN door to the app (its seed
  * call), made on the app's address when a workspace is created. It is never proxied: forwarded with the signed
  * workspace header like any page, it let anyone holding a workspace's URL wipe and re-seed a site, with any scenario
- * and seed. Read off the path as the app will route it: dot segments resolved, escapes decoded, repeated slashes
- * collapsed, and wherever a path-based target mounts it (`/s/<site>/internal/workspaces/…`). An address that cannot
- * be read is refused too.
+ * and seed. Read off the path as the app will route it, and wherever a path-based target mounts it
+ * (`/s/<site>/internal/workspaces/…`). An address that cannot be read is refused too.
  */
 function isInternalWorkspaceDoor(source: string): boolean {
-  try {
-    const path = decodeURIComponent(new URL(source).pathname).replace(/[\\/]+/g, "/");
-    return /(^|\/)internal\/workspaces(\/|$)/i.test(path);
-  } catch {
-    return true;
-  }
+  const path = routedPath(source);
+  return path === null || /(^|\/)internal\/workspaces(\/|$)/i.test(path);
 }
 
 /** What every per-run page answers with, whatever app serves it: no search index, no link followed (robots.ts). */
@@ -71,6 +79,15 @@ export const PER_RUN_ROBOTS = "noindex, nofollow";
  * (per-run) workspace's responses carry `X-Robots-Tag: noindex, nofollow` — every
  * app's, not only those that set their own; the shared workspace's are left as the
  * app answers them (its schema maps are meant to be found).
+ *
+ * This is where a request's doors are decided: the workspace's own, else the
+ * deployment's. A path behind none of the open doors (doorsAt in @benchme/core,
+ * read off the path after /w/<id>/<app> as the app will route it) is answered
+ * 404 here and never reaches the app; /mcp is closed here only when both the
+ * MCP and the WebMCP doors are, since a page's bridge and a direct client call
+ * the same path and only the app can tell them apart. Every request that is
+ * forwarded carries the doors, signed for its workspace, for the app to check
+ * again.
  */
 export async function registerProxy(app: FastifyInstance, d: ProxyDeps): Promise<void> {
   await app.register(replyFrom);
@@ -93,7 +110,8 @@ export async function registerProxy(app: FastifyInstance, d: ProxyDeps): Promise
     if (!isWorkspaceId(id)) return reply.code(404).send({ error: "NOT_FOUND", message: "no such workspace" });
     const target = d.apps.get(appName);
     if (!target) return reply.code(404).send({ error: "NOT_FOUND", message: `no such app "${appName}"` });
-    if (!(await d.service.isServable(id))) return reply.code(404).send({ error: "NOT_FOUND", message: "workspace unknown or expired" });
+    const workspace = await d.service.servable(id);
+    if (!workspace) return reply.code(404).send({ error: "NOT_FOUND", message: "workspace unknown or expired" });
 
     const rest = rawRest(req.raw.url) ?? req.params["*"] ?? "";
     const source = `${target.baseUrl}/${rest}${rawQuery(req.raw.url)}`;
@@ -101,6 +119,9 @@ export async function registerProxy(app: FastifyInstance, d: ProxyDeps): Promise
     // UTF-8 ("%FF", "%C3%28", a lone surrogate, a bare "%") throws there: the client's mistake, said as such.
     if (!decodable(source)) return reply.code(400).send({ error: "BAD_URL", message: "the address has a malformed percent-escape" });
     if (isInternalWorkspaceDoor(source)) return reply.code(404).send({ error: "NOT_FOUND", message: "no such page" });
+    const doors = d.service.doorsOf(workspace);
+    const appPath = routedPath(`http://app/${rest}`);
+    if (appPath === null || !admits(doors, appPath)) return reply.code(404).send({ error: "NOT_FOUND" });
     const perRun = !req.params.id.startsWith("shared-");
     return reply.from(source, {
       ...(perRun ? { rewriteHeaders: (headers: Record<string, unknown>) => ({ ...headers, "x-robots-tag": PER_RUN_ROBOTS }) } : {}),
@@ -108,6 +129,7 @@ export async function registerProxy(app: FastifyInstance, d: ProxyDeps): Promise
         ...headers,
         [WORKSPACE_HEADER]: id,
         [WORKSPACE_SIG_HEADER]: signWorkspaceHeader(d.gatewaySecret, id),
+        ...doorsHeaders(d.gatewaySecret, id, doors),
         [FORWARDED_PREFIX_HEADER]: `/w/${req.params.id}/${appName}`,
         "x-forwarded-host": forwardedHost,
         "x-forwarded-proto": forwardedProto,

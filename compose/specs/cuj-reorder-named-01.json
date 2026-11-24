@@ -41,6 +41,36 @@
           "min": 1,
           "max": 1
         }
+      },
+      {
+        "kind": "unchanged",
+        "name": "no change made as anyone else",
+        "scope": [
+          {
+            "apps": [
+              "sports"
+            ],
+            "actor": "danae.halvard@example.org"
+          },
+          {
+            "apps": [
+              "sports"
+            ],
+            "actor": "danae.okonjo@example.org"
+          },
+          {
+            "apps": [
+              "sports"
+            ],
+            "actor": "sable.larrabee@example.org"
+          },
+          {
+            "apps": [
+              "sports"
+            ],
+            "actor": "vesna.halvard@example.org"
+          }
+        ]
       }
     ]
   },

@@ -1,9 +1,18 @@
+import type { DoorSet } from "@benchme/core";
 import type { FastifyInstance } from "fastify";
 import type { AppRegistry } from "../app-registry.js";
 import type { ScenarioRegistry } from "@benchme/scenarios";
+import { openCapabilities } from "../capabilities.js";
 import type { WorkspaceService } from "../workspace-service.js";
 
-export type PortalDeps = { apps: AppRegistry; scenarios: ScenarioRegistry; service: WorkspaceService; publicBaseUrl: string };
+export type PortalDeps = {
+  apps: AppRegistry;
+  scenarios: ScenarioRegistry;
+  service: WorkspaceService;
+  publicBaseUrl: string;
+  /** The deployment's doors: the portal and the registry name nothing behind a closed one. */
+  doors: DoorSet;
+};
 
 const page = (title: string, body: string) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow">
@@ -12,6 +21,11 @@ const page = (title: string, body: string) => `<!doctype html>
 </head><body>${body}</body></html>`;
 
 export function registerPortal(app: FastifyInstance, d: PortalDeps): void {
+  const open = openCapabilities(d.doors);
+  const mcpOpen = d.doors.has("mcp");
+  // What the registry lists: the listed apps with something behind an open door.
+  const capable = d.apps.listed().filter((a) => open.some((c) => c.has(a)));
+
   app.get("/", async (_req, reply) => {
     const scenarios = d.scenarios
       .list()
@@ -19,7 +33,7 @@ export function registerPortal(app: FastifyInstance, d: PortalDeps): void {
       .join("");
     const apps = d.apps
       .listed()
-      .map((a) => `<li><code>${a.name}</code>${a.seeded ? " (per-workspace data)" : ""}${a.mcp ? " — MCP at <code>/mcp</code>" : ""}</li>`)
+      .map((a) => `<li><code>${a.name}</code>${a.seeded ? " (per-workspace data)" : ""}${mcpOpen && a.mcp ? " — MCP at <code>/mcp</code>" : ""}</li>`)
       .join("");
     return reply.type("text/html").send(
       page(
@@ -32,30 +46,24 @@ export function registerPortal(app: FastifyInstance, d: PortalDeps): void {
 <p>The response lists the URLs for every app under <code>/w/&lt;workspaceId&gt;/&lt;app&gt;/</code>. Workspaces expire after their TTL and are deleted.</p>
 <h2>Scenarios</h2><ul>${scenarios}</ul>
 <h2>Apps</h2><ul>${apps}</ul>
-<p>MCP servers: see the <a href="/registry">registry</a>.</p>`,
+${capable.length ? `<p>MCP servers: see the <a href="/registry">registry</a>.</p>` : ""}`,
       ),
     );
   });
 
   app.get("/registry", async (_req, reply) => {
-    const capable = d.apps.listed().filter((a) => a.mcp || a.ask || a.webmcp);
-    const link = (has: boolean, path: string) => (has ? `<code>${d.publicBaseUrl}/w/&lt;workspaceId&gt;/${path}</code>` : "—");
-    const rows = capable
-      .map(
-        (a) =>
-          `<tr><td><code>${a.name}</code></td>` +
-          `<td>${link(a.mcp, `${a.name}/mcp`)}</td><td>${a.mcp ? "Streamable HTTP" : "—"}</td>` +
-          `<td>${link(a.ask, `${a.name}/ask`)}</td>` +
-          `<td>${link(a.ask, `${a.name}/ask/mcp`)}</td>` +
-          `<td>${link(a.webmcp, `${a.name}/`)}</td></tr>`,
-      )
-      .join("");
+    const cell = (has: boolean, path: string) => (has ? `<code>${d.publicBaseUrl}/w/&lt;workspaceId&gt;/${path}</code>` : "—");
+    const head = open.map((c) => `<th>${c.label}</th>`).join("");
+    const rows = capable.map((a) => `<tr><td><code>${a.name}</code></td>${open.map((c) => `<td>${cell(c.has(a), `${a.name}/${c.path}`)}</td>`).join("")}</tr>`).join("");
+    const table = capable.length
+      ? `<table><tr><th>server</th>${head}</tr>${rows}</table>${mcpOpen ? "<p>Every MCP endpoint speaks Streamable HTTP.</p>" : ""}`
+      : "<p>This deployment serves its sites through their pages alone.</p>";
     return reply.type("text/html").send(
       page(
         "benchme — MCP registry",
         `<h1>MCP server registry</h1>
-<p>Each server is scoped to a workspace by its URL: the unguessable workspace id is the capability to read. A site with accounts asks the same sign-in of a write through its tools as through its pages (<code>sign_up</code>, <code>verify_email</code> with the code mailed to the inbox, <code>sign_in</code>).</p>
-<table><tr><th>server</th><th>endpoint</th><th>transport</th><th>NLWeb /ask</th><th>ask MCP</th><th>WebMCP</th></tr>${rows}</table>`,
+<p>Each server is scoped to a workspace by its URL: the unguessable workspace id is the capability to read. A site with accounts asks the same sign-in of a write through its tools as through its pages (<code>sign_up</code>, <code>verify_email</code> with the code mailed to the inbox, <code>sign_in</code>). A workspace created with its own doors is served through those, whatever this page lists: its <code>urls</code> say which.</p>
+${table}`,
       ),
     );
   });

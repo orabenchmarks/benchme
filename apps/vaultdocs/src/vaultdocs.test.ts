@@ -1,4 +1,4 @@
-import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signWorkspaceHeader, type Pool } from "@benchme/core";
+import { DoorSet, WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, doorsHeaders, migrate, newWorkspaceId, signWorkspaceHeader, type Pool } from "@benchme/core";
 import { acmeV1, documentsMatching, scenarios, type ScenarioRows } from "@benchme/scenarios";
 import { LexicalRanker } from "@benchme/site-kit";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -84,6 +84,18 @@ describe.skipIf(!DB)("vaultdocs (real Postgres full-text search)", () => {
     expect(home).toContain('data-webmcp="bridge"');
     expect(home).toContain('"name":"search"');
     expect((await app.inject(scoped({ url: "/search?q=warranty" }))).body).toContain("<b>");
+  });
+
+  it("names its MCP server and its tools on the home page only through open doors, and answers /ask and /ask/mcp only through theirs", async () => {
+    const through = (open: string[]) => scoped({ url: "/", headers: doorsHeaders(SECRET, ws, DoorSet.of(open)) }).headers as Record<string, string>;
+    const home = async (open: string[]) => (await app.inject({ url: "/", headers: through(open) })).body;
+    expect(await home(["mcp"])).toContain(`/w/${ws}/vaultdocs/mcp</code>`);
+    for (const open of [["rest"], ["webmcp"], []]) expect([open, (await home(open)).includes("MCP resources")]).toEqual([open, false]);
+    expect((await home([])).includes('data-webmcp="bridge"')).toBe(false);
+    // NLWeb's /ask is behind the REST door, its /ask/mcp behind the MCP door.
+    const ask = async (open: string[]) => (await app.inject({ url: "/ask?query=faq&streaming=false", headers: through(open) })).statusCode;
+    const askMcp = async (open: string[]) => (await app.inject({ method: "POST", url: "/ask/mcp", headers: { ...through(open), "content-type": "application/json", accept: "application/json, text/event-stream" }, payload: { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} } })).statusCode;
+    expect([await ask(["rest"]), await ask(["mcp", "webmcp"]), await askMcp(["mcp"]), await askMcp(["rest", "webmcp"])]).toEqual([200, 404, 200, 404]);
   });
 
   it("/ask ranks the seeded documents and agrees with documentsMatching", async () => {

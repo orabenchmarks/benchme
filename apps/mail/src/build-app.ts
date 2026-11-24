@@ -1,11 +1,15 @@
 import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createApp, isWorkspaceId, verifyWorkspaceHeader, type Pool } from "@benchme/core";
-import { header, registerMcp, registerWorkspaceScope, webmcpScript } from "@benchme/site-kit";
+import { header, registerMcp, registerWorkspaceScope, webmcpBridge } from "@benchme/site-kit";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { UnknownScenarioError, type ScenarioRegistry } from "@benchme/scenarios";
+import { PgHeldAddressesRepo } from "./mailboxes/held-repo.js";
+import { MailboxesSeeder } from "./mailboxes/seeder.js";
+import { inboxNote } from "./mailboxes/visibility.js";
 import { mailTools } from "./mcp/tools.js";
 import { PgMessagesRepo, type Message, type MessagesRepo } from "./messages-repo.js";
 
-export type BuildDeps = { pool: Pool; gatewaySecret: string; internalSecret: string; logLevel?: string };
+export type BuildDeps = { pool: Pool; scenarios: ScenarioRegistry; gatewaySecret: string; internalSecret: string; logLevel?: string };
 
 const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 /** `scripts` go in verbatim before </body>: the WebMCP bridge. */
@@ -20,6 +24,8 @@ const page = (title: string, body: string, scripts = "") =>
  * sign-up mails is within reach.
  */
 export async function buildMail(d: BuildDeps): Promise<FastifyInstance> {
+  const held = new PgHeldAddressesRepo(d.pool);
+  const mailboxes = new MailboxesSeeder(d.scenarios, held);
   const repo: MessagesRepo = new PgMessagesRepo(d.pool);
   const tools = mailTools();
   const app = createApp({ name: "mail", readiness: async () => (await d.pool.query("SELECT 1")).rowCount === 1, ...(d.logLevel ? { logLevel: d.logLevel } : {}) });
@@ -35,10 +41,17 @@ export async function buildMail(d: BuildDeps): Promise<FastifyInstance> {
     return reply.code(201).send(await repo.deliver(b.workspaceId, b));
   });
 
-  // Gateway-only seed hook: an inbox starts empty, but the gateway calls every seeded app.
+  // Gateway-only seed hook: an inbox starts empty, but a scenario whose mailboxes are private has its people's addresses held (mailboxes/).
   app.post<{ Params: { id: string } }>("/internal/workspaces/:id/seed", async (req, reply) => {
     if (!scoped(req, d.gatewaySecret)) return reply.code(401).send({ error: "NO_WORKSPACE" });
-    return reply.code(201).send({ ok: true });
+    if (req.params.id !== header(req, WORKSPACE_HEADER)) return reply.code(400).send({ error: "WORKSPACE_MISMATCH" });
+    const body = z.object({ scenario: z.string().min(1), seed: z.number().int().positive() }).parse(req.body);
+    try {
+      return reply.code(201).send({ ok: true, ...(await mailboxes.seed(req.params.id, body.scenario, body.seed)) });
+    } catch (err) {
+      if (err instanceof UnknownScenarioError) return reply.code(422).send({ error: "UNKNOWN_SCENARIO", message: err.message });
+      throw err;
+    }
   });
 
   app.get("/api/v1/messages", async (req) => {
@@ -49,14 +62,15 @@ export async function buildMail(d: BuildDeps): Promise<FastifyInstance> {
 
   app.get("/", async (req, reply) => {
     const to = (req.query as { to?: string }).to;
+    const note = await inboxNote(held, req.workspaceId);
     const msgs = await repo.list(req.workspaceId, to);
     const rows = msgs.map((m: Message) => `<tr class="${m.readAt ? "" : "unread"}"><td><a href="${req.prefix}/m/${m.id}">${esc(m.subject)}</a></td><td>${esc(m.to)}</td><td>${esc(m.from)}</td><td>${esc(m.receivedAt)}</td></tr>`).join("");
-    return reply.type("text/html").send(page("Inbox", `<h1>Workspace inbox</h1><form method="get"><input name="to" placeholder="filter by recipient" value="${esc(to ?? "")}"> <button>Filter</button></form><table><tr><th>Subject</th><th>To</th><th>From</th><th>Received</th></tr>${rows || "<tr><td colspan=4>No messages yet.</td></tr>"}</table>`, webmcpScript(tools, req.prefix)));
+    return reply.type("text/html").send(page("Inbox", `<h1>Workspace inbox</h1>${note}<form method="get"><input name="to" placeholder="filter by recipient" value="${esc(to ?? "")}"> <button>Filter</button></form><table><tr><th>Subject</th><th>To</th><th>From</th><th>Received</th></tr>${rows || "<tr><td colspan=4>No messages yet.</td></tr>"}</table>`, webmcpBridge(req, tools)));
   });
   app.get<{ Params: { id: string } }>("/m/:id", async (req, reply) => {
     const m = await repo.get(req.workspaceId, req.params.id, true);
-    if (!m) return reply.code(404).type("text/html").send(page("Not found", "<h1>No such message</h1>", webmcpScript(tools, req.prefix)));
-    return reply.type("text/html").send(page(m.subject, `<p><a href="${req.prefix}/">← Inbox</a></p><h1>${esc(m.subject)}</h1><p>From ${esc(m.from)} to ${esc(m.to)} at ${esc(m.receivedAt)}</p><pre>${esc(m.body)}</pre>`, webmcpScript(tools, req.prefix)));
+    if (!m) return reply.code(404).type("text/html").send(page("Not found", "<h1>No such message</h1>", webmcpBridge(req, tools)));
+    return reply.type("text/html").send(page(m.subject, `<p><a href="${req.prefix}/">← Inbox</a></p><h1>${esc(m.subject)}</h1><p>From ${esc(m.from)} to ${esc(m.to)} at ${esc(m.receivedAt)}</p><pre>${esc(m.body)}</pre>`, webmcpBridge(req, tools)));
   });
 
   // MCP lives in its own plugin scope: it replaces the content-type parsers for /mcp only.

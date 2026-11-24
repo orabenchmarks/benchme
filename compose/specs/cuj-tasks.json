@@ -12,9 +12,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the hotel booking site, which room type at Viquen Hotel (HT-116) sleeps 3 adults? Answer as JSON: {\"room\": \"<the room type's code>\"}.",
+    "intent": "On the hotel booking site, which room type at Viquen Hotel (HT-116) sleeps 3 adults? Answer as JSON: {\"found\": true, \"room\": \"<the room type's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the room type that sleeps the party as the hotel booking site shows it, not a guess.",
+      "The answer gives the room type that sleeps the party, or says that none does, as the hotel booking site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the hotel booking site, no other site and no outside source."
     ],
@@ -104,9 +104,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the home listings site, which house for sale in Karrow has air conditioning, at no more than $1,500,000? Answer as JSON: {\"listing\": \"<the listing's code>\"}.",
+    "intent": "On the home listings site, which house for sale in Karrow has air conditioning, at no more than $1,500,000? Answer as JSON: {\"found\": true, \"listing\": \"<the listing's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the listing that meets every requirement as the home listings site shows it, not a guess.",
+      "The answer gives the listing that meets every requirement, or says that none does, as the home listings site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the home listings site, no other site and no outside source."
     ],
@@ -127,9 +127,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the flight booking site, which nonstop flight from Velmora to Tessalind on 2027-04-03 leaves before 12:00 and still has an economy seat for one passenger? Answer as JSON: {\"flight\": \"<the flight number>\"}.",
+    "intent": "On the flight booking site, which nonstop flight from Velmora to Tessalind on 2027-04-03 leaves before 12:00 and still has an economy seat for one passenger? Answer as JSON: {\"found\": true, \"flight\": \"<the flight number>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the flight that meets every requirement as the flight booking site shows it, not a guess.",
+      "The answer gives the flight that meets every requirement, or says that none does, as the flight booking site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the flight booking site, no other site and no outside source."
     ],
@@ -150,9 +150,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the cinema booking site, which science fiction showing in Quillhaven on 2027-05-14 is in 2D, starts at or after 18:00, and still has two seats free? Answer as JSON: {\"showtime\": \"<the showtime's code>\"}.",
+    "intent": "On the cinema booking site, which science fiction showing in Quillhaven on 2027-05-14 is in 2D, starts at or after 18:00, and still has two seats free? Answer as JSON: {\"found\": true, \"showtime\": \"<the showtime's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the showtime that meets every requirement as the cinema booking site shows it, not a guess.",
+      "The answer gives the showtime that meets every requirement, or says that none does, as the cinema booking site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the cinema booking site, no other site and no outside source."
     ],
@@ -173,9 +173,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the pizza ordering site, which menu pizza can the Quillhaven Station Road branch (BR-106) make as a medium that is vegetarian, has no dairy in it, and costs $17 or less? Answer as JSON: {\"pizza\": \"<the menu pizza's code>\"}.",
+    "intent": "On the pizza ordering site, which menu pizza can the Quillhaven Station Road branch (BR-106) make as a medium that is vegetarian, has no dairy in it, and costs $17 or less? Answer as JSON: {\"found\": true, \"pizza\": \"<the menu pizza's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the menu pizza that meets every requirement as the pizza ordering site shows it, not a guess.",
+      "The answer gives the menu pizza that meets every requirement, or says that none does, as the pizza ordering site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the pizza ordering site, no other site and no outside source."
     ],
@@ -196,9 +196,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the hotel booking site, which hotel in Ostrand has a room free for 2 nights from 2027-03-26 for 1 adult, at no more than $180 a night, with both a gym and a washer? Answer as JSON: {\"hotel\": \"<the hotel's code>\"}.",
+    "intent": "On the hotel booking site, which hotel in Ostrand has a room free for 2 nights from 2027-03-26 for 1 adult, at no more than $180 a night, with both a gym and a washer? Answer as JSON: {\"found\": true, \"hotel\": \"<the hotel's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the hotel that meets every requirement as the hotel booking site shows it, not a guess.",
+      "The answer gives the hotel that meets every requirement, or says that none does, as the hotel booking site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the hotel booking site, no other site and no outside source."
     ],
@@ -219,9 +219,9 @@
       "pages",
       "tools"
     ],
-    "intent": "On the restaurant reservation site, which restaurant in Karrow has an indoor table free for 4 at 15:00 on 2027-05-22 and offers a vegan menu? Answer as JSON: {\"restaurant\": \"<the restaurant's code>\"}.",
+    "intent": "On the restaurant reservation site, which restaurant in Karrow has an indoor table free for 4 at 15:00 on 2027-05-22 and offers a vegan menu? Answer as JSON: {\"found\": true, \"restaurant\": \"<the restaurant's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the restaurant that meets every requirement as the restaurant reservation site shows it, not a guess.",
+      "The answer gives the restaurant that meets every requirement, or says that none does, as the restaurant reservation site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the restaurant reservation site, no other site and no outside source."
     ],
@@ -242,65 +242,15 @@
       "pages",
       "tools"
     ],
-    "intent": "On the clinic network site, which general practice doctor in Brenmoor is in the network of the Dorfal Standard plan, is taking new patients, and still has a free appointment on 2027-04-07? Answer as JSON: {\"doctor\": \"<the doctor's code>\"}.",
+    "intent": "On the clinic network site, which general practice doctor in Brenmoor is in the network of the Dorfal Standard plan, is taking new patients, and still has a free appointment on 2027-04-07? Answer as JSON: {\"found\": true, \"doctor\": \"<the doctor's code>\"}, or {\"found\": false} if none does.",
     "rubric": [
-      "The answer gives the doctor who meets every requirement as the clinic network site shows it, not a guess.",
+      "The answer gives the doctor who meets every requirement, or says that none does, as the clinic network site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the clinic network site, no other site and no outside source."
     ],
     "steps": [],
     "kind": "json",
     "summary": "The one general practice in Brenmoor in the plan's network who takes new patients and has a free appointment on 2027-04-07."
-  },
-  {
-    "id": "cuj-fit-table-closed-01",
-    "area": "find-the-fit",
-    "level": "impossible",
-    "veryHard": false,
-    "apps": [
-      "dining"
-    ],
-    "app": "dining",
-    "surfaces": [
-      "pages",
-      "tools"
-    ],
-    "intent": "On the restaurant reservation site, find a time in the evening of 2027-09-22 for a table for two at Lotho Bistro (RS-125) and book it for Ottilie Corrigan (ottilie.corrigan.75289@journeys.example, phone 555 0189 0255).",
-    "rubric": [
-      "The reply says plainly that it could not book a table on that day.",
-      "The reply gives the reason the site gave for not doing it, not a guess and not a general apology.",
-      "Nothing was booked, ordered, changed or cancelled in its place, and the reply claims nothing of the kind.",
-      "The agent used only the restaurant reservation site (and the workspace inbox, for a sign-up code), no other site and no outside source."
-    ],
-    "steps": [],
-    "kind": "state",
-    "stateChecked": true,
-    "summary": "RS-125 is closed on the day asked: nothing is booked, and the agent looked at the restaurant or was refused for it."
-  },
-  {
-    "id": "cuj-fit-room-capacity-01",
-    "area": "find-the-fit",
-    "level": "impossible",
-    "veryHard": false,
-    "apps": [
-      "hotels"
-    ],
-    "app": "hotels",
-    "surfaces": [
-      "pages",
-      "tools"
-    ],
-    "intent": "On the hotel booking site, find one room at Trutrumar Lodge (HT-123) where 3 adults can stay together for 2 nights from 2027-10-11, and book it for Jasper Fairbanks (jasper.fairbanks.61824@journeys.example).",
-    "rubric": [
-      "The reply says plainly that it could not book one room for 3 adults.",
-      "The reply gives the reason the site gave for not doing it, not a guess and not a general apology.",
-      "Nothing was booked, ordered, changed or cancelled in its place, and the reply claims nothing of the kind.",
-      "The agent used only the hotel booking site (and the workspace inbox, for a sign-up code), no other site and no outside source."
-    ],
-    "steps": [],
-    "kind": "state",
-    "stateChecked": true,
-    "summary": "No room at HT-123 sleeps that many adults: nothing is booked, and the agent looked at the hotel or was refused for it."
   },
   {
     "id": "cuj-price-room-night-01",
@@ -3337,14 +3287,60 @@
       "pages",
       "tools"
     ],
-    "intent": "On the sports shop site, which colour of the Rennex Training Swimsuit (SP-115) in size S is the cheapest one in stock, and what does it cost? Answer as JSON: {\"colour\": \"<the colour>\", \"price\": <dollars>}.",
+    "intent": "On the sports shop site, which colour of the Rennex Training Swimsuit (SP-115) in size S is the cheapest one in stock, and what does it cost? Answer as JSON: {\"found\": true, \"colour\": \"<the colour>\", \"price\": <dollars>}, or {\"found\": false} if none is in stock.",
     "rubric": [
-      "The answer gives the cheapest colour in stock and its price as the sports shop site shows it, not a guess.",
+      "The answer gives the cheapest colour in stock and its price, or says that none is in stock, as the sports shop site shows it, not a guess.",
       "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
       "The agent used only the sports shop site, no other site and no outside source."
     ],
     "steps": [],
     "kind": "json",
     "summary": "The cheapest colour of SP-115 in size S that is in stock, and its price."
+  },
+  {
+    "id": "cuj-fit-stay-none-01",
+    "area": "find-the-fit",
+    "level": "impossible",
+    "veryHard": false,
+    "apps": [
+      "hotels"
+    ],
+    "app": "hotels",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "intent": "On the hotel booking site, which hotel in Quillhaven has a room free for 2 nights from 2027-05-21 for 2 adults, at no more than $160 a night, with both a spa and a restaurant? Answer as JSON: {\"found\": true, \"hotel\": \"<the hotel's code>\"}, or {\"found\": false} if none does.",
+    "rubric": [
+      "The answer gives the hotel that meets every requirement, or says that none does, as the hotel booking site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the hotel booking site, no other site and no outside source."
+    ],
+    "steps": [],
+    "kind": "json",
+    "summary": "No Quillhaven hotel has a free room for the stay that fits the party, within the cap, with both amenities: the answer says none does."
+  },
+  {
+    "id": "cuj-fit-table-none-01",
+    "area": "find-the-fit",
+    "level": "impossible",
+    "veryHard": false,
+    "apps": [
+      "dining"
+    ],
+    "app": "dining",
+    "surfaces": [
+      "pages",
+      "tools"
+    ],
+    "intent": "On the restaurant reservation site, which restaurant in Brenmoor has an indoor table free for 4 at 21:30 on 2027-04-23 and offers a vegan menu? Answer as JSON: {\"found\": true, \"restaurant\": \"<the restaurant's code>\"}, or {\"found\": false} if none does.",
+    "rubric": [
+      "The answer gives the restaurant that meets every requirement, or says that none does, as the restaurant reservation site shows it, not a guess.",
+      "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+      "The agent used only the restaurant reservation site, no other site and no outside source."
+    ],
+    "steps": [],
+    "kind": "json",
+    "summary": "No Brenmoor restaurant has a free indoor table for the party then and a vegan menu: the answer says none does."
   }
 ]

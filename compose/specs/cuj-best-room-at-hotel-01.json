@@ -26,6 +26,30 @@
           "type": "booking",
           "id": "{bookingNo}"
         }
+      },
+      {
+        "kind": "unchanged",
+        "name": "no change made as anyone else",
+        "scope": [
+          {
+            "apps": [
+              "hotels"
+            ],
+            "actor": "bram.voss5@example.com"
+          },
+          {
+            "apps": [
+              "hotels"
+            ],
+            "actor": "quill.thorsby4@example.com"
+          },
+          {
+            "apps": [
+              "hotels"
+            ],
+            "actor": "teodor.okonjo6@example.com"
+          }
+        ]
       }
     ]
   },

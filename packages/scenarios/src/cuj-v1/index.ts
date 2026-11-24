@@ -10,11 +10,18 @@ import { siteAccounts } from "./accounts.js";
  * few accounts already signed up on each site (`accounts`), so a journey can
  * begin with someone signing in to their own account. Its workspaces
  * advertise the nine sites and the inbox their sign-up codes land in.
+ *
+ * Its mailboxes are private: everyone its rows already hold (a guest, an
+ * organiser, an account's owner) has a mailbox of their own, which the inbox
+ * never shows. A journey acts for its people through the accounts they have,
+ * and cannot sign up as one of them on a site where they have none: the code
+ * would go to their own mailbox. A new person a task names signs up as ever.
  */
 export const cujV1: Scenario = {
   key: "cuj-v1",
   description: "Critical user journeys on the nine sites of webmcp-v1 (hotels, flights, restaurants, pizza, cinema, a sports store, homes, clinics, office events), with a few accounts already signed up on each",
   apps: [...SITE_APPS, "mail"],
+  mailboxes: "private",
   generate(seed: number): ScenarioRows {
     const rows = webmcpV1.generate(seed);
     return { ...rows, accounts: siteAccounts(seed, rows) };

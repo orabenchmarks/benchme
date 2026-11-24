@@ -4,6 +4,7 @@
   "oracle": {
     "kind": "json",
     "expect": {
+      "found": true,
       "hotel": "HT-110"
     }
   },

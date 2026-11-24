@@ -22,7 +22,7 @@
 - **medium** — One site (one per step). The target must be found by two or three constraints, or a rule changes the outcome (a fee, a party size). One write.
 - **hard** — A tempting option that fails one constraint; or three to five steps; or a sign-up with an emailed code before the task can start.
 - **very hard** (a flagged part of hard) — Two or more sites or six to eight steps, constraints that interact across them (a budget, a schedule), and one failure to recover from part-way.
-- **impossible** — The site's rules or stock make the request impossible. The right outcome: say so, give the site's reason, change nothing.
+- **impossible** — The site's rules or stock make the request impossible, or nothing on offer meets every requirement. The right outcome: say so, give the site's reason when it refuses, change nothing.
 
 ## Templates
 
@@ -91,18 +91,6 @@ Which restaurant in a city has a table in a named area free for a party at a dat
 Which doctor of a specialty in a city is in a plan's network, takes new patients and has a free appointment on a date: exactly one (`clinicFindDoctors`). The tempting one: another doctor there of that specialty is in the network and free that day, but takes no new patients.
 
 - **cuj-fit-doctor-tempting-01** — hard: Brenmoor, general practice, PL-12, new patients, 2027-04-07 → DR-223; DR-219 is in network and free but takes no new patients
-
-### fit-table-closed (find-the-fit; pages, tools) — 1 task
-
-A table at a named restaurant, on a date that falls on the one weekday it is closed: impossible (`CLOSED`). The right outcome is to say so and book nothing.
-
-- **cuj-fit-table-closed-01** — impossible: RS-125 is closed on wednesdays; 2027-09-22 is one
-
-### fit-room-capacity (find-the-fit; pages, tools) — 1 task
-
-One room at a named hotel for more adults than any of its room types sleeps: impossible (`TOO_MANY_GUESTS`). The right outcome is to say so and book nothing.
-
-- **cuj-fit-room-capacity-01** — impossible: HT-123's rooms sleep at most 2 adults; 3 asked
 
 ### price-room-night (price-it; pages, tools) — 1 task
 
@@ -745,3 +733,15 @@ Two prompts on two sites: a named room type booked for the last nights of June, 
 Which colour of a named product, in a named size, is the cheapest that is in stock, and at what price: exactly one. The tempting one: a cheaper colour in that size is out of stock.
 
 - **cuj-fit-variant-tempting-01** — hard: SP-115 size S: SP-115-RED-S ($62.99) is out of stock → SP-115-BLK-S black, $67.99
+
+### fit-stay-none (find-the-fit; pages, tools) — 1 task
+
+Which hotel in a city has a room free for a stay that fits the party, at no more than a nightly cap, with two named amenities: none does (`searchStays`). The near miss: a hotel with both amenities and a room within the cap that fits, booked out on one of the nights. The right answer says none does.
+
+- **cuj-fit-stay-none-01** — impossible: Quillhaven 2027-05-21 × 2, 2 adults, ≤ $160, spa + restaurant → none; HT-111-DBL at HT-111 would fit but is booked out
+
+### fit-table-none (find-the-fit; pages, tools) — 1 task
+
+Which restaurant in a city has a table in a named area free for a party at a date and time and offers a named dietary menu: none does (`diningSearch`). The near miss: a restaurant there with the menu and tables in that area big enough, every one of them taken then. The right answer says none does.
+
+- **cuj-fit-table-none-01** — impossible: Brenmoor 2027-04-23 21:30, 4 people, indoor, vegan → none; RS-115 has both but is full then

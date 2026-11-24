@@ -52,6 +52,54 @@
               "type": "reservation",
               "id": "{reservationNo}"
             }
+          },
+          {
+            "kind": "unchanged",
+            "name": "no change made as anyone else",
+            "scope": [
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "danae.larrabee@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "lior.kowalczyk@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "orrin.sandoval@staff.example"
+              },
+              {
+                "apps": [
+                  "events"
+                ],
+                "actor": "teodor.mbeki@staff.example"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "bram.kowalczyk1@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "lior.mbeki8@example.com"
+              },
+              {
+                "apps": [
+                  "dining"
+                ],
+                "actor": "orrin.mbeki4@example.com"
+              }
+            ]
           }
         ]
       }
