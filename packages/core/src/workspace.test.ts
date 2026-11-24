@@ -38,7 +38,6 @@ describe.skipIf(!process.env.DATABASE_URL)("PgWorkspaceRepo (real Postgres)", ()
     const unnamed = await repo.create({ id: newWorkspaceId(), scenario: "acme-v1", seed: 1, expiresAt });
     expect([named.doors, unnamed.doors]).toEqual([["page", "webmcp"], null]);
     expect([(await repo.get(named.id))?.doors, (await repo.get(unnamed.id))?.doors]).toEqual([["page", "webmcp"], null]);
-    await repo.delete(named.id);
-    await repo.delete(unnamed.id);
+    // Left to expire, not deleted: a delete cascades into every app schema's tables, which other test files create and drop meanwhile.
   });
 });
