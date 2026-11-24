@@ -30,4 +30,15 @@ describe.skipIf(!process.env.DATABASE_URL)("PgWorkspaceRepo (real Postgres)", ()
     expect(await repo.get(id)).toBeNull();
     expect(await repo.delete(id)).toBe(false);
   });
+
+  it("keeps the doors a workspace was created with, and none for one that named none", async () => {
+    const repo = new PgWorkspaceRepo(pool as Pool);
+    const expiresAt = new Date(Date.now() + 60_000);
+    const named = await repo.create({ id: newWorkspaceId(), scenario: "acme-v1", seed: 1, expiresAt, doors: ["page", "webmcp"] });
+    const unnamed = await repo.create({ id: newWorkspaceId(), scenario: "acme-v1", seed: 1, expiresAt });
+    expect([named.doors, unnamed.doors]).toEqual([["page", "webmcp"], null]);
+    expect([(await repo.get(named.id))?.doors, (await repo.get(unnamed.id))?.doors]).toEqual([["page", "webmcp"], null]);
+    await repo.delete(named.id);
+    await repo.delete(unnamed.id);
+  });
 });
