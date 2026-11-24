@@ -18,7 +18,7 @@ export { LEDGER_KINDS, LEDGER_OUTCOMES, NOT_FOUND_CODE, READ_ACTION, ledgerEntry
 export { MemoryLedger, PgLedger, type Ledger } from "./ledger/ledger.js";
 export { ledgerPath, registerLedgerRoute } from "./ledger/ledger-route.js";
 export { ledgered, untransacted, type LedgeredDeps } from "./ledger/ledgered.js";
-export { about, authStep, read, unrecorded, write, type LedgerRule, type LedgerRules, type Recorded, type Subject, type Unrecorded } from "./ledger/rules.js";
+export { about, authAttempt, authStep, read, unrecorded, write, type LedgerRule, type LedgerRules, type Recorded, type Subject, type Unrecorded } from "./ledger/rules.js";
 export { LEDGER_MIGRATIONS, ledgerSql, ledgerSubjectSql, ledgerTableSql } from "./ledger/schema.js";
 export { esc, money, shell, authPages, type NavLink, type ShellCtx } from "./html.js";
 export { bridgeScript, webmcpBridge, WEBMCP_SCRIPT_MARKER, WEBMCP_REGISTER_GLOBAL } from "./webmcp.js";

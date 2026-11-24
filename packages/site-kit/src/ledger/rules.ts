@@ -13,6 +13,11 @@ export type Recorded<A extends unknown[], T> = {
   id: (args: A, result: T | undefined) => string | null | undefined;
   /** What the request is about besides its entity (see `about`): kept made or refused, since it comes from the request. */
   subject?: Subject<A>;
+  /**
+   * An attempt, which counts whatever comes of it (a verification code tried): what the call wrote is kept when it is
+   * refused too, in one transaction with its refusal's entry. Any other call's refusal is rolled back.
+   */
+  attempt?: true;
 };
 /** The thing a request names besides the entity it writes: `about("order", ([req]) => req.orderNo)`. */
 export type Subject<A extends unknown[]> = { type: string; id: (args: A) => string | null | undefined };
@@ -52,4 +57,9 @@ export function about<A extends unknown[]>(type: string, id: Subject<A>["id"]): 
 /** A step of signing up or in. Recorded, and never counted as a change to what the site sells. */
 export function authStep<A extends unknown[], T>(action: string, id: Recorded<A, T>["id"]): LedgerRule<A, T> {
   return { kind: "auth", entity: "account", action, id };
+}
+
+/** A step of signing up or in that is an attempt (see `Recorded.attempt`): a code tried is spent, right or wrong. */
+export function authAttempt<A extends unknown[], T>(action: string, id: Recorded<A, T>["id"]): LedgerRule<A, T> {
+  return { kind: "auth", entity: "account", action, id, attempt: true };
 }
