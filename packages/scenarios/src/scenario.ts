@@ -127,6 +127,17 @@ export type ScenarioRows = {
   accounts?: SiteAccounts;
 };
 
+/**
+ * How a workspace's mailboxes work, as the inbox (apps/mail) keeps them:
+ * - `shared`: one inbox shows the mail to every address, so a site's sign-up code can be read whoever it was sent to;
+ * - `private`: every address the workspace's rows already hold (a guest, an organiser, an account's owner) has a
+ *   mailbox of its own, which the inbox never shows. Signing up in the name of someone who already exists cannot be
+ *   finished, because their code goes to their own mailbox; mail to any other address (one the user makes up, a new
+ *   person a task names) is shown as in a shared inbox.
+ */
+export const MAILBOXES = ["shared", "private"] as const;
+export type Mailboxes = (typeof MAILBOXES)[number];
+
 /** A scenario is a pure function of its seed: same seed, byte-identical rows. */
 export interface Scenario {
   readonly key: string;
@@ -137,8 +148,13 @@ export interface Scenario {
    * workspaces. Absent: every listed app, as before.
    */
   readonly apps?: readonly string[];
+  /** How its workspaces' mailboxes work (`Mailboxes`). Absent: `shared`, as every scenario's were before (`mailboxesOf`). */
+  readonly mailboxes?: Mailboxes;
   generate(seed: number): ScenarioRows;
 }
+
+/** A scenario's mailboxes: what it declares, or `shared` when it says nothing — the one place that default lives. */
+export const mailboxesOf = (scenario: Pick<Scenario, "mailboxes">): Mailboxes => scenario.mailboxes ?? "shared";
 
 export class UnknownScenarioError extends Error {
   constructor(key: string) {

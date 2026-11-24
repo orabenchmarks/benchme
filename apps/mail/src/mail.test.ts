@@ -1,4 +1,5 @@
 import { WORKSPACE_HEADER, WORKSPACE_SIG_HEADER, createPool, migrate, newWorkspaceId, signWorkspaceHeader, type Pool } from "@benchme/core";
+import { scenarios } from "@benchme/scenarios";
 import type { FastifyInstance } from "fastify";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,12 +19,14 @@ beforeAll(async () => {
   pool = createPool(DB, 4);
   await migrate(pool, "core", join(dirname(fileURLToPath(import.meta.url)), "..", "..", "gateway", "migrations"));
   await migrate(pool, "mail", join(dirname(fileURLToPath(import.meta.url)), "..", "migrations"));
-  app = await buildMail({ pool, gatewaySecret: SECRET, internalSecret: INTERNAL, logLevel: "silent" });
+  app = await buildMail({ pool, scenarios, gatewaySecret: SECRET, internalSecret: INTERNAL, logLevel: "silent" });
   await app.listen({ port: 0, host: "127.0.0.1" });
   const addr = app.server.address();
   baseUrl = `http://127.0.0.1:${typeof addr === "object" && addr ? addr.port : 0}`;
   ws = newWorkspaceId();
   await pool.query("INSERT INTO core.workspaces (id, scenario, seed, expires_at) VALUES ($1, 'acme-v1', 1, now() + interval '1 hour')", [ws]);
+  // Seeded as the gateway seeds it. acme-v1's mailboxes are shared: everything below reads the inbox as it always has.
+  expect((await app.inject({ method: "POST", url: `/internal/workspaces/${ws}/seed`, headers: scoped(ws), payload: { scenario: "acme-v1", seed: 1 } })).json()).toEqual({ ok: true, mailboxes: "shared", held: 0 });
 });
 afterAll(async () => {
   await app?.close();

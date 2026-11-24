@@ -1,8 +1,10 @@
 import type { Pool } from "@benchme/core";
 import { randomBytes } from "node:crypto";
+import { SHOWN_IN_INBOX } from "./mailboxes/visibility.js";
 
 export type Message = { id: string; from: string; to: string; subject: string; body: string; receivedAt: string; readAt: string | null };
 
+/** Delivery stores every message; the two reads return only what the inbox shows (SHOWN_IN_INBOX), as every door reads through them. */
 export interface MessagesRepo {
   deliver(ws: string, msg: { from: string; to: string; subject: string; body: string }): Promise<Message>;
   list(ws: string, to?: string, limit?: number): Promise<Message[]>;
@@ -26,19 +28,19 @@ export class PgMessagesRepo implements MessagesRepo {
 
   async list(ws: string, to?: string, limit = 100): Promise<Message[]> {
     const params: unknown[] = [ws, limit];
-    let where = "workspace_id = $1";
+    let where = `m.workspace_id = $1 AND ${SHOWN_IN_INBOX}`;
     if (to) {
       params.push(to.toLowerCase());
-      where += " AND to_addr = $3";
+      where += " AND m.to_addr = $3";
     }
-    const r = await this.pool.query<Row>(`SELECT * FROM mail.messages WHERE ${where} ORDER BY received_at DESC LIMIT $2`, params);
+    const r = await this.pool.query<Row>(`SELECT m.* FROM mail.messages m WHERE ${where} ORDER BY m.received_at DESC LIMIT $2`, params);
     return r.rows.map(toMsg);
   }
 
   async get(ws: string, id: string, markRead: boolean): Promise<Message | null> {
     const r = markRead
-      ? await this.pool.query<Row>("UPDATE mail.messages SET read_at = COALESCE(read_at, now()) WHERE workspace_id = $1 AND id = $2 RETURNING *", [ws, id])
-      : await this.pool.query<Row>("SELECT * FROM mail.messages WHERE workspace_id = $1 AND id = $2", [ws, id]);
+      ? await this.pool.query<Row>(`UPDATE mail.messages m SET read_at = COALESCE(m.read_at, now()) WHERE m.workspace_id = $1 AND m.id = $2 AND ${SHOWN_IN_INBOX} RETURNING m.*`, [ws, id])
+      : await this.pool.query<Row>(`SELECT m.* FROM mail.messages m WHERE m.workspace_id = $1 AND m.id = $2 AND ${SHOWN_IN_INBOX}`, [ws, id]);
     return r.rows[0] ? toMsg(r.rows[0]) : null;
   }
 }
