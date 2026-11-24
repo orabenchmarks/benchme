@@ -19,6 +19,7 @@
  */
 import { shuffle } from "../../../packages/scenarios/dist/index.js";
 import { streamFor } from "../kit.mjs";
+import { criteriaProblem, expectedValues, said } from "../rubrics.mjs";
 import { heldAddresses, ownAccounts, withActorGuard } from "./actors.mjs";
 import { contextOf } from "./context.mjs";
 import { AREAS, LEVELS, LEVEL_TEXT, NO_EASY, levelOf } from "./levels.mjs";
@@ -27,15 +28,8 @@ import { CUJ_TEMPLATES } from "./templates/index.mjs";
 const KNOWN_APPS = ["hotels", "flights", "dining", "pizza", "cinema", "sports", "homes", "clinic", "events"];
 /** Nothing in a prompt says where a site is, or that anything will be checked. */
 const NOT_IN_A_PROMPT = [/https?:\/\//i, /\blocalhost\b/i, /\/w\//, /\b(verif(y|ier|ied)|rubric|grad(e|ed|er|ing)|benchmark|scor(e|ed|ing)|integrity|oracle)\b/i];
-/** No criterion rewards a door, a tool or a way of replying: the same rubric grades every setup. */
-const NOT_IN_A_RUBRIC = [/\b(mcp|webmcp|rest|api|endpoint|tool|tools|browser|click|curl|json|markdown|bullets?|formatted|concise|polite|tone)\b/i];
-const MAX_CRITERION = 300;
 
 const asList = (v) => (Array.isArray(v) ? v : v === undefined || v === null ? [] : [v]);
-const flat = (o) => (o && typeof o === "object" ? Object.values(o).flatMap(flat) : [o]);
-/** The values a json key would accept, as a prompt or a rubric could leak them. */
-const expectedValues = (oracle) => (oracle.kind === "json" ? flat(oracle.expect).filter((v) => typeof v === "string" || (typeof v === "number" && Math.abs(v) >= 10)) : []);
-const said = (text, value) => text.toLowerCase().includes(String(value).toLowerCase());
 
 /** Why this pick is no task (its answer would be in its own prompt; a declared rule or interaction does not bite here). */
 function pickIssue(built) {
@@ -58,18 +52,13 @@ function templateProblem(built) {
   if (stepApps.some((a) => !a)) return "every step of a task on several sites says which apps it touches";
   const met = [...new Set(stepApps.flat())];
   if (JSON.stringify(met) !== JSON.stringify(built.apps)) return `apps ${JSON.stringify(built.apps)} are not the steps' apps in the order met (${JSON.stringify(met)})`;
+  const intents = steps.map((s) => s.intent);
   for (const [i, s] of steps.entries()) {
     const where = `step ${i + 1}`;
     if (!s.intent || typeof s.intent !== "string") return `${where} has no intent`;
     for (const re of NOT_IN_A_PROMPT) if (re.test(s.intent)) return `${where}'s intent says ${re} (a prompt names no place and no grading)`;
-    const [lo, hi] = i === 0 ? [2, 6] : [1, 6];
-    if (!Array.isArray(s.rubric) || s.rubric.length < lo || s.rubric.length > hi) return `${where} has ${s.rubric?.length ?? 0} rubric criteria, not ${lo} to ${hi}`;
-    for (const c of s.rubric) {
-      if (typeof c !== "string" || !c.trim() || c.length > MAX_CRITERION) return `${where}: a criterion is empty or longer than ${MAX_CRITERION} characters`;
-      for (const re of NOT_IN_A_RUBRIC) if (re.test(c)) return `${where}: a criterion rewards a door or a reply style (${re}): ${c}`;
-      for (const s2 of steps) for (const v of expectedValues(s2.oracle)) if (said(c, v)) return `${where}: a criterion states the expected value ${v}`;
-      for (const v of asList(built.hidden)) if (said(c, v)) return `${where}: a criterion names ${v}, which the task must find`;
-    }
+    const criteria = criteriaProblem(s.rubric, { where, lo: i === 0 ? 2 : 1, hi: 6, oracles: steps.map((x) => x.oracle), intents, hidden: built.hidden });
+    if (criteria) return criteria;
     if (s.kind !== s.oracle?.kind || !["json", "state"].includes(s.kind)) return `${where}: kind ${s.kind} and oracle ${s.oracle?.kind} disagree`;
     if (s.kind === "json" && typeof s.answer !== "function") return `${where} is json and has no answer reader`;
     if (s.kind === "state" && typeof s.solve !== "function") return `${where} is state and has no reference solution`;
@@ -80,7 +69,6 @@ function templateProblem(built) {
       if (steps.slice(0, i).some((e) => said(e.intent, s.fact))) return `${where}'s fact "${s.fact}" is already in an earlier step`;
     }
   }
-  const intents = steps.map((s) => s.intent);
   if (built.target && !said(steps[0].intent, built.target)) return `the named target ${built.target} is not in the prompt`;
   for (const c of asList(built.constraints)) if (!intents.some((i) => said(i, c))) return `the constraint "${c}" is in no prompt`;
   if (built.tempting && typeof built.tempting.check !== "function") return "a tempting option needs a live check";
