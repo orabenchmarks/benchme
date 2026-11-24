@@ -1490,6 +1490,19 @@ docker compose down -v               # stop and drop the database volume
 
 ## Release
 
+_Chart 0.12.0: a deployment, and each workspace, chooses its doors (§ Doors):
+`BENCHME_DOORS` on the gateway (the chart's `doors` value), and `doors` on
+`POST /api/workspaces`. Unset, every door is served, as before. A closed door
+answers 404 and nothing names it; the WebMCP door is now the page's bridge
+cookie and token, and the `x-benchme-door` header means nothing (a call that
+only carries it is an MCP client's). `cuj-v1` workspaces keep their people's
+mail private (the inbox never shows mail to an address the rows hold), every
+`cuj-v1` task that changes something checks that no change was made as anyone
+else, and find-the-fit's two impossible tasks are now questions no option meets
+(`{"found": false}`); every which-one question asks for `{"found": …}`. New
+migrations: the gateway's `003_doors` and the inbox's `002_held_addresses`,
+applied by the migrate Job like any other. No new image and no new secret._
+
 _Chart 0.11.0: the `cuj-v1` scenario (docs/scenarios/cuj-v1.md) — 120
 critical-user-journey tasks over the nine sites in ten focus areas and four
 levels (easy, medium, hard with a `veryHard` subset, impossible), 26 of them
