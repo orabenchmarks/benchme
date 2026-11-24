@@ -52,7 +52,7 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | `apps/clinic` | **Calvenor Clinics**: doctors, appointments, coverage, prescription prices (administrative only). SSR UI, REST v1, an MCP server, WebMCP (see [Clinics](#clinics)) |
 | `apps/events` | **Fennick Events**: office events, room booking, invitations, registration. SSR UI, REST v1, an MCP server, WebMCP (see [Events](#events)) |
 | `apps/verify` | the verifier: json / xlsx / docx / patch / **state** oracles (state reads the app's own REST API after the fact — end state is the evidence, the artifact is ignored — and, on the nine sites, their change ledgers: a check may ask that a row is there, that none is, that a ledger entry matches, or that nothing was written), HMAC receipts, attempt log, isolated Kubernetes Job runner; the intent corpus it ships with (generated tasks across the warehouse, helpdesk, vault and company site) is described in [`compose/specs/README.md`](compose/specs/README.md) |
-| `apps/mail` | per-workspace inbox with an internal delivery endpoint; read through its pages, REST, or two MCP tools (also WebMCP tools on its pages) |
+| `apps/mail` | per-workspace inbox with an internal delivery endpoint; read through its pages, REST, or two MCP tools (also WebMCP tools on its pages); in a scenario whose mailboxes are private (`cuj-v1`) it never shows the mail to people the workspace already holds (see [The same sign-in on every door](#the-same-sign-in-on-every-door)) |
 | `apps/data` | the generated company site |
 | `packages/storefront` | the stores' pure logic: money, US sales tax by ZIP, cart, pricing, the scenario-file schema, outcome classes, order numbers |
 | `apps/shops` | three consumer stores and a payment page, served from one app (see [Stores](#stores)) |
@@ -331,7 +331,10 @@ Those suites grade the tool calls an agent makes; these tasks grade the answer
 or the site's end state, so any door can be used.
 
 The same nine sites, with the same rows, are the `cuj-v1` scenario's, which
-adds the accounts some of their people already have. Its corpus is 120
+adds the accounts some of their people already have, and gives all of their
+people mailboxes of their own that the inbox does not show, so a sign-up in
+one of their names cannot be finished (see
+[The same sign-in on every door](#the-same-sign-in-on-every-door)). Its corpus is 120
 critical-user-journey tasks in ten focus areas and four levels, some over
 several prompts of one conversation, each step checked by its reply or by the
 sites' rows and change ledger (`compose/specs/cuj-corpus.json`,
@@ -390,6 +393,20 @@ and on its pages.
 - **WebMCP.** The page's bridge calls the site's `/mcp` from the browser, so
   the answer to `sign_in` sets the site's own session cookie. Signing in with
   the tool signs the pages in, and signing in on the pages signs the tools in.
+
+Whose mail the inbox shows is the scenario's to say (`mailboxes`, in
+`packages/scenarios`). A **shared** inbox, every scenario's but `cuj-v1`'s,
+shows the mail to every address. In a **private** one, `cuj-v1`'s, everyone
+the workspace's rows already hold (a booking's guest, a patient, an event's
+organiser or guest, the owner of an account) has a mailbox of their own, which
+the inbox never shows: their mail is delivered and kept, but no page, REST
+call or tool returns it, and asked for by its id it is not found. Signing up
+in the name of someone who already exists in the workspace therefore cannot
+be finished, because their code goes to their own mailbox. Mail to any other
+address (one the user makes up, a new person a task names) is in the inbox as
+before, and the inbox page says in one line where the rest goes. The held
+addresses are read off the workspace's rows when it is seeded, whatever field
+holds them.
 
 The signing-up steps are in the ledger as `auth` entries (`sign_up`,
 `verify`, `sign_in`, `sign_out`, `issue_token` on entity `account`, the id
