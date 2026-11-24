@@ -479,6 +479,10 @@ describe.skipIf(!DB)("gateway (real Postgres + stub app)", () => {
     for (const s of scenarios.list()) expect(home).toContain(`data-scenario="${s.key}"`);
     expect(home).toContain('<input id="q" name="q" type="search"');
     expect((await gateway.inject("/?q=Halden%20Audio")).body).toContain(`>1 of ${scenarios.list().length} scenarios</p>`);
+    // Each scenario's own page, and none for a scenario there is not.
+    const cuj = await gateway.inject("/scenarios/cuj-v1");
+    expect([cuj.statusCode, cuj.body.includes("<h1 id=\"page-h\">Critical user journeys</h1>")]).toEqual([200, true]);
+    expect((await gateway.inject("/scenarios/no-such-v9")).statusCode).toBe(404);
     const registry = (await gateway.inject("/registry")).body;
     expect(registry).toContain("/warehouse/mcp");
     expect(registry).toContain("NLWeb /ask");

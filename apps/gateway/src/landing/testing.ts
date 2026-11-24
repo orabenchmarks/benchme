@@ -1,9 +1,11 @@
 import { DoorSet } from "@benchme/core";
 import { scenarios } from "@benchme/scenarios";
+import { fileURLToPath } from "node:url";
 import { createContext, runInContext } from "node:vm";
 import { AppRegistry } from "../app-registry.js";
 import { WorkspaceService, type WorkspaceServiceDeps } from "../workspace-service.js";
 import { LANDING_SCRIPT } from "./script.js";
+import { DirectoryTaskLists, type ITaskLists } from "./task-lists.js";
 import { portalViews, type PortalViews } from "./views.js";
 
 /**
@@ -13,6 +15,13 @@ import { portalViews, type PortalViews } from "./views.js";
  */
 
 export const BASE = "https://benchme.test";
+/** The repository's root and its corpus files, from here or from dist/landing alike. */
+export const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+export const SPECS_DIR = fileURLToPath(new URL("../../../../compose/specs/", import.meta.url));
+
+/** The public lists in the repository, as a checkout's gateway reads them. */
+export const PUBLIC_LISTS: ITaskLists = new DirectoryTaskLists(SPECS_DIR);
+export const NO_LISTS: ITaskLists = { listOf: () => null };
 
 /** The chart's apps and flags (charts/benchme/templates/apps.yaml). */
 const CHART = {
@@ -35,10 +44,10 @@ export function serviceFor(apps: AppRegistry, doors: DoorSet): WorkspaceService 
   return new WorkspaceService({ scenarios, apps, publicBaseUrl: BASE, defaultTtlSeconds: 3600, maxTtlSeconds: 7200, doors } as unknown as WorkspaceServiceDeps);
 }
 
-export function viewsFor(o: { doors?: DoorSet; apps?: AppRegistry } = {}): PortalViews {
+export function viewsFor(o: { doors?: DoorSet; apps?: AppRegistry; lists?: ITaskLists } = {}): PortalViews {
   const doors = o.doors ?? DoorSet.ALL;
   const apps = o.apps ?? deployment();
-  return portalViews({ apps, scenarios, service: serviceFor(apps, doors), doors, publicBaseUrl: BASE, registry: doors.list().length > 1 });
+  return portalViews({ apps, scenarios, service: serviceFor(apps, doors), doors, publicBaseUrl: BASE, lists: o.lists ?? PUBLIC_LISTS, registry: doors.list().length > 1 });
 }
 
 /** Escape as the pages do. */

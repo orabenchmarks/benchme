@@ -67,6 +67,12 @@ export const configSchema = z.object({
         return z.NEVER;
       }
     }),
+  /**
+   * Where the scenario pages read the public task lists (`<name>-tasks.json`, nothing else is read from it). Unset:
+   * beside the gateway in its image (apps/gateway/tasks, which the image's build fills with those lists alone), else
+   * the repository's compose/specs when run from a checkout.
+   */
+  PUBLIC_TASKS_DIR: z.string().min(1).optional(),
   /** Seed used for the shared-<scenario>-<seed> workspace advertised in /robots.txt. */
   SHARED_SEED: z.coerce.number().int().positive().default(20260908),
   WORKSPACE_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),

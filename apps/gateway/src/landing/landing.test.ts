@@ -3,7 +3,8 @@ import { appInfo, scenarios, sitesOf } from "@benchme/scenarios";
 import { describe, expect, it } from "vitest";
 import { DOOR_LABELS, firstSentence, mintCommand, mintsWhat, normalize } from "./cards.js";
 import { landingPage } from "./page.js";
-import { BASE, byId, deployment, esc, runScript, serviceFor, unesc, viewsFor } from "./testing.js";
+import { scenarioPage } from "./scenario-page.js";
+import { BASE, NO_LISTS, byId, deployment, esc, runScript, serviceFor, unesc, viewsFor } from "./testing.js";
 import { EXAMPLE_ID } from "./visual.js";
 
 const views = viewsFor();
@@ -89,7 +90,7 @@ describe("the front page's scenario cards", () => {
 });
 
 describe("every page of the site", () => {
-  const pages = [["the front page", html] as const];
+  const pages = [["the front page", html] as const, ...[...views.scenarios].map(([key, v]) => [key, scenarioPage(v)] as const)];
 
   it.each(pages)("%s is one page: no stylesheet, script, font or image from elsewhere, kept out of search indexes, light and dark, phone-wide", (_name, page) => {
     expect(page).toContain('<meta name="robots" content="noindex,nofollow">');
@@ -98,7 +99,7 @@ describe("every page of the site", () => {
     expect(page).not.toMatch(/<link\b|<script\s+src|<img\b|<iframe\b|@import|@font-face/i);
     expect(page.replaceAll("url(#v-arrow)", "")).not.toMatch(/url\(/i);
     expect(page).not.toMatch(/\ssrc="/);
-    expect([...page.matchAll(/action="([^"]*)"/g)].map((m) => m[1])).toEqual(["/"]);
+    expect([...page.matchAll(/action="([^"]*)"/g)].every((m) => m[1] === "/" || m[1]?.startsWith("/scenarios/"))).toBe(true);
   });
 
   it.each(pages)("%s never calls the sites fictional", (_name, page) => {
@@ -109,10 +110,10 @@ describe("every page of the site", () => {
 describe("the pages and closed doors", () => {
   const SETS: Door[][] = [[], ["rest"], ["mcp"], ["webmcp"], ["rest", "mcp"], ["rest", "webmcp"], ["mcp", "webmcp"], ["rest", "mcp", "webmcp"]];
 
-  it.each(SETS.map((open) => [open.join(",") || "pages alone", open] as const))("with %s open, the front page names no closed door", (_name, open) => {
+  it.each(SETS.map((open) => [open.join(",") || "pages alone", open] as const))("with %s open, no page names a closed door", (_name, open) => {
     const doors = DoorSet.of(open);
     const v = viewsFor({ doors });
-    for (const [name, page] of [["/", landingPage(v.landing)] as const]) {
+    for (const [name, page] of [["/", landingPage(v.landing)] as const, ...[...v.scenarios].map(([key, view]) => [key, scenarioPage(view)] as const)]) {
       for (const door of DOORS) if (!doors.has(door)) expect([name, door, page.includes(`data-door="${door}"`)]).toEqual([name, door, false]);
       // Where an app's MCP server is: the front page says, and only with the MCP door open.
       expect([name, "/mcp", page.includes("/mcp")]).toEqual([name, "/mcp", name === "/" && doors.has("mcp")]);
@@ -148,6 +149,13 @@ describe("a scenario this deployment cannot serve", () => {
     expect(acme).toContain("curl");
     expect([...acme.matchAll(/<li title="(\w+)">/g)].map((m) => m[1])).toEqual(["warehouse", "data"]);
     expect(acme).toContain("Not on this deployment: Helpdesk, Document vault and Workspace inbox.");
+  });
+
+  it("says so on its own page too, and still lists its tasks", () => {
+    const own = scenarioPage(small.scenarios.get("cuj-v1")!);
+    expect(own).toContain("This deployment cannot mint it");
+    expect(own).not.toContain("curl");
+    expect(own).toContain('<p id="count" class="count" aria-live="polite" data-noun="tasks" data-one="task">120 tasks</p>');
   });
 });
 
@@ -213,4 +221,9 @@ describe("the front page's script", () => {
       expect(p.ids.said?.textContent).toBe("Selected the command that mints an acme-v1 workspace: copy it with your keyboard.");
     }
   });
+});
+
+it("the no-list fallback is a list source of its own: the cards count from the scenarios' metadata", () => {
+  const cards = viewsFor({ lists: NO_LISTS }).landing.cards;
+  expect(Object.fromEntries(cards.map((c) => [c.key, c.tasks]))).toEqual({ "acme-v1": 163, "shops-v1": null, "guide-v1": null, "web-v1": null, "webmcp-v1": 162, "cuj-v1": 120 });
 });

@@ -3,6 +3,7 @@ import { scenarios } from "@benchme/scenarios";
 import { AppRegistry } from "./app-registry.js";
 import { buildGateway } from "./build-app.js";
 import { readConfig } from "./config.js";
+import { DirectoryTaskLists, defaultTaskListsDir } from "./landing/task-lists.js";
 import { RedisRateLimiter } from "./rate-limit.js";
 import { HttpWorkspaceSeeder, seedTargetsFor } from "./seeder.js";
 
@@ -27,6 +28,7 @@ const { app } = await buildGateway({
   sharedSeed: cfg.SHARED_SEED,
   services: cfg.SERVICE_TARGETS,
   doors: cfg.BENCHME_DOORS,
+  lists: new DirectoryTaskLists(cfg.PUBLIC_TASKS_DIR ?? defaultTaskListsDir()),
   logLevel: cfg.LOG_LEVEL,
 });
 

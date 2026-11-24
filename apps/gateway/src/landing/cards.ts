@@ -2,6 +2,7 @@ import { DOORS, type Door, type DoorSet } from "@benchme/core";
 import { appInfo, sitesOf, type Scenario, type ScenarioRegistry } from "@benchme/scenarios";
 import type { AppRegistry } from "../app-registry.js";
 import { WorkspaceError, type WorkspaceService } from "../workspace-service.js";
+import type { ITaskLists } from "./task-lists.js";
 
 /** Where the repository's files are read: a scenario's page links its write-up and its public task list there. */
 export const SOURCE_URL = "https://github.com/orabenchmarks/benchme";
@@ -25,7 +26,7 @@ export type ScenarioCard = {
   missing: SiteView[];
   /** The doors this deployment serves its sites through: pages always, and each other door that is open and that one of its sites has. */
   doors: Door[];
-  /** How many tasks its corpus holds, where it has one. */
+  /** How many tasks its corpus holds, where it has one: the public list's own count when this deployment carries it. */
   tasks: number | null;
   /** The seed its corpus is written against, where it has one: the seed its command mints. */
   seed: number | null;
@@ -47,6 +48,8 @@ export type CardDeps = {
   /** The deployment's doors. */
   doors: DoorSet;
   publicBaseUrl: string;
+  /** The public task lists this deployment carries (none: each card counts its corpus from its metadata). */
+  lists?: ITaskLists;
 };
 
 /** What a person sees a door called. */
@@ -65,6 +68,7 @@ function cardOf(s: Scenario, d: CardDeps): ScenarioCard {
   const links: LinkView[] = [{ label: "The write-up", href: blob(s.docs.page) }];
   if (corpus) links.push({ label: "The task list in the repository", href: blob(corpus.public) });
   const search = [s.key, s.title, s.about, s.description, ...sites.flatMap((site) => [site.key, site.name]), ...doors.map((door) => DOOR_LABELS[door])].join(" ");
+  const list = d.lists?.listOf(s) ?? null;
   return {
     key: s.key,
     title: s.title,
@@ -74,7 +78,7 @@ function cardOf(s: Scenario, d: CardDeps): ScenarioCard {
     sites,
     missing: named.filter((site) => !d.apps.get(site.key)),
     doors,
-    tasks: corpus?.tasks ?? null,
+    tasks: list ? list.length : (corpus?.tasks ?? null),
     seed: corpus?.seed ?? null,
     links,
     mint: mintable(s, d) ? mintCommand(d.publicBaseUrl, corpus ? { scenario: s.key, seed: corpus.seed } : { scenario: s.key }) : null,

@@ -1,5 +1,5 @@
 /**
- * The style of the site's pages, inline: nothing is fetched from another host (a per-run stack
+ * The style of the front page and the scenario pages, inline: nothing is fetched from another host (a per-run stack
  * may have no network). One set of colour tokens, light and dark; the terminal card stays dark in both, like a
  * terminal. System fonts only, given a real scale: a heavy, tight display size, a calm body size, a mono for what a
  * person copies or reads as an identifier.
@@ -107,6 +107,39 @@ h2{font:800 30px/1.15 var(--font);letter-spacing:-.02em;margin:0 0 10px;text-wra
 .card-foot .copy{margin-left:auto;margin-top:10px}
 .missing,.unavailable{font-size:13px;color:var(--ink-3);margin:0}
 .a0{background:var(--a0)}.a1{background:var(--a1)}.a2{background:var(--a2)}.a3{background:var(--a3)}.a4{background:var(--a4)}.a5{background:var(--a5)}
+/* the scenario page */
+.crumbs{margin:0 0 18px;font-size:14px}.crumbs a{text-decoration:none}
+.page-head{padding-block:40px 18px}
+.page-head .wrap{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:36px;align-items:start}
+@media (max-width:960px){.page-head .wrap{grid-template-columns:minmax(0,1fr)}}
+.page-head h1{font-size:clamp(30px,4vw,44px)}
+.page-head .lede{font-size:17px;margin-bottom:18px}
+.page-head .tiles,.page-head .doors{margin-top:10px}
+.page-head .missing{margin-top:8px}
+.sources{margin:14px 0 0;font-size:14px;color:var(--ink-3)}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 0;padding:0;list-style:none}
+.stats li{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:13px;color:var(--ink-3)}
+.stats b{display:block;font:800 22px/1.1 var(--font);color:var(--ink);font-variant-numeric:tabular-nums}
+.tasks{display:grid;gap:14px}
+.task{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;min-width:0;overflow-wrap:anywhere;scroll-margin-top:16px}
+.task:target{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.task-meta{display:grid;gap:10px;align-content:start}
+@media (min-width:900px){.task{grid-template-columns:minmax(0,1fr) 260px;grid-template-areas:"convo meta" "foot meta";column-gap:24px}.task-meta{grid-area:meta;border-left:1px solid var(--line);padding-left:20px}.task .convo{grid-area:convo}.task-foot{grid-area:foot}}
+.task-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.task-id{font-size:13px;color:var(--ink-3);margin-right:4px}
+.chip{font:650 12px/1 var(--font);border-radius:999px;padding:5px 9px;background:var(--bg);color:var(--ink-2);border:1px solid var(--line)}
+.lvl{color:#fff;border:0}
+.lvl-easy{background:var(--easy)}.lvl-medium{background:var(--medium)}.lvl-hard{background:var(--hard)}.lvl-very-hard{background:var(--very-hard)}.lvl-impossible{background:var(--impossible)}
+.convo{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.convo li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px}.convo li.one{grid-template-columns:minmax(0,1fr)}
+.convo .n{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:700 12px/1 var(--mono);background:var(--accent-soft);color:var(--accent)}
+.convo p{margin:0}
+.convo .said{font-size:15.5px;max-width:75ch}
+.convo .how{font-size:13px;color:var(--ink-3);margin-top:4px}
+.convo li+li .n{position:relative}
+details.rubric{border-top:1px solid var(--line);padding-top:10px}
+details.rubric summary{cursor:pointer;font:600 13px/1.4 var(--font);color:var(--accent);width:fit-content}
+details.rubric ul{margin:8px 0 0;padding-left:20px;color:var(--ink-2);font-size:14px}
 footer.foot{border-top:1px solid var(--line);margin-top:40px;padding-block:28px 44px;color:var(--ink-3);font-size:14px}
 footer.foot .wrap{display:flex;gap:18px;flex-wrap:wrap;justify-content:space-between}
 /* the picture */

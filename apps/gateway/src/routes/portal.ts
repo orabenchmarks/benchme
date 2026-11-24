@@ -4,6 +4,8 @@ import type { AppRegistry } from "../app-registry.js";
 import type { ScenarioRegistry } from "@benchme/scenarios";
 import { openCapabilities } from "../capabilities.js";
 import { landingPage } from "../landing/page.js";
+import { FILTER_NAMES, scenarioPage, unknownScenarioPage, type TaskFilters } from "../landing/scenario-page.js";
+import type { ITaskLists } from "../landing/task-lists.js";
 import { portalViews } from "../landing/views.js";
 import type { WorkspaceService } from "../workspace-service.js";
 
@@ -14,6 +16,8 @@ export type PortalDeps = {
   publicBaseUrl: string;
   /** The deployment's doors: the portal and the registry name nothing behind a closed one. */
   doors: DoorSet;
+  /** The public task lists the scenario pages show: `*-tasks.json` alone, never a keyed corpus or an answer key. */
+  lists: ITaskLists;
 };
 
 /** A query value as the pages read it: a string, bounded; anything else is no value. */
@@ -31,11 +35,22 @@ export function registerPortal(app: FastifyInstance, d: PortalDeps): void {
   // What the registry lists: the listed apps with something behind an open door.
   const capable = d.apps.listed().filter((a) => open.some((c) => c.has(a)));
 
-  // The front page: computed once (a deployment's doors and apps do not change while it runs); the search a person
-  // opens it with picks which cards are shown.
-  const views = portalViews({ apps: d.apps, scenarios: d.scenarios, service: d.service, doors: d.doors, publicBaseUrl: d.publicBaseUrl, registry: capable.length > 0 });
+  // The front page and the scenario pages: computed once (a deployment's doors, apps and lists do not change while
+  // it runs); the search a person opens one with picks what is shown.
+  const views = portalViews({ apps: d.apps, scenarios: d.scenarios, service: d.service, doors: d.doors, publicBaseUrl: d.publicBaseUrl, lists: d.lists, registry: capable.length > 0 });
   app.get<{ Querystring: { q?: unknown } }>("/", async (req, reply) => {
     return reply.type("text/html; charset=utf-8").send(landingPage(views.landing, param(req.query.q) ?? ""));
+  });
+
+  app.get<{ Params: { key: string }; Querystring: Record<string, unknown> }>("/scenarios/:key", async (req, reply) => {
+    const view = views.scenarios.get(req.params.key);
+    if (!view) return reply.code(404).type("text/html; charset=utf-8").send(unknownScenarioPage(req.params.key, views.landing.registry));
+    const filters: TaskFilters = {};
+    for (const name of FILTER_NAMES) {
+      const value = param(req.query[name]);
+      if (value !== undefined) filters[name] = value;
+    }
+    return reply.type("text/html; charset=utf-8").send(scenarioPage(view, filters));
   });
 
   app.get("/registry", async (_req, reply) => {
