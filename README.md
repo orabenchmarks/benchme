@@ -1529,6 +1529,22 @@ docker compose down -v               # stop and drop the database volume
 
 ## Release
 
+_Chart 0.13.0: a front page for choosing a scenario (the gateway's `/`): a
+search over every scenario's title, description, sites and doors, one card per
+scenario with its sites by name, the doors this deployment serves it through,
+its corpus and docs, and a copyable command that mints a workspace. A sign-up's
+emailed code takes five tries, through every door: after five wrong codes even
+the right one is refused (`TOO_MANY_ATTEMPTS`), and signing up again with an
+address not yet verified mails a new code (a migration per site with
+sign-ups). Every `webmcp-v1` task now carries a rubric, and every step of both
+`webmcp-v1` and `cuj-v1` whose correct solution must call a site tool carries
+those calls in its key (`expectedCall`, the webmcp-evals shape), proven against
+each site's tool schemas and by a live pass that does each task with its calls
+alone; `compose/specs/*.webmcp-evals.json` are the same calls as webmcp-evals
+suites. For npm users: `Scenario` gains required `title`, `about` and `docs`,
+and `UsersRepo`'s `consumeVerificationCode` becomes `tryVerificationCode`. No
+new image and no new secret._
+
 _Chart 0.12.0: a deployment, and each workspace, chooses its doors (§ Doors):
 `BENCHME_DOORS` on the gateway (the chart's `doors` value), and `doors` on
 `POST /api/workspaces`. Unset, every door is served, as before. A closed door
