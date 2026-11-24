@@ -11,6 +11,7 @@ state.
 
 ```
 POST /api/workspaces        {"scenario":"acme-v1","seed":4242}   → urls for every app
+POST /api/workspaces        {"scenario":"acme-v1","seed":4242,"doors":["page"]}   → the same, served through its pages alone (see Doors)
 /w/<id>/warehouse/          products, stock, orders, transfers (UI · /api/v1 · /mcp)
 /w/<id>/helpdesk/           tickets, comments, SLAs (UI · /api/v1 · /mcp)
 /w/<id>/vaultdocs/          the document vault (UI · /api/v1 · /mcp with resources + prompts)
@@ -35,9 +36,9 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 
 | path | what |
 | --- | --- |
-| `packages/core` | config, http (healthz/readyz), ids, receipts (HMAC), pg + migrations, redis, the workspace model |
+| `packages/core` | config, http (healthz/readyz), ids, receipts (HMAC), pg + migrations, redis, the workspace model, the doors and the headers the gateway signs |
 | `packages/scenarios` | seeded generators (`acme-v1`, `shops-v1`, `guide-v1`, `web-v1`, `webmcp-v1`, `cuj-v1`) and the derived ground truths |
-| `apps/gateway` | workspace API, signed reverse proxy, portal + MCP registry, reaper |
+| `apps/gateway` | workspace API, signed reverse proxy (it decides each request's doors: see [Doors](#doors)), portal + MCP registry, reaper |
 | `packages/site-kit` | what every site shares: the gateway-scope hook, signup/verify/login + sessions + api tokens, the MCP server plumbing, the page shell, the doors and the change ledger (see [The change ledger](#the-change-ledger)) |
 | `apps/warehouse` | products, stock, orders, transfers: SSR UI, REST v1, a 14-tool MCP server, NLWeb `/ask`, WebMCP |
 | `apps/helpdesk` | tickets, comments, SLAs, assignment: SSR UI, REST v1, an 11-tool MCP server (with a destructive `delete_ticket`), NLWeb `/ask`, WebMCP |
@@ -60,6 +61,74 @@ POST /api/workspaces/<id>/finalize                               → a signed re
 | `apps/guide` | Shortlist, a buyer's guide to four fictional products per category, and the site network (`/web`): a start page, each product's own site and a chain of recommendation sites. Pages are chosen by the workspace's edition (category, arm, target), and every page each workspace is served is recorded (see [Guide](#guide) and [Site network](#site-network)) |
 | `charts/benchme` | the Helm chart: own postgres + redis, apps, migrate job, reaper, ingress |
 | `docker/app.Dockerfile` | one multi-stage Dockerfile, `--build-arg APP=<app>` |
+
+## Doors
+
+A site has four ways in, its **doors**: `page` (its pages), `rest` (its
+REST API, `/api/…`, and NLWeb's `/ask`), `mcp` (its MCP server, for an
+agent's own MCP client: `/mcp`, and NLWeb's `/ask/mcp`) and `webmcp` (the
+tools its pages register in the browser, which call `/mcp` through the
+page's bridge). A deployment, and each workspace, says which doors it serves,
+so a benchmark can run a real control group with no tool door at all. The
+inbox's pages and the verifier's submit address are pages: a workspace served
+through its pages alone can still read its mail and submit an artifact.
+
+- **The deployment.** The gateway's `BENCHME_DOORS` is a comma list of doors
+  (in compose and `.env.example`; the chart's `doors` value). Pages are always
+  served and may be left out: `page` alone serves the pages alone. Unset, it
+  serves all four, as every deployment did before.
+- **A workspace.** `POST /api/workspaces
+  {"scenario":"webmcp-v1","seed":4242,"doors":["page","webmcp"]}` serves that
+  workspace through those doors, whatever the deployment's are. A name that is
+  no door is refused (422 `UNKNOWN_DOOR`). Every workspace answer, `GET
+  /api/workspaces/<id>` included, shows the doors it is served through
+  (`doors`). A workspace created without `doors` gets the deployment's, and so
+  does a shared one (`shared-<scenario>-<seed>`).
+
+A closed door is not there:
+
+- A request through it is answered 404 `{"error":"NOT_FOUND"}`, as for a
+  path that is not there. The gateway decides each request's doors
+  and refuses a closed one by its path, before the app is called. It closes
+  `/mcp` only when both `mcp` and `webmcp` are closed: a page's bridge and a
+  direct client call the same path. It forwards the workspace's doors to the
+  app beside the workspace header, signed with the gateway secret for that
+  workspace, and the app checks again. The app also tells a page's bridge from
+  a direct client (below). The verifier's own signed reads, on the app's own
+  address, are no visitor's and pass.
+- Nothing names it. With `webmcp` closed a page renders no bridge script, so
+  it names neither `/mcp` nor a tool. A workspace's `urls` name no `mcp`,
+  `askMcp` or `webmcp` endpoint of a closed door (nor `ask` with `rest`
+  closed), and the portal (`/`) and the registry (`/registry`) list only what
+  is behind the deployment's open doors. The account page offers an api token
+  only where REST or MCP is open, and names only those; `POST /account/token`
+  answers 404 where both are closed.
+
+An app reached without the doors header (a gateway older than doors) serves
+every door. An app sent a doors header it cannot verify refuses the request,
+as it refuses a bad workspace header.
+
+### The WebMCP door
+
+A page's WebMCP tools call the site's own `/mcp`, the path a direct MCP
+client calls. A call counts as `webmcp` only when it proves it came from a
+page's bridge.
+
+When a page renders with `webmcp` open, the site makes sure the browser holds
+a bridge cookie, `benchme_bridge`: random, `HttpOnly`, `SameSite=Strict`, on
+the site's own path. A browser that already holds one keeps it, so its tabs
+share it. The page's bridge script carries a token for that cookie: an HMAC
+with the gateway secret over the workspace id and the cookie. The bridge
+sends the token in `x-benchme-bridge` on every call, and the browser sends
+the cookie with it. `/mcp` counts a call as `webmcp` only when the token is
+the one for the cookie that same call carries. Any other call is a direct
+MCP client (`mcp`), and is refused where `mcp` is closed.
+
+So a header copied from the bridge proves nothing. Neither does a token
+copied out of the page's HTML without its cookie, which the page's own
+scripts cannot read either. Only a client that keeps the page's cookie jar —
+a browser, or something deliberately built to act as one — gets the WebMCP
+door.
 
 ## Stores
 
@@ -364,7 +433,8 @@ at the one place pages, REST and the tools all reach (`ledgered` in
 `packages/site-kit`), so no door can leave it out. A request is signed in by
 any of:
 
-- an api token, `Authorization: Bearer <token>` (issued on the account page);
+- an api token, `Authorization: Bearer <token>` (issued on the account page,
+  where the workspace is served through REST or MCP: see [Doors](#doors));
 - the site's session cookie, which the pages' sign-in sets and a browser also
   sends with the page's WebMCP tool calls;
 - an MCP session that signed in with the `sign_in` tool.
@@ -387,9 +457,11 @@ and on its pages.
   token is passed as a tool argument. The server holds no state for it. A tool
   call sent without initializing (and without a token or a cookie) has nothing
   to stay signed in with, and `sign_in` says so (`NO_SESSION`).
-- **WebMCP.** The page's bridge calls the site's `/mcp` from the browser, so
-  the answer to `sign_in` sets the site's own session cookie. Signing in with
-  the tool signs the pages in, and signing in on the pages signs the tools in.
+- **WebMCP.** The page's bridge calls the site's `/mcp` from the browser, with
+  the page's token and the browser's cookies (see
+  [The WebMCP door](#the-webmcp-door)), so the answer to `sign_in` sets the
+  site's own session cookie. Signing in with the tool signs the pages in, and
+  signing in on the pages signs the tools in.
 
 The signing-up steps are in the ledger as `auth` entries (`sign_up`,
 `verify`, `sign_in`, `sign_out`, `issue_token` on entity `account`, the id
@@ -425,9 +497,12 @@ misses one that did. A refused write is rolled back and its refusal kept on
 its own. Each site says once, per repository
 method, what is a read of one entity, a write, or neither
 (`apps/<app>/src/db/ledger.ts`); a method without a rule does not compile. A
-list or a search is not recorded. The door is read off the request: `/api/` is
-`rest`, `/mcp` is `mcp`, or `webmcp` when the call carries the header the
-page's bridge sends (`x-benchme-door: webmcp`), and anything else is `page`.
+list or a search is not recorded. The door is read off the route the request
+matched: `/api/` is `rest`, `/mcp` is `mcp`, or `webmcp` when the call proves
+it came from the page's bridge (its token is the one for the bridge cookie it
+carries: see [The WebMCP door](#the-webmcp-door)), and anything else is
+`page`. The label the bridge used to send (`x-benchme-door`) is not read any
+more.
 
 Only the verifier reads a ledger. Its route,
 `/internal/workspaces/<id>/ledger`, is on the app's own address under a path
@@ -1148,7 +1223,8 @@ often.
 ## WebMCP
 
 `warehouse`, `helpdesk`, `vaultdocs`, the nine sites from webmcp-tools and the inbox (`mail`) each embed a small bridge script
-(`webmcpScript` in `@benchme/site-kit`) on every page they render. It
+(`webmcpBridge` in `@benchme/site-kit`) on every page they render, where the
+workspace is served through the WebMCP door ([Doors](#doors)). It
 registers one `navigator.modelContext` tool per entry in the site's own
 `ToolRegistry` — the **same** catalog the site's `/mcp` server exposes, listed
 once and rendered into both surfaces, so a page tool and an MCP tool can never
@@ -1156,10 +1232,11 @@ disagree. A tool's `execute` is a `fetch` back to the site's own `/mcp`
 (`tools/call`); a browser with no `navigator.modelContext` runs nothing. The
 gateway's `WEBMCP_APPS` env var (those thirteen apps in compose and the chart)
 only controls what the **portal** advertises as WebMCP-capable — the bridge
-itself is unconditional on every page of the sites above. Every call the
-bridge makes carries `x-benchme-door: webmcp`, which is how a site's ledger
-tells a page's tool from a direct MCP client; on the nine sites the call also
-carries the browser's session cookie (see
+itself is on every page of the sites above whose workspace has the WebMCP
+door. Every call the bridge makes carries the page's token for the browser's
+bridge cookie, which is how a site tells a page's tool from a direct MCP
+client (see [The WebMCP door](#the-webmcp-door)); on the nine sites the call
+also carries the browser's session cookie (see
 [The same sign-in on every door](#the-same-sign-in-on-every-door)).
 
 ## NLWeb
@@ -1181,10 +1258,11 @@ Each of `warehouse`, `helpdesk` and `vaultdocs` (the apps in the gateway's
   order, a `license` message, a `data_retention` message, the `results` (plus
   a `ranker` message if the ranker degraded), and always terminates with a
   `complete` frame — even on failure, so a client never hangs waiting for an
-  end that isn't coming.
+  end that isn't coming. It is behind the REST door ([Doors](#doors)).
 - **`/ask/mcp`** is a separate, deliberately narrow MCP server: ONE read-only
   `ask` tool ("ask a natural-language question and get JSON-LD back"), not the
-  site's full tool surface (that's `/mcp` — see WebMCP above).
+  site's full tool surface (that's `/mcp` — see WebMCP above). It is behind
+  the MCP door.
 - **`GET /schema/feed.jsonl`** — one JSON-LD object per line, so a consumer
   streams the whole corpus without holding a well-formed enclosing array in
   memory.
@@ -1375,6 +1453,9 @@ docker compose down -v               # stop and drop the database volume
 - Copy `.env.example` to `.env` to change the port, the public URL or the
   secrets (every value has a local default; change every secret before
   exposing this beyond your machine).
+- `BENCHME_DOORS` in `.env` sets the doors every workspace is served through
+  unless it is created with its own (see [Doors](#doors)): `page` serves the
+  pages alone.
 - `docker compose -f compose.yaml -f compose.build.yaml up -d --build` builds
   the images from this checkout instead of pulling them.
 - Task specs live in `compose/specs/` (two smoke specs ship;
