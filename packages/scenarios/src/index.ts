@@ -14,6 +14,7 @@ export { webV1 } from "./web-v1/index.js";
 export { webmcpV1 } from "./webmcp-v1/index.js";
 export { cujV1 } from "./cuj-v1/index.js";
 export { ACCOUNTS_PER_SITE, siteAccounts } from "./cuj-v1/accounts.js";
+export { APP_INFO, appInfo, type AppDoor, type AppInfo } from "./apps.js";
 export { SITE_APPS, noSiteRows, siteRows, type SiteApp, type SiteRows } from "./sites/rows.js";
 export * from "./sites/flights/index.js";
 export * from "./sites/dining/index.js";
@@ -47,6 +48,7 @@ export {
   ScenarioRegistry,
   UnknownScenarioError,
   mailboxesOf,
+  sitesOf,
   type Agent,
   type Booking,
   type BookingStatus,
@@ -65,6 +67,8 @@ export {
   type Product,
   type RoomType,
   type Scenario,
+  type ScenarioCorpus,
+  type ScenarioDocs,
   type ScenarioRows,
   type SiteAccount,
   type SiteAccounts,

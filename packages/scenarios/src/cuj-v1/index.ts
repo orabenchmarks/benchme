@@ -20,6 +20,13 @@ import { siteAccounts } from "./accounts.js";
 export const cujV1: Scenario = {
   key: "cuj-v1",
   description: "Critical user journeys on the nine sites of webmcp-v1 (hotels, flights, restaurants, pizza, cinema, a sports store, homes, clinics, office events), with a few accounts already signed up on each",
+  title: "Critical user journeys",
+  about:
+    "The nine sites of webmcp-v1, where some people already have accounts, and the errands people send an agent on: find the one that fits, price it, book it, change it, cancel it, send it back, act on their own account, plan an outing over several sites. Its tasks come in ten focus areas and four levels, some over several prompts of one conversation. Each step is checked by its reply or by the sites' rows and change ledger, and has its own judge criteria. Its mailboxes are private: nobody can finish signing up in the name of someone the sites already hold.",
+  docs: {
+    page: "docs/scenarios/cuj-v1.md",
+    corpus: { tasks: 120, seed: 4242, public: "compose/specs/cuj-tasks.json", keyed: "compose/specs/cuj-corpus.json", derivations: "compose/specs/cuj-tasks.md" },
+  },
   apps: [...SITE_APPS, "mail"],
   mailboxes: "private",
   generate(seed: number): ScenarioRows {
