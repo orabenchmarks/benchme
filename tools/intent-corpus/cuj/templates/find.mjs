@@ -1,23 +1,17 @@
 /**
  * Find the one that fits (answer; all nine sites): the only option that meets
  * several requirements, or a named one's fit, read from the site. The
- * impossible ones ask for what the site's rules cannot give a named place.
+ * impossible ones ask for an option none of the site's meets: the right answer
+ * says none does (`noneTemplates`, last in the registry).
  */
 import { addDays, cinemaSearchShowtimes, clinicFindDoctors, diningSearch, diningTablesLeft, nightsOf, pizzaMenuSearch, roomsLeft, searchFlights, searchHomeListings, searchStays, shuffle } from "../../../../packages/scenarios/dist/index.js";
-import { R, about, dollars, impossibleChecks, jsonOracle, money, newPerson, site, stateOracle, PAGES_AND_TOOLS } from "../kit.mjs";
+import { R, dollars, foundOracle, jsonOracle, money, noneOracle, site, whichAnswer, PAGES_AND_TOOLS } from "../kit.mjs";
 import { cinemaPath, clinicPath, diningPath, eventsPath, flightsPath, homesPath, hotelsPath, pizzaPath, sportsPath } from "../paths.mjs";
 
 const AREA = "find-the-fit";
 const partyText = (adults, kids) => `${adults} adult${adults === 1 ? "" : "s"}${kids ? ` and ${kids} child${kids === 1 ? "" : "ren"}` : ""}`;
 const fits = (room, adults, kids) => adults <= room.maxAdults && kids <= room.maxKids;
 const nightClaims = (city, checkIn, nights) => nightsOf(checkIn, nights).map((d) => `night:${city.toLowerCase()}:${d}`);
-/** A date in the autumn of 2027 on a weekday (0 = Sunday), when no seeded booking or reservation holds anything. */
-const autumnOn = (weekday, k = 0) => {
-  let d = "2027-09-06";
-  while (new Date(`${d}T00:00:00Z`).getUTCDay() !== weekday) d = addDays(d, 1);
-  return addDays(d, 7 * k);
-};
-const WEEKDAY = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
 const AMENITY = { gym: "a gym", breakfast: "breakfast", spa: "a spa", pool: "a pool", "free parking": "free parking", washer: "a washer", restaurant: "a restaurant", "airport shuttle": "an airport shuttle" };
 
 export const findTemplates = [
@@ -44,10 +38,10 @@ export const findTemplates = [
           note: `${hotel.code}: ${party} → ${fitting[0].code}`,
           steps: [{
             kind: "json",
-            intent: `On ${site("hotels")}, which room type at ${hotel.name} (${hotel.code}) sleeps ${party}? Answer as JSON: {"room": "<the room type's code>"}.`,
-            rubric: R.answer(["hotels"], "the room type that sleeps the party"),
-            oracle: jsonOracle({ room: fitting[0].code }),
-            answer: async (api) => ({ room: api.only((await api.get("hotels", hotelsPath.hotel(hotel.code))).rooms.filter((r) => fits(r, adults, kids))).code }),
+            intent: `On ${site("hotels")}, which room type at ${hotel.name} (${hotel.code}) sleeps ${party}? ${whichAnswer(`"room": "<the room type's code>"`)}`,
+            rubric: R.which(["hotels"], "the room type that sleeps the party"),
+            oracle: foundOracle({ room: fitting[0].code }),
+            answer: async (api) => ({ found: true, room: api.only((await api.get("hotels", hotelsPath.hotel(hotel.code))).rooms.filter((r) => fits(r, adults, kids))).code }),
           }],
         };
       }
@@ -165,10 +159,10 @@ export const findTemplates = [
           note: `${l.city}, ${l.type}, ${feature}, ≤ ${dollars(cap)} → ${l.code}`,
           steps: [{
             kind: "json",
-            intent: `On ${site("homes")}, which ${l.type} for sale in ${l.city} has ${feature}, ${capText}? Answer as JSON: {"listing": "<the listing's code>"}.`,
-            rubric: R.answer(["homes"], "the listing that meets every requirement"),
-            oracle: jsonOracle({ listing: l.code }),
-            answer: async (api) => ({ listing: api.only(await api.get("homes", homesPath.search(q))).code }),
+            intent: `On ${site("homes")}, which ${l.type} for sale in ${l.city} has ${feature}, ${capText}? ${whichAnswer(`"listing": "<the listing's code>"`)}`,
+            rubric: R.which(["homes"], "the listing that meets every requirement"),
+            oracle: foundOracle({ listing: l.code }),
+            answer: async (api) => ({ found: true, listing: api.only(await api.get("homes", homesPath.search(q))).code }),
           }],
         };
       }
@@ -203,10 +197,10 @@ export const findTemplates = [
         note: `${origin}→${destination} ${date}, nonstop, before 12:00 → ${found[0].flightNo}`,
         steps: [{
           kind: "json",
-          intent: `On ${site("flights")}, which nonstop flight from ${from} to ${to} on ${date} leaves before 12:00 and still has an economy seat for one passenger? Answer as JSON: {"flight": "<the flight number>"}.`,
-          rubric: R.answer(["flights"], "the flight that meets every requirement"),
-          oracle: jsonOracle({ flight: found[0].flightNo }),
-          answer: async (api) => ({ flight: api.only((await api.get("flights", flightsPath.search(q))).outbound).flightNo }),
+          intent: `On ${site("flights")}, which nonstop flight from ${from} to ${to} on ${date} leaves before 12:00 and still has an economy seat for one passenger? ${whichAnswer(`"flight": "<the flight number>"`)}`,
+          rubric: R.which(["flights"], "the flight that meets every requirement"),
+          oracle: foundOracle({ flight: found[0].flightNo }),
+          answer: async (api) => ({ found: true, flight: api.only((await api.get("flights", flightsPath.search(q))).outbound).flightNo }),
         }],
       };
     },
@@ -238,10 +232,10 @@ export const findTemplates = [
         note: `${city} ${s.date}, ${film.genre}, ${fmt}, ≥ ${after}, 2 seats → ${s.code}`,
         steps: [{
           kind: "json",
-          intent: `On ${site("cinema")}, which ${film.genre} showing in ${city} on ${s.date} is in ${fmt}, starts at or after ${after}, and still has two seats free? Answer as JSON: {"showtime": "<the showtime's code>"}.`,
-          rubric: R.answer(["cinema"], "the showtime that meets every requirement"),
-          oracle: jsonOracle({ showtime: s.code }),
-          answer: async (api) => ({ showtime: api.only(await api.get("cinema", cinemaPath.search(q))).showtimeCode }),
+          intent: `On ${site("cinema")}, which ${film.genre} showing in ${city} on ${s.date} is in ${fmt}, starts at or after ${after}, and still has two seats free? ${whichAnswer(`"showtime": "<the showtime's code>"`)}`,
+          rubric: R.which(["cinema"], "the showtime that meets every requirement"),
+          oracle: foundOracle({ showtime: s.code }),
+          answer: async (api) => ({ found: true, showtime: api.only(await api.get("cinema", cinemaPath.search(q))).showtimeCode }),
         }],
       };
     },
@@ -273,10 +267,10 @@ export const findTemplates = [
           note: `${branch.code} ${size}, vegetarian, no ${allergen}, ≤ ${dollars(cap)} → ${found[0].pizzaCode}`,
           steps: [{
             kind: "json",
-            intent: `On ${site("pizza")}, which menu pizza can the ${branch.name} branch (${branch.code}) make as a ${size} that is vegetarian, has no ${allergen} in it, and costs ${capText}? Answer as JSON: {"pizza": "<the menu pizza's code>"}.`,
-            rubric: R.answer(["pizza"], "the menu pizza that meets every requirement"),
-            oracle: jsonOracle({ pizza: found[0].pizzaCode }),
-            answer: async (api) => ({ pizza: api.only(await api.get("pizza", pizzaPath.search(q))).pizzaCode }),
+            intent: `On ${site("pizza")}, which menu pizza can the ${branch.name} branch (${branch.code}) make as a ${size} that is vegetarian, has no ${allergen} in it, and costs ${capText}? ${whichAnswer(`"pizza": "<the menu pizza's code>"`)}`,
+            rubric: R.which(["pizza"], "the menu pizza that meets every requirement"),
+            oracle: foundOracle({ pizza: found[0].pizzaCode }),
+            answer: async (api) => ({ found: true, pizza: api.only(await api.get("pizza", pizzaPath.search(q))).pizzaCode }),
           }],
         };
       }
@@ -322,10 +316,10 @@ export const findTemplates = [
           note: `${hotel.city} ${checkIn} × ${nights}, ${partyText(adults, 0)}, ≤ ${dollars(cap)}, ${pair.join(" + ")} → ${matches[0].hotelCode}; ${room.code} would fit but is booked out`,
           steps: [{
             kind: "json",
-            intent: `On ${site("hotels")}, which hotel in ${hotel.city} has a room free for ${nights} nights from ${checkIn} for ${partyText(adults, 0)}, ${capText}, with both ${AMENITY[pair[0]]} and ${AMENITY[pair[1]]}? Answer as JSON: {"hotel": "<the hotel's code>"}.`,
-            rubric: R.answer(["hotels"], "the hotel that meets every requirement"),
-            oracle: jsonOracle({ hotel: matches[0].hotelCode }),
-            answer: async (api) => ({ hotel: api.only(await api.get("hotels", hotelsPath.search(q))).hotelCode }),
+            intent: `On ${site("hotels")}, which hotel in ${hotel.city} has a room free for ${nights} nights from ${checkIn} for ${partyText(adults, 0)}, ${capText}, with both ${AMENITY[pair[0]]} and ${AMENITY[pair[1]]}? ${whichAnswer(`"hotel": "<the hotel's code>"`)}`,
+            rubric: R.which(["hotels"], "the hotel that meets every requirement"),
+            oracle: foundOracle({ hotel: matches[0].hotelCode }),
+            answer: async (api) => ({ found: true, hotel: api.only(await api.get("hotels", hotelsPath.search(q))).hotelCode }),
           }],
         };
       }
@@ -368,10 +362,10 @@ export const findTemplates = [
           note: `${r.city} ${date} ${time}, ${partySize} people, ${seating.area}, ${menu} → ${found[0].restaurantCode}; ${r.code} has both but is full then`,
           steps: [{
             kind: "json",
-            intent: `On ${site("dining")}, which restaurant in ${r.city} has ${/^[aeiou]/.test(seating.area) ? "an" : "a"} ${seating.area} table free for ${partySize} at ${time} on ${date} and offers a ${menu} menu? Answer as JSON: {"restaurant": "<the restaurant's code>"}.`,
-            rubric: R.answer(["dining"], "the restaurant that meets every requirement"),
-            oracle: jsonOracle({ restaurant: found[0].restaurantCode }),
-            answer: async (api) => ({ restaurant: api.only(await api.get("dining", diningPath.search(q))).restaurantCode }),
+            intent: `On ${site("dining")}, which restaurant in ${r.city} has ${/^[aeiou]/.test(seating.area) ? "an" : "a"} ${seating.area} table free for ${partySize} at ${time} on ${date} and offers a ${menu} menu? ${whichAnswer(`"restaurant": "<the restaurant's code>"`)}`,
+            rubric: R.which(["dining"], "the restaurant that meets every requirement"),
+            oracle: foundOracle({ restaurant: found[0].restaurantCode }),
+            answer: async (api) => ({ found: true, restaurant: api.only(await api.get("dining", diningPath.search(q))).restaurantCode }),
           }],
         };
       }
@@ -417,80 +411,14 @@ export const findTemplates = [
           note: `${city}, ${closed.specialty}, ${planCode}, new patients, ${date} → ${found[0].code}; ${closed.code} is in network and free but takes no new patients`,
           steps: [{
             kind: "json",
-            intent: `On ${site("clinic")}, which ${closed.specialty} doctor in ${city} is in the network of the ${plan.name} plan, is taking new patients, and still has a free appointment on ${date}? Answer as JSON: {"doctor": "<the doctor's code>"}.`,
-            rubric: R.answer(["clinic"], "the doctor who meets every requirement"),
-            oracle: jsonOracle({ doctor: found[0].code }),
-            answer: async (api) => ({ doctor: api.only((await api.get("clinic", clinicPath.doctors(q))).filter((m) => (m.freeSlots ?? []).length > 0)).code }),
+            intent: `On ${site("clinic")}, which ${closed.specialty} doctor in ${city} is in the network of the ${plan.name} plan, is taking new patients, and still has a free appointment on ${date}? ${whichAnswer(`"doctor": "<the doctor's code>"`)}`,
+            rubric: R.which(["clinic"], "the doctor who meets every requirement"),
+            oracle: foundOracle({ doctor: found[0].code }),
+            answer: async (api) => ({ found: true, doctor: api.only((await api.get("clinic", clinicPath.doctors(q))).filter((m) => (m.freeSlots ?? []).length > 0)).code }),
           }],
         };
       }
       return null;
-    },
-  },
-  {
-    key: "fit-table-closed",
-    area: AREA,
-    surfaces: PAGES_AND_TOOLS,
-    count: 1,
-    about: "A table at a named restaurant, on a date that falls on the one weekday it is closed: impossible (`CLOSED`). The right outcome is to say so and book nothing.",
-    candidates: (ctx) => ctx.rows.dining.restaurants,
-    claims: (r) => [`dining-closed:${r.code}`, about("dining", "restaurant", r.code)],
-    build(r, ctx) {
-      const date = autumnOn(WEEKDAY[r.closedDay], 2);
-      const seating = (ctx.dining.seatingOf.get(r.code) ?? []).find((s) => s.seats >= 2);
-      if (!seating) return null;
-      const guest = newPerson("fit-table-closed", 0);
-      const body = { restaurantCode: r.code, area: seating.area, date, time: "19:00", partySize: 2, guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone, note: "" };
-      const thing = { type: "restaurant", id: r.code };
-      return {
-        apps: ["dining"],
-        target: r.code,
-        impossible: { code: "CLOSED" },
-        effort: { reads: 0, writes: 0 },
-        summary: `${r.code} is closed on the day asked: nothing is booked, and the agent looked at the restaurant or was refused for it.`,
-        note: `${r.code} is closed on ${r.closedDay}s; ${date} is one`,
-        steps: [{
-          kind: "state",
-          intent: `On ${site("dining")}, find a time in the evening of ${date} for a table for two at ${r.name} (${r.code}) and book it for ${guest.name} (${guest.email}, phone ${guest.phone}).`,
-          rubric: R.impossible(["dining"], "book a table on that day"),
-          oracle: stateOracle(...impossibleChecks({ app: "dining", things: [thing], code: "CLOSED" })),
-          solve: (api) => api.attempt("dining", diningPath.reservations, body),
-        }],
-      };
-    },
-  },
-  {
-    key: "fit-room-capacity",
-    area: AREA,
-    surfaces: PAGES_AND_TOOLS,
-    count: 1,
-    about: "One room at a named hotel for more adults than any of its room types sleeps: impossible (`TOO_MANY_GUESTS`). The right outcome is to say so and book nothing.",
-    candidates: (ctx) => ctx.rows.hotels.hotels,
-    claims: (h, ctx) => [`hotel-capacity:${h.code}`, ...nightClaims(h.city, "2027-10-11", 2), ...(ctx.hotels.roomsOf.get(h.code) ?? []).map((r) => about("hotels", "room", r.code))],
-    build(hotel, ctx) {
-      const rooms = ctx.hotels.roomsOf.get(hotel.code) ?? [];
-      const most = Math.max(...rooms.map((r) => r.maxAdults));
-      if (most >= 4) return null;
-      const biggest = rooms.find((r) => r.maxAdults === most);
-      const guest = newPerson("fit-room-capacity", 0);
-      const adults = most + 1;
-      const body = { roomCode: biggest.code, hotelCode: hotel.code, checkIn: "2027-10-11", nights: 2, adults, kids: 0, pets: 0, lateCheckout: false, guestName: guest.name, guestEmail: guest.email };
-      const things = [{ type: "hotel", id: hotel.code }, ...rooms.map((r) => ({ type: "room", id: r.code }))];
-      return {
-        apps: ["hotels"],
-        target: hotel.code,
-        impossible: { code: "TOO_MANY_GUESTS" },
-        effort: { reads: 0, writes: 0 },
-        summary: `No room at ${hotel.code} sleeps that many adults: nothing is booked, and the agent looked at the hotel or was refused for it.`,
-        note: `${hotel.code}'s rooms sleep at most ${most} adults; ${adults} asked`,
-        steps: [{
-          kind: "state",
-          intent: `On ${site("hotels")}, find one room at ${hotel.name} (${hotel.code}) where ${adults} adults can stay together for 2 nights from 2027-10-11, and book it for ${guest.name} (${guest.email}).`,
-          rubric: R.impossible(["hotels"], `book one room for ${adults} adults`),
-          oracle: stateOracle(...impossibleChecks({ app: "hotels", things, code: "TOO_MANY_GUESTS" })),
-          solve: (api) => api.attempt("hotels", hotelsPath.bookings, body),
-        }],
-      };
     },
   },
 ];
@@ -535,15 +463,117 @@ export const findLastTemplates = [
         note: `${product.code} size ${best.size}: ${trap.sku} (${dollars(trap.priceCents)}) is out of stock → ${best.sku} ${best.colour}, ${dollars(best.priceCents)}`,
         steps: [{
           kind: "json",
-          intent: `On ${site("sports")}, which colour of the ${product.name} (${product.code}) in size ${best.size} is the cheapest one in stock, and what does it cost? Answer as JSON: {"colour": "<the colour>", "price": <dollars>}.`,
-          rubric: R.answer(["sports"], "the cheapest colour in stock and its price"),
-          oracle: jsonOracle({ colour: best.colour, price: money(best.priceCents) }),
+          intent: `On ${site("sports")}, which colour of the ${product.name} (${product.code}) in size ${best.size} is the cheapest one in stock, and what does it cost? ${whichAnswer(`"colour": "<the colour>", "price": <dollars>`, "if none is in stock")}`,
+          rubric: R.which(["sports"], "the cheapest colour in stock and its price", "says that none is in stock"),
+          oracle: foundOracle({ colour: best.colour, price: money(best.priceCents) }),
           answer: async (api) => {
             const live = (await api.get("sports", sportsPath.product(product.code))).variants.filter((v) => v.size === best.size && v.stock > 0).sort(byPrice);
-            return { colour: live[0].colour, price: live[0].priceCents / 100 };
+            return { found: true, colour: live[0].colour, price: live[0].priceCents / 100 };
           },
         }],
       };
+    },
+  },
+];
+
+/**
+ * The impossible ones of the area: a "which one" question no option meets. Each has a near miss, checked live
+ * (`tempting`): an option that meets every requirement but one, so the question is never empty by accident, and
+ * an answer of "none" is right only because of the requirement it fails. The prompt and the criteria are the
+ * words of the questions one option meets (`whichAnswer`, `R.which`). Placed last in the registry, so adding them
+ * moved no other template's picks.
+ */
+export const findNoneTemplates = [
+  {
+    key: "fit-stay-none",
+    area: AREA,
+    surfaces: PAGES_AND_TOOLS,
+    count: 1,
+    about:
+      "Which hotel in a city has a room free for a stay that fits the party, at no more than a nightly cap, with two named amenities: none does (`searchStays`). The near miss: a hotel with both amenities and a room within the cap that fits, booked out on one of the nights. The right answer says none does.",
+    candidates: (ctx) => {
+      const { rooms, bookings } = ctx.rows.hotels;
+      const out = [];
+      for (const room of rooms) {
+        const nights = new Set(bookings.filter((b) => b.roomCode === room.code && b.status === "confirmed").flatMap((b) => nightsOf(b.checkIn, b.nights)));
+        for (const night of [...nights].sort()) if (roomsLeft(room, bookings, night, 1) === 0) out.push({ room, hotel: ctx.hotels.hotel.get(room.hotelCode), checkIn: night, nights: 2 });
+      }
+      return out;
+    },
+    claims: (s) => nightClaims(s.hotel.city, s.checkIn, s.nights),
+    build({ room, hotel, checkIn, nights }, ctx, rng) {
+      const rows = ctx.rows.hotels;
+      const adults = Math.min(2, room.maxAdults);
+      const base = { city: hotel.city, checkIn, nights, adults, kids: 0, pets: 0 };
+      const cap = Math.ceil(room.nightlyCents / 1000) * 1000;
+      const amenities = hotel.amenities.filter((a) => a !== "wifi" && AMENITY[a]);
+      for (const pair of shuffle(rng, amenities.flatMap((x, i) => amenities.slice(i + 1).map((y) => [x, y])))) {
+        const q = { ...base, amenities: pair, maxNightlyCents: cap };
+        if (searchStays(rows, { ...base, amenities: pair }).some((o) => o.nightlyCents <= cap)) continue;
+        const capText = `at no more than ${dollars(cap)} a night`;
+        return {
+          apps: ["hotels"],
+          constraints: [capText, AMENITY[pair[0]], AMENITY[pair[1]]],
+          impossible: { none: "no hotel" },
+          tempting: { what: `${hotel.code}'s ${room.code} meets every requirement but is booked out on ${checkIn}`, check: async (api) => (await api.get("hotels", hotelsPath.availability(room.code, checkIn, nights))).roomsLeft === 0 },
+          effort: { reads: 1, writes: 0 },
+          summary: `No ${hotel.city} hotel has a free room for the stay that fits the party, within the cap, with both amenities: the answer says none does.`,
+          note: `${hotel.city} ${checkIn} × ${nights}, ${partyText(adults, 0)}, ≤ ${dollars(cap)}, ${pair.join(" + ")} → none; ${room.code} at ${hotel.code} would fit but is booked out`,
+          steps: [{
+            kind: "json",
+            intent: `On ${site("hotels")}, which hotel in ${hotel.city} has a room free for ${nights} nights from ${checkIn} for ${partyText(adults, 0)}, ${capText}, with both ${AMENITY[pair[0]]} and ${AMENITY[pair[1]]}? ${whichAnswer(`"hotel": "<the hotel's code>"`)}`,
+            rubric: R.which(["hotels"], "the hotel that meets every requirement"),
+            oracle: noneOracle(),
+            answer: async (api) => ({ found: (await api.get("hotels", hotelsPath.search(q))).length > 0 }),
+          }],
+        };
+      }
+      return null;
+    },
+  },
+  {
+    key: "fit-table-none",
+    area: AREA,
+    surfaces: PAGES_AND_TOOLS,
+    count: 1,
+    about:
+      "Which restaurant in a city has a table in a named area free for a party at a date and time and offers a named dietary menu: none does (`diningSearch`). The near miss: a restaurant there with the menu and tables in that area big enough, every one of them taken then. The right answer says none does.",
+    candidates: (ctx) => {
+      const d = ctx.rows.dining;
+      const out = [];
+      for (const s of d.seating) {
+        const r = ctx.dining.restaurant.get(s.restaurantCode);
+        for (const res of d.reservations.filter((x) => x.restaurantCode === r.code && x.area === s.area && x.status === "confirmed")) {
+          if (diningTablesLeft(s, d.reservations, res.date, res.time) === 0) out.push({ r, seating: s, date: res.date, time: res.time });
+        }
+      }
+      return out;
+    },
+    claims: ({ r, date }) => [`dining:${r.city}:${date}`],
+    build({ r, seating, date, time }, ctx) {
+      const rows = ctx.rows.dining;
+      const partySize = Math.min(seating.seats, 4);
+      for (const menu of r.menus) {
+        const q = { city: r.city, date, time, partySize, area: seating.area, menus: [menu] };
+        if (diningSearch(rows, q).length !== 0) continue;
+        return {
+          apps: ["dining"],
+          constraints: [`${seating.area}`, `${menu} menu`],
+          impossible: { none: "no restaurant" },
+          tempting: { what: `${r.code} has the menu and ${seating.area} tables but all are taken at ${time}`, check: async (api) => (await api.get("dining", diningPath.availability(r.code, date, partySize))).slots.some((x) => x.area === seating.area && x.time === time && x.tablesLeft === 0) },
+          effort: { reads: 1, writes: 0 },
+          summary: `No ${r.city} restaurant has a free ${seating.area} table for the party then and a ${menu} menu: the answer says none does.`,
+          note: `${r.city} ${date} ${time}, ${partySize} people, ${seating.area}, ${menu} → none; ${r.code} has both but is full then`,
+          steps: [{
+            kind: "json",
+            intent: `On ${site("dining")}, which restaurant in ${r.city} has ${/^[aeiou]/.test(seating.area) ? "an" : "a"} ${seating.area} table free for ${partySize} at ${time} on ${date} and offers a ${menu} menu? ${whichAnswer(`"restaurant": "<the restaurant's code>"`)}`,
+            rubric: R.which(["dining"], "the restaurant that meets every requirement"),
+            oracle: noneOracle(),
+            answer: async (api) => ({ found: (await api.get("dining", diningPath.search(q))).length > 0 }),
+          }],
+        };
+      }
+      return null;
     },
   },
 ];

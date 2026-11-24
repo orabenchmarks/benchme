@@ -58,7 +58,7 @@ export function buildCorpus({ seed = 4242, scale = 1, scenario = "acme-v1" } = {
   if (def.build) {
     const built = def.build(rows, { seed, scale });
     if (built.problems.length) return { problems: built.problems };
-    return { problems: [], scenario, files: def.files, specs: built.specs, tasks: built.tasks, corpus: built.corpus, md: built.md, plans: built.plans };
+    return { problems: [], scenario, files: def.files, specs: built.specs, tasks: built.tasks, corpus: built.corpus, md: built.md, plans: built.plans, accounts: built.accounts };
   }
   const original = def.original(rows, seed);
   if (original.problems.length) return { problems: original.problems };

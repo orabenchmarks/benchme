@@ -28,7 +28,8 @@ export const NO_EASY = ["carry-a-conversation", "plan-across-sites"];
  *   signUp       a sign-up with an emailed code comes before the task can start
  *   interacting  constraints interact across the sites or steps (a budget, a schedule): choosing each part on its own breaks them
  *   recovered    one failure part-way is recovered from: a write the site refuses, then one it makes
- *   impossible   the site's rules or stock make the request impossible: the right outcome is to refuse and change nothing
+ *   impossible   the site's rules or stock make the request impossible, or no option on offer meets every requirement:
+ *                the right outcome is to say so and change nothing
  *
  * returns { level, veryHard } or null when no level's definition fits.
  */
@@ -49,5 +50,5 @@ export const LEVEL_TEXT = {
   medium: "One site (one per step). The target must be found by two or three constraints, or a rule changes the outcome (a fee, a party size). One write.",
   hard: "A tempting option that fails one constraint; or three to five steps; or a sign-up with an emailed code before the task can start.",
   veryHard: "Two or more sites or six to eight steps, constraints that interact across them (a budget, a schedule), and one failure to recover from part-way.",
-  impossible: "The site's rules or stock make the request impossible. The right outcome: say so, give the site's reason, change nothing.",
+  impossible: "The site's rules or stock make the request impossible, or nothing on offer meets every requirement. The right outcome: say so, give the site's reason when it refuses, change nothing.",
 };

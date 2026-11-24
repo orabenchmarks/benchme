@@ -14,10 +14,12 @@
  * level is `levelOf` them (./levels.mjs). Each template walks its candidates
  * in its own seeded order, and claims are shared, so no two tasks touch the
  * same rows and every task's checks stay true in one workspace whatever the
- * others do.
+ * others do. Every task that changes something gets one more check on its
+ * last state step, from ./actors.mjs: no change made as anyone else.
  */
 import { shuffle } from "../../../packages/scenarios/dist/index.js";
 import { streamFor } from "../kit.mjs";
+import { heldAddresses, withActorGuard } from "./actors.mjs";
 import { contextOf } from "./context.mjs";
 import { AREAS, LEVELS, LEVEL_TEXT, NO_EASY, levelOf } from "./levels.mjs";
 import { CUJ_TEMPLATES } from "./templates/index.mjs";
@@ -83,7 +85,12 @@ function templateProblem(built) {
   for (const c of asList(built.constraints)) if (!intents.some((i) => said(i, c))) return `the constraint "${c}" is in no prompt`;
   if (built.tempting && typeof built.tempting.check !== "function") return "a tempting option needs a live check";
   if (built.recover && !built.recover.code) return "a recovery names the code the first attempt is refused with";
-  if (built.impossible) {
+  if (built.impossible?.none !== undefined) {
+    // A "which one" question no option meets is answered, not attempted: one json step whose key says none was
+    // found, and a near miss checked live, so "none" is right because of the requirement it fails.
+    if (steps.length !== 1 || steps[0].kind !== "json" || steps[0].oracle.expect?.found !== false) return "a task no option meets is one json step whose key is {\"found\": false}";
+    if (!built.tempting) return "a task no option meets names its near miss (tempting), checked live";
+  } else if (built.impossible) {
     if (!built.impossible.code) return "an impossible task names the code its attempt is refused with";
     const last = steps[built.impossible.step ?? steps.length - 1];
     const kinds = (last?.oracle?.checks ?? []).map((c) => c.kind);
@@ -137,6 +144,7 @@ function recordOf(id, template, built, lv) {
 
 export function buildCujCorpus(rows, { seed, scale = 1, templates = CUJ_TEMPLATES } = {}) {
   const ctx = contextOf(rows);
+  const held = heldAddresses(rows);
   // A person who already has an account belongs to the journeys that sign in as them; no other task names them.
   const claims = new Set(ctx.accountPeople);
   const out = { problems: [], specs: [], tasks: [], corpus: [], plans: {}, sections: [] };
@@ -152,8 +160,9 @@ export function buildCujCorpus(rows, { seed, scale = 1, templates = CUJ_TEMPLATE
       if (notes.length >= want) break;
       const taken = template.claims(pick, ctx);
       if (taken.some((k) => claims.has(k))) continue;
-      const built = template.build(pick, ctx, rng);
-      if (!built || pickIssue(built)) continue;
+      const picked = template.build(pick, ctx, rng);
+      if (!picked || pickIssue(picked)) continue;
+      const built = withActorGuard(picked, ctx, held);
       // What the pick turned out to write about, known only once built: claimed like the rest.
       const more = built.claims ?? [];
       if (more.some((k) => claims.has(k))) continue;
@@ -200,7 +209,7 @@ export function buildCujCorpus(rows, { seed, scale = 1, templates = CUJ_TEMPLATE
       if (!out.corpus.some((r) => r.area === area && r.level === level)) out.problems.push(`no ${level} task in ${area}`);
     }
   }
-  return { problems: out.problems, specs: out.specs, tasks: out.tasks, corpus: out.corpus, plans: out.plans, md: describe(out, seed, scale) };
+  return { problems: out.problems, specs: out.specs, tasks: out.tasks, corpus: out.corpus, plans: out.plans, accounts: ctx.accounts, md: describe(out, seed, scale) };
 }
 
 function describe(out, seed, scale) {

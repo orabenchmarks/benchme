@@ -79,6 +79,18 @@ export const seen = (name, match, { after } = {}) => ({ kind: "ledger", name, ma
 export const unchanged = (name, scope, { except, after } = {}) => ({ kind: "unchanged", name, scope, ...(except ? { except } : {}), ...(after ? { after } : {}) });
 export const stateOracle = (...checks) => ({ kind: "state", checks });
 export const jsonOracle = (expect) => ({ kind: "json", expect });
+
+/**
+ * How a "which one" question asks for its answer: the option, with `"found": true`, or `{"found": false}` when
+ * nothing on offer meets every requirement. Every such prompt says it in these words, the ones one option meets
+ * and the ones none does, so no prompt tells which kind it is. `fields` is the rest of the object as the prompt
+ * shows it (`"hotel": "<the hotel's code>"`).
+ */
+export const whichAnswer = (fields, none = "if none does") => `Answer as JSON: {"found": true, ${fields}}, or {"found": false} ${none}.`;
+/** The key of a "which one" question one option meets. */
+export const foundOracle = (expect) => jsonOracle({ found: true, ...expect });
+/** The key of a "which one" question no option meets. */
+export const noneOracle = () => jsonOracle({ found: false });
 /** A successful write to one entity (an id, or "@<check>" for what an earlier check stood on), optionally after an earlier check: when a step made its change. */
 export const wrote = (name, app, entity, action, { after } = {}) => seen(name, { app, entity, ...(action ? { action } : {}), outcome: "ok" }, { after });
 /** The other things of a customer's that a task must leave alone: no successful write to any of them. */
@@ -111,6 +123,15 @@ export const R = {
   /** An answer read from the site. */
   answer: (apps, what) => [
     `The answer gives ${what} as ${sitesText(apps)} shows it, not a guess.`,
+    "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
+    stayed(apps, false),
+  ],
+  /**
+   * A "which one" question (`whichAnswer`): the same words whether one option meets every requirement or none
+   * does, so the criteria never tell which.
+   */
+  which: (apps, what, none = "says that none does") => [
+    `The answer gives ${what}, or ${none}, as ${sitesText(apps)} shows it, not a guess.`,
     "Nothing was booked, ordered, changed or cancelled while answering, and the reply claims nothing of the kind.",
     stayed(apps, false),
   ],
