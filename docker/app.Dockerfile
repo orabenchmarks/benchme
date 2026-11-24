@@ -50,6 +50,12 @@ RUN find packages apps -mindepth 2 -maxdepth 2 \( -name dist -o -name '*.tsbuild
  && npx tsc -b tsconfig.build.json \
  && node apps/data/dist/build.js \
  && npm prune --omit=dev --no-audit --no-fund
+# The gateway's scenario pages list each corpus's PUBLIC tasks, read from apps/gateway/tasks
+# (apps/gateway/src/landing/task-lists.ts). Only the public lists, each by name: never a keyed
+# corpus (*-corpus.json) or an answer key (<id>.json). A gateway test holds this line to the
+# scenarios' own lists. After the compile, so a changed list does not re-run it; only the
+# gateway image's runtime stage copies apps/gateway.
+COPY compose/specs/intent-tasks.json compose/specs/webmcp-tasks.json compose/specs/cuj-tasks.json ./apps/gateway/tasks/
 
 FROM ${NODE_IMAGE} AS runtime
 ARG APP
