@@ -43,8 +43,10 @@ export {
   type StayQuery,
 } from "./stays.js";
 export {
+  MAILBOXES,
   ScenarioRegistry,
   UnknownScenarioError,
+  mailboxesOf,
   type Agent,
   type Booking,
   type BookingStatus,
@@ -56,6 +58,7 @@ export {
   type Hotel,
   type HotelRows,
   type Location,
+  type Mailboxes,
   type Order,
   type OrderLine,
   type OrderStatus,

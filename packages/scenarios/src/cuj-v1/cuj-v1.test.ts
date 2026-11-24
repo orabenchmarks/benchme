@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scenarios } from "../index.js";
+import { mailboxesOf } from "../scenario.js";
 import { SITE_APPS } from "../sites/rows.js";
 import { webmcpV1 } from "../webmcp-v1/index.js";
 import { ACCOUNTS_PER_SITE } from "./accounts.js";
@@ -9,6 +10,13 @@ describe("cuj-v1", () => {
   it("is registered, and advertises the nine sites and the inbox", () => {
     expect(scenarios.get("cuj-v1")).toBe(cujV1);
     expect(cujV1.apps).toEqual([...SITE_APPS, "mail"]);
+  });
+
+  // Its people's mail goes to their own mailboxes, so a journey cannot sign up as one of them; every other scenario keeps one shared inbox.
+  it("keeps its people's mailboxes private, the only scenario that does", () => {
+    expect(cujV1.mailboxes).toBe("private");
+    expect(scenarios.list().map((s) => [s.key, mailboxesOf(s)])).toEqual(scenarios.list().map((s) => [s.key, s.key === "cuj-v1" ? "private" : "shared"]));
+    expect(mailboxesOf({})).toBe("shared");
   });
 
   it("has webmcp-v1's rows at the same seed, row for row, and adds only accounts", () => {
